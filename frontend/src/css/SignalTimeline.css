@@ -1,0 +1,88 @@
+.signal-timeline-details {
+  overflow-x: auto; /* Enable horizontal scrolling if needed */
+  height: 180px;
+  width: 100%;
+}
+
+.timelineContainer {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  padding: 8px;
+}
+
+#eventsContainer {
+  position: relative;
+  height: 100px; /* Adjust as needed */
+}
+
+.rangeBar {
+  position: absolute;
+  background-color: rgba(0, 0, 255, 0.5);
+  border-radius: 5px;
+  height: 40px; /* Adjust as needed */
+}
+
+.eventButton {
+  position: absolute;
+  background-color: red;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.timeContainer {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: visible;
+}
+
+.hourDiv {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  border-right: 1px solid var(--textColor3);
+  border-top: 1px solid var(--textColor3);
+  box-sizing: border-box;
+  height: 12px;
+  font-size: 11px;
+}
+
+.minContainer {
+  display: flex;
+  position: relative;
+  height: 20px; 
+  
+}
+
+.dayContainer {
+  position: relative;
+  display: block;
+}
+
+.minDiv {
+  border-left: 1px solid var(--textColor3);
+  flex-grow: 1;
+  position: relative;
+  height: 12px;
+  font-size: 11px;
+}
+
+.hourText {
+  text-align: left;
+  color: var(--textColor3);
+  position: absolute;
+  top: 12px;
+  left: -5px;
+  font-size: 12px;
+}
+
+.dayText {
+  text-align: left;
+  font-size: 14px;
+  padding-top: 18px;
+  color: var(--textColor3);
+  position: absolute
+}
+

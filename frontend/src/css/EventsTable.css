@@ -1,0 +1,235 @@
+
+:root {
+    --tableHeader: rgba(247, 4, 4, 0.01);
+    --hoveredRowColor: rgb(226, 239, 250);
+    --selectedRowColor: rgb(48, 113, 151);
+    --tabledataRowEvenBackground: rgba(255, 255, 255, 0.2);
+    --tabledataRowOddBackground: rgba(255, 255, 255, 0.3);
+    --tableDataRowEvenColor: rgba(0,0,0, .70);
+    --tableDataRowOddColor: rgba(0,0,0, .55);
+    --tableDataRowSelectedBackground:  rgba(255, 255, 255, 0.5);
+    --tableDataRowSelectedColor: rgb(13, 89, 112);
+    --tableHeaderRowRightBorderColor: rgb(1,1,1);
+    --tableDataRowRightBorderColor: rgba(172, 172, 172, 0.10);
+    --tableDataHeaderBackground: rgb(87, 133, 155);
+    --tableContainerBackground: rgba(255, 255, 255, 0.1);
+    --tableHeaderColor: rgb(214, 214, 214);
+    --tableDataHeaderColor: rgba(255, 255, 255, .8);
+  }
+  
+  [data-theme='dark'] {
+    --tableHeader: rgb(1,1,1);
+    --selectedRowColor: rgb(48, 84, 109);
+    --selectedRowColor: rgb(48, 113, 151);
+    --tabledataRowEvenBackground: rgba(15, 72, 97, 0.3);
+    --tabledataRowOddBackground: rgba(1, 75, 112, 0.2);
+    --tableDataRowEvenColor: rgba(184, 184, 184, 0.7);
+    --tableDataRowOddColor: rgba(184, 184, 184, .55);
+    --tableDataRowSelectedBackground: rgba(4, 149, 206, 0.2);
+    --tableDataRowSelectedColor: rgba(253, 253, 253, 0.8);
+    --tableDataRowSelectedTopBorder: 1px solid rgba(255, 255, 255, 0.2);
+    --tableDataRowRightBorderColor: rgba(172, 172, 172, 0.10);
+    --tableDataHeaderBackground: rgba(9, 38, 54, 0.4);
+    --tableContainerBackground: rgba(0, 0, 0, 0.2);
+    --tableDataHeaderColor: rgba(255, 255, 255, .5);
+  }
+  
+  .tableContainer {
+    width: 100%;
+    overflow-x: scroll; /* To manage horizontal overflow */
+    border-radius: 10px;
+    background-color: var(--tableContainerBackground);
+    margin: 12px 8px;
+    padding-bottom: 10px;
+  }
+  
+  .evenTable {
+    width: auto;
+    min-width: 100%;
+    max-width: 140%;
+    overflow-x: auto;
+  }
+  
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Arial', sans-serif;
+    table-layout: fixed;
+  }
+  
+  .tableHeader {
+    height: 30px;
+  }
+  
+  .table th,
+  .table td {
+    padding: 12px 15px;
+    text-align: left;
+    min-width: 80px;
+    max-width: 600px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 20%; /* Example percentage-based width */
+  }
+    
+  .table th {
+    color: #333;
+    font-weight: bold;
+    border-bottom: 2px solid #ddd;
+    position: relative;
+  }
+  
+  .table th span {
+    display: inline-block;
+    margin-left: 8px;
+    vertical-align: middle;
+    cursor: pointer;
+  }
+  
+  .selectHeader {
+    width: 50px;
+    max-width: 50px;
+    min-width: 50px;
+    text-align: center; /* To center the checkbox */
+    padding: 0; /* Remove padding to prevent checkbox overflow */
+    overflow: hidden; /* Ensure the content doesn't overflow */
+    background: var(--tableDataHeaderBackground);
+    color: var(--tableDataHeaderColor);
+    border-radius: 0px;
+  }
+  
+  .table td.checkbox-column {
+    width: 40px;
+    max-width: 40px;
+    min-width: 40px;
+    text-align: center; /* To center the checkbox */
+    padding: 0; /* Remove padding to prevent checkbox overflow */
+    overflow: hidden; /* Ensure the content doesn't overflow */
+    background: red;
+    color: 'var(--tableHeaderColor)';
+  }
+  
+  .tableBody td.checkbox-column input[type='checkbox'] {
+    margin: 0; /* Remove default margin */
+  }
+  
+    .filterInput {
+      width: calc(100% - 50px);
+      height: 25px; /* Set height to fit the header */
+      margin-top: 0; /* Remove margin to fit within the max height */
+      border: 1px solid #ccc;
+      font-size: 12px; /* Adjust font size to fit better */
+      outline: none;
+      transition: all 0.3s ease;
+      background: pink;
+    }
+    
+    .tableBody {
+      overflow-x: scroll;
+    }
+  
+    .filterInput:focus {
+      border-color: rgba(42, 83, 99, .2);
+      box-shadow: 0 0 8px rgba(0, 123, 255, 0.3);
+    }
+    
+    /* Table row styling */
+    .tableBody tr {
+      transition: all 0.5s ease-in-out;
+    }
+    
+    .tableBody tr:nth-child(even) {
+      background-color: var(--tabledataRowEvenBackground);
+      color: var(--tableDataRowEvenColor);
+    }
+    
+    .tableBody tr:nth-child(odd) {
+      background-color: var(--tabledataRowOddBackground);
+      color: var(--tableDataRowOddColor);
+    }
+    
+    .tableBody tr:hover {
+      background-color: var(--tableDataRowSelectedBackground);
+      color: var(--tableDataRowSelectedColor);
+      cursor: pointer;
+    }
+  
+    .tableBody td {
+      white-space: nowrap; /* Keep content in a single line */
+      overflow: hidden; /* Hide overflow content */
+      text-overflow: ellipsis; /* Display ellipsis when content overflows */
+    }
+    
+    /* Selected row styling */
+    .selectedRow {
+      background-color: var(--tableDataRowSelectedBackground);
+      border-color: 1px solid black;
+      color: green;
+  
+    }
+    
+    /* Checkbox styling */
+    .tableBody input[type='checkbox'] {
+      margin-right: 10px;
+    }
+    
+    
+    /* Sort icon styling */
+    .tableHeader th span {
+      margin-left: 10px;
+      cursor: pointer;
+      color: #999;
+    }
+    
+    .tableHeader th span:hover {
+      color: #007bff;
+    }
+    
+    /* Responsive design for smaller screens */
+    @media (max-width: 768px) {
+      .tableContainer {
+        overflow-x: scroll;
+        border: none;
+      }
+    
+      .table th,
+      .table td {
+        font-size: 14px;
+      }
+    
+      .filterInput {
+        font-size: 12px;
+        padding: 6px 8px;
+      }
+    }
+    
+    .filterIcon {
+      margin-left: 5px;
+      cursor: pointer;
+      opacity: 0.6;
+      transition: opacity 0.3s ease;
+    }
+    
+    .filterIcon:hover {
+      opacity: 1;
+    }
+  
+    .headerIcons {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-end;
+      margin-left: auto;
+    }
+  
+    .headerText {
+      width: calc(100% - 60px);
+      text-transform: capitalize;
+      justify-content: start;
+      color: var(--tableDataHeaderColor);
+    }
+  
+    .headerIcons span {
+      margin-left: 7px;
+      color: var(--tableHeaderColor);
+    }

@@ -1,0 +1,58 @@
+.addRuleButton {
+    padding: 10px 20px;
+    font-size: 14px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    background-color: #64b5f6; /* Initial background color */
+    color: white;
+    transition: background-color 0.3s ease, transform 0.2s ease; /* Smooth transitions */
+  }
+  
+  .addRuleButton:hover {
+    background-color: #42a5f5; /* Lighter blue on hover */
+    transform: scale(1.05); /* Slight enlargement on hover */
+  }
+  
+  .addRuleButton:active {
+    background-color: #2196f3; /* Darker blue when clicked */
+    transform: scale(0.98); /* Slight shrink on click */
+  }
+  
+  .signalTagContainer {
+    padding: 10px;
+  }
+ 
+
+  
+  .update-button {
+    padding: 10px 20px;
+    background-color: var(--buttonBackground);
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-left: 10px;
+    margin-top: 10px;
+  }
+
+  .update-button:hover {
+    background-color: var(--buttonHoverBackground);
+    color: var(--activeTextColor);
+  }
+  
+  .delete-button {
+    padding: 10px 20px;
+    background-color: red;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-left: 10px;
+  }
+
+  .syslogConfigContent {
+    display: flex;
+    background: var(--backgroundColor3);
+    color: var(--textColor);
+  }

@@ -1,0 +1,27 @@
+# Base Python image
+FROM python:3.10-slim
+
+# Set working directory
+WORKDIR /app/signals
+
+COPY . .
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+
+# Add Celery and Redis to your requirements file
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install Celery and Redis
+RUN pip install celery redis
+
+# Copy the consumer script
+COPY syslog-signals.py .
+
+# Run the consumer with Celery (if syslog-signals.py is to be executed by Celery)
+CMD ["celery", "-A", "syslog-signals", "worker", "--loglevel=info"]

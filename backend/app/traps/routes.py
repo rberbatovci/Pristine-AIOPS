@@ -1,0 +1,335 @@
+from .schemas import Trap, TrapCreate, StatefulTrapRuleResponse, SNMPConfig, TagSchema, TrapOid, StatefulTrapRuleBase, TagCreate, StatefulTrapRule, TagDelete, TrapOidBrief, TrapOidUpdate, StatefulTrapRuleBrief
+from .services import checkOids
+from app.devices.models import Device as DeviceModel
+from .models import Tag as TagModel
+from .models import Trap as TrapModel
+from .models import TrapOid as TrapOidModel, StatefulTrapRule as TrapRulesModel
+from ..db.session import get_db, opensearch_client
+from fastapi import APIRouter, Depends, status, HTTPException, Query, UploadFile, File
+from fastapi.responses import JSONResponse
+import os
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
+from sqlalchemy import select, insert, delete, update
+from opensearchpy import OpenSearch
+import shutil
+from .services import create_snmpTrapOid_in_file
+from typing import List, Dict, Any, Optional
+from sqlalchemy.orm import selectinload
+import traceback
+from .services import save_statefulrules_to_file, remove_rule_from_json
+router = APIRouter()
+
+MIBS_DIR = "/app/traps/mibs"
+
+@router.get("/traps/mibs/")
+def list_mibs():
+    try:
+        files = [f for f in os.listdir(MIBS_DIR) if os.path.isfile(os.path.join(MIBS_DIR, f))]
+        return JSONResponse(content={"mibs": files})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.delete("/traps/mibs/{filename}")
+def delete_mib(filename: str):
+    file_path = os.path.join(MIBS_DIR, filename)
+    try:
+        if os.path.exists(file_path) and os.path.isfile(file_path):
+            os.remove(file_path)
+            return JSONResponse(content={"message": f"{filename} deleted."})
+        return JSONResponse(status_code=404, content={"error": "File not found."})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/traps/mibs/upload/")
+async def upload_mib(file: UploadFile = File(...)):
+    try:
+        file_path = os.path.join(MIBS_DIR, file.filename)
+
+        # Save uploaded file to the MIBS_DIR
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        return JSONResponse(content={"filename": file.filename, "message": "File uploaded successfully."})
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error uploading file: {str(e)}")
+
+@router.post("/traps/")
+async def create_trap(trap_data: TrapCreate, db: AsyncSession = Depends(get_db)):
+    trap = TrapModel(
+        content=trap_data.content,
+        device=trap_data.device
+    )
+    db.add(trap)
+    await db.commit()
+    await db.refresh(trap)
+    await checkOids(trap, db)
+    await db.commit()
+
+client = OpenSearch([{'host': 'localhost', 'port': 9200}])
+
+@router.get("/traps/")
+async def get_traps(page: int = Query(1, ge=1, description="Page number"),
+                    page_size: int = Query(10, ge=1, le=100, description="Number of items per page")):
+    """
+    Retrieves paginated SNMP traps from OpenSearch.
+
+    Args:
+        page: The page number to retrieve (default: 1).
+        page_size: The number of traps to return per page (default: 10, max: 100).
+
+    Returns:
+        A list of trap hits for the requested page.
+    """
+    start = (page - 1) * page_size
+    body = {
+        "query": {"match_all": {}},
+        "from": start,
+        "size": page_size
+    }
+    response = opensearch_client.search(
+        index="traps",
+        body=body
+    )
+    
+    hits = response['hits']['hits']
+    total = response['hits']['total']['value']  # Get total number of traps
+
+    return {
+        "results": hits,
+        "total": total,
+        "page": page,
+        "page_size": page_size
+    }
+
+@router.get("/traps/tags/", response_model=list[TagSchema])
+async def get_tags(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(TagModel).offset(skip).limit(limit))
+    tags = result.scalars().all()
+    return tags
+
+@router.post("/traps/tags/", response_model=TagSchema, status_code=201)
+async def create_tag(tag: TagCreate, db: AsyncSession = Depends(get_db)):
+    async with db.begin():
+        try:
+            stmt = insert(TagModel).values(name=tag.name, oids=tag.oids).returning(TagModel)
+            result = await db.execute(stmt)
+            new_tag = result.scalar_one()
+            return new_tag
+        except Exception as e:
+            await db.rollback()
+            # Handle potential unique constraint violations more gracefully
+            existing_tag = await db.execute(select(TagModel).where(TagModel.name == tag.name))
+            if existing_tag.scalar_one_or_none():
+                raise HTTPException(status_code=400, detail="Tag with this name already exists")
+            raise
+
+@router.delete("/traps/tags/{tag_name}", status_code=204)
+async def delete_tag(tag_name: str, db: AsyncSession = Depends(get_db)):
+    async with db.begin():
+        stmt = delete(TagModel).where(TagModel.name == tag_name)
+        result = await db.execute(stmt)
+        if result.rowcount == 0:
+            raise HTTPException(status_code=404, detail=f"Tag '{tag_name}' not found")
+    return
+
+@router.post("/traps/trapOids/", response_model=TrapOid)
+async def create_snmpTrapOid(snmpTrapOid: TrapOid, db: AsyncSession = Depends(get_db)):
+    print("Received Payload:", snmpTrapOid)
+    db_snmpTrapOid = await db.execute(select(TrapOidModel).filter(TrapOidModel.name == snmpTrapOid.name))
+    if db_snmpTrapOid.scalars().first():
+        raise HTTPException(status_code=400, detail="SNMP Trap OID already exists")
+    db_snmpTrapOid = TrapOidModel(name=snmpTrapOid.name, value=snmpTrapOid.name)
+    db.add(db_snmpTrapOid)
+    await db.commit()
+    await db.refresh(db_snmpTrapOid)
+    try:
+        create_snmpTrapOid_in_file(snmpTrapOid.name)
+    except Exception as e:
+        print(f"Failed to write to JSON file: {e}")
+    return db_snmpTrapOid
+
+@router.get("/traps/trapOids/", response_model=list[TrapOidBrief])
+async def read_mnemonics(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(TrapOidModel).offset(skip).limit(limit))
+    mnemonics = result.scalars().all()
+    return mnemonics
+
+@router.get("/traps/trapOids/{trap_oid_name}", response_model=TrapOid)
+async def get_trap_oid_by_name(trap_oid_name: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(TrapOidModel).options(selectinload(TrapOidModel.rules)).where(TrapOidModel.name == trap_oid_name)
+    )
+    trap_oid = result.scalars().first()
+    if not trap_oid:
+        raise HTTPException(status_code=404, detail="TrapOid not found")
+    return trap_oid
+
+@router.patch("/traps/trapOids/{trap_oid_id}", response_model=TrapOid)
+async def update_trap_oid(
+    trap_oid_id: int,
+    trap_oid_update: TrapOidUpdate,
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(select(TrapOidModel).filter(TrapOidModel.id == trap_oid_id))
+    trap_oid = result.scalars().first()
+    if not trap_oid:
+        raise HTTPException(status_code=404, detail="TrapOid not found")
+
+    # Update fields if provided
+    if trap_oid_update.name is not None:
+        trap_oid.name = trap_oid_update.name
+    if trap_oid_update.tags is not None:
+        trap_oid.tags = trap_oid_update.tags
+
+    db.add(trap_oid)
+    await db.commit()
+    await db.refresh(trap_oid)
+
+    return trap_oid
+async def get_trapOid_by_id(db: AsyncSession, trap_oid_id: int) -> TrapOidModel | None:
+    result = await db.execute(select(TrapOidModel).where(TrapOidModel.id == trap_oid_id))
+    return result.scalar_one_or_none()
+
+@router.get("/traps/statefulrules/", response_model=List[StatefulTrapRuleBrief])
+async def get_stateful_trap_rules_brief(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(TrapRulesModel.id, TrapRulesModel.name))
+    return [{"id": r[0], "name": r[1]} for r in result.all()]
+
+@router.post("/traps/statefulrules/", response_model=StatefulTrapRuleResponse)
+async def create_stateful_rule(rule: StatefulTrapRuleBase, db: AsyncSession = Depends(get_db)):
+    try:
+        # Fetch trap OIDs
+        open_trapOid = (
+            await db.execute(select(TrapOidModel).where(TrapOidModel.name == rule.opensignaltrap))
+        ).scalars().first()
+        if rule.opensignaltrap and not open_trapOid:
+            raise HTTPException(status_code=400, detail=f"Open signal Trap '{rule.opensignaltrap}' does not exist.")
+
+        close_trapOid = (
+            await db.execute(select(TrapOidModel).where(TrapOidModel.name == rule.closesignaltrap))
+        ).scalars().first()
+        if rule.closesignaltrap and not close_trapOid:
+            raise HTTPException(status_code=400, detail=f"Close signal Trap '{rule.closesignaltrap}' does not exist.")
+
+        # Fetch devices by hostname
+        devices = []
+        if rule.device_hostnames:
+            result = await db.execute(
+                select(DeviceModel).where(DeviceModel.hostname.in_(rule.device_hostnames))
+            )
+            devices = result.scalars().all()
+
+        # Create rule
+        db_rule = TrapRulesModel(
+            name = rule.name,
+            opensignaltag = rule.opensignaltag,
+            opensignalvalue = rule.opensignalvalue,
+            closesignaltag = rule.closesignaltag,
+            closesignalvalue = rule.closesignalvalue,
+            initialseverity = rule.initialseverity,
+            affectedentity = rule.affectedentity,
+            description = rule.description,
+            warmup = rule.warmup,
+            cooldown = rule.cooldown,
+            opensignaltrap = open_trapOid,
+            closesignaltrap = close_trapOid,
+            devices = devices
+        )
+
+        db.add(db_rule)
+        await db.commit()
+        await db.refresh(db_rule)
+
+        result = await db.execute(
+            select(TrapRulesModel)
+            .options(
+                selectinload(TrapRulesModel.opensignaltrap),
+                selectinload(TrapRulesModel.closesignaltrap),
+                selectinload(TrapRulesModel.devices),
+            )
+            .where(TrapRulesModel.id == db_rule.id)
+        )
+        db_rule = result.scalars().first()
+
+        await save_statefulrules_to_file(db)
+
+        return StatefulTrapRuleResponse(
+            id=db_rule.id,
+            name=db_rule.name,
+            opensignaltag=db_rule.opensignaltag,
+            opensignalvalue=db_rule.opensignalvalue,
+            closesignaltag=db_rule.closesignaltag,
+            closesignalvalue=db_rule.closesignalvalue,
+            initialseverity=db_rule.initialseverity,
+            affectedentity=db_rule.affectedentity,
+            description=db_rule.description,
+            warmup=db_rule.warmup,
+            cooldown=db_rule.cooldown,
+            opensignaltrap=db_rule.opensignaltrap.name,
+            closesignaltrap=db_rule.closesignaltrap.name,
+            device_hostnames=[device.hostname for device in db_rule.devices],
+        )
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@router.get("/traps/statefulrules/{rule_name}", response_model=StatefulTrapRuleBase)
+async def get_rule(rule_name: str, db: AsyncSession = Depends(get_db)):
+    stmt = (
+        select(TrapRulesModel)
+        .options(
+            selectinload(TrapRulesModel.opensignaltrap),
+            selectinload(TrapRulesModel.closesignaltrap),
+            selectinload(TrapRulesModel.devices),
+        )
+        .where(TrapRulesModel.name == rule_name)
+    )
+    result = await db.execute(stmt)
+    db_rule = result.scalars().first()
+    if not db_rule:
+        raise HTTPException(status_code=404, detail="Rule not found")
+
+    return StatefulTrapRuleBase(
+        name=db_rule.name,
+        opensignaltrap=db_rule.opensignaltrap.name if db_rule.opensignaltrap else None,
+        closesignaltrap=db_rule.closesignaltrap.name if db_rule.closesignaltrap else None,
+        opensignaltag=db_rule.opensignaltag,
+        opensignalvalue=db_rule.opensignalvalue,
+        closesignaltag=db_rule.closesignaltag,
+        closesignalvalue=db_rule.closesignalvalue,
+        initialseverity=db_rule.initialseverity,
+        affectedentity=db_rule.affectedentity,
+        description=db_rule.description,
+        warmup=db_rule.warmup,
+        cooldown=db_rule.cooldown,
+        device_hostnames=[device.hostname for device in db_rule.devices] if db_rule.devices else [],
+    )
+
+@router.delete("/traps/statefulrules/{rule_name}", status_code=204)
+async def delete_stateful_syslog_rule(
+    rule_name: str, 
+    session: AsyncSession = Depends(get_db)
+):
+    # Eagerly load related mnemonics
+    result = await session.execute(
+        select(TrapRulesModel)
+        .options(
+            selectinload(TrapRulesModel.opensignaltrap),
+            selectinload(TrapRulesModel.closesignaltrap)
+        )
+        .where(TrapRulesModel.name == rule_name)
+    )
+
+    rule = result.scalars().first()
+    
+    if not rule:
+        raise HTTPException(status_code=404, detail="Rule not found")
+
+    await session.delete(rule)
+    await session.commit()
+
+    await remove_rule_from_json(rule.name)
+
+    return {"detail": f"Rule '{rule_name}' deleted successfully"}

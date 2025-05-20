@@ -1,0 +1,262 @@
+version: '3.8'
+
+networks:
+  kafka-net:
+    driver: bridge
+
+services:
+  backend:
+    container_name: FastAPI
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    volumes:
+      - ./syslogs:/app/syslogs
+      - ./signals:/app/signals
+      - ./traps:/app/traps
+    networks:
+      - kafka-net
+    entrypoint: ["/app/backend/entrypoint.sh"]
+
+  #frontend:
+  #  container_name: ReactJS
+  #  build:
+  #    context: ./frontend
+  #    dockerfile: Docker.frontend
+  #  ports:
+  #    - "3000:3000"
+  #  volumes:
+  #    - ./frontend:/app
+  #  environment:
+  #    - CHOKIDAR_USEPOLLING=true
+  #  networks:
+  #    - kafka-net
+
+  postgresql:
+    image: postgres:15
+    container_name: PostgreSQL
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: PristineAdmin
+      POSTGRES_PASSWORD: PristinePassword
+      POSTGRES_DB: fpristine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+      - ./postgresql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U PristineAdmin -d fpristine"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kafka-net
+
+  kafka:
+    container_name: Kafka
+    image: wurstmeister/kafka:latest
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,INTERNAL://kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,INTERNAL://0.0.0.0:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_CREATE_TOPICS: "syslog-topic:1:1,trap-topic:1:1,netflow-topic:1:1,syslog-signals:1:1"
+    ports:
+      - "9092:9092"
+    depends_on:
+      zookeeper:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kafka-net
+
+  zookeeper:
+    container_name: Zookeeper
+    image: bitnami/zookeeper:latest
+    ports:
+      - "2181:2181"
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+    healthcheck:
+      test: ["CMD", "zkServer.sh", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kafka-net
+
+  opensearch:
+    image: opensearchproject/opensearch:1.0.1
+    container_name: OpenSearch
+    environment:
+      - cluster.name=opensearch-cluster
+      - node.name=opensearch-node1
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - DISABLE_SECURITY_PLUGIN=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - ./opensearch/config/opensearch.yml:/usr/share/opensearch/config/opensearch.yml
+      - ./opensearch/config/jvm.options:/usr/share/opensearch/config/jvm.options
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    ports:
+      - 9200:9200
+      - 9600:9600
+    networks:
+      - kafka-net
+
+  opensearch-init:
+    build:
+      context: ./opensearch
+      dockerfile: Dockerfile.OpenSearch
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    networks:
+      - kafka-net
+
+  redis:
+    container_name: Redis
+    image: redis:latest
+    ports:
+      - "6380:6379"
+    networks:
+      - kafka-net
+
+  celery-worker:
+    container_name: CeleryWorker
+    build:
+      context: ./signals
+      dockerfile: Dockerfile.syslogSignals
+    command: celery -A tasks worker --loglevel=info
+    depends_on:
+      - redis
+      - kafka
+    networks:
+      - kafka-net
+
+  syslog-producer:
+    container_name: SyslogProducer
+    build:
+      context: ./syslogs
+      dockerfile: Dockerfile.producer
+    environment:
+      KAFKA_BROKER: kafka:9092
+      KAFKA_TOPIC: syslog-topic
+    ports:
+      - "1160:1160/udp"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - kafka-net
+
+  syslog-consumer:
+    container_name: SyslogConsumer
+    build:
+      context: ./syslogs
+      dockerfile: Dockerfile.consumer
+    volumes:
+      - ./syslogs:/app/syslogs
+    command: python /app/syslogs/consumer.py
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - kafka-net
+
+  syslog-signals:
+    container_name: SyslogSignals
+    build:
+      context: ./signals
+      dockerfile: Dockerfile.syslogSignals
+    volumes:
+      - ./signals:/app/signals
+    command: python /app/signals/syslog-signals.py
+    depends_on:
+      kafka: 
+        condition: service_healthy
+    networks:
+      - kafka-net
+
+  trap-producer:
+    container_name: TrapProducer
+    build:
+      context: ./traps
+      dockerfile: Dockerfile.producer
+    environment:
+      KAFKA_BROKER: kafka:9092
+      KAFKA_TOPIC: snmp_traps
+    ports:
+      - "1161:1161/udp"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - kafka-net
+
+  trap-consumer:
+    container_name: TrapConsumer
+    build:
+      context: ./traps
+      dockerfile: Dockerfile.consumer
+    volumes:
+      - ./traps:/app/traps
+    command: python /app/traps/consumer.py
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - kafka-net
+
+  netflow-producer:
+    container_name: NetflowProducer
+    build:
+      context: ./netflow
+      dockerfile: Dockerfile.producer
+    ports:
+      - "1162:1162/udp"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - kafka-net
+
+  netflow-consumer:
+    container_name: NetflowConsumer
+    build:
+      context: ./netflow
+      dockerfile: Dockerfile.consumer
+    depends_on:
+      kafka:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - kafka-net
+
+volumes:
+  postgres_data:
+  opensearch-data1:

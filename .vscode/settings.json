@@ -1,0 +1,13 @@
+{
+    "files.associations": {
+        "net-snmp-includes.h": "c",
+        "snmp_client.h": "c",
+        "utilities.h": "c",
+        "snmp_transport.h": "c",
+        "stdio.h": "c",
+        "stdlib.h": "c",
+        "net-snmp-config.h": "c",
+        "rdkafka.h": "c",
+        "string.h": "c"
+    }
+}

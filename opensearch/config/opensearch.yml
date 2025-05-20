@@ -1,0 +1,6 @@
+cluster.name: opensearch-cluster
+node.name: opensearch-node1
+network.host: 0.0.0.0
+discovery.type: single-node
+bootstrap.memory_lock: true
+plugins.security.disabled: true

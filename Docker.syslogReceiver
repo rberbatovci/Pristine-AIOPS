@@ -1,0 +1,14 @@
+# Dockerfile.syslogProducer
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY kafka/syslogs/producer1.py /app/producer1.py
+COPY kafka/syslogs/utils.py /app/utils.py
+COPY kafka/syslogs/mnemonics.json /app/mnemonics.json
+COPY kafka/syslogs/regex_data.json /app/regex_data.json
+
+COPY requirements.txt /app/
+RUN pip install --no-cache-dir -r requirements.txt
+
+CMD ["python", "producer1.py"]

@@ -1,0 +1,272 @@
+:root {
+    --background1: rgba(255, 255, 255, 0.3);
+    --headerBackground: rgba(255, 255, 255, .3);
+    --dropdownBorderColor: #ccc;
+    --dropdownShadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+    --dropdownHeaderColor: rgb(15, 92, 136);
+}
+
+[data-theme='dark'] {
+    --background1: rgba(93, 154, 247, 0.1);
+    --dropdownBorderColor:rgb(6, 80, 107);
+    --headerBackground: rgba(114, 163, 236, 0.1);
+}
+
+.mainContainer {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 100px);
+    margin-bottom: 5px;
+    width: 90%;
+    box-shadow: 4px 4px 20px rgba(29, 29, 29, 0.1);
+    border-top: var(--borderLight);
+    border-bottom: var(--borderDark2);
+    border-radius: 12px;
+    color: var(--textColor);
+    background: var(--contentBackground);
+    backdrop-filter: blur(25px);
+}
+
+.mainContainerHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 50px;
+    background-color: var(--headerBackground);
+    padding: 0 10px;
+    border-radius: 12px 12px 0 0;
+    color: var(--textColor);
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.eventsTitleHeader {
+    cursor: pointer;
+    font-size: .9rem;
+    color: var(--textColor);
+    transition: all 0.3s ease; /* smooth transition */
+    padding: 4px 6px;
+    border-radius: 6px;
+    opacity: 0.7;
+}
+
+.eventsTitleHeader:hover {
+    padding: 4px 12px;
+    font-size: 1rem;
+    color: var(--textColor2);
+    background-color: rgba(255, 255, 255, 0.05); /* optional hover bg */
+    opacity: 1;
+    text-shadow: 0 0 5px var(--textColor2), 0 0 10px var(--textColor2);
+}
+
+.eventsTitleHeaderActive {
+    font-size: 1rem;
+    color: var(--textColor2);
+    padding: 4px 12px;
+    font-weight: 600;
+    opacity: 1;
+}
+
+.headerTitles {
+    display: flex;
+    align-items: center;
+    gap: 16px; /* adjust spacing between headings */
+  }
+
+.mainContainerTitle {
+    margin-left: 10px;
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--textColor);
+}
+
+.mainContainerButtons {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.mainContainerContent {
+    flex-grow: 1;
+    border-radius: 0 0 12px 12px;
+}
+
+/* Dropdown styling with transitions */
+.dropdownMenu {
+    position: absolute;
+    width: 300px;
+    height: auto;
+    top: 50px;
+    right: 10px;
+    background-color: var(--dropdownBackground);
+    border: 1px solid var(--dropdownBorderColor);
+    border-radius: 10px;
+    box-shadow: var(--dropdownShadow);
+    z-index: 1000;
+    opacity: 0;
+    padding: 0;
+    transform: translateY(-20px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    backdrop-filter: blur(20px);
+}
+
+/* Visible dropdown with smooth transition */
+.dropdownVisible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Hidden dropdown (keeps it hidden but ready to animate) */
+.dropdownHidden {
+    opacity: 0;
+    transform: translateY(-20px);
+    pointer-events: none;
+}
+
+.iconButton {
+    background-color: transparent;
+    border: none;
+    color: var(--textColor);
+    cursor: pointer;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: all 0.2s ease-in-out;
+}
+
+/* Default icon is visible by default */
+.iconButton .defaultIcon {
+    transition: color .5s ease-in-out;
+    display: block;
+}
+
+/* Hover icon is hidden by default */
+.iconButton .hoverIcon {
+    transition: color .5s ease-in-out;
+    display: none;
+}
+
+/* On hover, swap the icons */
+.iconButton:hover .defaultIcon {
+    transition: color .5s ease-in-out;
+    display: none;
+}
+
+.iconButton:hover .hoverIcon {
+    display: block;
+    font-size: 24px;
+    transition: color .5s ease-in-out;
+    color: var(--textColor2);
+}
+
+.iconButton.active .defaultIcon {
+    display: none;
+}
+.iconButton.active .hoverIcon {
+    display: block;
+    font-size: 24px;
+    color: var(--textColor2);
+}
+
+.iconButton.active {
+    color: var(--iconHoverColor);
+    background: none;
+}
+
+.defaultIcon.hasFilters {
+    color: var(--iconHoverColor);
+}
+
+.defaultIcon {
+    color: gray;
+}
+
+ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+  }
+  
+  li {
+    border: 1px solid var(--itemBckHvr);
+    border-radius: 5px;
+    margin-bottom: 8px;
+    padding: 5px;
+    background-color: var(--syslogTagHeaderText);
+    transition: background-color 0.5s ease-in-out;
+    transition: all 0.5 ease-in-out;
+  }
+  
+  li:hover {
+    background-color: var(--itemBckHvr);
+    color: var(--itemColorHvr);
+  }
+  
+  li.active {
+    background-color: var(--itemBckHvr);
+    color: var(--itemTxtAct);
+  }
+  
+  li.inactive {
+    display: none;
+  }
+
+.mainContainerContent2 {
+    display: flex;
+    height: calc(100vh - 170px); /* Adjust this as needed */
+    padding: 8px 12px;
+}
+
+.left-panel {
+    flex: 1;
+    max-height: 100%; /* Ensure the panel doesn't exceed the container height */
+    overflow-y: auto; /* Enable vertical scrolling */
+    border-right: 1px solid #ccc; /* Optional: adds a border for separation */
+}
+
+.right-panel {
+    flex: 2;
+    display: flex;
+    flex-direction: column;
+}
+
+.top-section, .bottom-section {
+    padding: 20px; /* Add padding for spacing */
+    flex: 1; /* Distribute available space evenly */
+    overflow-y: auto; /* Ensure the content scrolls if necessary */
+}
+
+.loadingMessage {
+    display: flex;
+    border-radius: 8px;
+    justify-content: center;
+    align-items: center;
+    background: var(--background1);
+    height: calc(100vh - 200px);
+}
+
+.errorMessage {
+    display: flex;
+    border-radius: 8px;
+    justify-content: center;
+    align-items: center;
+    background: var(--background1);
+    height: calc(100vh - 200px);
+}
+
+.syslogsTableContainer {
+    flex: 1;
+    display: flex;
+    height: calc(100vh - 190px);
+}
+
+.paginationContainer {
+    display: flex;
+    width: 100%;
+    margin-top: 2px;
+    justify-content: space-between; /* Distribute child elements evenly */
+    align-items: center;
+    height: 30px;
+}

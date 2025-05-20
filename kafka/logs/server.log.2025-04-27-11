@@ -1,0 +1,3 @@
+[2025-04-27 11:57:32,923] INFO [GroupCoordinator 0]: Member rdkafka-cf7eecfe-6b6f-4226-98ec-f9c0d897b93f in group syslog-consumer-group has failed, removing it from the group (kafka.coordinator.group.GroupCoordinator)
+[2025-04-27 11:57:32,926] INFO [GroupCoordinator 0]: Preparing to rebalance group syslog-consumer-group in state PreparingRebalance with old generation 9 (__consumer_offsets-26) (reason: removing member rdkafka-cf7eecfe-6b6f-4226-98ec-f9c0d897b93f on heartbeat expiration) (kafka.coordinator.group.GroupCoordinator)
+[2025-04-27 11:57:32,926] INFO [GroupCoordinator 0]: Group syslog-consumer-group with generation 10 is now empty (__consumer_offsets-26) (kafka.coordinator.group.GroupCoordinator)

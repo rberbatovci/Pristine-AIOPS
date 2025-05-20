@@ -1,0 +1,450 @@
+import React, { useState, useEffect } from 'react';
+import Select from 'react-select';
+import customStyles from '../../components/misc/SelectStyles';
+import { AiFillCaretDown, AiFillCaretRight } from 'react-icons/ai';
+import apiClient from '../misc/AxiosConfig';
+
+function OIDConfig({ snmpTrapOids, isLoading, onAdd, onDelete, onEdit }) {
+    const [showContent, setShowContent] = useState(false);
+    const [editedData, setEditedData] = useState({});
+    const [newSnmpOid, setNewSnmpOid] = useState({
+        name: '',
+        oid: '',
+        snmpTrapOids: [],
+        snmpTrapOidFilter: '',
+        formatter: null,
+        mappings: [{ id: '', value: '' }]
+    });
+    const [isAddNewOid, setIsAddNewOid] = useState(true);
+    const [snmpOids, setSnmpOids] = useState([]);
+    const [selectedOption, setSelectedOption] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [alert, setAlert] = useState('');
+    const [selectedFormatter, setSelectedFormatter] = useState(null);
+    const formatterOptions = [
+        { value: 'ms2duration', label: 'Milliseconds to Duration' },
+        { value: '1to1mapping', label: 'One to one mapping' },
+        { value: 'prefixOids', label: 'Prefix OIDs' },
+        { valune: null, label: 'None' },
+    ];
+    // Fetch SNMP OIDs on component mount
+    const fetchSnmpOids = () => {
+        apiClient
+            .get('/snmptraps/oid/') // Use the configured apiClient
+            .then((response) => {
+                setSnmpOids(response.data); // Update state with the fetched OIDs
+                console.log('Fetched SNMP OIDs:', response.data);
+            })
+            .catch((error) => {
+                console.error('Error fetching SNMP OIDs:', error);
+            });
+    };
+
+    useEffect(() => {
+        fetchSnmpOids();
+    }, []);
+
+    const handleEditClick = (oidId) => {
+        onEdit(oidId, editedData[oidId]);
+    };
+
+    const handleDelete = async () => {
+        if (!selectedOption) return;
+        try {
+            await apiClient.delete(`/snmptraps/oid/${selectedOption.id}/`);
+            setSnmpOids(snmpOids.filter((oid) => oid.id !== selectedOption.id));
+            setSelectedOption(null);
+            setEditedData({});
+            console.log('OID successfully deleted:', selectedOption.id);
+        } catch (error) {
+            console.error('Error deleting OID:', error.response || error.message);
+        }
+    };
+
+
+
+    const handleAddMapping = (oidId) => {
+        setEditedData((prevData) => {
+            const updatedMappings = [...(prevData[oidId]?.mappings || []), { id: '', value: '' }];
+            return {
+                ...prevData,
+                [oidId]: { ...prevData[oidId], mappings: updatedMappings }
+            };
+        });
+    };
+
+    const handleMappingChange = (oidId, mappingIndex, field, value) => {
+        const newMappings = [...editedData[oidId].mappings];
+        newMappings[mappingIndex] = { ...newMappings[mappingIndex], [field]: value };
+        setEditedData((prevData) => ({
+            ...prevData,
+            [oidId]: { ...prevData[oidId], mappings: newMappings }
+        }));
+    };
+
+    const handleDeleteMapping = (oidId, mappingIndex) => {
+        const newMappings = editedData[oidId].mappings.filter((_, index) => index !== mappingIndex);
+        setEditedData((prevData) => ({
+            ...prevData,
+            [oidId]: { ...prevData[oidId], mappings: newMappings }
+        }));
+    };
+
+    const handleOptionChange = (oid) => {
+        setSelectedOption(oid);
+        setIsAddNewOid(false);
+        setEditedData(oid); // Set the selected OID as editable
+    };
+
+    const handleDeleteMappingForNewOid = (index) => {
+        // Create a new array that filters out the mapping at the specified index
+        const updatedMappings = newSnmpOid.mappings.filter((_, i) => i !== index);
+
+        // Update the state with the new mappings array
+        setNewSnmpOid({
+            ...newSnmpOid,
+            mappings: updatedMappings,
+        });
+    };
+
+    const handleFormatterChangeForNewOid = (selectedOption) => {
+        setNewSnmpOid((prevOid) => {
+            const updatedOid = { ...prevOid, formatter: selectedOption.value };
+
+            // Initialize mappings if the formatter is '1to1mapping'
+            if (selectedOption.value === '1to1mapping') {
+                updatedOid.mappings = updatedOid.mappings || [{ id: 'id', value: 'value' }];
+            } else {
+                updatedOid.mappings = [];
+            }
+            return updatedOid;
+        });
+    };
+
+
+    // Render mappings for new OID
+    const renderMappingsTableForNewOid = () => {
+        const mappings = newSnmpOid.mappings || [];
+        return (
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Value</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {mappings.map((mapping, index) => (
+                        <tr key={index}>
+                            <td>
+                                <input
+                                    type="text"
+                                    value={mapping.id}
+                                    style={{ width: '70px' }}
+                                    onChange={(e) => handleNewOidMappingChange(index, 'id', e.target.value)}
+                                />
+                            </td>
+                            <td>
+                                <input
+                                    type="text"
+                                    value={mapping.value}
+                                    onChange={(e) => handleNewOidMappingChange(index, 'value', e.target.value)}
+                                />
+                            </td>
+                            <td>
+                                <button onClick={() => handleDeleteMappingForNewOid(index)}>Delete</button>
+                            </td>
+                        </tr>
+                    ))}
+                    <tr>
+                        <td colSpan="3">
+                            <button onClick={handleAddMappingForNewOid}>Add Mapping</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        );
+    };
+
+    // Add a new mapping for the new OID
+    const handleAddMappingForNewOid = () => {
+        setNewSnmpOid((prevOid) => {
+            return { ...prevOid, mappings: [...prevOid.mappings, { id: '', value: '' }] };
+        });
+    };
+
+    const handleSnmpTrapOidChange = (selectedOptions) => {
+        const selectedIds = selectedOptions ? selectedOptions.map(option => option.value) : [];
+        setNewSnmpOid({
+            ...newSnmpOid,
+            snmpTrapOids: selectedIds,
+        });
+    };
+
+    const handleAddOID = async () => {
+        try {
+            const response = await apiClient.post('/snmptraps/oid/', newSnmpOid);
+            setSnmpOids([...snmpOids, response.data]);
+            setNewSnmpOid({ name: '', oid: '', formatter: null, mappings: [{ id: '', value: '' }] });
+            setIsAddNewOid(true);
+            console.log('OID successfully added:', response.data);
+        } catch (error) {
+            console.error('Error adding new OID:', error.response || error.message);
+        }
+    };
+
+    const handleSave = async () => {
+        try {
+            const updatedOid = { ...selectedOption, ...editedData };
+            await apiClient.put(`/snmptraps/oid/${updatedOid.id}/`, updatedOid);
+            setSnmpOids(snmpOids.map((oid) => (oid.id === updatedOid.id ? updatedOid : oid)));
+            setSelectedOption(null);
+            setEditedData({});
+            console.log('OID successfully updated:', updatedOid);
+        } catch (error) {
+            console.error('Error saving OID:', error.response || error.message);
+        }
+    };
+
+    const renderMappingsTable = (oid) => {
+        // Ensure that mappings is defined, default to an empty array if undefined
+        const mappings = oid.mappings || [];
+
+        return (
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Value</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {mappings.map((mapping, index) => (
+                        <tr key={index}>
+                            <td>
+                                <input
+                                    type="text"
+                                    value={mapping.id}
+                                    style={{ width: '70px' }}
+                                    onChange={(e) => handleMappingChange(oid.id, index, 'id', e.target.value)}
+                                />
+                            </td>
+                            <td>
+                                <input
+                                    type="text"
+                                    value={mapping.value}
+                                    onChange={(e) => handleMappingChange(oid.id, index, 'value', e.target.value)}
+                                />
+                            </td>
+                            <td>
+                                <button onClick={() => handleDeleteMapping(oid.id, index)}>Delete</button>
+                            </td>
+                        </tr>
+                    ))}
+                    <tr>
+                        <td colSpan="3">
+                            <button onClick={() => handleAddMapping(oid.id)}>Add Mapping</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        );
+    };
+
+    // Handle changes in mappings for new OID
+    const handleNewOidMappingChange = (mappingIndex, field, value) => {
+        const newMappings = [...newSnmpOid.mappings];
+        newMappings[mappingIndex] = { ...newMappings[mappingIndex], [field]: value };
+        setNewSnmpOid({ ...newSnmpOid, mappings: newMappings });
+    };
+
+    return (
+        <div className="searchElement" style={{ width: '100%', display: 'flex', height: 'auto', maxHeight: 'calc(100vh - 170px)' }}>
+            <div style={{ width: '40%', margin: '10px', marginTop: '15px', height: 'auto', maxHeight: 'calc(100% - 75px)', overflowY: 'auto' }}>
+                <ul>
+                    <li className={`listEle ${isAddNewOid ? 'selectedTagConfig' : ''}`}
+                        onClick={() => {
+                            setIsAddNewOid(true);
+                            setSelectedOption(null);
+                            setEditedData({});
+                        }}
+                    >
+                        Add new OID
+                    </li>
+                    {snmpOids.map((oid) => (
+                        <li
+                            key={oid.id}
+                            className={`listEle ${selectedOption && selectedOption.id === oid.id ? 'selectedTagConfig' : ''}`}
+                            onClick={() => handleOptionChange(oid)}
+                        >
+                            {oid.name}
+                        </li>
+                    ))}
+                </ul>
+            </div>
+            <div style={{ width: '500px', margin: '10px', height: 'auto' }}>
+                <div>
+                    <div className="tag-details">
+                        {/* OID Name Input */}
+                        <div style={{ marginBottom: '5px' }}>
+                            <span>OID Name:</span>
+                            <input
+                                type="text"
+                                name="name"
+                                className="inputText"
+                                style={{ width: '375px' }}
+                                value={newSnmpOid.name}
+                                onChange={(e) => setNewSnmpOid({ ...newSnmpOid, name: e.target.value })}
+                            />
+                        </div>
+
+                        {/* Formatter Selection */}
+                        <div style={{ marginBottom: '5px' }}>
+                            <span>SNMP Trap Oid:</span>
+                            <Select
+                                name="snmpTrapOids"
+                                value={snmpTrapOids.filter(snmpTrapOid => newSnmpOid.snmpTrapOids.includes(snmpTrapOid.id)).map(snmpTrapOid => ({
+                                    value: snmpTrapOid.id,
+                                    label: snmpTrapOid.label,
+                                }))}
+                                isMulti
+                                options={snmpTrapOids.map(snmpTrapOid => ({
+                                    value: snmpTrapOid.id,
+                                    label: snmpTrapOid.label,
+
+                                }))}
+                                onChange={handleSnmpTrapOidChange}
+                            />
+                        </div>
+                        {newSnmpOid.snmpTrapOid && newSnmpOid.snmpTrapOid.length > 0 && (
+                            <div>
+                                <div style={{ display: 'flex', alignItems: 'center', marginTop: '5px', paddingLeft: '15px' }}>
+                                    <label style={{ marginRight: '15px' }}>
+                                        <input
+                                            type="radio"
+                                            name="snmpTrapOidFilter"
+                                            value="include"
+                                            checked={newSnmpOid.snmpTrapOidFilter === 'include'}
+                                            onChange={() => setNewSnmpOid({ ...newSnmpOid, snmpTrapOidFilter: 'include' })}
+                                        />
+                                        Include
+                                    </label>
+                                    <label>
+                                        <input
+                                            type="radio"
+                                            name="snmpTrapOidFilter"
+                                            value="exclude"
+                                            checked={newSnmpOid.snmpTrapOidFilter === 'exclude'}
+                                            onChange={() => setNewSnmpOid({ ...newSnmpOid, snmpTrapOidFilter: 'exclude' })}
+                                        />
+                                        Exclude
+                                    </label>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Formatter Selection */}
+                        <div style={{ marginBottom: '5px' }}>
+                            <span>Formatter:</span>
+                            <Select
+                                options={formatterOptions}
+                                value={formatterOptions.find(option => option.value === newSnmpOid.formatter) || null}
+                                onChange={(selectedOption) => handleFormatterChangeForNewOid(selectedOption)}
+                                isMulti={false}
+                                name="formatter"
+                                styles={customStyles}
+                            />
+                        </div>
+
+                        {/* Conditional Rendering Based on Formatter */}
+                        <div style={{ marginTop: '10px' }}>
+                            {newSnmpOid.formatter === 'prefixOids' && (
+                                <div>
+                                    <span>Prefix OID:</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '5px' }}>
+                                        {[...Array(10)].map((_, index) => (
+                                            <input
+                                                key={index}
+                                                type="number"
+                                                min="1"
+                                                max="255"
+                                                className="inputText"
+                                                style={{ width: '35px', textAlign: 'center' }}
+                                                value={newSnmpOid.prefixOid?.[index] || ""}
+                                                onChange={(e) => {
+                                                    const updatedPrefixOid = [...(newSnmpOid.prefixOid || [])];
+                                                    updatedPrefixOid[index] = e.target.value;
+                                                    setNewSnmpOid({ ...newSnmpOid, prefixOid: updatedPrefixOid });
+                                                }}
+                                            />
+                                        ))}
+                                        <span>.</span>
+                                        <input
+                                            type="text"
+                                            className="inputText"
+                                            style={{ width: '35px', textAlign: 'center', backgroundColor: '#ddd', cursor: 'not-allowed' }}
+                                            value="X"
+                                            disabled
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                            {newSnmpOid.formatter === 'ms2duration' && (
+                                <div>
+                                    <p style={{ fontSize: '14px', color: '#555' }}>
+                                        Converts milliseconds to a human-readable duration (e.g., 1132252 → 3h 8m 42s).
+                                    </p>
+                                </div>
+                            )}
+                            {newSnmpOid.formatter === '1to1mapping' && (
+                                <div>
+                                    <span>Mapping Values:</span>
+                                    <textarea
+                                        name="mapping"
+                                        className="inputText"
+                                        style={{ width: '375px', height: '100px' }}
+                                        value={newSnmpOid.mapping || ""}
+                                        onChange={(e) => setNewSnmpOid({ ...newSnmpOid, mapping: e.target.value })}
+                                        placeholder="Enter key-value mappings, e.g., {'1': 'Up', '2': 'Down'}"
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    {isAddNewOid ? (
+                        <>
+                            <button onClick={handleAddOID} className="addRuleButton">
+                                Add Rule
+                            </button>
+                            <button onClick={() => setIsAddNewOid(false)}>Cancel</button>
+                        </>
+                    ) : (
+                        selectedOption && (
+                            <>
+                                <button onClick={handleSave} style={{ marginRight: '10px' }} className="saveRuleButton">
+                                    Save
+                                </button>
+                                <button
+                                    onClick={handleDelete}
+                                    style={{ backgroundColor: 'red', color: 'white' }}
+                                    className="deleteRuleButton"
+                                >
+                                    Delete
+                                </button>
+                            </>
+                        )
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+export default OIDConfig;

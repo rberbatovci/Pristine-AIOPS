@@ -1,0 +1,51 @@
+                         List of relations
+ Schema |              Name              |   Type   |     Owner     
+--------+--------------------------------+----------+---------------
+ public | device_signal_stats            | table    | postgres
+ public | device_signal_stats_id_seq     | sequence | postgres
+ public | device_syslog_stats            | table    | postgres
+ public | device_syslog_stats_id_seq     | sequence | postgres
+ public | device_trap_stats              | table    | postgres
+ public | device_trap_stats_id_seq       | sequence | postgres
+ public | devices                        | table    | PristineAdmin
+ public | devices_id_seq                 | sequence | PristineAdmin
+ public | flow_records                   | table    | PristineAdmin
+ public | flow_records_id_seq            | sequence | PristineAdmin
+ public | ipfix_headers                  | table    | PristineAdmin
+ public | ipfix_headers_id_seq           | sequence | PristineAdmin
+ public | mnemonics                      | table    | PristineAdmin
+ public | mnemonics_id_seq               | sequence | PristineAdmin
+ public | receiverAgentConfig            | table    | PristineAdmin
+ public | receiverAgentConfig_id_seq     | sequence | PristineAdmin
+ public | receiverMnemonicConfig         | table    | PristineAdmin
+ public | receiverMnemonicConfig_id_seq  | sequence | PristineAdmin
+ public | receiverTimestampConfig        | table    | PristineAdmin
+ public | receiverTimestampConfig_id_seq | sequence | PristineAdmin
+ public | regex                          | table    | PristineAdmin
+ public | regex_id_seq                   | sequence | PristineAdmin
+ public | snmp_authentications           | table    | PristineAdmin
+ public | snmp_authentications_id_seq    | sequence | PristineAdmin
+ public | snmp_oids                      | table    | PristineAdmin
+ public | snmp_oids_id_seq               | sequence | PristineAdmin
+ public | snmp_trap_oids                 | table    | PristineAdmin
+ public | snmp_trap_oids_id_seq          | sequence | PristineAdmin
+ public | stateful_trap_rules            | table    | PristineAdmin
+ public | stateful_trap_rules_id_seq     | sequence | PristineAdmin
+ public | syslogTags                     | table    | PristineAdmin
+ public | syslogTags_id_seq              | sequence | PristineAdmin
+ public | syslog_signal                  | table    | postgres
+ public | syslog_signal_id_seq           | sequence | postgres
+ public | syslogs                        | table    | PristineAdmin
+ public | syslogs_id_seq                 | sequence | PristineAdmin
+ public | tags                           | table    | PristineAdmin
+ public | tags_id_seq                    | sequence | PristineAdmin
+ public | trapTags                       | table    | PristineAdmin
+ public | trapTags_id_seq                | sequence | PristineAdmin
+ public | trap_signal                    | table    | postgres
+ public | trap_signal_id_seq             | sequence | postgres
+ public | traps                          | table    | PristineAdmin
+ public | traps_id_seq                   | sequence | PristineAdmin
+ public | users                          | table    | PristineAdmin
+ public | users_id_seq                   | sequence | PristineAdmin
+(46 rows)
+

@@ -1,0 +1,154 @@
+:root {
+    --background1: rgba(255, 255, 255, 0.3);
+    --sidebarBck: rgba(255, 255, 255, 0.05);
+    --borderLight: 1px solid rgba(235, 235, 235, 0.2);
+    --textColor: #000; /* Default text color */
+    --activeBackground: rgb(1, 70, 102); /* Active background color */
+    --sidebarContainerBg: rgba(238, 238, 238, 0.4);
+  }
+  
+  [data-theme='dark'] {
+    --background1: rgba(67, 112, 138, 0.3);
+    --background2: rgba(3, 45, 61, 0.3);
+    --sidebarBck: rgba(11, 72, 97, 0.18);
+    --textColor: #fff; /* Dark mode text color */
+    --activeBackground: rgba(0, 0, 0, 0.2); /* Dark mode active background color */
+    --sidebarContainerBg: rgba(6, 61, 75, 0.25);
+  }
+  
+  
+  .sidebarContainer {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background: var(--sidebarContainerBg);
+    height: calc(100vh - 50px);
+    backdrop-filter: blur(15px);
+  }
+  
+  .sidebar-container {
+    width: 200px;
+  }
+  
+  .sidebarList, .userSidebar {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  
+  .sidebarList li a, .userSidebar li a, .userSidebar li span, .sidebarList li span {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+  }
+  
+  .active {
+    background: var(--activeBackground); /* Different background for active item */
+    color: var(--textColor2); /* Text color for active item */
+  }
+  
+  
+  .sidebarList li:hover, .userSidebar li:hover {
+    background-color: var(--activeBackground);
+    color: var(--textColor2);
+  }
+  
+  .sidebarList li.active, .userSidebar li.active {
+    background-color: var(--activeBackground);
+    color: var(--textColor2);
+  }
+  
+  .sidebarList {
+    margin-top: 10px;
+    overflow: hidden;
+    list-style-type: none;
+    padding-left: 0;
+    backdrop-filter: blur(15px);
+  }
+  
+  .sidebarList li {
+    color: var(--textColor);
+    background: none;
+    border-top: var(--borderLight);
+    border-bottom: var(--borderDark);
+    transition: color 0.5s ease-in-out, padding-left 0.5s ease-in-out, background-color 0.5s ease-in-out;
+    border-radius: 0px;
+  }
+  
+  .sidebarList li a {
+    padding: 8px 12px;
+    text-decoration: none; /* Remove underline from links */
+    color: inherit; /* Inherit color from parent */
+    display: block; /* Make the link fill the li element */
+    transition: color 0.5s ease-in-out, padding-left 0.5s ease-in-out, background-color 0.5s ease-in-out;
+  }
+  
+  .sidebarList li:hover {
+    background-color: var(--activeBackground); /* Optional: background color change on hover */
+    padding-left: 10px;
+  }
+  
+  .sidebarList li:hover a {
+    color: var(--textColor2);
+    padding-left: 10px;
+    font-weight: 400;
+  }
+  
+  .sidebarList li:hover ul {
+    color: var(--textColor);
+  }
+  
+  .sidebar-container:hover .sidebar-wrapper {
+    display: flex; /* Expanded width on hover */
+  }
+  
+  .sidebarList .category {
+    color: var(--textColor);
+    cursor: pointer;
+    transition: color 0.5s ease-in-out, padding-left 0.5s ease-in-out, background-color 0.5s ease-in-out;
+  }
+  
+  .sidebarList .category:hover,
+  .sidebarList .category.open {
+    padding-left: 10px;
+    background-color: var(--background1);
+  }
+  
+  .userSidebar {
+    overflow: hidden;
+    list-style-type: none;
+    padding-left: 0;
+    margin-bottom: 15px;
+  }
+  
+  .userSidebar li span {
+    transition: color 0.5s ease-in-out, padding-left 0.5s ease-in-out, background-color 0.5s ease-in-out;
+  }
+  
+  .themeIcon {
+    color: var(--text-color);
+    font-size: 13px;
+    transition: color 0.3s ease;
+  }
+  
+  
+  .userSidebar li {
+    border-radius: 0px;
+    padding: 10px 12px;
+    color: var(--textColor);
+    border-top: var(--borderLight);
+    border-bottom: var(--borderDark);
+    transition: color 0.5s ease-in-out, padding-left 0.5s ease-in-out, background-color 0.5s ease-in-out;
+  }
+  
+  .userSidebar li:hover {
+    background-color: var(--background1);
+  }
+  
+  .userSidebar li:hover span {
+    color: var(--textColor2);
+    padding-left: 10px;
+    font-weight: 400;
+  }
+  

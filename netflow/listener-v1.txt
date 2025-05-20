@@ -1,0 +1,334 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <time.h>
+#include <endian.h>
+
+#define BUFFER_SIZE 65535
+#define PORT 1162
+#define DEBUG 1  // Set to 1 for debug output, 0 to disable
+
+// NetFlow v9 Header Structure
+typedef struct {
+    uint16_t version;        // 9 for NetFlow v9
+    uint16_t count;          // Number of records in this packet
+    uint32_t sysUptime;      // Milliseconds since device boot
+    uint32_t unix_secs;      // Seconds since 1970
+    uint32_t unix_nsecs;     // Residual nanoseconds
+    uint32_t flow_sequence;  // Sequence counter
+    uint32_t source_id;      // Exporter identifier
+} NetFlowV9Header;
+
+// IPFIX (v10) Header Structure
+typedef struct {
+    uint16_t version;
+    uint16_t length;
+    uint32_t export_time;
+    uint32_t sequence_number;
+    uint32_t observation_id;
+} IPFIXHeader;
+
+// Common Flow Record Structure
+typedef struct {
+    uint32_t source_addr;
+    uint32_t dest_addr;
+    uint8_t protocol;
+    uint16_t source_port;
+    uint16_t dest_port;
+    uint32_t input_snmp;
+    uint32_t output_snmp;
+    uint32_t bytes_count;
+    uint32_t packets_count;
+    uint64_t first_timestamp;
+    uint64_t last_timestamp;
+} FlowRecord;
+
+typedef struct {
+    uint16_t version;        // 9 or 10
+    union {
+        NetFlowV9Header v9;
+        IPFIXHeader v10;
+    } header;
+    FlowRecord *records;
+    size_t record_count;
+} NetFlowPacket;
+
+void print_ip_address(uint32_t ip) {
+    printf("%d.%d.%d.%d", 
+           (ip >> 24) & 0xff,
+           (ip >> 16) & 0xff,
+           (ip >> 8) & 0xff,
+           ip & 0xff);
+}
+
+void print_packet_details(const NetFlowPacket *packet) {
+    printf("\n=== Received NetFlow Packet ===\n");
+    printf("Header:\n");
+    printf("  Version: %u\n", packet->version);
+    
+    if (packet->version == 9) {
+        printf("  Count: %u\n", packet->header.v9.count);
+        printf("  SysUptime: %u ms\n", packet->header.v9.sysUptime);
+        printf("  Timestamp: %u.%09u\n", packet->header.v9.unix_secs, packet->header.v9.unix_nsecs);
+        printf("  FlowSequence: %u\n", packet->header.v9.flow_sequence);
+        printf("  SourceID: %u\n", packet->header.v9.source_id);
+    } else {
+        printf("  Length: %u\n", packet->header.v10.length);
+        printf("  ExportTime: %u\n", packet->header.v10.export_time);
+        printf("  SequenceNumber: %u\n", packet->header.v10.sequence_number);
+        printf("  ObservationID: %u\n", packet->header.v10.observation_id);
+    }
+
+    printf("\nRecords (%zu):\n", packet->record_count);
+    for (size_t i = 0; i < packet->record_count; i++) {
+        const FlowRecord *record = &packet->records[i];
+        printf("  Record %zu:\n", i + 1);
+        printf("    Source: ");
+        print_ip_address(record->source_addr);
+        printf(":%u\n", record->source_port);
+        
+        printf("    Destination: ");
+        print_ip_address(record->dest_addr);
+        printf(":%u\n", record->dest_port);
+        
+        printf("    Protocol: %u\n", record->protocol);
+        printf("    Input/Output SNMP: %u/%u\n", record->input_snmp, record->output_snmp);
+        printf("    Bytes/Packets: %u/%u\n", record->bytes_count, record->packets_count);
+        printf("    FirstTimestamp (raw): %lu\n", (unsigned long)record->first_timestamp);
+        printf("    LastTimestamp (raw): %lu\n", (unsigned long)record->last_timestamp);
+        printf("    -------------------------\n");
+    }
+    printf("=== End of Packet ===\n");
+}
+
+int process_data_records(const unsigned char *data, size_t data_len, FlowRecord **records, size_t *record_count) {
+    const size_t record_size = 45; // Size of our FlowRecord structure
+    
+    if (data_len < record_size) {
+        if (DEBUG) printf("DEBUG: Data length %zu too small for even one record (%zu)\n", data_len, record_size);
+        *records = NULL;
+        *record_count = 0;
+        return 0;
+    }
+    
+    size_t max_records = data_len / record_size;
+    
+    if (DEBUG) printf("DEBUG: Attempting to allocate %zu records (%zu bytes)\n", 
+                    max_records, max_records * sizeof(FlowRecord));
+    
+    *records = malloc(max_records * sizeof(FlowRecord));
+    if (*records == NULL) {
+        perror("malloc failed");
+        if (DEBUG) printf("DEBUG: Failed to allocate %zu bytes for %zu records\n", 
+                        max_records * sizeof(FlowRecord), max_records);
+        return -1;
+    }
+    
+    size_t count = 0;
+    for (size_t i = 0; i < max_records; i++) {
+        const unsigned char *record_data = data + (i * record_size);
+        FlowRecord *record = &(*records)[count];
+        
+        memcpy(&record->source_addr, record_data, 4);
+        record_data += 4;
+        memcpy(&record->dest_addr, record_data, 4);
+        record_data += 4;
+        record->protocol = *record_data++;
+        memcpy(&record->source_port, record_data, 2);
+        record_data += 2;
+        memcpy(&record->dest_port, record_data, 2);
+        record_data += 2;
+        memcpy(&record->input_snmp, record_data, 4);
+        record_data += 4;
+        memcpy(&record->output_snmp, record_data, 4);
+        record_data += 4;
+        memcpy(&record->bytes_count, record_data, 4);
+        record_data += 4;
+        memcpy(&record->packets_count, record_data, 4);
+        record_data += 4;
+        memcpy(&record->first_timestamp, record_data, 8);
+        record_data += 8;
+        memcpy(&record->last_timestamp, record_data, 8);
+        
+        // Convert from network byte order to host byte order
+        record->source_addr = ntohl(record->source_addr);
+        record->dest_addr = ntohl(record->dest_addr);
+        record->source_port = ntohs(record->source_port);
+        record->dest_port = ntohs(record->dest_port);
+        record->input_snmp = ntohl(record->input_snmp);
+        record->output_snmp = ntohl(record->output_snmp);
+        record->bytes_count = ntohl(record->bytes_count);
+        record->packets_count = ntohl(record->packets_count);
+        record->first_timestamp = be64toh(record->first_timestamp);
+        record->last_timestamp = be64toh(record->last_timestamp);
+        
+        count++;
+    }
+    
+    *record_count = count;
+    if (DEBUG) printf("DEBUG: Successfully processed %zu records\n", count);
+    return 0;
+}
+
+int process_netflow_v9(const unsigned char *data, size_t data_len, NetFlowPacket *packet) {
+    if (data_len < sizeof(NetFlowV9Header)) {
+        fprintf(stderr, "ERROR: Packet too small for NetFlow v9 header\n");
+        return -1;
+    }
+
+    packet->version = 9;
+    memcpy(&packet->header.v9, data, sizeof(NetFlowV9Header));
+    
+    // Convert to host byte order
+    packet->header.v9.version = ntohs(packet->header.v9.version);
+    packet->header.v9.count = ntohs(packet->header.v9.count);
+    packet->header.v9.sysUptime = ntohl(packet->header.v9.sysUptime);
+    packet->header.v9.unix_secs = ntohl(packet->header.v9.unix_secs);
+    packet->header.v9.unix_nsecs = ntohl(packet->header.v9.unix_nsecs);
+    packet->header.v9.flow_sequence = ntohl(packet->header.v9.flow_sequence);
+    packet->header.v9.source_id = ntohl(packet->header.v9.source_id);
+
+    if (DEBUG) {
+        printf("NetFlow v9 Header:\n");
+        printf("  Version: %u\n", packet->header.v9.version);
+        printf("  Count: %u\n", packet->header.v9.count);
+        printf("  SysUptime: %u ms\n", packet->header.v9.sysUptime);
+        printf("  Timestamp: %u.%09u\n", packet->header.v9.unix_secs, packet->header.v9.unix_nsecs);
+        printf("  FlowSequence: %u\n", packet->header.v9.flow_sequence);
+        printf("  SourceID: %u\n", packet->header.v9.source_id);
+    }
+
+    // For NetFlow v9, we would normally process templates first
+    // For this example, we'll just try to process the data portion
+    size_t data_offset = sizeof(NetFlowV9Header);
+    size_t records_len = data_len - data_offset;
+    
+    if (DEBUG) printf("DEBUG: Records length: %zu\n", records_len);
+    
+    if (process_data_records(data + data_offset, records_len, &packet->records, &packet->record_count) != 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
+int process_ipfix(const unsigned char *data, size_t data_len, NetFlowPacket *packet) {
+    if (data_len < sizeof(IPFIXHeader)) {
+        fprintf(stderr, "ERROR: Packet too small (%zu) for IPFIX header (%zu)\n", 
+               data_len, sizeof(IPFIXHeader));
+        return -1;
+    }
+    
+    packet->version = 10;
+    memcpy(&packet->header.v10, data, sizeof(IPFIXHeader));
+    
+    // Convert from network byte order to host byte order
+    packet->header.v10.version = ntohs(packet->header.v10.version);
+    packet->header.v10.length = ntohs(packet->header.v10.length);
+    packet->header.v10.export_time = ntohl(packet->header.v10.export_time);
+    packet->header.v10.sequence_number = ntohl(packet->header.v10.sequence_number);
+    packet->header.v10.observation_id = ntohl(packet->header.v10.observation_id);
+    
+    if (DEBUG) {
+        printf("DEBUG: Processing IPFIX packet\n");
+        printf("DEBUG: Header version: %u\n", packet->header.v10.version);
+        printf("DEBUG: Header length: %u\n", packet->header.v10.length);
+        printf("DEBUG: Data length: %zu\n", data_len);
+    }
+    
+    if (packet->header.v10.length > BUFFER_SIZE) {
+        fprintf(stderr, "ERROR: Header length %u exceeds buffer size %d\n", 
+               packet->header.v10.length, BUFFER_SIZE);
+        return -1;
+    }
+    
+    if (data_len < packet->header.v10.length) {
+        fprintf(stderr, "ERROR: Packet shorter (%zu) than header indicates (%u)\n", 
+               data_len, packet->header.v10.length);
+        return -1;
+    }
+    
+    size_t data_offset = sizeof(IPFIXHeader);
+    size_t records_len = packet->header.v10.length - data_offset;
+    
+    if (DEBUG) printf("DEBUG: Records length: %zu\n", records_len);
+    
+    if (process_data_records(data + data_offset, records_len, &packet->records, &packet->record_count) != 0) {
+        return -1;
+    }
+    
+    return 0;
+}
+
+int main() {
+    int sockfd;
+    struct sockaddr_in servaddr, cliaddr;
+    socklen_t len;
+    unsigned char buffer[BUFFER_SIZE];
+    
+    // Create UDP socket
+    if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        perror("socket creation failed");
+        exit(EXIT_FAILURE);
+    }
+    
+    memset(&servaddr, 0, sizeof(servaddr));
+    memset(&cliaddr, 0, sizeof(cliaddr));
+    
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_addr.s_addr = INADDR_ANY;
+    servaddr.sin_port = htons(PORT);
+    
+    // Bind the socket
+    if (bind(sockfd, (const struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) {
+        perror("bind failed");
+        close(sockfd);
+        exit(EXIT_FAILURE);
+    }
+    
+    printf("NetFlow/IPFIX listener started on port %d\n", PORT);
+    
+    while (1) {
+        len = sizeof(cliaddr);
+        ssize_t n = recvfrom(sockfd, buffer, BUFFER_SIZE, 0, 
+                             (struct sockaddr *)&cliaddr, &len);
+        if (n < 0) {
+            perror("recvfrom failed");
+            continue;
+        }
+        
+        if (DEBUG) printf("\nDEBUG: Received %zd bytes from %s:%d\n", 
+                        n, inet_ntoa(cliaddr.sin_addr), ntohs(cliaddr.sin_port));
+        
+        NetFlowPacket packet = {0};
+        uint16_t version;
+        memcpy(&version, buffer, 2);
+        version = ntohs(version);
+        
+        int result;
+        if (version == 9) {
+            result = process_netflow_v9(buffer, n, &packet);
+        } else if (version == 10) {
+            result = process_ipfix(buffer, n, &packet);
+        } else {
+            fprintf(stderr, "Unsupported NetFlow version: %d\n", version);
+            continue;
+        }
+        
+        if (result == 0) {
+            print_packet_details(&packet);
+        } else {
+            if (DEBUG) printf("DEBUG: Failed to process packet\n");
+        }
+        
+        if (packet.records != NULL) {
+            free(packet.records);
+        }
+    }
+    
+    close(sockfd);
+    return 0;
+}

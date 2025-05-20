@@ -1,0 +1,216 @@
+import json
+import re
+import time
+import signal
+import sys
+import requests
+from datetime import datetime
+from confluent_kafka import Consumer, KafkaException, Producer
+from utils import extract_mnemonic, extract_severity, extract_timestamp, extract_lsn
+import aiohttp
+import asyncio
+
+FASTAPI_URL = "http://localhost:8000/syslogs/mnemonics/"  # Update if needed
+
+# Load mnemonics and regex data from JSON files
+def load_json_file(file_name):
+    with open(file_name, 'r') as f:
+        return json.load(f)
+
+mnemonics_data = load_json_file("mnemonics.json")
+regex_data = load_json_file("regex_data.json")
+
+KAFKA_SIGNAL_TOPIC = 'syslog-signals-topic'
+KAFKA_BROKER = 'localhost:9092'
+KAFKA_TOPIC = 'syslog-topic'
+OPENSEARCH_URL = 'http://localhost:9200/syslogs/_doc/'
+CONSUMER_GROUP = 'syslog-consumer-group'
+producer = Producer({'bootstrap.servers': KAFKA_BROKER})
+run = True
+msg_count = 0
+total_latency = 0
+
+def shutdown(signum, frame):
+    global run
+    print("Shutting down...")
+    run = False
+
+def send_to_opensearch(json_doc):
+    try:
+        headers = {'Content-Type': 'application/json'}
+        response = requests.post(OPENSEARCH_URL, headers=headers, data=json_doc)
+        if response.status_code not in (200, 201):
+            print(f"Failed to index: {response.text}")
+    except Exception as e:
+        print(f"OpenSearch Error: {e}")
+
+# Helper function to apply regex and extract data
+def extract_data_using_regex(regex_name, message):
+    for regex_entry in regex_data:
+        if regex_entry["name"] == regex_name:
+            pattern = regex_entry["pattern"]
+            match_function = regex_entry["matchfunction"]
+            match_number = regex_entry["matchnumber"]
+            group_number = regex_entry["groupnumber"]
+            
+            if match_function == "search":
+                match = re.search(pattern, message)
+                if match:
+                    return match.group(group_number)
+            # Add other match functions if needed (like findall, match, etc.)
+    return "NoMatch"
+
+def reload_mnemonics():
+    global mnemonics_data
+    mnemonics_data = load_json_file("mnemonics.json")
+
+async def create_mnemonic_via_api(mnemonic_name):
+    payload = {
+        "name": mnemonic_name,
+        "severity": "Informational",
+        "regexes": [],
+        "signalAction": "noAction"
+    }
+    async with aiohttp.ClientSession() as session:
+        async with session.post(FASTAPI_URL, json=payload) as resp:
+            if resp.status == 200 or resp.status == 201:
+                print(f"Mnemonic '{mnemonic_name}' created via API.")
+                return await resp.json()
+            elif resp.status == 400:
+                print(f"Mnemonic '{mnemonic_name}' already exists (according to API).")
+                return None
+            else:
+                error = await resp.text()
+                raise Exception(f"Failed to create mnemonic via API: {resp.status} {error}")
+
+
+def handle_message(msg):
+    global msg_count, total_latency
+
+    try:
+        print("Message received:", msg.value())
+        payload = json.loads(msg.value().decode('utf-8'))
+        device = payload.get("device")
+        message = payload.get("message")
+
+        if device and message:
+            print(f"Processing message for device: {device}")
+            mnemonic = extract_mnemonic(message)
+
+            if mnemonic:
+                # Try to find existing mnemonic entry
+                mnemonic_entry = next((item for item in mnemonics_data if item["name"] == mnemonic), None)
+
+                if not mnemonic_entry:
+                    print(f"Mnemonic '{mnemonic}' not found, calling FastAPI to create...")
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    loop.run_until_complete(create_mnemonic_via_api(mnemonic))
+                    loop.close()
+
+                    # After creation, reload mnemonics_data
+                    reload_mnemonics()
+
+                    # Try to get it again
+                    mnemonic_entry = next((item for item in mnemonics_data if item["name"] == mnemonic), None)
+
+                    if not mnemonic_entry:
+                        print(f"Failed to load newly created mnemonic '{mnemonic}'")
+                        return
+
+                severity_num, severity_level = extract_severity(mnemonic) if mnemonic else (None, None)
+                timestamp = extract_timestamp(message)
+                lsn = extract_lsn(message)
+
+                enriched_data = {
+                    "device": device,
+                    "message": message,
+                    "mnemonic": mnemonic,
+                    "severity": severity_level,
+                    "timestamp": timestamp.isoformat() if timestamp else None,
+                    "lsn": lsn
+                }
+
+                # Apply regexes if any
+                for regex_name in mnemonic_entry.get("regexes", []):
+                    extracted_value = extract_data_using_regex(regex_name, message)
+                    for regex_entry in regex_data:
+                        if regex_entry["name"] == regex_name:
+                            tag = regex_entry["tag"]
+                            enriched_data[tag] = extracted_value
+
+                # Handle signalAction
+                signal_action = mnemonic_entry.get("signalAction", "None")
+
+                if signal_action == "createSignal":
+                    json_to_send = json.dumps(enriched_data)
+                    producer.produce(KAFKA_SIGNAL_TOPIC, value=json_to_send.encode('utf-8'))
+                    producer.flush()
+                    print(f"Sent message to {KAFKA_SIGNAL_TOPIC} for signal creation: {device}")
+
+                # Always send to OpenSearch
+                json_doc = json.dumps(enriched_data)
+                start = time.perf_counter()
+                send_to_opensearch(json_doc)
+                latency = time.perf_counter() - start
+
+                total_latency += latency
+                msg_count += 1
+
+                print(f"[{msg_count}] Indexed: {device} => {message[:50]}... (Latency: {latency:.4f}s)")
+
+            else:
+                print("No mnemonic extracted from the message.")
+
+    except json.JSONDecodeError as e:
+        print(f"JSON decode error: {e}")
+    except Exception as e:
+        print(f"Message processing error: {e}")
+
+def main():
+    signal.signal(signal.SIGINT, shutdown)
+    signal.signal(signal.SIGTERM, shutdown)
+
+    consumer = Consumer({
+        'bootstrap.servers': KAFKA_BROKER,
+        'group.id': CONSUMER_GROUP,
+        'auto.offset.reset': 'earliest'
+    })
+
+    consumer.subscribe([KAFKA_TOPIC])
+    print("Python Consumer started. Waiting for messages...")
+
+    start_time = time.time()
+
+    try:
+        while run:
+            msg = consumer.poll(1.0)
+            if msg is None:
+                print("No new messages in the queue")
+                continue
+            if msg.error():
+                print(f"Consumer error: {msg.error()}")
+            else:
+                print(f"Message received: {msg.value()}")  # Add this to see the message in the logs
+                handle_message(msg)
+
+    except KeyboardInterrupt:
+        pass
+    finally:
+        consumer.close()
+        end_time = time.time()
+        elapsed = end_time - start_time
+
+        print("\n--- Stats ---")
+        print(f"Total messages: {msg_count}")
+        print(f"Elapsed time: {elapsed:.2f} seconds")
+        if msg_count > 0:
+            print(f"Average Throughput: {msg_count / elapsed:.2f} msg/sec")
+            print(f"Average Latency: {total_latency / msg_count:.4f} sec")
+        else:
+            print("No messages were processed.")
+
+        print("Consumer stopped.")
+
+if __name__ == "__main__":
+    main()

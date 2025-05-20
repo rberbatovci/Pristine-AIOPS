@@ -1,0 +1,22 @@
+FROM ubuntu:latest
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpcap-dev \
+    librdkafka-dev \
+    iputils-ping
+
+# Set working directory
+WORKDIR /app/netflow
+
+# Copy the C source code into the correct location
+COPY listener.c .
+
+# Compile the listener
+RUN gcc -o listener listener.c -lrdkafka -lpcap
+
+# Expose the NetFlow port
+EXPOSE 1162/udp
+
+# Run the NetFlow listener
+CMD ["./listener"]

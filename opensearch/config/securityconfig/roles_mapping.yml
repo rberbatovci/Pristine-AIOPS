@@ -1,0 +1,8 @@
+admin:
+  reserved: true
+  backend_roles:
+    - admin
+
+logwriter:
+  backend_roles:
+    - logwriter

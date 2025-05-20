@@ -1,0 +1,407 @@
+:root {
+    --elementBg: rgba(230, 155, 18, 0.2);
+    --elementBgAct: rgba(153, 195, 223, 0.8);
+    --elementBgHvr: rgba(243, 198, 247, 0.6);
+    --buttonBg2: rgba(26, 123, 202, 0.2);
+    --buttonBg: rgba(0, 255, 34, 0.2);
+    --buttonBgHvr: rgba(138, 3, 165, 0.2);
+    --buttonBgAct: rgba(3, 106, 165, 0.9);
+    --txtColor: rgb(82, 142, 190);
+    --txtColor2: rgba(0, 63, 114, 0.5);
+    --txtColorHvr2: rgb(40, 90, 131);
+    --txtColorAct2: rgb(63, 112, 158);
+    --borderLight2: 1px solid rgba(230, 246, 255, 0.4);
+    --borderDark2: 1px solid rgba(29, 87, 134, 0.3);
+    --buttonborder: rgb(1, 78, 151);
+    --customStyleBorder: rgba(0, 114, 245, 0.3);
+    --customStyleBorderHvr: rgba(0, 155, 245, 0.5);
+    --customStyleBg: rgba(236, 236, 236, 0.3);
+    --customStyleTxt: rgba(66, 34, 71, 0.8);
+    --customStyleTxtHvr: white;
+    --buttonBrdr: rgba(7, 100, 161, 0.3);
+    --buttonBrdrHvr: rgba(138, 3, 165, 0.2);
+    --searchElementContainer: rgba(152, 183, 196, 0.1);
+  }
+  
+  [data-theme='dark'] {
+    --elementBg: rgba(93, 154, 247, 0.1);
+    --elementBgAct:rgb(5, 160, 250, .3);
+    --elementBgHvr: rgba(93, 154, 247, 0.5);
+    --buttonBg: rgb(255, 0, 0);
+    --buttonBg2: rgba(42, 127, 177, .2);
+    --buttonBgHvr: rgba(225, 225, 255 .85);
+    --buttonBgAct: rgba(5, 160, 250, .5);
+    --txtColor: rgba(117, 193, 243, 0.5);
+    --txtColor2: rgba(183, 210, 228, 0.5);
+    --txtColorHvr2: rgba(255,255,255, 1);
+    --txtColorAct2: white;
+    --borderLight2: 1px solid rgba(179, 221, 255, 0.1);
+    --borderDark2: 1px solid rgba(2, 52, 71, 0.6);
+    --customStyleBorder: rgb(5, 160, 250, .3);
+    --customStyleBorderHvr: rgb(5, 160, 250, .5);
+    --customStyleBg: rgba(16, 69, 99, 0.2);
+    --customStyleTxtHvr: white;
+    --buttonBrdr: rgba(85, 180, 218, 0.1);
+    --buttonBrdrHvr: rgba(2, 52, 71, 0.2);
+  }
+  
+  .pText {
+    color: var(--txtColor2);
+  }
+  
+  .searchList {
+    width: 100%;
+    max-width: 1200px;
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 0;
+    margin: 0;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  
+  
+  
+  
+  .searchElementContainer {
+    background: var(--searchElementContainer);
+    backdrop-filter: blur(55px);
+    padding:5px;
+    border-radius: 5px;
+    padding: 10px;
+    border-radius: 10px;
+  }
+  
+  .searchElementContentMap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    max-height: 500px;
+    overflow: auto;
+  }
+  
+  .searchElement {
+    display: block;
+    padding: 0px;
+  }
+  
+  .searchElementHeader{
+    display: flex;
+    justify-content: center; /* Center horizontally */
+    align-items: center; /* Center vertically */
+    padding: 0;
+    margin-bottom: 10px;
+  }
+  
+  .time-range-options,
+  .date-range-picker {
+      transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+      max-height: 0;
+      overflow: hidden;
+      opacity: 0;
+  }
+  
+  .time-range-options.visible,
+  .date-range-picker.visible {
+      max-height: 500px; /* Adjust based on content height */
+      opacity: 1;
+  }
+  
+  .hidden {
+      max-height: 0;
+      opacity: 0;
+  }
+  
+  .timeButton {
+    width: 10%;
+    margin: 5px; /* Optional: Add some space between buttons */
+    padding: 10px;
+    text-align: center;
+    cursor: pointer;
+    border-radius: 7px;
+    border: 1px solid var(--buttonBrdr); /* Border styling */
+    background: var(--inputTextBck);
+    transition: background-color 0.3s ease;
+    color: var(--txtColor2);
+    font-size: 12px;
+  }
+  
+  .searchButtonContainer {
+    display: flex;
+    width: 100%;
+    padding-right: 10px;
+    justify-content: flex-end;
+    align-items: end;
+  }
+  
+  .searchButton {
+    background: red;
+  }
+  
+  .searchButton.active {
+    color: var(--txtColorAct);
+    background: var(--buttonBgAct);
+    border: 1px solid var(--buttonBrdrAct);
+  }
+  
+  .searchButton:hover {
+    color: var(--txtColorHvr);
+    background: var(--buttonBgHvr); 
+    border: 1px solid var(--buttonBrdrHvr);
+  }
+  
+  
+  
+  .date-range-input {
+    margin: 5px;
+    padding: 10px;
+    text-align: center;
+    color: var(--txtColor);
+    border: 1px solid var(--buttonBrdr);
+    background-color: var(--buttonBg2);
+    transition: background-color 0.3s ease;
+    font-size: 12px;
+    width: 180px;
+  }
+  
+  
+  
+  .date-input-container {
+    flex: 1;
+  }
+  
+  .date-input-container2 {
+    background: purple;
+  }
+  
+  .date-label {
+    display: flex;
+    width: 70px;
+    font-size: 14px;
+    color: var(--txtColor2);
+  }
+  
+  @keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+  }
+  
+  @keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+  }
+  
+  .content-container {
+    display: flex;
+    flex: 1;
+    width: 100%;
+    background: green;
+    overflow: hidden;
+    transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  
+  .content-container.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  
+  
+  .signalFiltersContainer {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between; /* Add space between items */
+    width: 100%; /* Make the container take the full width */
+  }
+  
+  .signalFilterEntry {
+    min-width: 250px;
+    max-width: 300px;
+    flex: 1; 
+    justify-content: space-between; 
+    align-items: center;
+    padding-bottom: 10px;
+    padding-right: 10px;
+    display: flex;
+  }
+  
+  .searchSignalText {
+    font-size: 14px;
+    padding-right: 4px;
+    text-align: end;
+    justify-content: flex-end;
+    align-items: flex-end;
+    width: 150px; /* Fixed width */
+    white-space: nowrap; /* Prevent text from wrapping */
+    overflow: hidden; /* Hide overflow */
+    text-overflow: ellipsis; /* Add ellipsis if text overflows */
+    color: var(--txtColor2);
+  }
+  
+  .searchSyslogsContainer {
+    display: flex;
+    flex-wrap: wrap;
+    margin-top: 15px;
+    padding-left: 20px;
+  }
+  
+  .syslogTagsTable {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+    gap: 10px;
+    margin-top: 30px;
+  }
+  
+  .syslogTagRow {
+    display: flex;
+    width: 380px; /* Total width for each row */
+    margin-top: 15px; /* Increased vertical margin */
+    margin-right: 20px; /* Added space between rows */
+  }
+  
+  .syslogTagLabel {
+    width: 100px; /* Width for the label */
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    color: var(--txtColor);
+  }
+  
+  .syslogTagSelect {
+    width: 280px; /* Width for the select component */
+    padding-left: 20px;
+  }
+  
+  .tagsContainer {
+    display: block;
+    width: 250px;
+  }
+  
+  .search-signals-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+    gap: 10px;
+    width: 100%;
+    padding-top: 10px;
+    background: var(--backgroundColor3);
+    color: var(--textColor);
+    height: auto;
+    min-height: 100px;
+    max-height: 700px;
+    border-radius: 8px;
+  }
+  
+  .search-signals-item {
+    justify-content: center;
+    align-items: center;
+    display: flex;
+  }
+  
+  .search-signals-item p {
+    margin: 0 0 5px 0;
+    font-size: 14px;
+    padding-right: 4px;
+    text-align: end;
+    justify-content: flex-end;
+    align-items: flex-end;
+    width: 150px; /* Fixed width */
+    white-space: nowrap; /* Prevent text from wrapping */
+    overflow: hidden; /* Hide overflow */
+    text-overflow: ellipsis; /* Add ellipsis if text overflows */
+    color: var(--txtColor2);
+  }
+  
+  .timeRangeOptions {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 10px;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .predefinedRanges {
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* Space between buttons */
+  }
+  
+  .rangeButton {
+    padding: 10px;
+    background-color: #f0f0f0;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  .rangeButton:hover {
+    background-color: #e0e0e0;
+  }
+  
+  .searchTimeContainer2 {
+    display: flex;
+    height: 500px; /* You can adjust the height as needed */
+  }
+  
+  .predefinedRanges {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+  }
+  
+  .rangeButton {
+    padding: 10px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    background-color: #f0f0f0;
+    border: none;
+    border-radius: 4px;
+    transition: background-color 0.3s ease;
+  }
+  
+  .rangeButton:hover {
+    background-color: #e0e0e0;
+  }
+  
+  .calendarPicker {
+    flex: 2;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 240px;
+  }
+  
+  .react-datepicker {
+    width: 100%;
+  }
+  
+  .react-datepicker__month-container {
+    width: 100%;
+  }
+  
+  .react-datepicker__day--selected,
+  .react-datepicker__day--in-selecting-range,
+  .react-datepicker__day--in-range {
+    background-color: #007bff;
+    color: white;
+  }

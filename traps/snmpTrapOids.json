@@ -1,0 +1,72 @@
+{
+    "snmpTrapOids": [
+        {
+            "name": "CISCO-SMI::ciscoMgmt.43.2.0.1",
+            "value": "CISCO-SMI::ciscoMgmt.43.2.0.1"
+        },
+        {
+            "name": "IF-MIB::linkDown",
+            "value": "IF-MIB::linkDown"
+        },
+        {
+            "name": "CISCO-SMI::ciscoMgmt.43.2.0.2",
+            "value": "CISCO-SMI::ciscoMgmt.43.2.0.2"
+        },
+        {
+            "name": "IF-MIB::linkUp",
+            "value": "IF-MIB::linkUp"
+        },
+        {
+            "name": "CISCO-SMI::ciscoMgmt.41.2.0.1",
+            "value": "CISCO-SMI::ciscoMgmt.41.2.0.1"
+        },
+        {
+            "name": "CISCO-SMI::cisco.0.0",
+            "value": "CISCO-SMI::cisco.0.0"
+        },
+        {
+            "name": "CISCO-SMI::ciscoExperiment.62.2.0.3",
+            "value": "CISCO-SMI::ciscoExperiment.62.2.0.3"
+        },
+        {
+            "name": "CISCO-SMI::ciscoExperiment.62.2.0.4",
+            "value": "CISCO-SMI::ciscoExperiment.62.2.0.4"
+        },
+        {
+            "name": "ENTITY-MIB::entConfigChange",
+            "value": "ENTITY-MIB::entConfigChange"
+        },
+        {
+            "name": "CISCO-IETF-ISIS-MIB::ciiAdjacencyChange",
+            "value": "CISCO-IETF-ISIS-MIB::ciiAdjacencyChange"
+        },
+        {
+            "name": "CISCO-SMI::ciscoMgmt.831.1.13",
+            "value": "CISCO-SMI::ciscoMgmt.831.1.13"
+        },
+        {
+            "name": "CISCO-SMI::ciscoMgmt.176.2.0.2",
+            "value": "CISCO-SMI::ciscoMgmt.176.2.0.2"
+        },
+        {
+            "name": "SNMPv2-MIB::coldStart",
+            "value": "SNMPv2-MIB::coldStart"
+        },
+        {
+            "name": "CISCO-SMI::ciscoMgmt.187.0.7",
+            "value": "CISCO-SMI::ciscoMgmt.187.0.7"
+        },
+        {
+            "name": "CISCO-SMI::ciscoMgmt.187.0.5",
+            "value": "CISCO-SMI::ciscoMgmt.187.0.5"
+        },
+        {
+            "name": "CISCO-SMI::ciscoMgmt.187.0.6",
+            "value": "CISCO-SMI::ciscoMgmt.187.0.6"
+        },
+        {
+            "name": "CISCO-SMI::ciscoMgmt.187.0.8",
+            "value": "CISCO-SMI::ciscoMgmt.187.0.8"
+        }
+    ]
+}

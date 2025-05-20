@@ -1,0 +1,109 @@
+:root {
+    --input-table-color: white;
+  }
+  
+  
+  .signal-events-container {
+    font-size: 15px;
+    display: inline-block;
+    width: calc(100% - 50px);
+    max-width: calc(100% - 50px);
+    border-radius: 10px;
+    margin-left: 20px;
+    margin-right: 20px;
+    margin-top: 20px;
+    overflow: hidden;
+    transition: height 1s ease;
+    background: var(--background1);
+  }
+  
+  .signal-events-container.expanded {
+    height: 200px;
+  }
+  
+  .signal-events-container.collapsed {
+    height: 60px;
+  }
+  
+  .header-container2 {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    backdrop-filter: blur(10px);
+    height: 50px;
+    color: white;
+    font-size: 18px;
+  }
+  
+  .signal-events-header {
+    padding: 0 20px;
+    font-size: 17px;
+    font-weight: 300;
+    color: var(--text-color);
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    transition: margin 1s ease-in-out, color 1s ease-in-out;
+  }
+  
+  .signal-events-header:hover {
+    margin-left: 20px;
+    color: var(--text-color-hover);
+  }
+  
+  .zoom-buttons-container {
+    margin-right: 20px;
+  }
+  
+  .tags-list-dropdown {
+    position: absolute; /* Ensures dropdowns can be layered using z-index */
+    z-index: 0; /* A large enough z-index value to appear above the table */
+    background-color: none;
+    border: none;
+    padding: 10px;
+  }
+  
+  .tags-list-dropdown.show {
+    display: block; /* Make sure this is visible when toggled */
+    z-index: 100;
+  }
+  
+  .tags-list-dropdown.hide {
+    display: none; /* Hide dropdown when not needed */
+  }
+  
+  /* Ensure the parent container does not interfere with layering */
+  .signal-events-details {
+    position: relative; /* Or adjust based on your layout */
+    z-index: 1; /* Lower z-index to ensure the dropdown appears above it */
+  }
+  
+  /* Add necessary styles for the table or content below it */
+  .signal-events-content {
+    position: relative;
+    z-index: 1; /* Ensure the table content is below the dropdown */
+  }
+  
+  .tagsContainerSearchSyslog {
+    margin-right: 30px;
+    position: fixed;
+    display: block;
+    border-radius: 10px;
+    z-Index: 10;
+    background: rgba(227, 230, 231, 0.7);
+    backdrop-filter: blur(20px);
+    box-shadow: 4px 4px 20px rgba(29, 29, 29, 0.1);
+    padding: 10px;
+  }
+  
+  .tagsPanel {
+    position: absolute;
+    z-index: 1000; /* Ensure it appears on top */
+    padding: 10px; /* Panel padding */
+    width: 250px; /* Set a width for the panel */
+    max-height: 300px; /* Limit height */
+    overflow-y: auto; /* Enable scrolling if content overflows */
+    background: var(--backgroundColor);
+    border-radius: 5px;
+  }
+  

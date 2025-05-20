@@ -1,0 +1,270 @@
+package main
+
+import (
+	"bytes"
+	"encoding/binary"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"time"
+)
+
+type IPFIXHeader struct {
+	Version        uint16
+	Length         uint16
+	ExportTime     uint32
+	SequenceNumber uint32
+	ObservationID  uint32
+}
+
+type FlowRecord struct {
+	SourceAddr     net.IP
+	DestAddr       net.IP
+	Protocol       uint8
+	SourcePort     uint16
+	DestPort       uint16
+	InputSnmp      uint32
+	OutputSnmp     uint32
+	BytesCount     uint32
+	PacketsCount   uint32
+	FirstTimestamp uint64
+	LastTimestamp  uint64
+}
+
+type IPFIXPacket struct {
+	Header  IPFIXHeader
+	Records []FlowRecord
+}
+
+type APIFlowRecord struct {
+	SourceAddr     string `json:"source_addr"`
+	DestAddr       string `json:"dest_addr"`
+	Protocol       uint8  `json:"protocol"`
+	SourcePort     uint16 `json:"source_port"`
+	DestPort       uint16 `json:"dest_port"`
+	InputSnmp      uint32 `json:"input_snmp"`
+	OutputSnmp     uint32 `json:"output_snmp"`
+	BytesCount     uint32 `json:"bytes_count"`
+	PacketsCount   uint32 `json:"packets_count"`
+	FirstTimestamp int64  `json:"first_timestamp"` // Changed to int64
+	LastTimestamp  int64  `json:"last_timestamp"`  // Changed to int64
+}
+
+type APIHeader struct {
+	Version        uint16 `json:"version"`
+	Length         uint16 `json:"length"`
+	ExportTime     int64  `json:"export_time"` // Changed to int64
+	SequenceNumber uint32 `json:"sequence_number"`
+	ObservationID  uint32 `json:"observation_id"`
+}
+
+type APIPacket struct {
+	Header  APIHeader       `json:"header"`
+	Records []APIFlowRecord `json:"records"`
+}
+
+const (
+	apiEndpoint = "http://localhost:8000/netflow/"
+	retryCount  = 3
+	retryDelay  = 1 * time.Second
+)
+
+func main() {
+	udpAddr, err := net.ResolveUDPAddr("udp", ":1162")
+	if err != nil {
+		panic(err)
+	}
+
+	conn, err := net.ListenUDP("udp", udpAddr)
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close()
+
+	fmt.Println("IPFIX listener started on :1162")
+
+	buffer := make([]byte, 65535)
+
+	for {
+		n, _, err := conn.ReadFromUDP(buffer)
+		if err != nil {
+			fmt.Println("Error reading:", err)
+			continue
+		}
+
+		packet, err := processIPFIX(buffer[:n])
+		if err != nil {
+			fmt.Println("Error processing IPFIX:", err)
+			continue
+		}
+
+		printPacketDetails(packet)
+		go sendToAPI(packet)
+	}
+}
+
+func printPacketDetails(packet *IPFIXPacket) {
+	fmt.Println("\n=== Received NetFlow Packet ===")
+	fmt.Printf("Header:\n")
+	fmt.Printf("  Version: %d\n", packet.Header.Version)
+	fmt.Printf("  Length: %d\n", packet.Header.Length)
+	fmt.Printf("  ExportTime (raw): %d\n", packet.Header.ExportTime)
+	fmt.Printf("  SequenceNumber: %d\n", packet.Header.SequenceNumber)
+	fmt.Printf("  ObservationID: %d\n", packet.Header.ObservationID)
+
+	fmt.Printf("\nRecords (%d):\n", len(packet.Records))
+	for i, record := range packet.Records {
+		fmt.Printf("  Record %d:\n", i+1)
+		fmt.Printf("    Source: %s:%d\n", record.SourceAddr, record.SourcePort)
+		fmt.Printf("    Destination: %s:%d\n", record.DestAddr, record.DestPort)
+		fmt.Printf("    Protocol: %d\n", record.Protocol)
+		fmt.Printf("    Input/Output SNMP: %d/%d\n", record.InputSnmp, record.OutputSnmp)
+		fmt.Printf("    Bytes/Packets: %d/%d\n", record.BytesCount, record.PacketsCount)
+		fmt.Printf("    FirstTimestamp (raw): %d\n", record.FirstTimestamp)
+		fmt.Printf("    LastTimestamp (raw): %d\n", record.LastTimestamp)
+		fmt.Println("    -------------------------")
+	}
+	fmt.Println("=== End of Packet ===")
+}
+
+func processIPFIX(data []byte) (*IPFIXPacket, error) {
+	reader := bytes.NewReader(data)
+
+	var header IPFIXHeader
+	if err := binary.Read(reader, binary.BigEndian, &header); err != nil {
+		return nil, fmt.Errorf("error reading header: %v", err)
+	}
+
+	records, err := processDataRecords(reader)
+	if err != nil {
+		return nil, fmt.Errorf("error processing records: %v", err)
+	}
+
+	return &IPFIXPacket{
+		Header:  header,
+		Records: records,
+	}, nil
+}
+
+func processDataRecords(reader *bytes.Reader) ([]FlowRecord, error) {
+	var records []FlowRecord
+
+	for reader.Len() >= 45 {
+		var record FlowRecord
+
+		sourceAddr := make([]byte, 4)
+		if err := binary.Read(reader, binary.BigEndian, &sourceAddr); err != nil {
+			return nil, fmt.Errorf("error reading source address: %v", err)
+		}
+		record.SourceAddr = net.IP(sourceAddr)
+
+		destAddr := make([]byte, 4)
+		if err := binary.Read(reader, binary.BigEndian, &destAddr); err != nil {
+			return nil, fmt.Errorf("error reading destination address: %v", err)
+		}
+		record.DestAddr = net.IP(destAddr)
+
+		if err := binary.Read(reader, binary.BigEndian, &record.Protocol); err != nil {
+			return nil, fmt.Errorf("error reading protocol: %v", err)
+		}
+		if err := binary.Read(reader, binary.BigEndian, &record.SourcePort); err != nil {
+			return nil, fmt.Errorf("error reading source port: %v", err)
+		}
+		if err := binary.Read(reader, binary.BigEndian, &record.DestPort); err != nil {
+			return nil, fmt.Errorf("error reading destination port: %v", err)
+		}
+		if err := binary.Read(reader, binary.BigEndian, &record.InputSnmp); err != nil {
+			return nil, fmt.Errorf("error reading input SNMP: %v", err)
+		}
+		if err := binary.Read(reader, binary.BigEndian, &record.OutputSnmp); err != nil {
+			return nil, fmt.Errorf("error reading output SNMP: %v", err)
+		}
+		if err := binary.Read(reader, binary.BigEndian, &record.BytesCount); err != nil {
+			return nil, fmt.Errorf("error reading bytes count: %v", err)
+		}
+		if err := binary.Read(reader, binary.BigEndian, &record.PacketsCount); err != nil {
+			return nil, fmt.Errorf("error reading packets count: %v", err)
+		}
+		if err := binary.Read(reader, binary.BigEndian, &record.FirstTimestamp); err != nil {
+			return nil, fmt.Errorf("error reading first timestamp: %v", err)
+		}
+		if err := binary.Read(reader, binary.BigEndian, &record.LastTimestamp); err != nil {
+			return nil, fmt.Errorf("error reading last timestamp: %v", err)
+		}
+
+		records = append(records, record)
+	}
+
+	return records, nil
+}
+
+func sendToAPI(packet *IPFIXPacket) {
+	apiPacket := APIPacket{
+		Header: APIHeader{
+			Version:        packet.Header.Version,
+			Length:         packet.Header.Length,
+			ExportTime:     int64(packet.Header.ExportTime), // Send as raw value
+			SequenceNumber: packet.Header.SequenceNumber,
+			ObservationID:  packet.Header.ObservationID,
+		},
+		Records: make([]APIFlowRecord, 0, len(packet.Records)),
+	}
+
+	for _, record := range packet.Records {
+		apiPacket.Records = append(apiPacket.Records, APIFlowRecord{
+			SourceAddr:     record.SourceAddr.String(),
+			DestAddr:       record.DestAddr.String(),
+			Protocol:       record.Protocol,
+			SourcePort:     record.SourcePort,
+			DestPort:       record.DestPort,
+			InputSnmp:      record.InputSnmp,
+			OutputSnmp:     record.OutputSnmp,
+			BytesCount:     record.BytesCount,
+			PacketsCount:   record.PacketsCount,
+			FirstTimestamp: int64(record.FirstTimestamp), // Send as raw value
+			LastTimestamp:  int64(record.LastTimestamp),  // Send as raw value
+		})
+	}
+
+	// Print the raw values being sent to API
+	fmt.Println("\n=== Sending to API ===")
+	fmt.Printf("ExportTime (raw): %d\n", apiPacket.Header.ExportTime)
+	for i, record := range apiPacket.Records {
+		fmt.Printf("Record %d Timestamps (raw):\n", i+1)
+		fmt.Printf("  First: %d\n", record.FirstTimestamp)
+		fmt.Printf("  Last: %d\n", record.LastTimestamp)
+	}
+
+	jsonData, err := json.Marshal(apiPacket)
+	if err != nil {
+		fmt.Printf("Error marshaling JSON: %v\n", err)
+		return
+	}
+
+	for i := 0; i < retryCount; i++ {
+		resp, err := http.Post(apiEndpoint, "application/json", bytes.NewBuffer(jsonData))
+		if err != nil {
+			fmt.Printf("Attempt %d: Error sending data to API: %v\n", i+1, err)
+			time.Sleep(retryDelay)
+			continue
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode == http.StatusCreated {
+			body, _ := io.ReadAll(resp.Body)
+			fmt.Printf("Successfully stored packet (Sequence: %d) with %d records\n",
+				packet.Header.SequenceNumber, len(packet.Records))
+			fmt.Printf("API response: %s\n", string(body))
+			return
+		}
+
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Printf("Attempt %d: API returned status %d: %s\n", i+1, resp.StatusCode, string(body))
+		time.Sleep(retryDelay)
+	}
+
+	fmt.Printf("Failed to store packet after %d attempts (Sequence: %d)\n",
+		retryCount, packet.Header.SequenceNumber)
+}

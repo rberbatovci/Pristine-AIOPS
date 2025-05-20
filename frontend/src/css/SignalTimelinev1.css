@@ -1,0 +1,334 @@
+:root {
+    --tlineBorder: 1px solid black;
+    --tlineText: black;
+    --textColor: rgb(90, 90, 90);
+  
+  
+  }
+  
+  [data-theme='dark'] {
+    --tlineBorder: white;
+    --tlineText: white;
+    --textColor: rgba(201, 201, 201, .8);
+  }
+  
+  .signal-timeline-container {
+    font-size: 15px;
+    display: inline-block;
+    align-items: center;
+    justify-content: space-between;
+    width: calc(100% - 50px);
+    max-width: calc(100% - 50px);
+    flex-grow: 0;
+    border-radius: 10px;
+    margin-left: 20px;
+    margin-right: 20px;
+    margin-top: 20px;
+    overflow: hidden;
+    transition: height 1s ease;
+    background: var(--background1);
+  }
+  
+  .signal-timeline-container.expanded {
+    height: 230px;
+  }
+  
+  .signal-timeline-container.collapsed {
+    height: 60px;
+  }
+  
+  .header-container2 {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    backdrop-filter: blur(10px);
+    height: 50px;
+    color: white;
+    font-size: 18px;
+    flex-grow: 1;
+  }
+  
+  .header-container2 p {
+    font-weight: bold;
+    font-size: 16px;
+    color: var(--text-color2);
+  }
+  
+  .signal-timeline-content {
+    flex-grow: 0;
+    padding: 10px;
+  }
+  
+  .signal-timeline-header {
+    padding-left: 10px;
+    padding-right: 20px;
+    font-size: 17px;
+    font-weight: 300;
+    margin-left: 10px;
+    color: var(--text-color);
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    transition: margin 1s ease-in-out, color 1s ease-in-out;
+  }
+  
+  .signal-timeline-header:hover {
+    margin-left: 20px;
+    color: var(--text-color-hover);
+  }
+  
+  .zoom-buttons-container {
+    margin-right: 10px;
+    /* Adjust margin as needed */
+  }
+  
+  .tmlcntnr {
+    width: 100%;
+    box-sizing: border-box;
+    border-left: var(--tlineBorder);
+    overflow-x: auto;
+    overflow-y: hidden;
+    margin-bottom: 50px;
+    height: 170px;
+  }
+  
+  
+  .timelineContainer {
+    display: block;
+    max-width: 100%;
+    margin-top: 5px;
+    width: 100%;
+    flex-grow: 0;
+    overflow-x: auto;
+    position: relative;
+    height: 190px;
+  }
+  
+  .timeContainer {
+    display: flex;
+    flex-direction: column;
+    transition: width 0.5s ease-in-out;
+    height: 80px;
+    width: 100%;
+    border-top: 1px solid black;
+  }
+  
+  .eventsContainer {
+    background: red;
+    height: 80px;
+    border-bottom: 1px solid black;
+    display: flex;
+  }
+  
+  .hoursContainer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid #ccc;
+    padding-bottom: 5px;
+  }
+  
+  .dayText {
+    width: 100%;
+    height: 20px; /* Adjust height as needed */
+    text-align: flex-start;
+    padding-left: 4px;
+    margin-top: 25px;
+    font-size: 14px;
+  }
+  
+  #time div {
+    flex-shrink: 0;
+  }
+  
+  .eventButton {
+    width: 10px; /* Width of the event indicator */
+    height: 10px; /* Height of the event indicator */
+    background-color: red; /* Customize the color of event markers */
+    border-radius: 50%; /* Make the event button circular */
+    cursor: pointer;
+    pointer-events: all; /* Allow interactions with events */
+  }
+  
+  .month {
+    display: flex;
+    flex-direction: row;
+  }
+  
+  .days {
+    display: block;
+    flex-direction: column;
+    margin-top: 20px;
+    width: 100%;
+  }
+  
+  .day {
+    width: 1200px;
+  }
+  
+  .hours {
+    display: inline-block;
+    box-sizing: border-box;
+    text-align: left;
+    font-size: 11px;
+    padding-left: 5px;
+    padding-top: 2px;
+    background: cyan;
+    height: 20px;
+  }
+  
+  .hour {
+    width: 50px;
+  }
+  
+  .minute-container {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+  }
+  
+  .minutesContainer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 50%; /* Ensure it stretches to full width */
+    position: absolute;
+  }
+  
+  .minutesContainer:nth-child(odd) {
+    background: lightblue; /* Background for odd containers */
+  }
+  
+  .minutesContainer:nth-child(even) {
+    background: lightgreen; /* Background for even containers */
+  }
+  
+  .minuteDiv {
+    font-size: 12px;
+    color: gray;
+    text-align: center;
+    width: 20%;
+    border-left: 1px solid #ccc;
+    padding-left: 5px;
+  }
+  
+  
+  .hourContainer {
+    display: flex;
+    flex-grow: 1;
+  }
+  
+  .hour {
+    text-align: left;
+    border-left: 1px solid var(textColor);
+    font-size: 10px;
+    height: 7px;
+    padding-left: 5px;
+    width: calc(100% / 24);
+  }
+  
+  
+  .minute {
+    text-align: left;
+    border-left: 1px solid var(textColor);
+    display: none;
+    /* Display minutes horizontally */
+    font-size: 10px;
+    height: 10px;
+    width: calc(100% / 30);
+    padding-left: 2px;
+    color: var(textColor);
+    flex-grow: 1;
+  
+  }
+  
+  
+  .event {
+    background-color: #4CAF50;
+    color: white;
+    border: 1px solid black;
+    position: relative;
+    height: 50px;
+    justify-content: center;
+    text-align: center;
+    align-items: center;
+    margin-top: -25px;
+    width: '100px';
+  }
+  
+  .minDiv {
+    opacity: .3;
+    padding-left: 2px;
+    display: flex;
+    flex-grow: 1;
+    font-size: 11px;
+    height: 3px;
+    padding-top: 3px;
+    border-left: var(--tlineBorder);
+  }
+  
+  
+  .hourDiv {
+    display: block;
+    align-items: left;
+    justify-content: center;
+    text-align: left;
+    height: 15px;
+    border-left: 1px solid black;
+    box-sizing: border-box;
+  }
+  
+  .hourDiv:last-child {
+    border-right: none;
+  }
+  
+  .hourText {
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    padding-top: 15px;
+    font-size: 12px;
+    
+  }
+  
+  .minContainer {
+    display: flex;
+    width: 100%;
+  }
+  
+  .hourWrapper {
+    display: block;
+  }
+  
+  .rangeBar {
+    position: absolute;
+    height: 60px;
+    top: -30px;
+    z-index: 99;
+  }
+  
+  .zoom-buttons {
+    display: flex;
+  }
+  
+  .zoom-buttons div {
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    /* Add transition effect */
+  }
+  
+  .zoom-buttons div:hover {
+    transform: scale(1.3);
+    /* Add hover effect */
+    margin-right: 5px;
+    margin-lefT: 5px;
+    color: #124364;
+  }
+  
+  .dayDiv {
+    display: flex;
+    flex-direction: column;
+    width: 100%; /* Span the full width of the parent */
+    box-sizing: border-box;
+  }

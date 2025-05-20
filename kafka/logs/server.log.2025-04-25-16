@@ -1,0 +1,3 @@
+[2025-04-25 16:22:17,657] INFO [GroupCoordinator 0]: Member rdkafka-7ae342fa-585d-4460-9beb-b1a588146522 in group netflow-consumer-group has failed, removing it from the group (kafka.coordinator.group.GroupCoordinator)
+[2025-04-25 16:22:17,658] INFO [GroupCoordinator 0]: Preparing to rebalance group netflow-consumer-group in state PreparingRebalance with old generation 16 (__consumer_offsets-40) (reason: removing member rdkafka-7ae342fa-585d-4460-9beb-b1a588146522 on heartbeat expiration) (kafka.coordinator.group.GroupCoordinator)
+[2025-04-25 16:22:17,658] INFO [GroupCoordinator 0]: Group netflow-consumer-group with generation 17 is now empty (__consumer_offsets-40) (kafka.coordinator.group.GroupCoordinator)

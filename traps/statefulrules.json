@@ -1,0 +1,20 @@
+[
+    {
+        "id": 4,
+        "name": "ISISAdjacencyChange",
+        "opensignaltrap": "CISCO-IETF-ISIS-MIB::ciiAdjacencyChange",
+        "closesignaltrap": "CISCO-IETF-ISIS-MIB::ciiAdjacencyChange",
+        "opensignaltag": "asdasda",
+        "opensignalvalue": "down",
+        "closesignaltag": "asdasda",
+        "closesignalvalue": "up",
+        "initialseverity": "medium",
+        "affectedentity": [
+            "Interface"
+        ],
+        "description": "ISIS Neighborship went down",
+        "warmup": 30,
+        "cooldown": 30,
+        "device_hostnames": []
+    }
+]

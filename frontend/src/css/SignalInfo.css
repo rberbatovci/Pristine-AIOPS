@@ -1,0 +1,94 @@
+:root {
+    --text-color: rgb(48, 113, 151);
+    --text-color-hover: rgb(0, 138, 218);
+  }
+  
+  [data-theme='dark'] {
+    --text-color: rgb(196, 196, 196);
+    --text-color-hover: white;
+  }
+  
+  
+  .signal-info-container {
+    font-size: 15px;
+    display: inline-block;
+    width: calc(100% - 50px);
+    max-width: calc(100% - 50px);
+    border-radius: 10px;
+    margin-left: 20px;
+    margin-right: 20px;
+    margin-top: 20px;
+    overflow: hidden;
+    transition: height 1s ease;
+    background: var(--backgroundColor3);
+  }
+  
+  .signal-info-container.expanded {
+    height: 200px;
+  }
+  
+  .signal-info-container.collapsed {
+    height: 60px;
+  }
+
+  
+  .signal-info-header {
+    padding-left: 10px;
+    padding-right: 20px;
+    font-size: 17px;
+    font-weight: 300;
+    margin-left: 10px;
+    cursor: pointer;
+    color: var(--text-color);
+    display: flex;
+    align-items: center;
+    transition: margin 1s ease-in-out, color 1s ease-in-out;
+  }
+  
+  .signal-info-header:hover {
+    margin-left: 20px;
+    color: var(--text-color-hover);
+  }
+  
+  .signal-info-content {
+    padding: 10px;
+  }
+  
+  .signal-info-details {
+    display: flex;
+    justify-content: space-between;
+  }
+  
+  .signal-info-left {
+    float: left;
+    width: 40%;
+    margin-top: -10px;
+    justify-content: center;
+    text-align: center;
+    font-size: 14px;
+  
+  }
+  
+  .signal-info-right {
+    float: right;
+    width: 40%;
+    margin-left: -100px;
+  }
+  
+
+  .header-container2 {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    backdrop-filter: blur(10px);
+    height: 50px;
+    color: white;
+    font-size: 18px;
+    flex-grow: 1;
+  }
+  
+  .header-container2 p {
+    font-weight: bold;
+    font-size: 16px;
+    color: var(--text-color2);
+  }

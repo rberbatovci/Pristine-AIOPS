@@ -1,0 +1,12 @@
+grant {
+  permission java.io.FilePermission "/usr/share/opensearch/config/openSearch/-", "read";
+  permission java.io.FilePermission "/usr/share/opensearch/config/-", "read";
+  permission java.lang.RuntimePermission "accessClassInPackage.sun.misc";
+  permission java.lang.RuntimePermission "accessDeclaredMembers";
+  permission java.lang.RuntimePermission "getClassLoader";
+  permission java.lang.RuntimePermission "setContextClassLoader";
+  permission java.lang.RuntimePermission "createClassLoader";
+  permission java.lang.RuntimePermission "accessSystemModules";
+  permission java.util.PropertyPermission "*", "read";
+  permission java.lang.RuntimePermission "getenv.*";
+};

@@ -1,0 +1,19 @@
+cluster.name: opensearch-cluster
+node.name: opensearch-node1
+network.host: 0.0.0.0
+discovery.seed_hosts: ["opensearch-node1"]
+cluster.initial_master_nodes: ["opensearch-node1"]
+bootstrap.memory_lock: true
+
+plugins.security.ssl.transport.pemcert_filepath: certs/node.pem
+plugins.security.ssl.transport.pemkey_filepath: certs/node-key.pem
+plugins.security.ssl.transport.pemtrustedcas_filepath: certs/root-ca.pem
+plugins.security.ssl.transport.enforce_hostname_verification: false
+plugins.security.ssl.http.enabled: true
+plugins.security.ssl.http.pemcert_filepath: certs/node.pem
+plugins.security.ssl.http.pemkey_filepath: certs/node-key.pem
+plugins.security.ssl.http.pemtrustedcas_filepath: certs/root-ca.pem
+
+plugins.security.allow_default_init_securityindex: true
+plugins.security.authcz.admin_dn:
+  - "CN=admin,OU=client,O=client,L=test, C=de"

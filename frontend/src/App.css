@@ -1,0 +1,559 @@
+:root {
+  --backgroundColor: rgb(231, 231, 231);
+  --backgroundColor2: rgba(231, 231, 231, .8);
+  --backgroundColor3: rgba(236, 236, 236, 0.9);
+  --backgroundColor4: rgb(87, 133, 155);
+  --listElementOddBackground: rgba(224, 224, 224, 0.4);
+  --listElementEvenBackground: rgba(224, 224, 224, 0.3);
+  --listElementHoverBackground: rgba(241, 241, 241, .8);
+  --background1: rgba(255, 255, 255, 0.3);
+  --sidebarBck: rgba(255, 255, 255, 0.05);
+  --textColor: rgb(90, 90, 90);
+  --textColor2: rgb(7, 49, 73);
+  --textColor3: rgba(0, 0, 0, .4);
+  --iconHoverColor: rgb(25, 111, 161);
+  --borderLight: 1px solid rgba(0, 112, 204, .4);
+  --borderDark: 1px solid rgba(31, 65, 78, 0.2);
+  --borderDarkHvr: 1px solid rgba(3, 92, 151, 0.4);
+  --elementBg: cyan;
+  --inputPlaceholderText: green;
+  --darkBack: rgba(244, 244, 244, .2);
+  --contentBackground: rgba(228, 228, 228, 0.6);
+  --searchButtonBack: rgb(204, 204, 204);
+  --searchButtonBackHover: rgb(17, 140, 223);
+  --inputTextBck: rgba(255, 255, 255, .2);
+  --inputTextBck2: rgba(255, 255, 255, 0.4);
+  --contentShadow: 8px 40px 40px rgba(109, 109, 109, 0.1);
+  --headerBackground: green;
+  --detailBack: rgba(123, 169, 190, 0.1);
+  --sidebarActiveBackground: rgb(129, 71, 184);
+  --listElementBack: rgb(87, 133, 155);
+  --listElementBackHover: rgba(70, 160, 202, 0.7);
+  --tableHeaderBorder: rgba(1, 1, 1, .2);
+  --buttonBackground: rgba(255, 255, 255, 0.4);
+  --buttonHoverBackground: rgba(73, 165, 231, 0.5);
+  --activeTextColor: rgb(255, 255, 255);
+  --inactiveTextColor: rgb(163, 163, 163);
+  --inactiveButtonTopBorder: 1px solid rgba(255, 255, 255, .6);
+  --inactiveButtonBottomBorder: 1px solid rgba(5, 112, 155, 0.2);
+  --dropdownBackground: rgba(231, 231, 231, 1);
+  --signalRightElementHeaderBackground: rgba(255, 255, 255, 0.2);
+
+}
+
+[data-theme='dark'] {
+  --backgroundColor: rgb(1, 47, 68);
+  --backgroundColor2: rgba(1, 47, 68, .8);
+  --backgroundColor3: rgba(7, 16, 20, 0.28);
+  --listElementOddBackground: rgba(0, 80, 117, 0.4);
+  --listElementEvenBackground: rgba(0, 80, 117, 0.6);
+  --listElementHoverBackground: rgba(0, 80, 117, 0.8);
+  --background1: rgba(93, 154, 247, 0.1);
+  --background2: rgba(3, 45, 61, 0.3);
+  --sidebarBck: rgba(11, 72, 97, 0.18);
+  --wallpaperBackground: radial-gradient(circle, rgba(1, 78, 107, 1) 0%, rgba(20, 77, 98, 1) 15%, rgba(0, 43, 59, 1) 100%);
+  --textColor: rgba(201, 201, 201, 0.8);
+  --textColor2: rgb(255, 255, 255);
+  --textColor3: rgba(255, 255, 255, .4);
+  --headerBackground: purple;
+  --darkBack: rgba(0, 57, 77, .6);
+  --inputTextBck: rgba(8, 46, 61, 0.35);
+  --contentBackground: rgba(0, 57, 77, .6);
+  --contentBackColor: rgb(0, 57, 77);
+  --borderLight: 1px solid rgba(235, 235, 235, 0.2);
+  --borderDark: 1px solid rgba(1, 32, 49, 0.5);
+  --borderDarkHvr: 1px solid rgba(0, 20, 39, 0.7);
+  --contentShadow: 8px 40px 40px rgba(0, 7, 15, 0.4);
+  --sidebarActiveBackground: rgb(2, 84, 122);
+  --listElementBack: rgb(2, 44, 68);
+  --listElementBackHover: rgba(2, 44, 68, .7);
+  --tableHeaderBorder: rgba(3, 153, 212, 0.2);
+  --buttonBackground: rgba(145, 211, 255, 0.1);
+  --buttonHoverBackground: rgba(7, 163, 235, 0.2);
+  --buttonActiveBackground: rgba(7, 163, 235, 0.4);
+  --activeTextColor: rgb(255, 255, 255);
+  --inactiveTextColor: rgba(255, 255, 255, .4);
+  --inactiveButtonTopBorder: 1px solid rgba(200, 235, 255, 0.2);
+  --inactiveButtonBottomBorder: 1px solid rgba(8, 50, 66, 0.2);
+  --dropdownTopBorder: 1px solid rgb(51, 95, 121);
+  --dropdownBottomBorder: 1px solid rgba(4, 27, 36, .2);
+  --mainButtonBackground: rgba(1, 56, 73, 0.4);
+  --dropdownBackground: rgb(0, 57, 77);
+  --configListButtonBackground: rgba(51, 61, 68, 0.64);
+  --configListButtonHoverBackground: rgba(145, 211, 255, 0.1);
+  --configListButtonActiveBackground: rgba(7, 163, 235, 0.4);
+  --signalRightElementHeaderBackground: rgba(55, 125, 172, 0.2);
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  /* Prevent scrollbars */
+}
+
+.App {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  left: 0;
+  top: 0;
+  font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+}
+
+header {
+  height: 50px;
+  border-bottom: var(--border-color3);
+  box-shadow: 3px 10px 30px rgba(0, 0, 0, 0.1);
+  z-index: 3;
+}
+
+.main-container {
+  display: flex;
+  position: relative;
+  height: calc(100vh - 50px);
+  width: 100%;
+  overflow: none;
+}
+
+.sidebar-container {
+  display: flex;
+  height: 100vh;
+  width: 200px;
+  margin-left: -190px;
+  transition: margin 0.5s ease-in-out;
+}
+
+.sidebar-container:hover {
+  margin-left: 0px;
+}
+
+.content {
+  display: flex;
+  justify-content: center;
+  /* Center horizontally */
+  align-items: center;
+  width: calc(100% - 10px);
+  position: relative;
+  left: 10px;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  width: 190px;
+  transition: width 0.5s ease-in-out;
+}
+
+.brand {
+  width: 10px;
+  height: 100vh;
+  background: linear-gradient(to bottom, #d6006f, #9c03ad);
+  z-index: 3;
+}
+
+.misc {
+  display: flex;
+  align-items: center;
+}
+
+
+.searchBar {
+  background: rgba(255, 255, 255, 0.1);
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  display: flex;
+  border-radius: 15px;
+  border: 1px solid var(--border-color4);
+}
+
+.searchBar button {
+  margin-right: 5px;
+}
+
+.noBackground {
+  background: none;
+  border: none;
+  outline: none;
+  height: 30px;
+  width: 250px;
+  padding-left: 15px;
+  color: white;
+  font-size: 15px;
+}
+
+.advSearchButton {
+  background: none;
+  border: none;
+  background: none;
+  color: var(--text-color);
+  font-size: 20px;
+}
+
+.themeButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  outline: none;
+  transition: color 0.3s ease;
+}
+
+
+.icon-large {
+  font-size: 24px;
+  margin-left: 10px;
+  transition: .5s;
+  color: var(--text-color2);
+}
+
+.danger:hover {
+  color: red;
+}
+
+.add:hover {
+  color: green;
+}
+
+.table h1 {
+  color: var(--text-color2);
+}
+
+.error {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--background-color2);
+  /* Tomato color */
+  color: white;
+  padding: 10px;
+  border-radius: 5px;
+  box-shadow: 3px 10px 20px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  transition: 1s;
+  color: var(--text-color2);
+}
+
+.headerInput {
+  background: rgba(255, 255, 255, 0.04);
+  outline: none;
+  border-radius: 10px;
+  border: var(--border-color4);
+  padding-left: 10px;
+  height: 30px;
+  color: var(--text-color2);
+  width: calc(100% - 20px);
+}
+
+.signal-details {
+  flex-grow: 1;
+}
+
+
+.signal-status {
+  display: flex;
+  background: green;
+  width: 20px;
+}
+
+.flex-container {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  height: 100%;
+}
+
+.signal-list {
+  flex: 1;
+  list-style: none;
+  overflow: auto;
+  padding: 0;
+}
+
+.main-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  /* Set the height to full viewport height */
+  background: rgba(206, 135, 135, .2);
+}
+
+
+
+
+::-webkit-scrollbar {
+  width: 10px;
+  /* Set width of the scrollbar */
+  height: 10px;
+  margin-top: 50px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #175a87;
+  /* Set color of the scrollbar thumb */
+  border-radius: 6px;
+  /* Set border radius of the scrollbar thumb */
+}
+
+::-webkit-scrollbar-track {
+  background-color: rgba(4, 27, 63, .05);
+  /* Set color of the scrollbar track */
+}
+
+
+.listEle {
+  padding: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--textColor);
+  /* Default text color */
+}
+
+/* Apply background color for odd items */
+.listEle:nth-child(odd) {
+  background-color: var(--listElementOddBackground);
+  /* Light gray */
+}
+
+/* Apply background color for even items */
+.listEle:nth-child(even) {
+  background-color: var(--listElementEvenBackground);
+  /* Light blue */
+}
+
+/* Hover effect for all list elements */
+.listEle:hover {
+  background: var(--listElementBackHover);
+  /* Highlight on hover */
+  color: white;
+  /* Change text color */
+}
+
+.selectedTagConfig {
+  background-color: #1e90ff;
+  /* Solid blue background for selected */
+}
+
+.listEle.selectedTagConfig {
+  background: var(--listElementBack);
+  color: white;
+}
+
+.listEle:hover.selectedTagConfig {
+  background: var(--listElementBackHover);
+  /* Darker blue when hovered and selected */
+  color: white;
+}
+
+.inputText {
+  display: block;
+  width: 264px;
+  /* Match the width with the Select component */
+  border-radius: 8px;
+  /* Same border radius */
+  border: var(--borderDark);
+  /* Custom border like in the customStyles */
+  height: 35px;
+  /* Match the height of the Select component */
+  line-height: normal;
+  /* Ensure normal line height */
+  background-color: var(--buttonBackground);
+  /* Same background color */
+  color: var(--textColor);
+  /* Text color */
+  font-size: 13px;
+  /* Match font size */
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  transition: border-color 0.5s;
+
+
+  /* Hover effect */
+  &:hover {
+    border: var(--borderDarkHvr);
+    /* Same hover border as the Select */
+  }
+
+  /* Focus effect */
+  &:focus {
+    outline: none;
+    /* Remove default browser outline */
+    border-color: var(--borderDarkHvr);
+    /* Same hover border for focus */
+  }
+}
+
+
+.listElement {
+  position: relative;
+  box-sizing: border-box;
+  background-color: var(--buttonBackground);
+  color: var(--inactiveTextColor);
+  transition: background-color 0.3s, color 0.3s;
+  border-top: var(--inactiveButtonTopBorder);
+  border-bottom: var(--inactiveButtonBottomBorder);
+  border-radius: 8px;
+}
+
+.listElement:hover {
+  background: var(--buttonHoverBackground);
+}
+
+.listElementActive {
+  background-color: var(--buttonActiveBackground);
+  color: var(--activeTextColor);
+}
+
+
+.button {
+  padding: 10px 20px;
+  border: none;
+  cursor: pointer;
+  background-color: var(--buttonBackground);
+  color: var(--inactiveTextColor);
+  transition: background-color 0.3s, color 0.3s;
+  border-top: var(--inactiveButtonTopBorder);
+  border-bottom: var(--inactiveButtonBottomBorder);
+}
+
+.button-active {
+  background-color: var(--buttonHoverBackground);
+  color: var(--activeTextColor);
+  border-radius: 5px;
+}
+
+.dropdownConfigContainer {
+  position: absolute;
+  top: 60px;
+  right: 10px;
+  background-color: var(--dropdownBackground);
+  border-top: var(--dropdownTopBorder);
+  border-bottom: var(--dropdownBottomBorder);
+  border-radius: 8px;
+  z-index: 10;
+  box-shadow: 2px 8px 10px rgba(0, 0, 0, 0.2);
+  width: 830px;
+  height: auto;
+  min-height: 140px;
+  max-height: 730px;
+  backdrop-filter: blur(20px);
+  overflow-y: auto;
+}
+
+.configMainList {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  width: 100%;
+}
+
+.configMainListButton {
+  flex: 1; /* Distribute space evenly */
+  text-align: center;
+  padding: 10px;
+  cursor: pointer;
+  background: var(--mainButtonBackground);
+  color: var(--textColor);
+  border-radius: 0;
+  opacity: .5;
+}
+
+.configMainListButton.active {
+  background-color: #007bff;
+  color: white;
+  opacity: 1;
+}
+
+.configListButton {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  background-color: var(--configListButtonBackground);
+  color: var(--inactiveTextColor);
+  transition: background-color 0.3s, color 0.3s;
+  border-top: var(--inactiveButtonTopBorder);
+  border-bottom: var(--inactiveButtonBottomBorder);
+}
+
+.configListButton:hover {
+  background-color: var(--configListButtonHoverBackground);
+}
+
+.selectedConfigListButton {
+  background-color: var(--configListButtonActiveBackground);
+  color: var(--activeTextColor);
+  border-radius: 5px;
+}
+
+  /* Button styles */
+  .btn-primary {
+    background-color: #007bff;
+    border-color: #007bff;
+    padding: .5rem 1rem;
+    font-size: 1rem;
+    border-radius: .25rem;
+    cursor: pointer;
+    color: #fff;
+  }
+  
+  .btn-primary:hover {
+    background-color: #0056b3;
+    border-color: #004085;
+  }
+  
+  .btn-light {
+    background-color: #f8f9fa;
+    border-color: #f8f9fa;
+    color: #000;
+  }
+  
+  .btn-light:hover {
+    background-color: #e2e6ea;
+    border-color: #dae0e5;
+  }
+
+.btn {
+  padding: 8px 20px;
+}
+
+.buttonStyles {
+  font-size: 14px;
+  color: white;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.newRuleButton {
+  background-color: #007bff; /* Blue */
+}
+
+.saveRuleButton {
+  background-color: #28a745; /* Green */
+}
+
+.deleteRuleButton {
+  background-color: #dc3545; /* Red */
+}
+
+.cancelButton {
+  background-color: #6c757d; /* Gray */
+}
+
+.buttonStyles:hover {
+  opacity: 0.8;
+}

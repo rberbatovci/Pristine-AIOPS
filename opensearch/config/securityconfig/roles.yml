@@ -1,0 +1,11 @@
+logwriter:
+  cluster_permissions:
+    - cluster_monitor
+  index_permissions:
+    - index_patterns:
+        - "syslogs-*"
+        - "traps-*"
+        - "netflow-*"
+      allowed_actions:
+        - "crud"
+        - "create_index"

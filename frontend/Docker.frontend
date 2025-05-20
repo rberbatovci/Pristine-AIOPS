@@ -1,0 +1,11 @@
+FROM node:20-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Copy only package files and install dependencies
+COPY package*.json ./
+RUN npm install
+
+# Start the development server
+CMD ["npm", "run", "start"]

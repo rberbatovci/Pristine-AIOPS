@@ -1,0 +1,9 @@
+# Dockerfile.init-opensearch
+FROM python:3.10-slim
+
+WORKDIR /app
+COPY initOpenSearch.py .
+
+RUN pip install requests
+
+CMD ["python", "initOpenSearch.py"]

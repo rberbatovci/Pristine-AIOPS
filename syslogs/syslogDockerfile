@@ -1,0 +1,31 @@
+# Step 1: Use a base image with required build tools (Ubuntu in this case)
+FROM ubuntu:20.04
+
+# Step 2: Install required dependencies for Kafka, syslog, and building the code
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    librdkafka-dev \
+    libssl-dev \
+    pkg-config \
+    netcat \
+    udp-syslog \
+    && rm -rf /var/lib/apt/lists/*
+
+# Step 3: Set up the working directory inside the container
+WORKDIR /usr/src/app
+
+# Step 4: Copy your C code (syslog listener) into the container
+COPY ./kafka/syslogs /usr/src/app
+
+# Step 5: Compile the C code
+RUN gcc -o syslog_listener syslog_listener.c -lrdkafka -lpthread
+
+# Step 6: Set up the entrypoint to run the syslog listener
+ENTRYPOINT ["./syslog_listener"]
+
+# Step 7: Expose the UDP port for syslog to listen on (1160 in your case)
+EXPOSE 1160
+
+# Optional: Add any other environment variables or configurations
+ENV KAFKA_BROKER=localhost:9092
+ENV KAFKA_TOPIC=syslog-topic

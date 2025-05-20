@@ -1,0 +1,50 @@
+# ---- Build Stage ----
+    FROM gcc:13 AS builder
+
+    # Install dependencies and MIBs
+    RUN apt-get update && apt-get install -y \
+        libsnmp-dev \
+        librdkafka-dev \
+        && rm -rf /var/lib/apt/lists/*
+
+    WORKDIR /app/traps
+    COPY producer.c .
+
+    # Compile with static linking for libsnmp and dynamic for librdkafka
+    RUN gcc -o producer producer.c \
+        -lnetsnmp -lrdkafka \
+        -Wl,--as-needed \
+        -DNETSNMP_ENABLE_DEBUGGING=0
+
+# ---- Runtime Stage ----
+    FROM debian:bookworm-slim
+
+    # Install runtime dependencies (no need for -dev packages or downloader here)
+    RUN apt-get update && apt-get install -y \
+        libsnmp40 \
+        librdkafka1 \
+    && rm -rf /var/lib/apt/lists/*
+
+    WORKDIR /app/traps
+
+    # Copy compiled binary
+    COPY --from=builder /app/traps/producer .
+
+    # Create MIBs directory
+    RUN mkdir mibs
+
+    # Copy your custom MIBs
+    COPY mibs /app/traps/mibs
+
+    # Copy downloaded standard MIBs (usually goes to /usr/share/snmp/mibs)
+    RUN cp /usr/share/snmp/mibs/* /app/traps/mibs/
+
+    # Set environment for SNMP to use custom MIB directory
+    ENV MIBS=ALL
+    ENV MIBDIRS=/app/traps/mibs
+
+    # Expose SNMP trap port
+    EXPOSE 1161/udp
+
+    # Run producer
+    ENTRYPOINT ["./producer"]

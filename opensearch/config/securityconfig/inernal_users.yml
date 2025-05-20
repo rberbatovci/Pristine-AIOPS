@@ -1,0 +1,10 @@
+admin:
+  hash: "$2y$12$XFdXZtVGo9.uj/EUToE1me8a2gPoE5ujcfRXgO7Oa0KGVz1cKHy6a"  # bcrypt hash for "admin"
+  reserved: true
+  backend_roles:
+    - admin
+
+log_ingestor:
+  hash: "$2y$12$ZfW8gUbyqekCv3c6bWQZlOJk/5ldx0Qm9sVOz.5Npnxqz7EzHThY6"  # bcrypt hash for "ingest"
+  backend_roles:
+    - logwriter

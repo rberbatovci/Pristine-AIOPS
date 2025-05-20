@@ -1,0 +1,56 @@
+[
+    {
+        "name": "LinkInterface",
+        "pattern": "Interface\\s+(\\S+),",
+        "matchfunction": "search",
+        "matchnumber": 1,
+        "groupnumber": 1,
+        "nomatch": "",
+        "tag": "Interface"
+    },
+    {
+        "name": "State",
+        "pattern": "(up|Up|Down|down|administratively down)",
+        "matchfunction": "search",
+        "matchnumber": 1,
+        "groupnumber": 1,
+        "nomatch": "",
+        "tag": "State"
+    },
+    {
+        "name": "BGP-ADJChange-Neighbor",
+        "pattern": "neighbor (\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})",
+        "matchfunction": "search",
+        "matchnumber": 1,
+        "groupnumber": 1,
+        "nomatch": "",
+        "tag": "Neighbor"
+    },
+    {
+        "name": "ISIS-Level",
+        "pattern": "ISIS\\s+\\(([^)]+)\\)",
+        "matchfunction": "search",
+        "matchnumber": 1,
+        "groupnumber": 1,
+        "nomatch": "",
+        "tag": "ISIS-Level"
+    },
+    {
+        "name": "ISIS-Neighbor",
+        "pattern": "Adjacency to ([^(]+)",
+        "matchfunction": "search",
+        "matchnumber": 1,
+        "groupnumber": 1,
+        "nomatch": "",
+        "tag": "Neighbor"
+    },
+    {
+        "name": "ISIS-Interface",
+        "pattern": "\\((GigabitEthernet[^)]+)\\)",
+        "matchfunction": "search",
+        "matchnumber": 1,
+        "groupnumber": 1,
+        "nomatch": "",
+        "tag": "Interface"
+    }
+]

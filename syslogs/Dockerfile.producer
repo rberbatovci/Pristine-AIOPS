@@ -1,0 +1,15 @@
+# ---- Build Stage ----
+    FROM gcc:13 AS builder
+
+    RUN apt-get update && apt-get install -y librdkafka-dev && rm -rf /var/lib/apt/lists/*
+    WORKDIR /app/syslogs
+    COPY producer.c .
+    RUN gcc -o producer producer.c -lrdkafka
+        
+    # ---- Runtime Stage ----
+    FROM debian:bookworm
+    
+    RUN apt-get update && apt-get install -y librdkafka1 && rm -rf /var/lib/apt/lists/*
+    WORKDIR /app/syslogs
+    COPY --from=builder /app/syslogs/producer .
+    ENTRYPOINT ["./producer"]

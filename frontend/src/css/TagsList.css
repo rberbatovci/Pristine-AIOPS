@@ -1,0 +1,60 @@
+
+.tagsListContainerText {
+    font-size: 13px;
+    margin-bottom: 10px;
+    text-align: left;
+    width: 100%;
+    display: block;
+    box-sizing: border-box;
+    padding: 0;
+    margin-top: 5px;
+  }
+  
+  .blurBackground {
+    max-height: 240px;
+    overflow-y: auto;
+    border-radius: 7px;
+    margin-top: 4px;
+    margin-bottom: 10px;
+  }
+  
+  .tagListUlElement {
+    height: 300px;
+    overflow-y: auto;
+    list-style-type: none;
+    padding: 5px;
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+  
+  .tagListLiElement {
+    background: var(--listElementBack);
+    padding: 12px 14px;
+    display: block;
+    transition: all 0.5s ease-in-out;
+    padding-right: 10px;
+    border: 1px solid var(--borderLight);
+  }
+  
+  .tagListLiElement:hover {
+    background: var(--listElementBackHover);
+    color: white;
+    padding-left: 20px; /* Increase padding on hover */
+  }
+  
+  .tagListLiElement.selected {
+    background: rgba(0, 123, 255, 0.3); /* Background color for selected items */
+    color: white; /* Text color for selected items */
+  }
+    
+  .searchTagListElement {
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 14px;
+    background: none;
+    outline: none;
+    border: none;
+    height: 40px;
+    padding-left: 10px;
+    padding-top: 3px;
+  }
