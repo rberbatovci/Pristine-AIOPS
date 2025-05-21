@@ -75,7 +75,7 @@ const SnmpTrapOid = ({ currentUser }) => {
         setUpdateError('');
         try {
             const tagNames = selectedTagsForOid.map(option => option.value);
-            const response = await apiClient.patch(`/traps/trapOids/${selectedTrapOid.id}`, {
+            const response = await apiClient.patch(`/traps/trapOids/${selectedTrapOid.name}`, {
                 ...selectedTrapOid,
                 tags: tagNames,
             });

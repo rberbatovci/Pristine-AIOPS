@@ -71,9 +71,6 @@ class TrapOid(Base):
     def __str__(self):
         return self.name
 
-
-
-
 class StatefulTrapRule(Base):
     __tablename__ = "stateful_trap_rules"
 

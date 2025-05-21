@@ -54,7 +54,7 @@ def reload_data():
     global snmpTrapOids_data
     logging.info("Reloading SNMP Trap OIDs data...")
     data = load_json_file("snmpTrapOids.json")
-    snmpTrapOids_data = data.get("snmpTrapOids", [])
+    snmpTrapOids_data = data
     if run:
         threading.Timer(RELOAD_INTERVAL_SECONDS, reload_data).start()
 
@@ -138,7 +138,7 @@ def main():
     global snmpTrapOids_data
     logging.info("Starting SNMP Trap Consumer...")
     data = load_json_file("snmpTrapOids.json")
-    snmpTrapOids_data = data.get("snmpTrapOids", [])
+    snmpTrapOids_data = load_json_file("snmpTrapOids.json")
     signal.signal(signal.SIGINT, shutdown)
     signal.signal(signal.SIGTERM, shutdown)
 

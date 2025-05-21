@@ -80,9 +80,43 @@ function TrapTags({ currentUser, onAdd, onDelete, onEdit, onSave }) {
         }
     };
 
-    const handleSelectTag = (tag) => {
-        setSelectedTag(tag);
-        setNewTag({ name: tag.name, oids: tag.oids ? tag.oids.map(oid => ({ value: oid, label: oid })) : [] });
+    const handleSelectTag = async (tag) => {
+        try {
+            const response = await apiClient.get(`/traps/tags/${tag.name}`);
+            const fullTag = response.data;
+
+            setSelectedTag(fullTag);
+            setNewTag({
+                name: fullTag.name,
+                oids: fullTag.oids ? fullTag.oids.map(oid => ({ value: oid, label: oid })) : [],
+            });
+        } catch (error) {
+            console.error("Failed to fetch tag details:", error);
+        }
+    };
+
+    const handleSaveTag = async () => {
+        if (!selectedTag) return;
+
+        setLoading(true);
+        setError('');
+        try {
+            const oidsArray = newTag.oids.map(oid => oid.value);
+            const response = await apiClient.put(`/traps/tags/${selectedTag.name}`, {
+                oids: oidsArray
+            });
+            // Update the trapTags list locally
+            setTrapTags(prev =>
+                prev.map(tag => tag.name === response.data.name ? response.data : tag)
+            );
+            setSelectedTag(null);
+            setNewTag({ name: '', oids: [] });
+        } catch (err) {
+            console.error('Error updating trap tag:', err);
+            setError('Failed to update trap tag.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -165,19 +199,21 @@ function TrapTags({ currentUser, onAdd, onDelete, onEdit, onSave }) {
                             />
                         </div>
                         <div className="signalConfigButtonContainer">
-                            <button
-                                className={selectedTag ? "saveRuleButton" : "addRuleButton"}
-                                onClick={handleAddTag}
-                                disabled={loading || !newTag.name.trim()}
-                            >
-                                {selectedTag ? 'Save Tag' : 'Add Tag'}
-                            </button>
-                            {selectedTag && (
-                                <button onClick={() => {
-                                    setSelectedTag(null);
-                                    setNewTag({ name: '', oids: [] });
-                                }} style={{ marginLeft: '10px' }}>
-                                    Cancel Edit
+                            {selectedTag ? (
+                                <button
+                                    className="saveRuleButton"
+                                    onClick={handleSaveTag}
+                                    disabled={loading || !newTag.name.trim()}
+                                >
+                                    Save Tag
+                                </button>
+                            ) : (
+                                <button
+                                    className="addRuleButton"
+                                    onClick={handleAddTag}
+                                    disabled={loading || !newTag.name.trim()}
+                                >
+                                    Add Tag
                                 </button>
                             )}
                         </div>

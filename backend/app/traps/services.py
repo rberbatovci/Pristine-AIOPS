@@ -9,7 +9,9 @@ from pathlib import Path
 import json
 import os
 from sqlalchemy.orm import selectinload
+from typing import Any
 
+TRAP_TAGS_JSON_PATH = "/app/traps/trapTags.json"
 SnmpTrapOidFile = Path("/app/traps/snmpTrapOids.json")
 
 async def createTrap(db: AsyncSession, trap: TrapCreate):
@@ -32,30 +34,26 @@ async def createTrap(db: AsyncSession, trap: TrapCreate):
     return db_syslog
 
 def create_snmpTrapOid_in_file(name: str):
-    print(f"Attempting to write '{name}' to JSON file.")
+    filepath = "/app/traps/snmpTrapOids.json"
 
-    if not SnmpTrapOidFile.exists():
-        print(f"File {SnmpTrapOidFile} does not exist.")
-        raise FileNotFoundError(f"{SnmpTrapOidFile} does not exist")
+    # Create the file if it does not exist
+    if not os.path.exists(filepath):
+        with open(filepath, "w") as f:
+            json.dump([], f)  # initialize with empty list or dict
 
-    with open(SnmpTrapOidFile, "r") as f:
-        data = json.load(f)
+    # Read safely
+    with open(filepath, "r") as f:
+        try:
+            data = json.load(f)
+        except json.JSONDecodeError:
+            data = []  # or {} depending on your structure
 
-    if any(m.get("name") == name for m in data.get("snmpTrapOids", [])):
-        print(f"'{name}' already exists in the JSON file.")
-        raise ValueError(f"Mnemonic '{name}' already exists in file")
+    # Modify the data
+    data.append({"name": name, "value": name, "tags": [], "rules": []})
 
-    new_snmpTrapOid = {
-        "name": name,
-        "value": name,
-    }
-
-    data.setdefault("snmpTrapOids", []).append(new_snmpTrapOid)
-
-    with open(SnmpTrapOidFile, "w") as f:
-        json.dump(data, f, indent=4)
-
-    print(f"Successfully wrote '{name}' to the JSON file.")
+    # Save back to file
+    with open(filepath, "w") as f:
+        json.dump(data, f, indent=2)
 
 async def getTraps(db: AsyncSession, skip: int = 0, limit: int = 100):
     result = await db.execute(select(TrapModel).offset(skip).limit(limit))
@@ -120,6 +118,28 @@ async def save_statefulrules_to_file(db: AsyncSession):
     except Exception as e:
         print(f"Error writing statefulrules.json: {e}")
 
+async def remove_rule_from_snmpTrapOid(rule_name: str):
+    try:
+        # Load the JSON file
+        if not SnmpTrapOidFile.exists():
+            raise FileNotFoundError(f"{SnmpTrapOidFile} not found.")
+
+        with SnmpTrapOidFile.open("r") as f:
+            trap_oids = json.load(f)
+
+        # Remove the rule name from any trap's rules list
+        for trap in trap_oids:
+            if rule_name in trap.get("rules", []):
+                trap["rules"].remove(rule_name)
+
+        # Write the updated data back
+        with SnmpTrapOidFile.open("w") as f:
+            json.dump(trap_oids, f, indent=2)
+
+    except Exception as e:
+        print(f"Error removing rule from JSON: {e}")
+        raise
+
 async def remove_rule_from_json(rule_name: str):
     STATEFUL_RULES_JSON_PATH = "/app/traps/statefulrules.json"
     print(f">>> Attempting to remove rule '{rule_name}' from JSON")
@@ -147,3 +167,161 @@ async def remove_rule_from_json(rule_name: str):
     except Exception as e:
         print(f">>> Error removing rule from {STATEFUL_RULES_JSON_PATH}")
         traceback.print_exc()
+
+def save_tags_to_json_file(tag_data: dict, json_path: str = TRAP_TAGS_JSON_PATH) -> None:
+    try:
+        os.makedirs(os.path.dirname(json_path), exist_ok=True)
+        path = Path(json_path)
+
+        if path.exists():
+            with open(path, "r+", encoding="utf-8") as file:
+                try:
+                    data = json.load(file)
+                    if not isinstance(data, list):
+                        data = [data]
+                    data.append(tag_data)
+                except json.JSONDecodeError:
+                    data = [tag_data]
+
+                file.seek(0)
+                json.dump(data, file, indent=4)
+                file.truncate()
+        else:
+            with open(path, "w", encoding="utf-8") as file:
+                json.dump([tag_data], file, indent=4)
+
+        print(f"Tag saved to: {json_path}")
+
+    except Exception as e:
+        print(f"Error writing tag to JSON: {e}")
+
+def update_tag_in_json_file(name: str, new_oids: Any, json_path: str = TRAP_TAGS_JSON_PATH) -> None:
+    """
+    Find the tag by `name` in the JSON file and replace its `oids` value.
+    """
+    path = Path(json_path)
+    if not path.exists():
+        return
+
+    with path.open("r+", encoding="utf-8") as f:
+        try:
+            data = json.load(f)
+        except json.JSONDecodeError:
+            return
+
+        if isinstance(data, list):
+            for entry in data:
+                if entry.get("name") == name:
+                    entry["oids"] = new_oids
+                    break
+        else:
+            if data.get("name") == name:
+                data["oids"] = new_oids
+
+        f.seek(0)
+        json.dump(data, f, indent=4)
+        f.truncate()
+
+def delete_tag_from_json_file(name: str, json_path: str = TRAP_TAGS_JSON_PATH) -> None:
+    """
+    Remove any entry with `name` from the JSON file.
+    """
+    path = Path(json_path)
+    if not path.exists():
+        return
+
+    with path.open("r+", encoding="utf-8") as f:
+        try:
+            data = json.load(f)
+        except json.JSONDecodeError:
+            return
+
+        if isinstance(data, list):
+            data = [entry for entry in data if entry.get("name") != name]
+        else:
+            # if single object matches name, clear it
+            if data.get("name") == name:
+                data = []
+
+        f.seek(0)
+        json.dump(data, f, indent=4)
+        f.truncate()
+
+def update_snmptrap_oid_json_file(trap_oid: TrapOid):
+    """
+    Updates the snmpTrapOid.json file with the latest tag info for a given trap OID.
+    If the OID exists, it's updated; if not, it's added.
+    """
+    # Load existing data
+    if os.path.exists(SnmpTrapOidFile):
+        with open(SnmpTrapOidFile, "r") as f:
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError:
+                data = []
+    else:
+        data = []
+
+    # Update or insert trap OID entry
+    updated = False
+    for entry in data:
+        if entry.get("name") == trap_oid.name:
+            entry["tags"] = trap_oid.tags
+            updated = True
+            break
+
+    if not updated:
+        data.append({
+            "name": trap_oid.name,
+            "tags": trap_oid.tags
+        })
+
+    # Write back to file
+    with open(SnmpTrapOidFile, "w") as f:
+        json.dump(data, f, indent=2)
+
+def update_snmpTrapOid_tags_in_file(trap_oid_name: str, tags: list[str]) -> None:
+    if not os.path.exists(SnmpTrapOidFile):
+        raise FileNotFoundError(f"{SnmpTrapOidFile} does not exist")
+
+    with open(SnmpTrapOidFile, "r") as f:
+        try:
+            data = json.load(f)
+        except json.JSONDecodeError:
+            raise ValueError("Invalid JSON format in snmpTrapOids.json")
+
+    updated = False
+    for oid_entry in data:
+        if oid_entry.get("name") == trap_oid_name:
+            oid_entry["tags"] = tags
+            updated = True
+            break
+
+    if not updated:
+        raise ValueError(f"Trap OID with name '{trap_oid_name}' not found in JSON file")
+
+    with open(SnmpTrapOidFile, "w") as f:
+        json.dump(data, f, indent=2)
+
+async def update_trap_rules_in_json(opensignaltrap_name: str, closesignaltrap_name: str, rule_name: str):
+    try:
+        # Load the JSON file
+        if not SnmpTrapOidFile.exists():
+            raise FileNotFoundError(f"{SnmpTrapOidFile} not found.")
+
+        with SnmpTrapOidFile.open("r") as f:
+            trap_oids = json.load(f)
+
+        # Update rules for open and close traps
+        for trap in trap_oids:
+            if trap["name"] == opensignaltrap_name or trap["name"] == closesignaltrap_name:
+                if rule_name not in trap["rules"]:
+                    trap["rules"].append(rule_name)
+
+        # Write the updated data back
+        with SnmpTrapOidFile.open("w") as f:
+            json.dump(trap_oids, f, indent=2)
+
+    except Exception as e:
+        print(f"Error updating trap rules in JSON: {e}")
+        raise

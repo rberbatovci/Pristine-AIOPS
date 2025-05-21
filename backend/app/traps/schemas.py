@@ -15,20 +15,47 @@ class SNMPConfig(BaseModel):
 
 class TagBase(BaseModel):
     name: str
-    oids: list[str] | None = None 
+    oids: Optional[List[str]] = None
 
     class Config:
         from_attributes = True
 
-class TagSchema(TagBase):
-    pass
 
 class TagCreate(TagBase):
-    pass 
+    """
+    Schema for creating a tag.
+    Both `name` and optional `oids` are provided.
+    """
+    pass
+
+
+class TagSchema(TagBase):
+    """
+    Schema for reading/returning a tag.
+    Includes name and oids.
+    """
+    pass
+
+
+class TagUpdate(BaseModel):
+    """
+    Schema for updating an existing tag.
+    Typically you allow only `oids` to be updated.
+    """
+    oids: Optional[List[str]] = None
+
+    class Config:
+        from_attributes = True
 
 class TagDelete(BaseModel):
     name: str
-    
+
+class TagBrief(BaseModel):
+    name: str
+
+    class Config:
+        from_attributes = True
+
 class SNMPOIDSchema(BaseModel):
     id: int
     name: str
@@ -42,6 +69,13 @@ class TrapOid(BaseModel):
     value: Optional[str] = None
     tags: Optional[List[str]] = []
     rules: Optional[List[str]] = []
+
+class TrapOidCreate(BaseModel):
+    name: str
+    value: str
+
+    class Config:
+        from_attributes = True
 
 class TrapOidBrief(BaseModel):
     id: int

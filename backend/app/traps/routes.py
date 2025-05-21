@@ -1,5 +1,5 @@
-from .schemas import Trap, TrapCreate, StatefulTrapRuleResponse, SNMPConfig, TagSchema, TrapOid, StatefulTrapRuleBase, TagCreate, StatefulTrapRule, TagDelete, TrapOidBrief, TrapOidUpdate, StatefulTrapRuleBrief
-from .services import checkOids
+from .schemas import Trap, TrapCreate, TrapOidCreate, TagBrief, StatefulTrapRuleResponse, SNMPConfig, TagSchema, TrapOid, StatefulTrapRuleBase, TagCreate, TagUpdate, StatefulTrapRule, TagDelete, TrapOidBrief, TrapOidUpdate, StatefulTrapRuleBrief
+from .services import remove_rule_from_snmpTrapOid, checkOids, update_trap_rules_in_json, update_snmpTrapOid_tags_in_file, save_tags_to_json_file, update_tag_in_json_file, delete_tag_from_json_file, save_statefulrules_to_file, remove_rule_from_json
 from app.devices.models import Device as DeviceModel
 from .models import Tag as TagModel
 from .models import Trap as TrapModel
@@ -17,7 +17,7 @@ from .services import create_snmpTrapOid_in_file
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import selectinload
 import traceback
-from .services import save_statefulrules_to_file, remove_rule_from_json
+
 router = APIRouter()
 
 MIBS_DIR = "/app/traps/mibs"
@@ -103,27 +103,78 @@ async def get_traps(page: int = Query(1, ge=1, description="Page number"),
         "page_size": page_size
     }
 
-@router.get("/traps/tags/", response_model=list[TagSchema])
+@router.get("/traps/tags/", response_model=list[TagBrief])
 async def get_tags(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(TagModel).offset(skip).limit(limit))
     tags = result.scalars().all()
     return tags
 
+@router.get("/traps/tags/{name}", response_model=TagSchema)
+async def get_tag_by_name(name: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(TagModel).where(TagModel.name == name))
+    tag = result.scalar_one_or_none()
+    if not tag:
+        raise HTTPException(status_code=404, detail="Tag not found")
+    return tag
+
 @router.post("/traps/tags/", response_model=TagSchema, status_code=201)
 async def create_tag(tag: TagCreate, db: AsyncSession = Depends(get_db)):
-    async with db.begin():
-        try:
-            stmt = insert(TagModel).values(name=tag.name, oids=tag.oids).returning(TagModel)
+    try:
+        async with db.begin():
+            stmt = (
+                insert(TagModel)
+                .values(name=tag.name, oids=tag.oids)
+                .returning(TagModel.name, TagModel.oids)
+            )
             result = await db.execute(stmt)
-            new_tag = result.scalar_one()
-            return new_tag
-        except Exception as e:
-            await db.rollback()
-            # Handle potential unique constraint violations more gracefully
-            existing_tag = await db.execute(select(TagModel).where(TagModel.name == tag.name))
-            if existing_tag.scalar_one_or_none():
-                raise HTTPException(status_code=400, detail="Tag with this name already exists")
-            raise
+            name, oids = result.one()
+
+        # ✅ Save only after DB commit
+        save_tags_to_json_file({"name": name, "oids": oids})
+
+        return TagSchema(name=name, oids=oids)
+
+    except Exception:
+        await db.rollback()
+        existing = await db.execute(
+            select(TagModel).where(TagModel.name == tag.name)
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="Tag with this name already exists")
+
+        raise HTTPException(status_code=500, detail="Failed to create tag due to server error.")
+
+
+@router.put("/traps/tags/{name}", response_model=TagSchema)
+async def update_tag(name: str, tag: TagUpdate, db: AsyncSession = Depends(get_db)):
+    async with db.begin():
+        stmt = (
+            update(TagModel)
+            .where(TagModel.name == name)
+            .values(oids=tag.oids)
+        )
+        await db.execute(stmt)
+
+    result = await db.execute(select(TagModel).where(TagModel.name == name))
+    updated = result.scalar_one_or_none()
+
+    if not updated:
+        raise HTTPException(404, "Tag not found")
+
+    update_tag_in_json_file(name, tag.oids)
+    return TagSchema.from_orm(updated)
+
+@router.delete("/traps/tags/{name}", status_code=204)
+async def delete_tag(name: str, db: AsyncSession = Depends(get_db)):
+    async with db.begin():
+        stmt = delete(TagModel).where(TagModel.name == name)
+        result = await db.execute(stmt)
+        if result.rowcount == 0:
+            raise HTTPException(404, "Tag not found")
+
+        # delete from JSON
+        delete_tag_from_json_file(name)
+
 
 @router.delete("/traps/tags/{tag_name}", status_code=204)
 async def delete_tag(tag_name: str, db: AsyncSession = Depends(get_db)):
@@ -134,21 +185,33 @@ async def delete_tag(tag_name: str, db: AsyncSession = Depends(get_db)):
             raise HTTPException(status_code=404, detail=f"Tag '{tag_name}' not found")
     return
 
-@router.post("/traps/trapOids/", response_model=TrapOid)
-async def create_snmpTrapOid(snmpTrapOid: TrapOid, db: AsyncSession = Depends(get_db)):
-    print("Received Payload:", snmpTrapOid)
-    db_snmpTrapOid = await db.execute(select(TrapOidModel).filter(TrapOidModel.name == snmpTrapOid.name))
-    if db_snmpTrapOid.scalars().first():
-        raise HTTPException(status_code=400, detail="SNMP Trap OID already exists")
-    db_snmpTrapOid = TrapOidModel(name=snmpTrapOid.name, value=snmpTrapOid.name)
+@router.post("/traps/trapOids/", response_model=TrapOidCreate)
+async def create_snmpTrapOid(snmpTrapOid: TrapOidCreate, db: AsyncSession = Depends(get_db)):
+    # Check if mnemonic exists
+    existing = await db.execute(select(TrapOidModel).filter(TrapOidModel.name == snmpTrapOid.name))
+    if existing.scalars().first():
+        raise HTTPException(status_code=400, detail="Mnemonic already exists")
+
+    # Create new mnemonic
+    db_snmpTrapOid = TrapOidModel(
+        name=snmpTrapOid.name,
+        value=snmpTrapOid.name,
+    )
     db.add(db_snmpTrapOid)
     await db.commit()
     await db.refresh(db_snmpTrapOid)
-    try:
-        create_snmpTrapOid_in_file(snmpTrapOid.name)
-    except Exception as e:
-        print(f"Failed to write to JSON file: {e}")
-    return db_snmpTrapOid
+
+    # Re-fetch with eager loading of related fields to avoid lazy loading
+    result = await db.execute(
+        select(TrapOidModel)
+        .options(selectinload(TrapOidModel.rules))
+        .filter(TrapOidModel.id == db_snmpTrapOid.id)
+    )
+    snmpTrapOid_with_relations = result.scalars().first()
+
+    create_snmpTrapOid_in_file(snmpTrapOid.name)
+
+    return snmpTrapOid_with_relations
 
 @router.get("/traps/trapOids/", response_model=list[TrapOidBrief])
 async def read_mnemonics(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
@@ -166,20 +229,21 @@ async def get_trap_oid_by_name(trap_oid_name: str, db: AsyncSession = Depends(ge
         raise HTTPException(status_code=404, detail="TrapOid not found")
     return trap_oid
 
-@router.patch("/traps/trapOids/{trap_oid_id}", response_model=TrapOid)
-async def update_trap_oid(
-    trap_oid_id: int,
+@router.patch("/traps/trapOids/{trap_oid_name}", response_model=TrapOid)
+async def update_trap_oid_by_name(
+    trap_oid_name: str,
     trap_oid_update: TrapOidUpdate,
     db: AsyncSession = Depends(get_db)
 ):
-    result = await db.execute(select(TrapOidModel).filter(TrapOidModel.id == trap_oid_id))
+    result = await db.execute(
+        select(TrapOidModel)
+        .options(selectinload(TrapOidModel.rules))
+        .filter(TrapOidModel.name == trap_oid_name)
+    )
     trap_oid = result.scalars().first()
     if not trap_oid:
         raise HTTPException(status_code=404, detail="TrapOid not found")
 
-    # Update fields if provided
-    if trap_oid_update.name is not None:
-        trap_oid.name = trap_oid_update.name
     if trap_oid_update.tags is not None:
         trap_oid.tags = trap_oid_update.tags
 
@@ -187,9 +251,17 @@ async def update_trap_oid(
     await db.commit()
     await db.refresh(trap_oid)
 
+    # ✅ Update JSON file
+    if trap_oid_update.tags is not None:
+        try:
+            update_snmpTrapOid_tags_in_file(trap_oid_name, trap_oid_update.tags)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to update JSON file: {str(e)}")
+
     return trap_oid
-async def get_trapOid_by_id(db: AsyncSession, trap_oid_id: int) -> TrapOidModel | None:
-    result = await db.execute(select(TrapOidModel).where(TrapOidModel.id == trap_oid_id))
+
+async def get_trapOid_by_name(db: AsyncSession, trap_oid_name: str) -> TrapOidModel | None:
+    result = await db.execute(select(TrapOidModel).where(TrapOidModel.name == trap_oid_name))
     return result.scalar_one_or_none()
 
 @router.get("/traps/statefulrules/", response_model=List[StatefulTrapRuleBrief])
@@ -254,6 +326,11 @@ async def create_stateful_rule(rule: StatefulTrapRuleBase, db: AsyncSession = De
         db_rule = result.scalars().first()
 
         await save_statefulrules_to_file(db)
+        await update_trap_rules_in_json(
+            opensignaltrap_name=db_rule.opensignaltrap.name,
+            closesignaltrap_name=db_rule.closesignaltrap.name,
+            rule_name=db_rule.name
+        )
 
         return StatefulTrapRuleResponse(
             id=db_rule.id,
@@ -331,5 +408,6 @@ async def delete_stateful_syslog_rule(
     await session.commit()
 
     await remove_rule_from_json(rule.name)
+    await remove_rule_from_snmpTrapOid(rule.name)
 
     return {"detail": f"Rule '{rule_name}' deleted successfully"}

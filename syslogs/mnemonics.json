@@ -419,6 +419,13 @@
             "severity": "Informational",
             "regexes": [],
             "rules": []
+        },
+        {
+            "name": "%CLNS-5-ADJCLEAR",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
         }
     ]
 }
