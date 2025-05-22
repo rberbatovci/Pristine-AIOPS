@@ -1,1 +1,20 @@
-[]
+[
+    {
+        "id": 8,
+        "name": "InterfaceLinkDown",
+        "opensignaltrap": "IF-MIB::linkDown",
+        "closesignaltrap": "IF-MIB::linkUp",
+        "opensignaltag": "",
+        "opensignalvalue": "",
+        "closesignaltag": "",
+        "closesignalvalue": "",
+        "initialseverity": "medium",
+        "affectedentity": [
+            "Interface"
+        ],
+        "description": "Interface changed state to down!",
+        "warmup": 30,
+        "cooldown": 30,
+        "device_hostnames": []
+    }
+]

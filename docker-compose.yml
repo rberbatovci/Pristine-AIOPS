@@ -66,7 +66,7 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_CREATE_TOPICS: "syslog-topic:1:1,trap-topic:1:1,netflow-topic:1:1,syslog-signals:1:1"
+      KAFKA_CREATE_TOPICS: "syslog-topic:1:1,trap-topic:1:1,netflow-topic:1:1,syslog-signals:1:1,trap-signals:1:1"
     ports:
       - "9092:9092"
     depends_on:
@@ -156,49 +156,64 @@ services:
     networks:
       - kafka-net
 
-  syslog-producer:
-    container_name: SyslogProducer
-    build:
-      context: ./syslogs
-      dockerfile: Dockerfile.producer
-    environment:
-      KAFKA_BROKER: kafka:9092
-      KAFKA_TOPIC: syslog-topic
-    ports:
-      - "1160:1160/udp"
-    depends_on:
-      kafka:
-        condition: service_healthy
-    networks:
-      - kafka-net
+  #syslog-producer:
+  #  container_name: SyslogProducer
+  #  build:
+  #    context: ./syslogs
+  #    dockerfile: Dockerfile.producer
+  #  environment:
+  #    KAFKA_BROKER: kafka:9092
+  #    KAFKA_TOPIC: syslog-topic
+  #  ports:
+  #    - "1160:1160/udp"
+  #  depends_on:
+  #    kafka:
+  #      condition: service_healthy
+  #  networks:
+  #    - kafka-net
 
-  syslog-consumer:
-    container_name: SyslogConsumer
-    build:
-      context: ./syslogs
-      dockerfile: Dockerfile.consumer
-    volumes:
-      - ./syslogs:/app/syslogs
-    command: python /app/syslogs/consumer.py
-    depends_on:
-      kafka:
-        condition: service_healthy
-    networks:
-      - kafka-net
+  #syslog-consumer:
+  #  container_name: SyslogConsumer
+  #  build:
+  #    context: ./syslogs
+  #    dockerfile: Dockerfile.consumer
+  #  volumes:
+  #    - ./syslogs:/app/syslogs
+  #  command: python /app/syslogs/consumer.py
+  #  depends_on:
+  #    kafka:
+  #      condition: service_healthy
+  #  networks:
+  #    - kafka-net
 
-  syslog-signals:
-    container_name: SyslogSignals
+  #syslog-signals:
+  #  container_name: SyslogSignals
+  #  build:
+  #    context: ./signals
+  #    dockerfile: Dockerfile.syslogSignals
+  #  volumes:
+  #    - ./signals:/app/signals
+  #  command: python /app/signals/syslog-signals.py
+  #  depends_on:
+  #    kafka: 
+  #      condition: service_healthy
+  #  networks:
+  #    - kafka-net
+
+  trap-signals:
+    container_name: TrapSignals
     build:
       context: ./signals
-      dockerfile: Dockerfile.syslogSignals
+      dockerfile: Dockerfile.trapSignals
     volumes:
       - ./signals:/app/signals
-    command: python /app/signals/syslog-signals.py
+    command: python /app/signals/trap-signals.py
     depends_on:
       kafka: 
         condition: service_healthy
     networks:
       - kafka-net
+
 
   trap-producer:
     container_name: TrapProducer
@@ -230,32 +245,32 @@ services:
     networks:
       - kafka-net
 
-  netflow-producer:
-    container_name: NetflowProducer
-    build:
-      context: ./netflow
-      dockerfile: Dockerfile.producer
-    ports:
-      - "1162:1162/udp"
-    depends_on:
-      kafka:
-        condition: service_healthy
-    networks:
-      - kafka-net
+  #netflow-producer:
+  #  container_name: NetflowProducer
+  #  build:
+  #    context: ./netflow
+  #    dockerfile: Dockerfile.producer
+  #  ports:
+  #    - "1162:1162/udp"
+  #  depends_on:
+  #    kafka:
+  #      condition: service_healthy
+  #  networks:
+  #    - kafka-net
 
-  netflow-consumer:
-    container_name: NetflowConsumer
-    build:
-      context: ./netflow
-      dockerfile: Dockerfile.consumer
-    depends_on:
-      kafka:
-        condition: service_healthy
-      opensearch:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - kafka-net
+  #netflow-consumer:
+  #  container_name: NetflowConsumer
+  #  build:
+  #    context: ./netflow
+  #    dockerfile: Dockerfile.consumer
+  #  depends_on:
+  #    kafka:
+  #      condition: service_healthy
+  #    opensearch:
+  #      condition: service_healthy
+  #  restart: unless-stopped
+  #  networks:
+  #    - kafka-net
 
 volumes:
   postgres_data:

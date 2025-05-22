@@ -4,12 +4,13 @@ import json
 import time
 import requests
 import logging
-from confluent_kafka import Consumer, KafkaException, KafkaError
+from confluent_kafka import Consumer, KafkaException, KafkaError, Producer
 from datetime import datetime
 import os
 import aiohttp
 import threading
 import asyncio
+import hashlib
 
 # Kafka configuration
 KAFKA_BROKER = 'Kafka:9092'
@@ -19,11 +20,16 @@ RELOAD_INTERVAL_SECONDS = 60
 OPENSEARCH_URL = 'http://OpenSearch:9200/traps/_doc/'
 DATA_DIR = "/app/traps"
 FASTAPI_URL = "http://FastAPI:8000/traps/trapOids/"
+KAFKA_SIGNAL_TOPIC = 'trap-signals'
 
 run = True
 msg_count = 0
 total_latency = 0
-snmpTrapOids_data = []
+snmpTrapOidSettings = []
+statefulRuleSettings = []
+trapTagSettings = []
+
+producer = Producer({'bootstrap.servers': KAFKA_BROKER})
 
 LOG_FILE = 'snmptrap_consumer.log'
 LOG_LEVEL = logging.INFO
@@ -38,25 +44,36 @@ def shutdown(signum, frame):
     logging.info("Shutting down...")
     run = False
 
-def load_json_file(file_name):
-    file_path = os.path.join(DATA_DIR, file_name)
+data_stores = {
+    "snmpTrapOids.json": "snmpTrapOidSettings",
+    "statefulrules.json": "statefulRuleSettings",
+    "trapTags.json": "trapTagSettings",
+}
+
+def load_json_file(file_path):
     try:
         with open(file_path, 'r') as f:
             return json.load(f)
     except FileNotFoundError:
-        logging.warning(f"{file_path} not found. Returning empty dict.")
-        return {}
+        logging.warning(f"{file_path} not found. Returning empty list.")
+        return []
     except json.JSONDecodeError:
-        logging.warning(f"Error decoding JSON from {file_path}. Returning empty dict.")
-        return {}
+        logging.warning(f"Error decoding JSON from {file_path}. Returning empty list.")
+        return []
 
-def reload_data():
-    global snmpTrapOids_data
-    logging.info("Reloading SNMP Trap OIDs data...")
-    data = load_json_file("snmpTrapOids.json")
-    snmpTrapOids_data = data
+def reload_all_data():
+    global snmpTrapOidSettings, statefulRuleSettings, trapTagSettings
+    logging.info("Reloading all configuration data...")
+    for file_name, global_var_name in data_stores.items():
+        file_path = os.path.join(DATA_DIR, file_name)
+        data = load_json_file(file_path)
+        globals()[global_var_name] = data
+        logging.info(f"Reloaded data from {file_name} into {global_var_name}.")
+
+    logging.info(f"Current trapTagSettings after reload: {trapTagSettings}") # Added logging
+
     if run:
-        threading.Timer(RELOAD_INTERVAL_SECONDS, reload_data).start()
+        threading.Timer(RELOAD_INTERVAL_SECONDS, reload_all_data).start()
 
 def send_to_opensearch(json_doc):
     try:
@@ -64,6 +81,8 @@ def send_to_opensearch(json_doc):
         response = requests.post(OPENSEARCH_URL, headers=headers, data=json_doc)
         if response.status_code not in (200, 201):
             logging.error(f"Failed to index: {response.text}")
+        else:
+            logging.info(f"Indexed document to OpenSearch: {json_doc}")
     except requests.exceptions.ConnectionError as e:
         logging.error(f"OpenSearch Connection Error: {e}")
     except Exception as e:
@@ -95,10 +114,11 @@ def handle_message(msg):
         trap_data = json.loads(msg)
         source_ip = trap_data.get('source_ip')
         snmpTrapOid = trap_data.get('SNMPv2-MIB::snmpTrapOID.0')
+        logging.info(f"Received SNMP Trap: {trap_data}")
 
         if snmpTrapOid:
             logging.info(f"Received SNMP Trap OID: {snmpTrapOid}")
-            snmpTrapOid_entry = next((item for item in snmpTrapOids_data if item["name"] == snmpTrapOid), None)
+            snmpTrapOid_entry = next((item for item in snmpTrapOidSettings if item["name"] == snmpTrapOid), None)
 
             if not snmpTrapOid_entry:
                 logging.warning(f"SNMP Trap OID '{snmpTrapOid}' not found in the list.")
@@ -112,11 +132,49 @@ def handle_message(msg):
                     logging.info(f"FastAPI create_snmpTrapOid response: {created_snmpTrapOid}")
                 finally:
                     loop.close()
+            else:
+                logging.info(f"SNMP Trap OID '{snmpTrapOid}' found in the list.")
+                logging.info(f"SNMP Trap OID in the list: {snmpTrapOid_entry}")
+                if snmpTrapOid_entry and "tags" in snmpTrapOid_entry and snmpTrapOid_entry["tags"]:
+                    logging.info(f"Tags found for SNMP Trap OID '{snmpTrapOid}': {snmpTrapOid_entry['tags']}")
+                    for tag_name in snmpTrapOid_entry["tags"]:
+                        tag_entry = next((item for item in trapTagSettings if item["name"] == tag_name), None)
+                        if tag_entry and "oids" in tag_entry:
+                            logging.info(f"Tag '{tag_name}' found in the list with OIDs: {tag_entry['oids']}")
+                            for oid in tag_entry["oids"]:
+                                if 'content' in trap_data and oid in trap_data['content']:
+                                    trap_data[tag_name] = trap_data['content'][oid]
+                                    logging.info(f"Added tag '{tag_name}' with value '{trap_data['content'][oid]}'")
+                                    break # Assuming you want the first match
+                                else:
+                                    logging.warning(f"OID '{oid}' not found in the trap data.")
+                        else:
+                            logging.warning(f"Tag '{tag_name}' not found in the list.")
+                
+                if snmpTrapOid_entry and "rules" in snmpTrapOid_entry and snmpTrapOid_entry["rules"]:
+                    logging.info(f"Rules found for SNMP Trap OID '{snmpTrapOid}': {snmpTrapOid_entry['rules']}")
+                    for rule in snmpTrapOid_entry["rules"]:
+                        rule_entry = next((item for item in statefulRuleSettings if item["name"] == rule), None)
+                        if rule_entry:
+                            # Clone the enriched syslog to avoid modifying the original
+                            enrichedTrap = trap_data.copy()
+                            enrichedTrap["rule"] = rule
 
+                            producer.produce(
+                                KAFKA_SIGNAL_TOPIC,
+                                value=json.dumps(enrichedTrap).encode('utf-8')
+                            )
+                            producer.flush()
+                            logging.info(f"Sent signal to syslogs-signal topic: {enrichedTrap}")
+
+                        else:
+                            logging.warning(f"Rule '{rule}' not found in the list.")
         if source_ip:
             # Add a timestamp field
-            trap_data['timestamp'] = datetime.utcnow().isoformat()
-
+            id_string = f"{source_ip}_{snmpTrapOid}"
+            trap_id = hashlib.sha256(id_string.encode()).hexdigest()
+            trap_data['@timestamp'] = datetime.utcnow().isoformat()
+            trap_data['trap_id'] = trap_id
             json_doc = json.dumps(trap_data)
             start = time.perf_counter()
             send_to_opensearch(json_doc)
@@ -135,10 +193,9 @@ def handle_message(msg):
         logging.exception(f"Message processing error: {e}")
 
 def main():
-    global snmpTrapOids_data
+    global snmpTrapOidSettings
     logging.info("Starting SNMP Trap Consumer...")
-    data = load_json_file("snmpTrapOids.json")
-    snmpTrapOids_data = load_json_file("snmpTrapOids.json")
+    reload_all_data()
     signal.signal(signal.SIGINT, shutdown)
     signal.signal(signal.SIGTERM, shutdown)
 
