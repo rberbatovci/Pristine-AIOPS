@@ -93,7 +93,7 @@ function List({ onSignalSelect, signals }) {
               {/* Signal Time */}
               <div className="signalTime">
                 <span className="signalTime-item"><strong>Start Time:</strong> {formatDate(signal.startTime)}</span>
-                {signal.state === 'closed' ? (
+                {signal.status === 'closed' ? (
                   <span className="signalTime-item"><strong>End Time:</strong> {formatDate(signal.endTime)}</span>
                 ) : (
                   <span className="signalTime-item"><strong>Duration:</strong> {getDuration(signal.startTime)}</span>

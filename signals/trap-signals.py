@@ -16,7 +16,7 @@ SIGNAL_TOPIC = 'trap-signals'
 OPENSEARCH_URL = 'http://OpenSearch:9200/trap-signals/_doc/'
 OPENSEARCH_INDEX = 'trap-signals'
 CONSUMER_GROUP = 'trap-signals-consumer-group'
-STATEFUL_RULES_FILE = 'statefulrules.json'
+STATEFUL_RULES_FILE = 'statefulTrapRules.json'
 LOG_FILE = 'trap_signals.log'
 LOG_LEVEL = logging.INFO
 CELERY_BROKER = os.environ.get('CELERY_BROKER', 'redis://redis:6380/0')
@@ -56,8 +56,8 @@ def load_stateful_rules():
         return []
 
 # === Signal ID Utility ===
-def generate_signal_id(mnemonic, timestamp, rule_id):
-    raw_string = f"{mnemonic}-{timestamp}-{rule_id}"
+def generate_signal_id(snmpTrapOid, timestamp, rule_id):
+    raw_string = f"{snmpTrapOid}-{timestamp}-{rule_id}"
     full_hash = hashlib.sha256(raw_string.encode()).hexdigest()
     return full_hash[:8] 
 
@@ -142,7 +142,6 @@ def create_signal(trap, rule):
         return
 
     signal_id = generate_signal_id(
-        trap.get("trap_id"),
         trap.get("snmpTrapOid"),
         trap.get("@timestamp"),
         rule["id"]
@@ -316,12 +315,12 @@ def handle_message(msg):
                     affected_entity_values[entity_type] = entity_value
             
             logging.info(f"Trap data: {trap}")
-            logging.info(f"Trap mnemonic: {trap.get(snmpTrapOid)}, Open Signal value: {rule.get('opensignaltag')}: {trap.get(openTag)}")
-            logging.info(f"Trap mnemonic: {trap.get(snmpTrapOid)}, Close Signal value: {rule.get('closesignaltag')}: {trap.get(closeTag)}")
+            logging.info(f"Trap SNMP Trap OID: {trap.get('SNMPv2-MIB::snmpTrapOID.0')}, Open Signal value: {rule.get('opensignaltrap')}: {trap.get(openTag)}")
+            logging.info(f"Trap SNMP Trap OID: {trap.get('SNMPv2-MIB::snmpTrapOID.0')}, Close Signal value: {rule.get('closesignaltrap')}: {trap.get(closeTag)}")
 
-            if rule.get("opensignaltrap") == trap.get(snmpTrapOid):
-                if openTag and rule.get("opensignalvalue") == trap.get(openTag):
-                    logging.info(f"Trap elligible for opening signal: {trap.get(openTag)}")
+            if rule.get("opensignaltrap") == trap.get('SNMPv2-MIB::snmpTrapOID.0'):
+                if not openTag or rule.get("opensignalvalue") == trap.get(openTag):
+                    logging.info(f"Trap eligible for opening signal: {trap.get(openTag)}")
                     related_signal_id, related_signal = find_related_signal(
                         rule, trap.get("source_ip"), affected_entity_values
                     )
@@ -336,9 +335,8 @@ def handle_message(msg):
                         logging.error(f"Related signal {related_signal_id} is already open.")
                         logging.error(f"Related signal: {related_signal}")
                     return
-            
-            if rule.get("closesignaltrap") == trap.get(snmpTrapOid):
-                if closeTag and rule.get("closesignalvalue") == trap.get(closeTag):
+            if rule.get("closesignaltrap") == trap.get('SNMPv2-MIB::snmpTrapOID.0'):
+                if not closeTag or rule.get("closesignalvalue") == trap.get(closeTag):
                     logging.info(f"Trap elligible for closing signal: {trap.get(closeTag)}")
                     related_signal_id, related_signal = find_related_signal(
                         rule, trap.get("source_ip"), affected_entity_values

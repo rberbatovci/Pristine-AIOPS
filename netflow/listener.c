@@ -76,7 +76,7 @@ char* flow_record_to_json(const FlowRecord *record, const char *sender_ip) {
 
     snprintf(json, sizeof(json),
         "{"
-        "\"sender_ip\":\"%s\","
+        "\"device\":\"%s\","
         "\"source_addr\":\"%u.%u.%u.%u\","
         "\"source_port\":%u,"
         "\"dest_addr\":\"%u.%u.%u.%u\","

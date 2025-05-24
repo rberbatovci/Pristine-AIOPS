@@ -14,11 +14,13 @@ const Timeline = ({ currentUser, selectedSignal, events }) => {
   const startTime = new Date(
     FormatDate(selectedSignal.startTime || selectedSignal['@startTime'], currentUser.timezone)
   );
-  console.log('Start time in Timeline:', startTime);
-  const endTime = selectedSignal.endTime
-    ? new Date(FormatDate(selectedSignal.endTime, currentUser.timezone))
+
+  const endTime = selectedSignal['@endTime']
+    ? new Date(FormatDate(selectedSignal['@endTime'], currentUser.timezone))
     : new Date(FormatDate(new Date(), currentUser.timezone));
 
+
+    console.log('Start time in Timeline:', startTime, 'End time in Timeline:', endTime);
   const startTimeYear = startTime.getFullYear();
   const startTimeMonth = startTime.getMonth() + 1;
   const startTimeDay = startTime.getDate();

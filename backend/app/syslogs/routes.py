@@ -1,6 +1,6 @@
 from .services import update_mnemonics_list_in_json, create_mnemonic_in_file, update_mnemonics_list_in_json, remove_rule_from_mnemonics_json, save_statefulrules_to_file, remove_rule_from_json
 from ..db.session import get_db, opensearch_client
-from fastapi import APIRouter, Depends, status, HTTPException, Query, Body
+from fastapi import APIRouter, Depends, status, HTTPException, Query, Body, Request 
 from . import schemas
 from . import models
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,6 +20,7 @@ from typing import Dict, Any, List, Optional
 from opensearchpy import OpenSearch
 from elasticsearch import Elasticsearch
 import logging
+from collections import defaultdict
 
 # Add this line to define the global variable
 listener_process = None
@@ -127,15 +128,17 @@ def get_time_range(range_str: str) -> Optional[str]:
 
 @router.get("/syslogs/")
 async def get_syslogs(
+    request: Request,
     page: int = Query(1, ge=1),
     page_size: int = Query(19, ge=1, le=100),
-    time_range: Optional[str] = Query(None, description="1h, 4h, today, etc."),
+    time_range: Optional[str] = Query(None),
     start_time: Optional[datetime] = Query(None),
     end_time: Optional[datetime] = Query(None),
 ):
     start = (page - 1) * page_size
     must_clauses = []
 
+    # Handle time filters
     if time_range:
         from_time = get_time_range(time_range)
         if from_time:
@@ -157,6 +160,27 @@ async def get_syslogs(
             }
         })
 
+    # Extract all query params
+    query_params = request.query_params.multi_items()
+    fixed_params = {"page", "page_size", "time_range", "start_time", "end_time"}
+
+    # Extract dynamic filters
+    dynamic_filters = [(k, v) for k, v in query_params if k not in fixed_params]
+
+    # Group by field
+    filter_dict = defaultdict(list)
+    for k, v in dynamic_filters:
+        filter_dict[k].append(v)
+
+    # Apply filters on `.keyword` fields
+    for field, values in filter_dict.items():
+        keyword_field = f"{field}.keyword"
+        if len(values) == 1:
+            must_clauses.append({"term": {keyword_field: values[0]}})
+        else:
+            must_clauses.append({"terms": {keyword_field: values}})
+
+    # Compose search query
     body = {
         "query": {
             "bool": {
@@ -167,6 +191,10 @@ async def get_syslogs(
         "size": page_size
     }
 
+    # Optional: debug print
+    # import pprint; pprint.pprint(body)
+
+    # Perform search
     response = opensearch_client.search(index='syslogs', body=body)
     hits = response['hits']['hits']
     total = response['hits']['total']['value']
@@ -477,10 +505,7 @@ async def read_mnemonics(skip: int = 0, limit: int = 100, db: AsyncSession = Dep
     return [
         schemas.MnemonicSyslog(  # Use the new schema
             id=mnemonic.id,
-            name=mnemonic.name,
-            severity=mnemonic.severity,
-            regexes=[regex.name for regex in mnemonic.regexes],
-            rules=[rule.name for rule in mnemonic.rules],  # Include the rule names
+            name=mnemonic.name
         )
         for mnemonic in mnemonics
     ]

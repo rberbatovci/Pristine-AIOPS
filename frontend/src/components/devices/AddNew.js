@@ -3,7 +3,7 @@ import apiClient from '../misc/AxiosConfig';
 
 function AddNew({ onDeviceAdded }) {
     const [ipAddress, setIpAddress] = useState('');
-    const [name, setName] = useState(''); // Changed hostname to name
+    const [hostname, setHostname] = useState(''); // Changed hostname to name
     const [vendor, setVendor] = useState('');
     const [type, setType] = useState('');
     const [version, setVersion] = useState('');
@@ -20,8 +20,8 @@ function AddNew({ onDeviceAdded }) {
         setSuccess(false);
 
         // Validate inputs
-        if (!ipAddress || !name || !vendor || !type) { // Added vendor and type
-            setError('IP address, name, vendor, and type are required.');
+        if (!ipAddress || !hostname || !vendor || !type) { // Added vendor and type
+            setError('IP address, hostname, vendor, and type are required.');
             return;
         }
 
@@ -29,7 +29,7 @@ function AddNew({ onDeviceAdded }) {
             // Submit data to the API
             const response = await apiClient.post('/devices/', {
                 ip_address: ipAddress,
-                name, // Changed hostname to name
+                hostname, // Changed hostname to name
                 vendor,
                 type,
                 version: version || null,
@@ -44,7 +44,7 @@ function AddNew({ onDeviceAdded }) {
 
             // Reset the form and show success message
             setIpAddress('');
-            setName(''); // Changed hostname to name
+            setHostname(''); // Changed hostname to name
             setVendor('');
             setType('');
             setVersion('');
@@ -57,7 +57,7 @@ function AddNew({ onDeviceAdded }) {
     };
 
     return (
-        <div className="add-new-device-form">
+        <div className="add-new-device-form" style={{position: 'aboslute'}}>
             <h3>Add New Device</h3>
             <form onSubmit={handleSubmit}>
                 <div className="form-group">
@@ -72,12 +72,12 @@ function AddNew({ onDeviceAdded }) {
                     />
                 </div>
                 <div className="form-group">
-                    <label htmlFor="name">Name:</label>
+                    <label htmlFor="name">Hostname:</label>
                     <input
                         type="text"
-                        id="name"
-                        value={name} // Changed hostname to name
-                        onChange={(e) => setName(e.target.value)} // Changed setHostname to setName
+                        id="hostname"
+                        value={hostname} // Changed hostname to name
+                        onChange={(e) => setHostname(e.target.value)} // Changed setHostname to setName
                         placeholder="Enter name"
                         required
                     />

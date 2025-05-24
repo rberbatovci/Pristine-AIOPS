@@ -16,7 +16,7 @@ SIGNAL_TOPIC = 'syslog-signals'
 OPENSEARCH_URL = 'http://OpenSearch:9200/syslog-signals/_doc/'
 OPENSEARCH_INDEX = 'syslog-signals'
 CONSUMER_GROUP = 'syslog-signals-consumer-group'
-STATEFUL_RULES_FILE = 'statefulrules.json'
+STATEFUL_RULES_FILE = 'statefulSyslogRules.json'
 LOG_FILE = 'syslog_signals.log'
 LOG_LEVEL = logging.INFO
 CELERY_BROKER = os.environ.get('CELERY_BROKER', 'redis://redis:6380/0')
@@ -153,7 +153,6 @@ def create_signal(syslog, rule):
         "severity": rule.get("initialseverity"),
         "description": rule.get("description"),
         "@startTime": syslog.get("@timestamp"),
-        "endTime": rule.get("@timestamp"),
         "status": "warmUp",  # Initially warmUp
         "events": [syslog.get("syslog_id")],
     }
@@ -303,7 +302,6 @@ def handle_message(msg):
         )
 
         if rule:
-           
             logging.info(f"Matched rule: {rule}")
             closeTag = rule.get("closesignaltag")
             openTag = rule.get("opensignaltag")

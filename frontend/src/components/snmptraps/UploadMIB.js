@@ -4,7 +4,7 @@ import apiClient from '../misc/AxiosConfig';
 import { IoMdAddCircleOutline, IoMdAddCircle } from "react-icons/io";
 import { RiDeleteBin6Line } from "react-icons/ri";
 
-const UploadMIB = ({ tags }) => {
+const UploadMIB = ({currentUser}) => {
     const [searchValue, setSearchValue] = useState('');
     const [file, setFile] = useState(null);
     const [response, setResponse] = useState(null);
@@ -69,8 +69,8 @@ const UploadMIB = ({ tags }) => {
 
     return (
         <div className="signalTagContainer">
-            {!tags.length && <p>Loading tags...</p>}
-            {tags.length > 0 && (
+            {!mibList.length && <p>Loading SNMP MIBs...</p>}
+            {mibList.length > 0 && (
                 
                 <div style={{
                     padding: '10px',

@@ -103,7 +103,7 @@ async def save_statefulrules_to_file(db: AsyncSession):
                 "device_hostnames": [device.hostname for device in rule.devices],
             })
 
-        STATEFUL_RULES_JSON_PATH = "/app/signals/statefulrules.json"
+        STATEFUL_RULES_JSON_PATH = "/app/signals/statefulSyslogRules.json"
         os.makedirs(os.path.dirname(STATEFUL_RULES_JSON_PATH), exist_ok=True)
 
         with open(STATEFUL_RULES_JSON_PATH, "w") as f:
@@ -115,7 +115,7 @@ async def save_statefulrules_to_file(db: AsyncSession):
         print(f"Error writing statefulrules.json: {e}")
 
 async def remove_rule_from_json(rule_name: str):
-    STATEFUL_RULES_JSON_PATH = "/app/signals/statefulrules.json"
+    STATEFUL_RULES_JSON_PATH = "/app/signals/statefulSyslogRules.json"
     print(f">>> Attempting to remove rule '{rule_name}' from JSON")
 
     try:

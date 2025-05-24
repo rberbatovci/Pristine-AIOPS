@@ -7,19 +7,18 @@ const SameDay = ({ showData, currentUser, startTime, endTime, events, zoomCount 
   const [totalHours, setTotalHours] = useState(0);
   const [eventPositions, setEventPositions] = useState([]);
   const [rangeBars, setRangeBars] = useState([]);
-  const [timeContainerWidth, setTimeContainerWidth] = useState(null); // Initial width
+  const [timeContainerWidth, setTimeContainerWidth] = useState(null);
   const timeRef = useRef(null);
+
+  const zoomFactor = Math.pow(1.2, zoomCount);
+  const adjustedHourWidth = hourWidth * zoomFactor;
 
   useEffect(() => {
     const time = document.getElementById('timelineContainer');
     if (time) {
-      setTimeContainerWidth(time.offsetWidth - 50 );
-      console.log('Time offset width in sameDay:', time.offsetWidth);
+      setTimeContainerWidth(time.offsetWidth - 20);
     }
   }, []);
-  
-  console.log('zoomCount in sameDay:', zoomCount);
-  console.log('Time container width in sameDay:', timeContainerWidth);
 
   useEffect(() => {
     if (startTime && endTime) {
@@ -33,7 +32,7 @@ const SameDay = ({ showData, currentUser, startTime, endTime, events, zoomCount 
   }, [startTime, endTime]);
 
   useEffect(() => {
-    if (totalHours > 0) {
+    if (totalHours > 0 && timeContainerWidth) {
       const width = timeContainerWidth / totalHours;
       setHourWidth(width);
     }
@@ -59,27 +58,29 @@ const SameDay = ({ showData, currentUser, startTime, endTime, events, zoomCount 
     const hoursContainer = document.createElement('div');
     hoursContainer.style.display = 'flex';
 
-    const zoomFactor = Math.pow(1.2, zoomCount);
-    const adjustedHourWidth = hourWidth * zoomFactor;
-
     for (let hour = startHour; hour <= endHour; hour++) {
       const hourDiv = document.createElement('div');
       hourDiv.className = 'hourDiv';
       hourDiv.style.width = `${adjustedHourWidth}px`;
+
       const minContainer = document.createElement('div');
       minContainer.className = 'minContainer';
-      addMinutes(minContainer, hourWidth, hour);
+      addMinutes(minContainer, adjustedHourWidth, hour);
       hourDiv.appendChild(minContainer);
+
       const hourText = document.createElement('div');
       hourText.innerText = `${hour.toString().padStart(2, '0')}:00`;
       hourText.className = 'hourText';
       hourDiv.appendChild(hourText);
+
       hoursContainer.appendChild(hourDiv);
     }
+
     time.appendChild(hoursContainer);
 
     const dayText = document.createElement('div');
     dayText.className = 'dayText';
+    dayText.style.marginTop = '10px';
     dayText.innerText = startDate.toLocaleDateString(undefined, {
       weekday: 'short',
       month: 'short',
@@ -115,6 +116,8 @@ const SameDay = ({ showData, currentUser, startTime, endTime, events, zoomCount 
     for (let min = 0; min < 60; min += minStep) {
       const minDiv = document.createElement('div');
       minDiv.className = 'minDiv';
+      minDiv.style.height = '10px';
+      minDiv.style.opacity = '.6';
 
       if (min % interval === 0) {
         const minText = document.createElement('div');
@@ -122,8 +125,6 @@ const SameDay = ({ showData, currentUser, startTime, endTime, events, zoomCount 
         minText.style.position = 'absolute';
         minText.style.top = '10px';
         minText.style.marginLeft = '-15px';
-        minDiv.style.height = '5px';
-        minDiv.style.opacity = '.6';
         minDiv.appendChild(minText);
       }
 
@@ -136,46 +137,53 @@ const SameDay = ({ showData, currentUser, startTime, endTime, events, zoomCount 
   };
 
   const createEvents = () => {
-    if (hourWidth > 0) {
-      const newPositions = events.map((event, index) => {
-        const left = calculateLeftPosition(new Date(event.timestamp));
+    if (adjustedHourWidth > 0 && events.length > 1) {
+      const newPositions = events.map((event) => {
+        const left = calculateLeftPosition(new Date(event['@timestamp']));
         return { ...event, left };
       });
 
-      
-      const newRangeBars = events.map((event, index) => {
-        const left = calculateLeftPosition(new Date(event.timestamp));
-        const nextEvent = events[index + 1];
-        const nextLeft = nextEvent ? calculateLeftPosition(new Date(nextEvent.timestamp)) : calculateLeftPosition(new Date());
-        const width = nextLeft - left;
-        return { ...event, left, width };
-      });
+      const newRangeBars = [];
+
+      for (let i = 0; i < newPositions.length - 1; i++) {
+        const current = newPositions[i];
+        const next = newPositions[i + 1];
+        const width = next.left - current.left;
+
+        if (width > 0) {
+          newRangeBars.push({
+            ...current,
+            width,
+          });
+        }
+      }
 
       setEventPositions(newPositions);
-      setRangeBars(newRangeBars);  
+      setRangeBars(newRangeBars);
     }
   };
 
   const calculateLeftPosition = (eventTimestamp) => {
-    if (!hourWidth) return 0;
+    if (!adjustedHourWidth) return 0;
 
     const startDate = new Date(startTime);
     const eventDate = new Date(FormatDate(eventTimestamp, currentUser.timezone));
+
     const eventHour = eventDate.getHours();
     const eventMinute = eventDate.getMinutes();
     const eventSecond = eventDate.getSeconds();
     const startHour = startDate.getHours();
 
-    const hourDifference =
-      (eventHour - startHour) * hourWidth +
-      (eventMinute * hourWidth) / 60 +
-      (eventSecond * hourWidth) / 3600;
-    return hourDifference;
+    return (
+      (eventHour - startHour) * adjustedHourWidth +
+      (eventMinute * adjustedHourWidth) / 60 +
+      (eventSecond * adjustedHourWidth) / 3600
+    );
   };
 
   return (
     <div className="signal-timeline-details" id="signal-timeline-details">
-      <div style={{ display: 'column'}}>
+      <div style={{ display: 'column' }}>
         <div className="timelineContainer" id="timelineContainer">
           <div
             id="eventsContainer"
@@ -191,14 +199,15 @@ const SameDay = ({ showData, currentUser, startTime, endTime, events, zoomCount 
                 className="rangeBar"
                 style={{
                   position: 'absolute',
-                  left: `${event.left}px`,
+                  left: `${event.left - 2}px`,
                   top: '25px',
-                  backgroundColor: 'rgba(0, 0, 255, 0.5)',
+                  backgroundColor: 'rgba(31, 155, 0, 0.5)',
                   width: `${event.width}px`,
                   height: '40px',
                   borderRadius: '5px',
+                  border: '1px solid rgba(0, 78, 7, 0.5)',
                 }}
-                title={`${event.device} - ${event.timestamp} - ${event.message}`}
+                title={`${event.device} - ${event['@timestamp']} - ${event.message}`}
               ></div>
             ))}
             {eventPositions.map((event, index) => (
@@ -207,12 +216,14 @@ const SameDay = ({ showData, currentUser, startTime, endTime, events, zoomCount 
                 className="eventButton"
                 style={{
                   position: 'absolute',
-                  left: `${event.left}px`,
+                  left: `${event.left - 5}px`,
+                  marginTop: '7px',
                   top: '30px',
                   backgroundColor: 'red',
                   width: '10px',
                   height: '10px',
                   borderRadius: '50%',
+                  border: '1px solid rgba(90, 0, 0, 0.5)',
                 }}
                 title={`${event.device} - ${event.timestamp} - ${event.message}`}
               ></div>

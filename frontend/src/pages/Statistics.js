@@ -3,6 +3,7 @@ import axios from 'axios';
 import '../App.css';
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
 import { Typography, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
+import apiClient from '../components/misc/AxiosConfig.js';
 
 function Statistics() {
     const [signalData, setSignalData] = useState([]);
@@ -10,19 +11,32 @@ function Statistics() {
     const [hostnameCounts, setHostnameCounts] = useState({});
     const [chartType, setChartType] = useState('PieChart');
     const [dataType, setDataType] = useState('signalState');
+    const [deviceStats, setDeviceStats] = useState([]);
+    const [mnemonicStats, setMnemonicStats] = useState([]);
 
     useEffect(() => {
-        // Fetch signal data from the server
-        axios.get('http://localhost:8000/signals/api/')
+        // Fetch device statistics data from the server
+        apiClient.get(`/signals/stats/devices/`)
             .then(response => {
-                setSignalData(response.data);
+                setDeviceStats(response.data);
             })
             .catch(error => {
-                console.error('Error fetching signal data:', error);
+                console.error('Error fetching device statistics:', error);
             });
     }, []);
 
-    // Calculate the counts for each signal state and collect signal IDs
+    useEffect(() => {
+        // Fetch device statistics data from the server
+        apiClient.get(`/signals/stats/mnemonics/`)
+            .then(response => {
+                setMnemonicStats(response.data);
+            })
+            .catch(error => {
+                console.error('Error fetching device statistics:', error);
+            });
+    }, []);
+
+    // Calculate the counts for each signal state
     useEffect(() => {
         const counts = signalData.reduce((acc, signal) => {
             if (!acc[signal.state]) {
@@ -45,42 +59,50 @@ function Statistics() {
         setHostnameCounts(hostnameCounts);
     }, [signalData]);
 
-    // Define a palette of 7 colors
+    // Define a palette of colors
     const colorPalette = ['#FF6347', '#32CD32', '#FFD700', '#87CEEB', '#8A2BE2', '#FF69B4', '#20B2AA'];
 
-    // Prepare data for PieChart and BarChart
-    const pieData = Object.entries(signalCounts).map(([state, { count, ids }]) => ({
+    // Prepare data for Signal State PieChart and BarChart
+    const signalPieData = Object.entries(signalCounts).map(([state, { count, ids }]) => ({
         name: state,
         value: count,
         ids: ids,
     }));
 
-    const barData = Object.entries(hostnameCounts).map(([hostname, count]) => ({
+    const signalBarData = Object.entries(signalCounts).map(([state, { count }]) => ({
+        name: state,
+        count: count,
+    }));
+
+    // Prepare data for Hostname PieChart and BarChart
+    const hostnamePieData = Object.entries(hostnameCounts).map(([hostname, count]) => ({
+        name: hostname,
+        value: count,
+    }));
+
+    const hostnameBarData = Object.entries(hostnameCounts).map(([hostname, count]) => ({
         hostname,
         count,
     }));
 
+    // Prepare data for Device Statistics PieChart
+    const devicePieData = deviceStats.map(device => ({
+        name: device.device,
+        value: device.count,
+    }));
+
+    const mnemonicPieData = mnemonicStats.map(device => ({
+        name: device.device,
+        value: device.count,
+    }));
+
     const renderPieTooltip = ({ payload }) => {
         if (payload && payload.length) {
-            const { name, value, ids } = payload[0].payload;
+            const { name, value } = payload[0].payload;
             return (
                 <div style={{ backgroundColor: '#fff', padding: '5px', border: '1px solid #ccc' }}>
-                    <strong>{`${name} Signals`}</strong>
+                    <strong>{name}</strong>
                     <p>{`Count: ${value}`}</p>
-                    <p>{`IDs: ${ids.join(', ')}`}</p>
-                </div>
-            );
-        }
-        return null;
-    };
-
-    const renderBarTooltip = ({ payload }) => {
-        if (payload && payload.length) {
-            const { hostname, count } = payload[0].payload;
-            return (
-                <div style={{ backgroundColor: '#fff', padding: '5px', border: '1px solid #ccc' }}>
-                    <strong>{`Hostname: ${hostname}`}</strong>
-                    <p>{`Count: ${count}`}</p>
                 </div>
             );
         }
@@ -118,7 +140,7 @@ function Statistics() {
             }}
         >
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '-10px' }}>
-                <h2 style={{ marginTop: '15px', paddingLeft: '20px', color: 'var(--text-color)' }}>Signals List</h2>
+                <h2 style={{ marginTop: '15px', paddingLeft: '20px', color: 'var(--text-color)' }}>Statistics</h2>
                 <FormControl variant="outlined" style={{ marginBottom: '20px', width: '200px' }}>
                     <InputLabel>Chart Type</InputLabel>
                     <Select value={chartType} onChange={handleChartTypeChange} label="Chart Type">
@@ -131,13 +153,17 @@ function Statistics() {
                     <Select value={dataType} onChange={handleDataTypeChange} label="Data Type">
                         <MenuItem value="signalState">Signal State</MenuItem>
                         <MenuItem value="hostname">Hostname</MenuItem>
+                        <MenuItem value="device">Device</MenuItem> {/* New Option */}
+                        <MenuItem value="mnemonic">Mnemonic</MenuItem> {/* New Option */}
                     </Select>
                 </FormControl>
+            </div>
 
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-around' }}>
                 {chartType === 'PieChart' && dataType === 'signalState' && (
                     <PieChart width={400} height={400}>
                         <Pie
-                            data={pieData}
+                            data={signalPieData}
                             dataKey="value"
                             nameKey="name"
                             cx="50%"
@@ -147,28 +173,24 @@ function Statistics() {
                             fill="#8884d8"
                             label
                         >
-                            {pieData.map((entry, index) => (
+                            {signalPieData.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={colorPalette[index % colorPalette.length]} />
                             ))}
                         </Pie>
                         <RechartsTooltip content={renderPieTooltip} />
+                        <Legend />
                     </PieChart>
                 )}
 
                 {chartType === 'BarChart' && dataType === 'signalState' && (
-                    <BarChart
-                        width={600}
-                        height={300}
-                        data={pieData}
-                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                    >
+                    <BarChart width={400} height={300} data={signalBarData}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="name" />
                         <YAxis />
                         <RechartsTooltip content={renderPieTooltip} />
                         <Legend />
-                        <Bar dataKey="value" fill="#8884d8">
-                            {pieData.map((entry, index) => (
+                        <Bar dataKey="count" fill="#8884d8">
+                            {signalBarData.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={colorPalette[index % colorPalette.length]} />
                             ))}
                         </Bar>
@@ -178,9 +200,9 @@ function Statistics() {
                 {chartType === 'PieChart' && dataType === 'hostname' && (
                     <PieChart width={400} height={400}>
                         <Pie
-                            data={barData}
-                            dataKey="count"
-                            nameKey="hostname"
+                            data={hostnamePieData}
+                            dataKey="value"
+                            nameKey="name"
                             cx="50%"
                             cy="50%"
                             innerRadius={60}
@@ -188,28 +210,61 @@ function Statistics() {
                             fill="#8884d8"
                             label
                         >
-                            {barData.map((entry, index) => (
+                            {hostnamePieData.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={colorPalette[index % colorPalette.length]} />
                             ))}
                         </Pie>
-                        <RechartsTooltip content={renderBarTooltip} />
+                        <RechartsTooltip content={renderPieTooltip} />
+                        <Legend />
                     </PieChart>
                 )}
 
                 {chartType === 'BarChart' && dataType === 'hostname' && (
-                    <BarChart
-                        width={600}
-                        height={300}
-                        data={barData}
-                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                    >
+                    <BarChart width={400} height={300} data={hostnameBarData}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="hostname" />
                         <YAxis />
-                        <RechartsTooltip content={renderBarTooltip} />
+                        <RechartsTooltip content={renderPieTooltip} />
                         <Legend />
                         <Bar dataKey="count" fill="#8884d8">
-                            {barData.map((entry, index) => (
+                            {hostnameBarData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={colorPalette[index % colorPalette.length]} />
+                            ))}
+                        </Bar>
+                    </BarChart>
+                )}
+
+                {chartType === 'PieChart' && dataType === 'device' && (
+                    <PieChart width={400} height={400}>
+                        <Pie
+                            data={devicePieData}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={80}
+                            fill="#8884d8"
+                            label
+                        >
+                            {devicePieData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={colorPalette[index % colorPalette.length]} />
+                            ))}
+                        </Pie>
+                        <RechartsTooltip content={renderPieTooltip} />
+                        <Legend />
+                    </PieChart>
+                )}
+
+                {chartType === 'BarChart' && dataType === 'device' && (
+                    <BarChart width={400} height={300} data={devicePieData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <RechartsTooltip content={renderPieTooltip} />
+                        <Legend />
+                        <Bar dataKey="value" fill="#8884d8">
+                            {devicePieData.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={colorPalette[index % colorPalette.length]} />
                             ))}
                         </Bar>

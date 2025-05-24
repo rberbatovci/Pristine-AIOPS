@@ -15,7 +15,7 @@
 .mainContainer {
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 100px);
+    height: calc(100vh - 90px);
     margin-bottom: 5px;
     width: 90%;
     box-shadow: 4px 4px 20px rgba(29, 29, 29, 0.1);
@@ -45,13 +45,11 @@
     font-size: .9rem;
     color: var(--textColor);
     transition: all 0.3s ease; /* smooth transition */
-    padding: 4px 6px;
     border-radius: 6px;
     opacity: 0.7;
 }
 
 .eventsTitleHeader:hover {
-    padding: 4px 12px;
     font-size: 1rem;
     color: var(--textColor2);
     background-color: rgba(255, 255, 255, 0.05); /* optional hover bg */
@@ -62,7 +60,6 @@
 .eventsTitleHeaderActive {
     font-size: 1rem;
     color: var(--textColor2);
-    padding: 4px 12px;
     font-weight: 600;
     opacity: 1;
 }
@@ -259,7 +256,7 @@ ul {
 .syslogsTableContainer {
     flex: 1;
     display: flex;
-    height: calc(100vh - 190px);
+    height: calc(100vh - 180px);
 }
 
 .paginationContainer {

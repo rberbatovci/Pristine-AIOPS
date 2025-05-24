@@ -5,9 +5,9 @@
     },
     "mnemonics": [
         {
-            "name": "%LINK-3-UPDOWN",
-            "level": 3,
-            "severity": "Error",
+            "name": "%LINK-5-CHANGED",
+            "level": 5,
+            "severity": "Notice",
             "regexes": [
                 "LinkInterface",
                 "State"
@@ -29,16 +29,9 @@
             ]
         },
         {
-            "name": "%SYS-5-CONFIG_I",
-            "level": 5,
-            "severity": "Notice",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%LINK-5-CHANGED",
-            "level": 5,
-            "severity": "Notice",
+            "name": "%LINK-3-UPDOWN",
+            "level": 3,
+            "severity": "Error",
             "regexes": [
                 "LinkInterface",
                 "State"
@@ -48,186 +41,14 @@
             ]
         },
         {
+            "name": "%SYS-5-CONFIG_I",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
             "name": "%SYS-6-TTY_EXPIRE_TIMER",
-            "level": 6,
-            "severity": "Informational",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%SNMP-5-WARMSTART",
-            "level": 5,
-            "severity": "Notice",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%CLNS-6-DFT_OPT",
-            "level": 6,
-            "severity": "Informational",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%CLNS-5-ADJCHANGE",
-            "level": 5,
-            "severity": "Notice",
-            "regexes": [
-                "State",
-                "ISIS-Level",
-                "ISIS-Neighbor"
-            ],
-            "rules": [
-                "ISISAdjacencyDown"
-            ]
-        },
-        {
-            "name": "%BGP-3-NOTIFICATION",
-            "level": 3,
-            "severity": "Error",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%BGP-5-NBR_RESET",
-            "level": 5,
-            "severity": "Notice",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%BGP-5-ADJCHANGE",
-            "level": 5,
-            "severity": "Notice",
-            "regexes": [
-                "State",
-                "BGP-ADJChange-Neighbor"
-            ],
-            "rules": [
-                "BGPNeighborshipDown"
-            ]
-        },
-        {
-            "name": "%BGP_SESSION-5-ADJCHANGE",
-            "level": 5,
-            "severity": "Notice",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%PNP-6-PNP_DISCOVERY_STARTED",
-            "level": 6,
-            "severity": "Informational",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%IOSXE-3-PLATFORM",
-            "level": 3,
-            "severity": "Error",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%BOOT-5-OPMODE_LOG",
-            "level": 5,
-            "severity": "Notice",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%CPPDRV-4-CPU_FEATURE",
-            "level": 4,
-            "severity": "Warning",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%CPPDRV-3-GUEST_CPU_FEATURE",
-            "level": 3,
-            "severity": "Error",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%ONEP_BASE-6-SS_ENABLED",
-            "level": 6,
-            "severity": "Informational",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%PKI-6-TRUSTPOINT_CREATE",
-            "level": 6,
-            "severity": "Informational",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%SYS-6-LOGGINGHOST_STARTSTOP",
-            "level": 6,
-            "severity": "Informational",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%IOSXE_OIR-6-INSCARD",
-            "level": 6,
-            "severity": "Informational",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%IOSXE_OIR-6-ONLINECARD",
-            "level": 6,
-            "severity": "Informational",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%EVENTLIB-3-CPUHOG",
-            "level": 3,
-            "severity": "Error",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%SYS-5-RESTART",
-            "level": 5,
-            "severity": "Notice",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%CRYPTO-6-ISAKMP_ON_OFF",
-            "level": 6,
-            "severity": "Informational",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%CRYPTO-6-GDOI_ON_OFF",
-            "level": 6,
-            "severity": "Informational",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%PNP-6-PNP_BEST_UDI_UPDATE",
-            "level": 6,
-            "severity": "Informational",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%PNP-6-PNP_CDP_UPDATE",
-            "level": 6,
-            "severity": "Informational",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%PNP-6-PNP_DISCOVERY_STOPPED",
             "level": 6,
             "severity": "Informational",
             "regexes": [],
@@ -283,6 +104,13 @@
             "rules": []
         },
         {
+            "name": "%CRYPTO_ENGINE-4-CSDL_COMPLIANCE_DISABLED",
+            "level": 4,
+            "severity": "Warning",
+            "regexes": [],
+            "rules": []
+        },
+        {
             "name": "%CUBE-3-LICENSING",
             "level": 3,
             "severity": "Error",
@@ -297,7 +125,91 @@
             "rules": []
         },
         {
+            "name": "%PNP-6-PNP_DISCOVERY_STARTED",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%IOSXE-3-PLATFORM",
+            "level": 3,
+            "severity": "Error",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%BOOT-5-OPMODE_LOG",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%CPPDRV-4-CPU_FEATURE",
+            "level": 4,
+            "severity": "Warning",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%CPPDRV-3-GUEST_CPU_FEATURE",
+            "level": 3,
+            "severity": "Error",
+            "regexes": [],
+            "rules": []
+        },
+        {
             "name": "%CRYPTO_ENGINE-5-KEY_ADDITION",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%ONEP_BASE-6-SS_ENABLED",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%PKI-6-TRUSTPOINT_CREATE",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%CLNS-6-DFT_OPT",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%SYS-6-LOGGINGHOST_STARTSTOP",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%IOSXE_OIR-6-INSCARD",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%IOSXE_OIR-6-ONLINECARD",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%SYS-5-RESTART",
             "level": 5,
             "severity": "Notice",
             "regexes": [],
@@ -307,6 +219,41 @@
             "name": "%SSH-5-ENABLED",
             "level": 5,
             "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%CRYPTO-6-ISAKMP_ON_OFF",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%CRYPTO-6-GDOI_ON_OFF",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%PNP-6-PNP_BEST_UDI_UPDATE",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%PNP-6-PNP_CDP_UPDATE",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%PNP-6-PNP_DISCOVERY_STOPPED",
+            "level": 6,
+            "severity": "Informational",
             "regexes": [],
             "rules": []
         },
@@ -332,30 +279,44 @@
             "rules": []
         },
         {
-            "name": "%IOSXE_INFRA-6-PROCPATH_CLIENT_HOG",
-            "level": 6,
-            "severity": "Informational",
+            "name": "%CLNS-5-ADJCHANGE",
+            "level": 5,
+            "severity": "Notice",
             "regexes": [],
             "rules": []
         },
         {
-            "name": "%CRYPTO_ENGINE-4-CSDL_COMPLIANCE_DISABLED",
-            "level": 4,
-            "severity": "Warning",
+            "name": "%BGP-3-NOTIFICATION",
+            "level": 3,
+            "severity": "Error",
             "regexes": [],
             "rules": []
         },
         {
-            "name": "%SYS-6-LAST_RELOAD_BY_MEM_PRESSURE_CPU",
-            "level": 6,
-            "severity": "Informational",
+            "name": "%BGP-5-NBR_RESET",
+            "level": 5,
+            "severity": "Notice",
             "regexes": [],
             "rules": []
         },
         {
-            "name": "%SYS-6-BOOTTIME",
-            "level": 6,
-            "severity": "Informational",
+            "name": "%BGP-5-ADJCHANGE",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%BGP_SESSION-5-ADJCHANGE",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%EVENTLIB-3-CPUHOG",
+            "level": 3,
+            "severity": "Error",
             "regexes": [],
             "rules": []
         },
@@ -363,67 +324,6 @@
             "name": "%WSMAN-3-INVALID_TRUSTPOINT",
             "level": 3,
             "severity": "Error",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "CISCO-SMI::ciscoMgmt.43.2.0.1",
-            "value": "CISCO-SMI::ciscoMgmt.43.2.0.1"
-        },
-        {
-            "name": "IF-MIB::linkDown",
-            "value": "IF-MIB::linkDown"
-        },
-        {
-            "name": "CISCO-SMI::ciscoMgmt.43.2.0.2",
-            "value": "CISCO-SMI::ciscoMgmt.43.2.0.2"
-        },
-        {
-            "name": "%SYS-5-RELOAD",
-            "level": 5,
-            "severity": "Notice",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%DBAL-4-DELAYED_BATCH",
-            "level": 4,
-            "severity": "Warning",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%IM-5-IOX_NOTICE",
-            "level": 5,
-            "severity": "Notice",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%IM-6-IOX_ENABLEMENT",
-            "level": 6,
-            "severity": "Informational",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%IOXN_APP-6-PRE_INIT_DAY0_GS_INFO",
-            "level": 6,
-            "severity": "Informational",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%UICFGEXP-6-SERVER_NOTIFIED_STOP",
-            "level": 6,
-            "severity": "Informational",
-            "regexes": [],
-            "rules": []
-        },
-        {
-            "name": "%CLNS-5-ADJCLEAR",
-            "level": 5,
-            "severity": "Notice",
             "regexes": [],
             "rules": []
         }

@@ -2,9 +2,10 @@
     {
         "name": "Interface",
         "oids": [
-            "IF-MIB::ifDescr.1",
             "IF-MIB::ifDescr.2",
-            "IF-MIB::ifDescr.3"
+            "IF-MIB::ifDescr.1",
+            "IF-MIB::ifDescr.3",
+            "IF-MIB::ifDescr.4"
         ]
     }
 ]

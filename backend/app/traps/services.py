@@ -107,7 +107,7 @@ async def save_statefulrules_to_file(db: AsyncSession):
                 "device_hostnames": [device.hostname for device in rule.devices],
             })
 
-        STATEFUL_RULES_JSON_PATH = "/app/traps/statefulrules.json"
+        STATEFUL_RULES_JSON_PATH = "/app/signals/statefulTrapRules.json"
         os.makedirs(os.path.dirname(STATEFUL_RULES_JSON_PATH), exist_ok=True)
 
         with open(STATEFUL_RULES_JSON_PATH, "w") as f:
@@ -141,7 +141,7 @@ async def remove_rule_from_snmpTrapOid(rule_name: str):
         raise
 
 async def remove_rule_from_json(rule_name: str):
-    STATEFUL_RULES_JSON_PATH = "/app/traps/statefulrules.json"
+    STATEFUL_RULES_JSON_PATH = "/app/signals/statefulTrapRules.json"
     print(f">>> Attempting to remove rule '{rule_name}' from JSON")
 
     try:

@@ -11,7 +11,7 @@ from typing import List
 router = APIRouter()
 
 @router.get("/signals/syslogsignals/")
-async def get_syslogs(page: int = Query(1, ge=1, description="Page number"),
+async def get_syslogSignals(page: int = Query(1, ge=1, description="Page number"),
                       page_size: int = Query(10, ge=1, le=100, description="Number of items per page")):
     start = (page - 1) * page_size
     body = {
@@ -34,6 +34,71 @@ async def get_syslogs(page: int = Query(1, ge=1, description="Page number"),
         "page_size": page_size
     }
 
+@router.get("/signals/trapsignals/")
+async def get_trapSignals(page: int = Query(1, ge=1, description="Page number"),
+                      page_size: int = Query(10, ge=1, le=100, description="Number of items per page")):
+    start = (page - 1) * page_size
+    body = {
+        "query": {"match_all": {}},
+        "from": start,
+        "size": page_size
+    }
+    response = opensearch_client.search(
+        index='trap-signals',
+        body=body
+    )
+    
+    hits = response['hits']['hits']
+    total = response['hits']['total']['value']  # Get total number of matching documents
+
+    return {
+        "results": hits,
+        "total": total,
+        "page": page,
+        "page_size": page_size
+    }
+
+@router.get("/signals/stats/devices/")
+async def get_device_statistics():
+    body = {
+        "size": 0,
+        "aggs": {
+            "devices": {
+                "terms": {
+                    "field": "device.keyword",  # Use .keyword for exact match on strings
+                    "size": 1000  # Adjust as needed
+                }
+            }
+        }
+    }
+
+    response = opensearch_client.search(index="syslog-signals", body=body)
+
+    buckets = response["aggregations"]["devices"]["buckets"]
+    stats = [{"device": b["key"], "count": b["doc_count"]} for b in buckets]
+
+    return stats
+
+@router.get("/signals/stats/mnemonics/")
+async def get_device_statistics():
+    body = {
+        "size": 0,
+        "aggs": {
+            "mnemonics": {
+                "terms": {
+                    "field": "mnemonics.keyword",  # Use .keyword for exact match on strings
+                    "size": 1000  # Adjust as needed
+                }
+            }
+        }
+    }
+
+    response = opensearch_client.search(index="syslog-signals", body=body)
+
+    buckets = response["aggregations"]["mnemonics"]["buckets"]
+    stats = [{"mnemonic": b["key"], "count": b["doc_count"]} for b in buckets]
+
+    return stats
 
 @router.get("/syslogsignals/syslogsignalseverity", response_model=SyslogSignalSeverityBase)
 async def get_settings(db: AsyncSession = Depends(get_db)):

@@ -168,7 +168,7 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
                 ))}
               </ul>
             </div>
-            <div style={{ padding: '8px', background: 'var(--backgroundColor3)', borderRadius: '8px' }}>
+            <div style={{ padding: '8px', background: 'var(--backgroundColor3)', borderRadius: '8px', height: '300px' }}>
               <div style={{ marginBottom: '5px'}}>
                 <span>Name:</span>
                 <input
@@ -212,7 +212,7 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
                   options={functionOptions}
                   onChange={(selectedOption) =>
                     setNewRegEx({ ...newRegEx, matchfunction: selectedOption.value })}
-                  styles={customStyles}
+                  styles={customStyles('380px')}
                   isMulti={false} 
                 />
               </div>

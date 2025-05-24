@@ -11,6 +11,7 @@ import { RiFilterLine, RiFilterFill } from "react-icons/ri";
 import { MdDeleteForever, MdOutlineDeleteForever } from "react-icons/md";
 import SearchTime from '../components/misc/SearchTime.js';
 import { FaClock, FaRegClock } from "react-icons/fa";
+import ConfigDashboard from '../components/incidents/config/ConfigDashboard.js';
 
 const Incidents = ({ currentUser }) => {
     const [signals, setSignals] = useState([]);
@@ -236,6 +237,13 @@ const Incidents = ({ currentUser }) => {
                                     <MdDeleteForever className="hoverIcon" />
                                 </button>
                                 <button
+                                        className={`iconButton ${activeDropdown === 'settings' ? 'active' : ''}`}
+                                        onClick={() => toggleDropdown('settings')}
+                                    >
+                                        <IoSettingsOutline className="defaultIcon" />
+                                        <IoSettingsSharp className="hoverIcon" />
+                                    </button>
+                                <button
                                     className={`iconButton ${activeDropdown === 'time' ? 'active' : ''}`}
                                     onClick={() => toggleDropdown('time')}
                                 >
@@ -259,6 +267,7 @@ const Incidents = ({ currentUser }) => {
                             onTimeRangeSelect={handleTimeRangeSelect}
                             onTimeRangeChange={handleTimeRangeChange}
                         />}
+                        {activeDropdown === 'settings' && <ConfigDashboard />}
                         {activeDropdown === 'search' && <Filters onSearch={handleSearchFilters} />}
                     </div>
                 )}

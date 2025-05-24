@@ -59,7 +59,7 @@ function EventsDatabase({ currentUser }) {
         ],
         netflow: [
             'timestamp',
-            'src_ip',
+            'device',
             'source_addr',
             'source_port',
             'dest_addr',
@@ -78,7 +78,7 @@ function EventsDatabase({ currentUser }) {
     const [trapTags, setTrapTags] = useState([]);
     const [syslogTags, setSyslogTags] = useState([]);
     const [devices, setDevices] = useState([]);
-
+    const [timeRange, setTimeRange] = useState('last_4_hour');
 
     const handleButtonClick = (event, dropdownKey) => {
         const updatedDropdowns = Object.keys(dropdowns).reduce((acc, key) => {
@@ -95,10 +95,18 @@ function EventsDatabase({ currentUser }) {
         });
     };
 
-    const loadData = ( dataSource, page = 1, pageSize = 19, timeRange = 'last_1_hour', startTime = null, endTime = null) => {
+    const loadData = (
+        dataSource,
+        page = 1,
+        pageSize = 19,
+        timeRange2 = timeRange,
+        startTime = null,
+        endTime = null,
+        filters = {}  // Renamed from selectedTags to filters
+    ) => {
         setEventsData(null);
         setLoading(true);
-    
+
         let url = '';
         if (dataSource === 'syslogs') {
             url = `/syslogs/?page=${page}&page_size=${pageSize}`;
@@ -117,7 +125,31 @@ function EventsDatabase({ currentUser }) {
         } else if (dataSource === 'netflow') {
             url = `/netflow/?page=${page}&page_size=${pageSize}`;
         }
-    
+
+        // Build URLSearchParams from filters
+        const query = new URLSearchParams();
+
+        if (filters.agent?.length) {
+            filters.agent.forEach(agent => query.append('agent', agent));
+        }
+
+        if (filters.mnemonic?.length) {
+            filters.mnemonic.forEach(m => query.append('mnemonic', m));
+        }
+
+        if (filters.snmpTrapOid?.length) {
+            filters.snmpTrapOid.forEach(oid => query.append('snmpTrapOid', oid));
+        }
+
+        if (filters.tags) {
+            for (const [key, values] of Object.entries(filters.tags)) {
+                values.forEach(value => query.append(`${key}`, value));
+            }
+        }
+
+        // Add built query string
+        url += `&${query.toString()}`;
+
         apiClient
             .get(url)
             .then(response => {
@@ -158,7 +190,7 @@ function EventsDatabase({ currentUser }) {
 
     const fetchSnmpTrapOids = async () => {
         try {
-            const response = await apiClient.get('/traps/trapoid/');
+            const response = await apiClient.get('/traps/trapOids/');
             const trapOids = response.data.map((trapOid) => ({
                 id: trapOid.id,
                 label: trapOid.label,
@@ -232,24 +264,33 @@ function EventsDatabase({ currentUser }) {
 
     const handleTimeRangeChange = (start, end) => {
         if (!start || !end) return;
-    
+
         // Format dates to ISO string
         const startTime = new Date(start).toISOString();
         const endTime = new Date(end).toISOString();
-    
+
         loadData('syslogs', 1, 10, null, startTime, endTime);
     };
 
     const handleTimeRangeSelect = (range) => {
-        loadData('syslogs', 1, 10, range, null, null);
+        loadData('syslogs', 1, pageSize, range, timeRange, null);
     };
 
-    const handleSearchAndCloseDropdown = (selectedTags) => {
-        console.log('Selected tags:', selectedTags)
+    const handleSearchAndCloseDropdown = (filters) => {
+        console.log('Selected tags:', filters);
+
+        // Close the dropdown (if needed)
+        setDropdowns(prev => ({
+            ...prev,
+            searchSyslogs: { ...prev.searchSyslogs, visible: false }
+        }));
+
+        // Trigger data loading
+        loadData('syslogs', 1, 19, timeRange, null, null, filters);
     };
 
     useEffect(() => {
-        loadData(dataSource, page, pageSize);
+        loadData(dataSource, page, pageSize, timeRange);
 
         if (dataSource === 'syslogs') {
             fetchMnemonics();
@@ -276,6 +317,14 @@ function EventsDatabase({ currentUser }) {
         })
     }
 
+    const handleApplyEventsPerPage = () => {
+        loadData(dataSource, 1, pageSize); // Reset to page 1 when page size changes
+    };
+
+    const handlePageSizeChange = (event) => {
+        const value = parseInt(event.target.value, 10);
+        setPageSize(isNaN(value) || value < 1 ? 1 : value);
+    };
 
     const handleSyslogTagsChange = (selectedTags) => {
         console.log('Selected tags:', selectedTags)
@@ -421,8 +470,10 @@ function EventsDatabase({ currentUser }) {
                         <input
                             type="number"
                             id="syslogsPerPage"
-                            value={page}
+                            value={pageSize}
                             min="1"
+                            onChange={handlePageSizeChange}
+
                         />
                     </div>
                     <div>
@@ -435,9 +486,10 @@ function EventsDatabase({ currentUser }) {
             </div>
             <div
                 className={`dropdownMenu ${dropdowns.searchSyslogs.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
-                style={{ width: '460px' }}
+                style={{ width: '420px' }}
             >
                 <FilterSyslogs
+                    source={dataSource}
                     tags={tagNames}
                     devices={devices}
                     mnemonics={mnemonics}
@@ -468,7 +520,8 @@ function EventsDatabase({ currentUser }) {
                 />
             </div>
             <div
-                className={`dropdownMenu ${dropdowns.showSyslogTags.visible ? 'dropdownVisible' : 'dropdownHidden'}`}>
+                className={`dropdownMenu ${dropdowns.showSyslogTags.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
+                style={{ width: '280px' }}>
                 <SyslogTags
                     dataSource={dataSource}
                     tags={tagNames}
@@ -480,9 +533,6 @@ function EventsDatabase({ currentUser }) {
                 className={`dropdownMenu ${dropdowns.MIBFiles.visible ? 'dropdownVisible' : 'dropdownHidden'}`}>
                 <UploadMIB
                     currentUser={currentUser}
-                    tags={tagNames}
-                    selectedTags={selectedTags}
-                    handleTagCheckboxChange={handleTagCheckboxChange}
                 />
             </div>
             <div

@@ -45,9 +45,9 @@ def shutdown(signum, frame):
     run = False
 
 data_stores = {
-    "snmpTrapOids.json": "snmpTrapOidSettings",
-    "statefulrules.json": "statefulRuleSettings",
-    "trapTags.json": "trapTagSettings",
+    "app/traps/snmpTrapOids.json": "snmpTrapOidSettings",
+    "app/traps/statefulrules.json": "statefulRuleSettings",
+    "app/traps/trapTags.json": "trapTagSettings",
 }
 
 def load_json_file(file_path):
@@ -116,74 +116,76 @@ def handle_message(msg):
         snmpTrapOid = trap_data.get('SNMPv2-MIB::snmpTrapOID.0')
         logging.info(f"Received SNMP Trap: {trap_data}")
 
-        if snmpTrapOid:
-            logging.info(f"Received SNMP Trap OID: {snmpTrapOid}")
-            snmpTrapOid_entry = next((item for item in snmpTrapOidSettings if item["name"] == snmpTrapOid), None)
+        processed_trap_data = trap_data.copy() # Create a copy to work with
 
-            if not snmpTrapOid_entry:
-                logging.warning(f"SNMP Trap OID '{snmpTrapOid}' not found in the list.")
-                logging.info(f"SNMP Trap OID '{snmpTrapOid}' not found locally, calling FastAPI to create...")
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                try:
-                    created_snmpTrapOid = loop.run_until_complete(
-                        create_snmpTrapOid_via_api(snmpTrapOid)
-                    )
-                    logging.info(f"FastAPI create_snmpTrapOid response: {created_snmpTrapOid}")
-                finally:
-                    loop.close()
-            else:
-                logging.info(f"SNMP Trap OID '{snmpTrapOid}' found in the list.")
-                logging.info(f"SNMP Trap OID in the list: {snmpTrapOid_entry}")
-                if snmpTrapOid_entry and "tags" in snmpTrapOid_entry and snmpTrapOid_entry["tags"]:
-                    logging.info(f"Tags found for SNMP Trap OID '{snmpTrapOid}': {snmpTrapOid_entry['tags']}")
-                    for tag_name in snmpTrapOid_entry["tags"]:
-                        tag_entry = next((item for item in trapTagSettings if item["name"] == tag_name), None)
-                        if tag_entry and "oids" in tag_entry:
-                            logging.info(f"Tag '{tag_name}' found in the list with OIDs: {tag_entry['oids']}")
-                            for oid in tag_entry["oids"]:
-                                if 'content' in trap_data and oid in trap_data['content']:
-                                    trap_data[tag_name] = trap_data['content'][oid]
-                                    logging.info(f"Added tag '{tag_name}' with value '{trap_data['content'][oid]}'")
-                                    break # Assuming you want the first match
-                                else:
-                                    logging.warning(f"OID '{oid}' not found in the trap data.")
-                        else:
-                            logging.warning(f"Tag '{tag_name}' not found in the list.")
-                
-                if snmpTrapOid_entry and "rules" in snmpTrapOid_entry and snmpTrapOid_entry["rules"]:
-                    logging.info(f"Rules found for SNMP Trap OID '{snmpTrapOid}': {snmpTrapOid_entry['rules']}")
-                    for rule in snmpTrapOid_entry["rules"]:
-                        rule_entry = next((item for item in statefulRuleSettings if item["name"] == rule), None)
-                        if rule_entry:
-                            # Clone the enriched syslog to avoid modifying the original
-                            enrichedTrap = trap_data.copy()
-                            enrichedTrap["rule"] = rule
-
-                            producer.produce(
-                                KAFKA_SIGNAL_TOPIC,
-                                value=json.dumps(enrichedTrap).encode('utf-8')
-                            )
-                            producer.flush()
-                            logging.info(f"Sent signal to syslogs-signal topic: {enrichedTrap}")
-
-                        else:
-                            logging.warning(f"Rule '{rule}' not found in the list.")
         if source_ip:
-            # Add a timestamp field
+            # Add timestamp and trap_id
             id_string = f"{source_ip}_{snmpTrapOid}"
             trap_id = hashlib.sha256(id_string.encode()).hexdigest()
-            trap_data['@timestamp'] = datetime.utcnow().isoformat()
-            trap_data['trap_id'] = trap_id
-            json_doc = json.dumps(trap_data)
+            processed_trap_data['@timestamp'] = datetime.utcnow().isoformat()
+            processed_trap_data['trap_id'] = trap_id
+            json_doc_for_os = json.dumps(processed_trap_data) # JSON for OpenSearch
+
             start = time.perf_counter()
-            send_to_opensearch(json_doc)
+            send_to_opensearch(json_doc_for_os)
             latency = time.perf_counter() - start
 
             total_latency += latency
             msg_count += 1
-
             logging.info(f"[{msg_count}] Indexed trap from: {source_ip} (Latency: {latency:.4f}s)")
+
+            if snmpTrapOid:
+                logging.info(f"Received SNMP Trap OID: {snmpTrapOid}")
+                snmpTrapOid_entry = next((item for item in snmpTrapOidSettings if item["name"] == snmpTrapOid), None)
+
+                if not snmpTrapOid_entry:
+                    logging.warning(f"SNMP Trap OID '{snmpTrapOid}' not found in the list.")
+                    logging.info(f"SNMP Trap OID '{snmpTrapOid}' not found locally, calling FastAPI to create...")
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    try:
+                        created_snmpTrapOid = loop.run_until_complete(
+                            create_snmpTrapOid_via_api(snmpTrapOid)
+                        )
+                        logging.info(f"FastAPI create_snmpTrapOid response: {created_snmpTrapOid}")
+                    finally:
+                        loop.close()
+                else:
+                    logging.info(f"SNMP Trap OID '{snmpTrapOid}' found in the list.")
+                    logging.info(f"SNMP Trap OID in the list: {snmpTrapOid_entry}")
+                    if snmpTrapOid_entry and "tags" in snmpTrapOid_entry and snmpTrapOid_entry["tags"]:
+                        logging.info(f"Tags found for SNMP Trap OID '{snmpTrapOid}': {snmpTrapOid_entry['tags']}")
+                        tagged_trap_data = processed_trap_data.copy() # Start with the data sent to OS
+                        for tag_name in snmpTrapOid_entry["tags"]:
+                            tag_entry = next((item for item in trapTagSettings if item["name"] == tag_name), None)
+                            if tag_entry and "oids" in tag_entry:
+                                logging.info(f"Tag '{tag_name}' found in the list with OIDs: {tag_entry['oids']}")
+                                for oid in tag_entry["oids"]:
+                                    if 'content' in trap_data and oid in trap_data['content']:
+                                        tagged_trap_data[tag_name] = trap_data['content'][oid]
+                                        logging.info(f"Added tag '{tag_name}' with value '{trap_data['content'][oid]}'")
+                                        break # Assuming you want the first match
+                                    else:
+                                        logging.warning(f"OID '{oid}' not found in the trap data.")
+                            else:
+                                logging.warning(f"Tag '{tag_name}' not found in the list.")
+
+                        if snmpTrapOid_entry and "rules" in snmpTrapOid_entry and snmpTrapOid_entry["rules"]:
+                            logging.info(f"Rules found for SNMP Trap OID '{snmpTrapOid}': {snmpTrapOid_entry['rules']}")
+                            for rule in snmpTrapOid_entry["rules"]:
+                                rule_entry = next((item for item in statefulRuleSettings if item["name"] == rule), None)
+                                if rule_entry:
+                                    enrichedTrap = tagged_trap_data.copy() # Use the potentially tagged data
+                                    enrichedTrap["rule"] = rule
+
+                                    producer.produce(
+                                        KAFKA_SIGNAL_TOPIC,
+                                        value=json.dumps(enrichedTrap).encode('utf-8')
+                                    )
+                                    producer.flush()
+                                    logging.info(f"Sent signal to syslogs-signal topic: {enrichedTrap}")
+                                else:
+                                    logging.warning(f"Rule '{rule}' not found in the list.")
         else:
             logging.warning(f"Could not determine source IP for indexing: {trap_data}")
 

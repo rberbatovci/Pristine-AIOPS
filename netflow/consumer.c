@@ -191,7 +191,7 @@ int main() {
 
                         json_object_set_new(copy, "first_timestamp_iso", json_string(first_ts_iso_str));
                         json_object_set_new(copy, "last_timestamp_iso", json_string(last_ts_iso_str));
-                        json_object_set_new(copy, "processing_timestamp", json_string(iso_processing_timestamp));
+                        json_object_set_new(copy, "@timestamp", json_string(iso_processing_timestamp));
 
                         // Remove the original large timestamp fields if you don't need them in OpenSearch
                         json_object_del(copy, "first_timestamp");

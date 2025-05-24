@@ -13,31 +13,14 @@ const ConfigDashboard = () => {
     const [hostnames, setHostnames] = useState([]);
     const [devices, setDevices] = useState([]);
 
-    useEffect(() => {
-        const fetchHostnames = async () => {
-            try {
-                const response = await apiClient.get('/devices/devices/');
-                const hostnames = response.data.map((device) => ({
-                    id: device.id,
-                    hostname: device.hostname,
-                    ip_address: device.ip_address,
-                    label: device.hostname,
-                }));
-                setDevices(hostnames);
-            } catch (error) {
-                console.error('Error fetching agent data:', error);
-            }
-        };
-
-        fetchHostnames();
-    }, []);
+    
 
     const handleOptionChange = (option) => {
         setSelectedSignalConfigElement(option);
     };
 
     const contentMap = {
-        mappingSignals: <MappingSignals devices={devices}/>,
+        mappingSignals: <MappingSignals devices={devices} />,
     };
 
     return (

@@ -100,16 +100,20 @@ CREATE TABLE IF NOT EXISTS syslogsignalseverity (
     description VARCHAR(255) NOT NULL
 );
 
+INSERT INTO syslogsignalseverity (id, number, severity, description)
+VALUES (1, 3, 'Error', 'We detected a potential signal of compromise in your system!');
+
 CREATE TABLE IF NOT EXISTS snmp_trap_oids (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255),
     value VARCHAR(255) NOT NULL,
-    tags TEXT[] DEFAULT '{}',
+    tags TEXT[] DEFAULT '{}'
 );
 
 -- Create table syslogTags
 CREATE TABLE IF NOT EXISTS "trapTags" (
     name VARCHAR(50) PRIMARY KEY
+    oids TEXT[] DEFAULT '{}'
 );
 
 

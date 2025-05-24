@@ -7,6 +7,7 @@ import '../css/Signals.css';
 import SyslogSignalsConfig from '../components/signals/config/SyslogSignals.js';
 import StatefulTraps from '../components/signals/config/StatefulTraps.js';
 import SyslogSignalFilters from '../components/signals/filters/SyslogSignals.js';
+import TrapSignalFilters from '../components/signals/filters/TrapSignals.js'; // Import Trap filters
 import { IoSettingsOutline, IoSettingsSharp } from "react-icons/io5";
 import apiClient from '../components/misc/AxiosConfig.js';
 import { RiFilterLine, RiFilterFill } from "react-icons/ri";
@@ -20,6 +21,7 @@ const SignalsDashboard = ({ currentUser }) => {
     const [selectedSignal, setSelectedSignal] = useState(null);
     const [selectedSignalRule, setSelectedSignalRule] = useState(null);
     const [correlatedSyslogs, setCorrelatedSyslogs] = useState(null);
+    const [correlatedTraps, setCorrelatedTraps] = useState(null); // State for correlated traps
     const [events, setEvents] = useState([]);
     const [showComponents, setShowComponents] = useState(false);
     const [isDropdownVisible, setIsDropdownVisible] = useState(false);
@@ -32,101 +34,91 @@ const SignalsDashboard = ({ currentUser }) => {
     const [message, setMessage] = useState([]);
     const [dataSource, setDataSource] = useState('syslogs');
     const [filters, setFilters] = useState({
-        signals: [],
-        syslogTags: [],
-        snmpTraps: [],
-
-        dateRange: [null, null],
+        syslogs: {
+            signals: [],
+            syslogTags: [],
+            dateRange: [null, null],
+        },
+        traps: {
+            signals: [],
+            snmpTraps: [],
+            dateRange: [null, null],
+        },
     });
 
     useEffect(() => {
-        const socket = new WebSocket("ws://127.0.0.1:8000/ws/syslogSignals/");
-        socket.onopen = () => {
-            console.log("WebSocket connected");
-        };
-
-        socket.onmessage = async (event) => {
-            const data = JSON.parse(event.data);
-            console.log("Received:", data);
-            if (data.type === "signalUpdate") {
-                setSignals((prevFilteredSignals) =>
-                    prevFilteredSignals.map((signal) =>
-                        signal.id === data.id ? { ...signal, state: data.state } : signal
-                    )
-                );
-            } else if (data.type === "newSignal") {
-                try {
-                    const response = await apiClient.get(`/signals/syslogSignals/${data.id}/`);
-                    const newSignal = response.data;
-                    setSignals((prevFilteredSignals) => [newSignal, ...prevFilteredSignals]);
-                } catch (error) {
-                    console.error("Error fetching new signal:", error);
-                }
-            }
-        };
-
-        socket.onclose = () => {
-            console.log("WebSocket disconnected");
-        };
-
-        return () => socket.close();
-    }, []);
-
-    useEffect(() => {
         const fetchSignals = async () => {
+            setIsLoading(true);
+            setError(null);
             try {
+                let url = '';
                 const params = new URLSearchParams();
 
-                if (filters.signals?.hostname?.length > 0) {
-                    filters.signals.hostname.forEach((host) => {
-                        params.append('device', host);
-                    });
-                }
-
-                if (Array.isArray(filters.dateRange) && filters.dateRange[0]) {
-                    params.append('startTime', formatDateForUrl(filters.dateRange[0]));
-                }
-                if (Array.isArray(filters.dateRange) && filters.dateRange[1]) {
-                    params.append('endTime', formatDateForUrl(filters.dateRange[1]));
-                }
-
-                if (filters.syslogTags) {
-                    Object.entries(filters.syslogTags).forEach(([syslogTag, tagValues]) => {
-                        tagValues.forEach((tag) => {
-                            if (tag?.value) {
-                                params.append(`affectedEntity__${syslogTag}`, tag.value);
-                            }
+                if (dataSource === 'syslogs') {
+                    url = `/signals/syslogsignals/`;
+                    const syslogFilters = filters.syslogs;
+                    if (syslogFilters?.signals?.hostname?.length > 0) {
+                        syslogFilters.signals.hostname.forEach((host) => {
+                            params.append('device', host);
                         });
-                    });
+                    }
+                    if (Array.isArray(syslogFilters.dateRange) && syslogFilters.dateRange[0]) {
+                        params.append('startTime', formatDateForUrl(syslogFilters.dateRange[0]));
+                    }
+                    if (Array.isArray(syslogFilters.dateRange) && syslogFilters.dateRange[1]) {
+                        params.append('endTime', formatDateForUrl(syslogFilters.dateRange[1]));
+                    }
+                    if (syslogFilters.syslogTags) {
+                        Object.entries(syslogFilters.syslogTags).forEach(([syslogTag, tagValues]) => {
+                            tagValues.forEach((tag) => {
+                                if (tag?.value) {
+                                    params.append(`affectedEntity__${syslogTag}`, tag.value);
+                                }
+                            });
+                        });
+                    }
+                } else if (dataSource === 'traps') {
+                    url = `/signals/trapsignals/`;
+                    const trapFilters = filters.traps;
+                    // Apply trap-specific filters here if needed
+                    if (Array.isArray(trapFilters.dateRange) && trapFilters.dateRange[0]) {
+                        params.append('startTime', formatDateForUrl(trapFilters.dateRange[0]));
+                    }
+                    if (Array.isArray(trapFilters.dateRange) && trapFilters.dateRange[1]) {
+                        params.append('endTime', formatDateForUrl(trapFilters.dateRange[1]));
+                    }
+                    // Add filters for SNMP Traps if you have them in the state
                 }
 
-                const url = `/signals/syslogsignals/?${params.toString()}`;
-                console.log('Fetching signals with URL:', url);
-
-                const response = await apiClient.get(url);
+                const finalUrl = `${url}?${params.toString()}`;
+                console.log('Fetching signals with URL:', finalUrl);
+                const response = await apiClient.get(finalUrl);
 
                 const extractedSignals = response.data.results.map((item) => {
                     const source = item._source;
                     return {
-                        id: source.signal_id,                // map signal_id to id
-                        startTime: source['@startTime'],     // map @startTime to startTime
-                        ...source                             // include all other fields as-is
+                        id: source.signal_id || item.id, // Use item.id for traps? Adjust based on API response
+                        startTime: source['@startTime'] || item.startTime, // Adjust based on API response
+                        endTime: source['@endTime'] || item.endTime, // Adjust based on API response
+                        ...source,
+                        ...item, // Include all other fields from both _source and the item itself
                     };
                 });
 
                 setSignals(extractedSignals);
                 setFilteredSignals(extractedSignals);
-            } catch (error) {
-                console.error('Error fetching signals:', error);
+            } catch (err) {
+                console.error('Error fetching signals:', err);
                 setError('Failed to fetch signals. Please try again later.');
+                setSignals([]);
+                setFilteredSignals([]);
+            } finally {
+                setIsLoading(false);
             }
         };
 
-        if (filters && Object.keys(filters).length > 0) {
-            fetchSignals();
-        }
-    }, [filters]);
-
+        fetchSignals();
+    }, [dataSource, filters.syslogs, filters.traps]);
 
     const toggleDropdown = (type) => {
         if (activeDropdown === type) {
@@ -144,7 +136,13 @@ const SignalsDashboard = ({ currentUser }) => {
 
     const handleDeleteAllSignals = async () => {
         try {
-            await apiClient.delete('/signals/deleteAllSyslogSignals/');
+            let deleteUrl = '';
+            if (dataSource === 'syslogs') {
+                deleteUrl = '/signals/deleteAllSyslogSignals/';
+            } else if (dataSource === 'traps') {
+                deleteUrl = '/signals/deleteAllTrapSignals/'; // Assuming this endpoint exists
+            }
+            await apiClient.delete(deleteUrl);
             setSignals([]);
             setFilteredSignals([]);
         } catch (error) {
@@ -153,29 +151,35 @@ const SignalsDashboard = ({ currentUser }) => {
     };
 
     const handleSearchFilters = (newFilters) => {
-        setFilters(newFilters);
-        console.log('New Filters in Signals Component:', newFilters);
+        setFilters(prevFilters => ({
+            ...prevFilters,
+            [dataSource]: newFilters,
+        }));
+        console.log(`New Filters for ${dataSource}:`, newFilters);
     };
 
     const handleSignalSelect = async (signal) => {
         setSelectedSignal(signal);
         setSelectedSignalId(signal.id);
         console.log('Selected Signal:', signal);
-        console.log('Correlated Syslog IDs:', signal.events);
-        try {
+        setEvents([]); // Clear previous events
 
-            if (signal.events && signal.events.length > 0) {
+        try {
+            if (signal.events && signal.events.length > 0 && dataSource === 'syslogs') {
                 const syslogIds = signal.events;
                 console.log('Correlated Syslog IDs:', syslogIds);
                 const eventsEndpoint = `/syslogs/bulk`;
                 console.log('Fetching bulk syslogs with IDs:', syslogIds);
                 const eventsResponse = await apiClient.post(eventsEndpoint, { syslog_ids: syslogIds });
-                setEvents(eventsResponse.data.results); // Assuming your bulk endpoint returns results in a 'results' array
-            } else {
-                setEvents([]); // No events to fetch
+                setEvents(eventsResponse.data.results);
+            } else if (dataSource === 'traps') {
+                // Handle fetching correlated events for traps if needed
+                // Example:
+                // const trapIds = signal.relatedTraps;
+                // const eventsResponse = await apiClient.post('/traps/bulk', { trap_ids: trapIds });
+                // setEvents(eventsResponse.data.results);
+                setEvents([]); // For now, if no specific trap events, set to empty
             }
-
-    
             setShowComponents(true);
         } catch (error) {
             console.error('Error fetching signal details:', error);
@@ -186,38 +190,54 @@ const SignalsDashboard = ({ currentUser }) => {
     const handleSignalDeselect = () => {
         setSelectedSignal(null);
         setCorrelatedSyslogs(null);
+        setCorrelatedTraps(null);
         setShowComponents(false);
     }
 
     console.log('Current User:', currentUser);
 
     const handleTimeRangeChange = (startDate, endDate) => {
+        setFilters(prevFilters => ({
+            ...prevFilters,
+            [dataSource]: {
+                ...prevFilters[dataSource],
+                dateRange: [startDate, endDate],
+            },
+        }));
     };
 
     const handleTimeRangeSelect = (range) => {
+        // You might want to update the filters directly here as well
+        console.log('Time range selected:', range);
     }
 
     const handleHeaderClick = (source) => {
         setDataSource(source);
+        setSelectedSignal(null); // Deselect any previously selected signal
+        setShowComponents(false); // Hide the right column components
     };
 
     return (
         <div className="signals-container" style={{ width: selectedSignal ? '80%' : '50%' }}>
             <div className="left-column" style={{ width: selectedSignal ? '40%' : '100%', height: '100vh' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <h2 style={{ marginTop: '-5px', paddingLeft: '20px', fontSize: '23px', color: 'var(--text-color)' }}>Syslog Signals</h2>
-                    <h2
-                        className={`eventsTitleHeader ${dataSource === 'syslogs' ? 'eventsTitleHeaderActive' : ''}`}
-                        onClick={() => handleHeaderClick('syslogs')}
-                    >
-                        Syslogs
+                    <h2 style={{ marginTop: '-5px', paddingLeft: '20px', fontSize: '23px', color: 'var(--text-color)' }}>
+                        {dataSource === 'syslogs' ? 'Syslog Signals' : 'Trap Signals'}
                     </h2>
-                    <h2
-                        className={`eventsTitleHeader ${dataSource === 'traps' ? 'eventsTitleHeaderActive' : ''}`}
-                        onClick={() => handleHeaderClick('traps')}
-                    >
-                        Traps
-                    </h2>
+                    <div style={{ display: 'flex' }}>
+                        <h2
+                            className={`eventsTitleHeader ${dataSource === 'syslogs' ? 'eventsTitleHeaderActive' : ''}`}
+                            onClick={() => handleHeaderClick('syslogs')}
+                        >
+                            Syslogs
+                        </h2>
+                        <h2
+                            className={`eventsTitleHeader ${dataSource === 'traps' ? 'eventsTitleHeaderActive' : ''}`}
+                            onClick={() => handleHeaderClick('traps')}
+                        >
+                            Traps
+                        </h2>
+                    </div>
                     <div style={{ marginRight: '10px', display: 'flex', alignItems: 'center' }}>
                         <input
                             type="text"
@@ -233,7 +253,7 @@ const SignalsDashboard = ({ currentUser }) => {
                                 borderRadius: '10px',
                                 marginRight: '10px',
                             }}
-                            placeholder="Search Event..."
+                            placeholder={`Search ${dataSource === 'syslogs' ? 'Syslog Signal' : 'Trap Signal'}...`}
                         />
                         {!selectedSignal && (
                             <>
@@ -248,20 +268,24 @@ const SignalsDashboard = ({ currentUser }) => {
                                     <FaRegClock className="defaultIcon hasFilters" />
                                     <FaClock className="hoverIcon" />
                                 </button>
-                                <button
-                                    className={`iconButton ${activeDropdown === 'traps' ? 'active' : ''}`}
-                                    onClick={() => toggleDropdown('traps')}
-                                >
-                                    <IoSettingsOutline className="defaultIcon" />
-                                    <IoSettingsSharp className="hoverIcon" />
-                                </button>
-                                <button
-                                    className={`iconButton ${activeDropdown === 'config' ? 'active' : ''}`}
-                                    onClick={() => toggleDropdown('config')}
-                                >
-                                    <IoSettingsOutline className="defaultIcon" />
-                                    <IoSettingsSharp className="hoverIcon" />
-                                </button>
+                                {dataSource === 'syslogs' && (
+                                    <button
+                                        className={`iconButton ${activeDropdown === 'syslogConfig' ? 'active' : ''}`}
+                                        onClick={() => toggleDropdown('syslogConfig')}
+                                    >
+                                        <IoSettingsOutline className="defaultIcon" />
+                                        <IoSettingsSharp className="hoverIcon" />
+                                    </button>
+                                )}
+                                {dataSource === 'traps' && (
+                                    <button
+                                        className={`iconButton ${activeDropdown === 'trapConfig' ? 'active' : ''}`}
+                                        onClick={() => toggleDropdown('trapConfig')}
+                                    >
+                                        <IoSettingsOutline className="defaultIcon" />
+                                        <IoSettingsSharp className="hoverIcon" />
+                                    </button>
+                                )}
                                 <button
                                     className={`iconButton ${activeDropdown === 'search' ? 'active' : ''}`}
                                     onClick={() => toggleDropdown('search')}
@@ -275,16 +299,17 @@ const SignalsDashboard = ({ currentUser }) => {
                 </div>
                 {isDropdownVisible && (
                     <div>
-                        {activeDropdown === 'config' && <SyslogSignalsConfig/>}
-                        {activeDropdown === 'traps' && <StatefulTraps />}
+                        {activeDropdown === 'syslogConfig' && <SyslogSignalsConfig />}
+                        {activeDropdown === 'trapConfig' && <StatefulTraps />}
                         {activeDropdown === 'time' && < SearchTime
                             onTimeRangeSelect={handleTimeRangeSelect}
                             onTimeRangeChange={handleTimeRangeChange}
                         />}
-                        {activeDropdown === 'search' && <SyslogSignalFilters onSearch={handleSearchFilters} />}
+                        {activeDropdown === 'search' && dataSource === 'syslogs' && <SyslogSignalFilters onSearch={(f) => handleSearchFilters(f)} />}
+                        {activeDropdown === 'search' && dataSource === 'traps' && <TrapSignalFilters onSearch={(f) => handleSearchFilters(f)} />}
                     </div>
                 )}
-                <div style={{ marginTop: '10px', marginLeft: '10px', marginRight: '10px', marginBottom: '5px', background: 'var(--backgroundColor3)', padding: '10px', borderRadius: '10px', height: 'calc(100vh - 185px)', overflowY: 'auto' }}>
+                <div style={{ marginTop: '10px', marginLeft: '10px', marginRight: '10px', marginBottom: '5px', background: 'var(--backgroundColor3)', padding: '10px', borderRadius: '10px', height: 'calc(100vh - 190px)', overflowY: 'auto' }}>
                     <List
                         signals={signals}
                         onSignalSelect={handleSignalSelect}
@@ -299,9 +324,9 @@ const SignalsDashboard = ({ currentUser }) => {
                         <div className="right-content">
                             {showComponents && (
                                 <>
-                                    <Info currentUser={currentUser} selectedSignal={selectedSignal} events={events} onSignalDeselect={handleSignalDeselect} />
-                                    <Timeline currentUser={currentUser} selectedSignal={selectedSignal} events={events} />
-                                    <Events currentUser={currentUser} events={events} source="syslog" rule={selectedSignalRule} />
+                                    <Info currentUser={currentUser} selectedSignal={selectedSignal} events={events} onSignalDeselect={handleSignalDeselect} dataSource={dataSource} />
+                                    <Timeline currentUser={currentUser} selectedSignal={selectedSignal} events={events} dataSource={dataSource} />
+                                    <Events currentUser={currentUser} events={events} source={dataSource === 'syslogs' ? "syslog" : "trap"} rule={selectedSignalRule} />
                                 </>
                             )}
                         </div>

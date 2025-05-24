@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import '../../css/SignalInfo.css';
-import { HiOutlineLockClosed, HiLockClosed  } from "react-icons/hi";
+import { HiOutlineLockClosed, HiLockClosed } from "react-icons/hi";
 import { RiCloseCircleLine, RiCloseCircleFill } from "react-icons/ri";
 import { FormatDate } from '../misc/FormatDate';
 import { MdDeleteForever, MdOutlineDeleteForever } from "react-icons/md";
@@ -45,7 +45,7 @@ const Info = ({ currentUser, selectedSignal, correlatedSyslogs, onSignalDeselect
   console.log('Selected Signal startTime and endTime in SignalInfo: ', selectedSignal.startTime, selectedSignal.endTime);
 
   return (
-    <div className={`signalRightElementContainer ${showData ? 'expanded' : 'collapsed'}`}>
+    <div className={`signalRightElementContainer ${showData ? 'expanded' : 'collapsed'}`} style={{ maxHeight: '180px' }}>
       <div className="signalRightElementHeader">
         <h2 className="signalRightElementHeaderTxt" onClick={() => setShowData(!showData)}>
           {showData ? '\u25CF' : '\u25CB'} Signal Info
@@ -58,71 +58,69 @@ const Info = ({ currentUser, selectedSignal, correlatedSyslogs, onSignalDeselect
                 <MdDeleteForever className="hoverIcon" />
               </button>
               <button className="iconButton" onClick={closeSignal}>
-                <HiOutlineLockClosed className="defaultIcon"/>
-                <HiLockClosed className="hoverIcon"/>
+                <HiOutlineLockClosed className="defaultIcon" />
+                <HiLockClosed className="hoverIcon" />
               </button>
               <button className="iconButton" onClick={deselectSignal}>
-                <RiCloseCircleLine className="defaultIcon"/>
-                < RiCloseCircleFill className="hoverIcon"/>
+                <RiCloseCircleLine className="defaultIcon" />
+                < RiCloseCircleFill className="hoverIcon" />
               </button>
             </div>
           </div>
         )}
       </div>
-  
+
       {showData && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '10px'}}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '10px' }}>
           {/* Left Column */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', fontSize: '14px', color: 'var(--text-color)' }}>
-              <p style={{ textAlign: 'right', width: '100px', fontWeight: '550', marginRight: '10px', marginTop: '8px' }}>Signal ID:</p>
-              <p>{selectedSignal.id} - {selectedSignal.state}</p>
+            <div style={{ display: 'flex', fontSize: '13px', color: 'var(--text-color2)', marginTop: '4px' }}>
+              <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>Signal ID:</p>
+              <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>#{selectedSignal.id} - {selectedSignal.status}</p>
             </div>
-            <div style={{ display: 'flex', fontSize: '14px', color: 'var(--text-color)' }}>
-              <p style={{ textAlign: 'right', width: '100px', marginRight: '10px', marginTop: '8px'  }}>Start Time:</p>
-              <p>{FormatDate(selectedSignal.startTime, currentUser.timezone)}</p>
+            <div style={{ display: 'flex', fontSize: '13px', color: 'var(--text-color2)', marginTop: '4px' }}>
+              <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>Start Time:</p>
+              <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>{FormatDate(selectedSignal.startTime, currentUser.timezone)}</p>
             </div>
-            <div style={{ display: 'flex', fontSize: '14px', color: 'var(--text-color)' }}>
-              <p style={{ textAlign: 'right', width: '100px', marginRight: '10px', marginTop: '8px'  }}>End Time:</p>
-              <p>{FormatDate(selectedSignal.endTime || new Date(), currentUser.timezone)}</p>
-            </div>
-            <div style={{ display: 'flex', fontSize: '14px', color: 'var(--text-color)' }}>
-              <p style={{ textAlign: 'right', width: '100px', marginRight: '10px', marginTop: '8px'  }}>Events:</p>
-              <p>({correlatedSyslogsCount} events received)</p>
+            <div style={{ display: 'flex', fontSize: '13px', color: 'var(--text-color2)', marginTop: '4px' }}>
+              <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>End Time:</p>
+              <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>{FormatDate(selectedSignal.endTime || new Date(), currentUser.timezone)}</p>
             </div>
           </div>
-  
+
           {/* Center Column */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            {selectedSignal.source === "stateful" && (
-              <div style={{ display: 'flex', fontSize: '14px', color: 'var(--text-color)' }}>
-                <p style={{ textAlign: 'right', width: '200px', marginRight: '10px', marginTop: '8px' }}>Rule:</p>
-                <p>{selectedSignal.rule}</p>
-              </div>
-            )}
-            <div style={{ display: 'flex', fontSize: '14px', color: 'var(--text-color)' }}>
-              <p style={{ textAlign: 'right', width: '200px', marginRight: '10px', marginTop: '8px' }}>Mnemonics:</p>
-              <p>{selectedSignal.mnemonics}</p>
+            <div style={{ display: 'flex', fontSize: '13px', color: 'var(--text-color2)', marginTop: '4px' }}>
+              <p style={{ textAlign: 'right', width: '110px', marginRight: '10px' }}>Rule:</p>
+              <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>{selectedSignal.rule}</p>
+            </div>
+            <div style={{ display: 'flex', fontSize: '13px', color: 'var(--text-color2)', marginTop: '4px' }}>
+              <p style={{ textAlign: 'right', width: '110px', marginRight: '10px' }}>Mnemonics:</p>
+              <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>{selectedSignal.mnemonics}</p>
+            </div>
+            <div style={{ display: 'flex', fontSize: '13px', color: 'var(--text-color2)', marginTop: '4px' }}>
+              <p style={{ textAlign: 'right', width: '110px', marginRight: '10px' }}>Events:</p>
+              <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>({correlatedSyslogsCount} events received)</p>
             </div>
           </div>
-  
+
           {/* Right Column */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', fontSize: '14px', color: 'var(--text-color)' }}>
-              <p style={{ textAlign: 'right', width: '200px', marginRight: '10px', marginTop: '8px' }}>Hostname:</p>
-              <p>{selectedSignal.device}</p>
+            <div style={{ display: 'flex', fontSize: '13px', color: 'var(--text-color2)', marginTop: '4px' }}>
+              <p style={{ textAlign: 'right', width: '100px', marginRight: '10px' }}>Hostname:</p>
+              <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>{selectedSignal.device}</p>
             </div>
-            {selectedSignal.affectedEntity && Object.keys(selectedSignal.affectedEntity).length > 0 ? (
-              Object.keys(selectedSignal.affectedEntity).map((key) => (
-                <div key={key} style={{ display: 'flex', fontSize: '14px', color: 'var(--text-color)' }}>
-                  <p style={{ textAlign: 'right', width: '200px', marginRight: '10px', marginTop: '8px' }}>{key}:</p>
-                  <p>{selectedSignal.affectedEntity[key]}</p>
+            {selectedSignal.affectedEntities && Object.keys(selectedSignal.affectedEntities).length > 0 ? (
+              Object.keys(selectedSignal.affectedEntities).map((key) => (
+                <div style={{ display: 'flex', fontSize: '13px', color: 'var(--text-color2)', marginTop: '4px' }}>
+                  <p style={{ textAlign: 'right', width: '100px', marginRight: '10px' }}>{key}:</p>
+                  <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>{selectedSignal.affectedEntities[key]}</p>
                 </div>
               ))
             ) : (
-              <div style={{ display: 'flex', fontSize: '14px', color: 'var(--text-color)' }}>
-                <p style={{ textAlign: 'right', width: '200px', marginRight: '10px', marginTop: '8px' }}>Affected Entities:</p>
-                <p>No Affected Entities</p>
+              <div style={{ display: 'flex', fontSize: '13px', color: 'var(--text-color2)', marginTop: '4px' }}>
+                <p style={{ textAlign: 'right', width: '100px', marginRight: '10px' }}>Affected Entities:</p>
+                <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>No Affected Entities</p>
               </div>
             )}
           </div>
