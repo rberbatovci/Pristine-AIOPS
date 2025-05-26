@@ -132,5 +132,17 @@
     "value": "CISCO-SMI::ciscoMgmt.43.2.0.2",
     "tags": [],
     "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.831.1.13",
+    "value": "CISCO-SMI::ciscoMgmt.831.1.13",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.187.0.5",
+    "value": "CISCO-SMI::ciscoMgmt.187.0.5",
+    "tags": [],
+    "rules": []
   }
 ]

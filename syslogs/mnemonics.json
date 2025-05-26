@@ -326,6 +326,34 @@
             "severity": "Error",
             "regexes": [],
             "rules": []
+        },
+        {
+            "name": "%IOSXE_INFRA-6-PROCPATH_CLIENT_HOG",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%DBAL-4-DELAYED_BATCH",
+            "level": 4,
+            "severity": "Warning",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%CLNS-5-ADJCLEAR",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%PLATFORM-4-ELEMENT_WARNING",
+            "level": 4,
+            "severity": "Warning",
+            "regexes": [],
+            "rules": []
         }
     ]
 }
