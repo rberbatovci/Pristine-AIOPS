@@ -169,16 +169,14 @@ const SignalsDashboard = ({ currentUser }) => {
                 const syslogIds = signal.events;
                 console.log('Correlated Syslog IDs:', syslogIds);
                 const eventsEndpoint = `/syslogs/bulk`;
-                console.log('Fetching bulk syslogs with IDs:', syslogIds);
                 const eventsResponse = await apiClient.post(eventsEndpoint, { syslog_ids: syslogIds });
                 setEvents(eventsResponse.data.results);
             } else if (dataSource === 'traps') {
-                // Handle fetching correlated events for traps if needed
-                // Example:
-                // const trapIds = signal.relatedTraps;
-                // const eventsResponse = await apiClient.post('/traps/bulk', { trap_ids: trapIds });
-                // setEvents(eventsResponse.data.results);
-                setEvents([]); // For now, if no specific trap events, set to empty
+                const trapIds = signal.events;
+                console.log('Correlated Trap IDs:', trapIds);
+                const eventsEndpoint = `/traps/bulk`;
+                const eventsResponse = await apiClient.post(eventsEndpoint, { trap_ids: trapIds });
+                setEvents(eventsResponse.data.results);
             }
             setShowComponents(true);
         } catch (error) {
@@ -224,20 +222,24 @@ const SignalsDashboard = ({ currentUser }) => {
                     <h2 style={{ marginTop: '-5px', paddingLeft: '20px', fontSize: '23px', color: 'var(--text-color)' }}>
                         {dataSource === 'syslogs' ? 'Syslog Signals' : 'Trap Signals'}
                     </h2>
-                    <div style={{ display: 'flex' }}>
-                        <h2
-                            className={`eventsTitleHeader ${dataSource === 'syslogs' ? 'eventsTitleHeaderActive' : ''}`}
-                            onClick={() => handleHeaderClick('syslogs')}
-                        >
-                            Syslogs
-                        </h2>
-                        <h2
-                            className={`eventsTitleHeader ${dataSource === 'traps' ? 'eventsTitleHeaderActive' : ''}`}
-                            onClick={() => handleHeaderClick('traps')}
-                        >
-                            Traps
-                        </h2>
-                    </div>
+                    {!selectedSignal && (
+                        <>
+                            <div style={{ display: 'flex' }}>
+                                <h2
+                                    className={`eventsTitleHeader ${dataSource === 'syslogs' ? 'eventsTitleHeaderActive' : ''}`}
+                                    onClick={() => handleHeaderClick('syslogs')}
+                                >
+                                    Syslogs
+                                </h2>
+                                <h2
+                                    className={`eventsTitleHeader ${dataSource === 'traps' ? 'eventsTitleHeaderActive' : ''}`}
+                                    onClick={() => handleHeaderClick('traps')}
+                                >
+                                    Traps
+                                </h2>
+                            </div>
+                        </>
+                    )}
                     <div style={{ marginRight: '10px', display: 'flex', alignItems: 'center' }}>
                         <input
                             type="text"
@@ -301,10 +303,16 @@ const SignalsDashboard = ({ currentUser }) => {
                     <div>
                         {activeDropdown === 'syslogConfig' && <SyslogSignalsConfig />}
                         {activeDropdown === 'trapConfig' && <StatefulTraps />}
-                        {activeDropdown === 'time' && < SearchTime
-                            onTimeRangeSelect={handleTimeRangeSelect}
-                            onTimeRangeChange={handleTimeRangeChange}
-                        />}
+                        {activeDropdown === 'time' && (
+                            <div
+                                style={{ position: 'absolute', background: 'var(--dropdownBackground)', opacity: '1', width: '420px' }}
+                            >
+                                <SearchTime
+                                    onTimeRangeSelect={handleTimeRangeSelect}
+                                    onTimeRangeChange={handleTimeRangeChange}
+                                />
+                            </div>
+                        )}
                         {activeDropdown === 'search' && dataSource === 'syslogs' && <SyslogSignalFilters onSearch={(f) => handleSearchFilters(f)} />}
                         {activeDropdown === 'search' && dataSource === 'traps' && <TrapSignalFilters onSearch={(f) => handleSearchFilters(f)} />}
                     </div>
@@ -326,7 +334,7 @@ const SignalsDashboard = ({ currentUser }) => {
                                 <>
                                     <Info currentUser={currentUser} selectedSignal={selectedSignal} events={events} onSignalDeselect={handleSignalDeselect} dataSource={dataSource} />
                                     <Timeline currentUser={currentUser} selectedSignal={selectedSignal} events={events} dataSource={dataSource} />
-                                    <Events currentUser={currentUser} events={events} source={dataSource === 'syslogs' ? "syslog" : "trap"} rule={selectedSignalRule} />
+                                    <Events currentUser={currentUser} events={events} source={dataSource} rule={selectedSignalRule} />
                                 </>
                             )}
                         </div>

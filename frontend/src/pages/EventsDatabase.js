@@ -52,7 +52,7 @@ function EventsDatabase({ currentUser }) {
         ],
         snmptraps: [
             'timestamp',
-            'source_ip',
+            'device',
             'SysUpTime',
             'SNMP Trap OID',
             'content',

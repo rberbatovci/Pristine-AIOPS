@@ -8,7 +8,7 @@ import os
 import hashlib
 from datetime import datetime, timedelta
 from celery import Celery
-from tasks import promote_signal_to_open, promote_signal_to_closed
+from tasks import promote_trap_signals_to_open, promote_trap_signals_to_closed
 
 # === Configuration ===
 KAFKA_BROKER = 'Kafka:9092'
@@ -149,7 +149,7 @@ def create_signal(trap, rule):
 
     new_signal = {
         "signal_id": signal_id,
-        "device": trap.get("source_ip"),
+        "device": trap.get("device"),
         "rule": rule["name"],
         "snmpTrapOid": snmpTrapOid,
         "affectedEntities": affected_entity_values,
@@ -164,7 +164,7 @@ def create_signal(trap, rule):
     opensearch_id = save_signal(new_signal)
     if opensearch_id:
         warmup_delay = rule.get("warmup", 0)
-        promote_signal_to_open.apply_async(args=[opensearch_id], countdown=warmup_delay)
+        promote_trap_signals_to_open.apply_async(args=[opensearch_id], countdown=warmup_delay)
         logging.info(f"Created signal (ID: {opensearch_id}) with warmUp={warmup_delay}s: {new_signal}")
 
 # === Signal Reopening Function ===
@@ -269,7 +269,7 @@ def close_signal(trap, rule, related_signal):
         update_signal(doc_id, update_data)
 
         cooldown_delay = rule.get("cooldown", 0)
-        promote_signal_to_closed.apply_async(args=[doc_id], countdown=cooldown_delay)
+        promote_trap_signals_to_closed.apply_async(args=[doc_id], countdown=cooldown_delay)
         logging.info(f"Signal {related_signal_id} (_id={doc_id}) set to coolDown for {cooldown_delay}s before closing.")
 
     except Exception as e:
@@ -295,7 +295,7 @@ def handle_message(msg):
 
         trapRule = trap.get("rule")
         logging.info(f"Received rule: {trapRule}")
-        
+
 
         rule = next(
             (rule for rule in stateful_rules if rule["name"] == trapRule),
@@ -313,16 +313,17 @@ def handle_message(msg):
                 entity_value = trap.get(entity_type)
                 if entity_value:
                     affected_entity_values[entity_type] = entity_value
-            
+
             logging.info(f"Trap data: {trap}")
+            logging.info(f"Extracted affected_entity_values: {affected_entity_values}") # Added logging
             logging.info(f"Trap SNMP Trap OID: {trap.get('SNMPv2-MIB::snmpTrapOID.0')}, Open Signal value: {rule.get('opensignaltrap')}: {trap.get(openTag)}")
             logging.info(f"Trap SNMP Trap OID: {trap.get('SNMPv2-MIB::snmpTrapOID.0')}, Close Signal value: {rule.get('closesignaltrap')}: {trap.get(closeTag)}")
 
             if rule.get("opensignaltrap") == trap.get('SNMPv2-MIB::snmpTrapOID.0'):
                 if not openTag or rule.get("opensignalvalue") == trap.get(openTag):
-                    logging.info(f"Trap eligible for opening signal: {trap.get(openTag)}")
+                    logging.info(f"Trap eligible for opening signal: {trap.get(openTag)}: 1.{trapRule}, 2.{trap.get('device')}, 3.{affected_entity_values}")
                     related_signal_id, related_signal = find_related_signal(
-                        rule, trap.get("source_ip"), affected_entity_values
+                        trapRule, trap.get("device"), affected_entity_values
                     )
                     logging.info(f"Related signal ID: {related_signal_id}, Related signal: {related_signal}, Rule: {rule}, affected entities: {affected_entity_values}")
                     if related_signal is None or related_signal.get("status") == "closed":
@@ -339,9 +340,9 @@ def handle_message(msg):
                 if not closeTag or rule.get("closesignalvalue") == trap.get(closeTag):
                     logging.info(f"Trap elligible for closing signal: {trap.get(closeTag)}")
                     related_signal_id, related_signal = find_related_signal(
-                        rule, trap.get("source_ip"), affected_entity_values
+                        rule["name"], trap.get("device"), affected_entity_values # Use rule["name"] here
                     )
-                    logging.info(f"Related signal ID: {related_signal_id}, Related signal: {related_signal}, Rule: {rule}, affected entities: {affected_entity_values}")     
+                    logging.info(f"Related signal ID: {related_signal_id}, Related signal: {related_signal}, Rule: {rule}, affected entities: {affected_entity_values}")
                     if related_signal is None:
                         logging.error("No related signal found to close.")
                     elif related_signal.get("status") == "warmUp":

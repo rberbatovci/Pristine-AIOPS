@@ -5,7 +5,7 @@ from .models import Tag as TagModel
 from .models import Trap as TrapModel
 from .models import TrapOid as TrapOidModel, StatefulTrapRule as TrapRulesModel
 from ..db.session import get_db, opensearch_client
-from fastapi import APIRouter, Depends, status, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, Depends, status, HTTPException, Query, UploadFile, File, Body
 from fastapi.responses import JSONResponse
 import os
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -102,6 +102,74 @@ async def get_traps(page: int = Query(1, ge=1, description="Page number"),
         "page": page,
         "page_size": page_size
     }
+
+@router.post("/traps/bulk")
+async def get_multiple_traps(trap_ids: list[str] = Body(..., embed=True)):
+    query = {
+        "query": {
+            "terms": {
+                "trap_id.keyword": trap_ids
+            }
+        },
+        "size": len(trap_ids)  # adjust if expecting many results
+    }
+
+    response = opensearch_client.search(index="traps", body=query)
+    results = [hit["_source"] for hit in response["hits"]["hits"]]
+
+    return {
+        "results": results,
+        "requested_ids": trap_ids,
+        "found_count": len(results),
+        "not_found_ids": list(set(trap_ids) - {doc["trap_id"] for doc in results})
+    }
+
+def get_unique_terms(index: str, field: str, size: int = 1000) -> List[str]:
+    try:
+        field_keyword = f"{field}.keyword"
+        response = opensearch_client.search(
+            index=index,
+            size=0,
+            body={
+                "aggs": {
+                    "unique_terms": {
+                        "terms": {
+                            "field": field_keyword,
+                            "size": size
+                        }
+                    }
+                }
+            }
+        )
+        buckets = response["aggregations"]["unique_terms"]["buckets"]
+        return [bucket["key"] for bucket in buckets]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting terms: {str(e)}")
+
+@router.get("/traps/tags/unique-values", response_model=List[str])
+def get_dynamic_unique_values(field: str = Query(..., description="Field to aggregate")):
+    return get_unique_terms(index="traps", field=field)
+
+@router.get("/traps/tags/statistics/{tag_key}")
+def get_tag_statistics(tag_key: str):
+    query = {
+        "size": 0,
+        "aggs": {
+            "tag_value_counts": {
+                "terms": {
+                    "field": f"{tag_key}.keyword",
+                    "size": 1000
+                }
+            }
+        }
+    }
+
+    response = opensearch_client.search(index="traps", body=query)
+    stats = [
+        {"value": bucket["key"], "count": bucket["doc_count"]}
+        for bucket in response["aggregations"]["tag_value_counts"]["buckets"]
+    ]
+    return {"tag_key": tag_key, "statistics": stats}
 
 @router.get("/traps/tags/", response_model=list[TagBrief])
 async def get_tags(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):

@@ -298,7 +298,7 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
     gap: 10px;
-    width: 100%;
+    width: 97%;
     padding-top: 10px;
     background: var(--backgroundColor3);
     color: var(--textColor);

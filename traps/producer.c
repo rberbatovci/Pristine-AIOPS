@@ -75,7 +75,7 @@ void cleanup_kafka_producer() {
     }
 }
 
-void send_trap_to_kafka(netsnmp_pdu *pdu, const char *source_ip) {
+void send_trap_to_kafka(netsnmp_pdu *pdu, const char *device) {
     if (!kafka_producer || !pdu) return;
 
     // Create JSON buffer for the trap
@@ -83,10 +83,10 @@ void send_trap_to_kafka(netsnmp_pdu *pdu, const char *source_ip) {
     char *ptr = json_buffer;
     int remaining = sizeof(json_buffer);
 
-    // Start JSON object with source_ip
+    // Start JSON object with device
     int written = snprintf(ptr, remaining,
-        "{\"source_ip\":\"%s\"",
-        source_ip ? source_ip : "unknown");
+        "{\"device\":\"%s\"",
+        device ? device : "unknown");
     ptr += written;
     remaining -= written;
 
@@ -197,23 +197,23 @@ int trap_callback(int operation, netsnmp_session *sp, int reqid,
             printf("✅ PDU received: %d variables\n", pdu->variables ? 1 : 0);
         }
 
-        char source_ip[INET6_ADDRSTRLEN] = "unknown";
+        char device[INET6_ADDRSTRLEN] = "unknown";
         if (pdu->transport_data && pdu->transport_data_length >= sizeof(netsnmp_indexed_addr_pair)) {
             netsnmp_indexed_addr_pair *iap = (netsnmp_indexed_addr_pair *)pdu->transport_data;
             
             if (iap->remote_addr.sa.sa_family == AF_INET) {
                 struct sockaddr_in *sin = (struct sockaddr_in *)&iap->remote_addr.sa;
-                inet_ntop(AF_INET, &sin->sin_addr, source_ip, sizeof(source_ip));
+                inet_ntop(AF_INET, &sin->sin_addr, device, sizeof(device));
             } else if (iap->remote_addr.sa.sa_family == AF_INET6) {
                 struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&iap->remote_addr.sa;
-                inet_ntop(AF_INET6, &sin6->sin6_addr, source_ip, sizeof(source_ip));
+                inet_ntop(AF_INET6, &sin6->sin6_addr, device, sizeof(device));
             }
         }
 
-        printf("Source IP: %s\n", source_ip);
+        printf("Source IP: %s\n", device);
 
         // Send trap to Kafka
-        send_trap_to_kafka(pdu, source_ip);
+        send_trap_to_kafka(pdu, device);
     }
 
     return 1;

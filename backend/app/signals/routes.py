@@ -58,62 +58,267 @@ async def get_trapSignals(page: int = Query(1, ge=1, description="Page number"),
         "page_size": page_size
     }
 
-@router.get("/signals/stats/devices/")
-async def get_device_statistics():
-    body = {
+@router.get("/signals/syslogs/devices/options")
+def get_devices():
+    query = {
         "size": 0,
         "aggs": {
             "devices": {
                 "terms": {
-                    "field": "device.keyword",  # Use .keyword for exact match on strings
-                    "size": 1000  # Adjust as needed
+                    "field": "device.keyword",
+                    "size": 1000
                 }
             }
         }
     }
+    response = opensearch_client.search(index="syslog-signals", body=query)
+    return [bucket["key"] for bucket in response["aggregations"]["devices"]["buckets"]]
 
-    response = opensearch_client.search(index="syslog-signals", body=body)
+@router.get("/signals/traps/devices/options")
+def get_devices():
+    query = {
+        "size": 0,
+        "aggs": {
+            "devices": {
+                "terms": {
+                    "field": "device.keyword",
+                    "size": 1000
+                }
+            }
+        }
+    }
+    response = opensearch_client.search(index="trap-signals", body=query)
+    return [bucket["key"] for bucket in response["aggregations"]["devices"]["buckets"]]
 
-    buckets = response["aggregations"]["devices"]["buckets"]
-    stats = [{"device": b["key"], "count": b["doc_count"]} for b in buckets]
 
-    return stats
+@router.get("/signals/syslogs/rules/options")
+def get_rules():
+    query = {
+        "size": 0,
+        "aggs": {
+            "rules": {
+                "terms": {
+                    "field": "rule.keyword",
+                    "size": 1000
+                }
+            }
+        }
+    }
+    response = opensearch_client.search(index="syslog-signals", body=query)
+    return [bucket["key"] for bucket in response["aggregations"]["rules"]["buckets"]]
 
-@router.get("/signals/stats/mnemonics/")
-async def get_mnemonic_statistics():
-    body = {
+@router.get("/signals/traps/rules/options")
+def get_rules():
+    query = {
+        "size": 0,
+        "aggs": {
+            "rules": {
+                "terms": {
+                    "field": "rule.keyword",
+                    "size": 1000
+                }
+            }
+        }
+    }
+    response = opensearch_client.search(index="trap-signals", body=query)
+    return [bucket["key"] for bucket in response["aggregations"]["rules"]["buckets"]]
+
+
+@router.get("/signals/syslogs/mnemonics/options")
+def get_mnemonics():
+    query = {
         "size": 0,
         "aggs": {
             "mnemonics": {
                 "terms": {
-                    "field": "mnemonics.keyword", # Analyze each mnemonic in the list
+                    "field": "mnemonics.keyword",
                     "size": 1000
                 }
             }
         }
     }
-    response = opensearch_client.search(index="syslog-signals", body=body)
-    buckets = response["aggregations"]["mnemonics"]["buckets"]
-    stats = [{"mnemonic": b["key"], "count": b["doc_count"]} for b in buckets]
-    return stats
+    response = opensearch_client.search(index="syslog-signals", body=query)
+    return [bucket["key"] for bucket in response["aggregations"]["mnemonics"]["buckets"]]
 
-@router.get("/signals/stats/rule/")
-async def get_mnemonic_statistics():
-    body = {
+
+@router.get("/signals/traps/snmpTrapOid/options")
+def get_mnemonics():
+    query = {
         "size": 0,
         "aggs": {
-            "rule": {
+            "snmpTrapOid": {
                 "terms": {
-                    "field": "rule.keyword", # Analyze each mnemonic in the list
+                    "field": "snmpTrapOid.keyword",
                     "size": 1000
                 }
             }
         }
     }
-    response = opensearch_client.search(index="syslog-signals", body=body)
-    buckets = response["aggregations"]["rule"]["buckets"]
-    stats = [{"mnemonic": b["key"], "count": b["doc_count"]} for b in buckets]
-    return stats
+    response = opensearch_client.search(index="trap-signals", body=query)
+    return [bucket["key"] for bucket in response["aggregations"]["snmpTrapOid"]["buckets"]]
+
+
+@router.get("/signals/syslogs/affected-entities/options/{entity_key}")
+def get_affected_entity_values(entity_key: str):
+    index_name = "syslog-signals"
+    
+    # Build the aggregation path dynamically
+    agg_path = f"affectedEntities.{entity_key}"
+
+    query = {
+        "size": 0,
+        "aggs": {
+            "affected_entity_values": {
+                "terms": {
+                    "field": agg_path + ".keyword",  # use .keyword to aggregate strings
+                    "size": 1000  # adjust as needed
+                }
+            }
+        }
+    }
+
+    response = opensearch_client.search(index=index_name, body=query)
+    values = [bucket["key"] for bucket in response["aggregations"]["affected_entity_values"]["buckets"]]
+    return {"entity": entity_key, "values": values}
+
+@router.get("/signals/traps/affected-entities/options/{entity_key}")
+def get_affected_entity_values(entity_key: str):
+    index_name = "trap-signals"
+    
+    # Build the aggregation path dynamically
+    agg_path = f"affectedEntities.{entity_key}"
+
+    query = {
+        "size": 0,
+        "aggs": {
+            "affected_entity_values": {
+                "terms": {
+                    "field": agg_path + ".keyword",  # use .keyword to aggregate strings
+                    "size": 1000  # adjust as needed
+                }
+            }
+        }
+    }
+
+    response = opensearch_client.search(index=index_name, body=query)
+    values = [bucket["key"] for bucket in response["aggregations"]["affected_entity_values"]["buckets"]]
+    return {"entity": entity_key, "values": values}
+
+
+@router.get("/signals/syslogs/devices/statistics")
+def get_device_statistics():
+    query = {
+        "size": 0,
+        "aggs": {
+            "by_device": {
+                "terms": {
+                    "field": "device.keyword",
+                    "size": 1000
+                }
+            }
+        }
+    }
+    response = opensearch_client.search(index="syslog-signals", body=query)
+    return [
+        {"device": bucket["key"], "count": bucket["doc_count"]}
+        for bucket in response["aggregations"]["by_device"]["buckets"]
+    ]
+
+@router.get("/signals/traps/devices/statistics")
+def get_device_statistics():
+    query = {
+        "size": 0,
+        "aggs": {
+            "by_device": {
+                "terms": {
+                    "field": "device.keyword",
+                    "size": 1000
+                }
+            }
+        }
+    }
+    response = opensearch_client.search(index="trap-signals", body=query)
+    return [
+        {"device": bucket["key"], "count": bucket["doc_count"]}
+        for bucket in response["aggregations"]["by_device"]["buckets"]
+    ]
+
+@router.get("/signals/syslogs/mnemonics/statistics")
+def get_mnemonic_statistics():
+    query = {
+        "size": 0,
+        "aggs": {
+            "by_mnemonic": {
+                "terms": {
+                    "field": "mnemonics.keyword",
+                    "size": 1000
+                }
+            }
+        }
+    }
+    response = opensearch_client.search(index="syslog-signals", body=query)
+    return [
+        {"mnemonic": bucket["key"], "count": bucket["doc_count"]}
+        for bucket in response["aggregations"]["by_mnemonic"]["buckets"]
+    ]
+
+
+@router.get("/signals/traps/snmpTrapOid/statistics")
+def get_mnemonic_statistics():
+    query = {
+        "size": 0,
+        "aggs": {
+            "by_mnemonic": {
+                "terms": {
+                    "field": "snmpTrapOid.keyword",
+                    "size": 1000
+                }
+            }
+        }
+    }
+    response = opensearch_client.search(index="syslog-signals", body=query)
+    return [
+        {"snmpTrapOid": bucket["key"], "count": bucket["doc_count"]}
+        for bucket in response["aggregations"]["by_snmpTrapOid"]["buckets"]
+    ]
+
+@router.get("/signals/syslogs/rules/statistics")
+def get_rule_statistics():
+    query = {
+        "size": 0,
+        "aggs": {
+            "by_rule": {
+                "terms": {
+                    "field": "rule.keyword",
+                    "size": 1000
+                }
+            }
+        }
+    }
+    response = opensearch_client.search(index="syslog-signals", body=query)
+    return [
+        {"rule": bucket["key"], "count": bucket["doc_count"]}
+        for bucket in response["aggregations"]["by_rule"]["buckets"]
+    ]
+
+@router.get("/signals/traps/rules/statistics")
+def get_rule_statistics():
+    query = {
+        "size": 0,
+        "aggs": {
+            "by_rule": {
+                "terms": {
+                    "field": "rule.keyword",
+                    "size": 1000
+                }
+            }
+        }
+    }
+    response = opensearch_client.search(index="trap-signals", body=query)
+    return [
+        {"rule": bucket["key"], "count": bucket["doc_count"]}
+        for bucket in response["aggregations"]["by_rule"]["buckets"]
+    ]
 
 @router.get("/signals/stats/status/")
 async def get_mnemonic_statistics():
@@ -132,6 +337,58 @@ async def get_mnemonic_statistics():
     buckets = response["aggregations"]["status"]["buckets"]
     stats = [{"mnemonic": b["key"], "count": b["doc_count"]} for b in buckets]
     return stats
+
+@router.get("/signals/syslogs/affected-entities/statistics/{entity_key}")
+def get_affected_entity_statistics(entity_key: str):
+    index_name = "syslog-signals"
+    field_path = f"affectedEntities.{entity_key}.keyword"
+
+    query = {
+        "size": 0,
+        "aggs": {
+            "by_tag_value": {
+                "terms": {
+                    "field": field_path,
+                    "size": 1000
+                }
+            }
+        }
+    }
+
+    response = opensearch_client.search(index=index_name, body=query)
+    return {
+        "entity_key": entity_key,
+        "values": [
+            {"value": bucket["key"], "count": bucket["doc_count"]}
+            for bucket in response["aggregations"]["by_tag_value"]["buckets"]
+        ]
+    }
+
+@router.get("/signals/traps/affected-entities/statistics/{entity_key}")
+def get_affected_entity_statistics(entity_key: str):
+    index_name = "trap-signals"
+    field_path = f"affectedEntities.{entity_key}.keyword"
+
+    query = {
+        "size": 0,
+        "aggs": {
+            "by_tag_value": {
+                "terms": {
+                    "field": field_path,
+                    "size": 1000
+                }
+            }
+        }
+    }
+
+    response = opensearch_client.search(index=index_name, body=query)
+    return {
+        "entity_key": entity_key,
+        "values": [
+            {"value": bucket["key"], "count": bucket["doc_count"]}
+            for bucket in response["aggregations"]["by_tag_value"]["buckets"]
+        ]
+    }
 
 @router.get("/signals/stats/affected_entities/")
 async def get_affected_entities_statistics():

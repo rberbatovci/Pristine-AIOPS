@@ -8,12 +8,9 @@ const SyslogSignalFilters = ({ onSelectedSyslogFiltersChange, initialSelectedTag
     const [tags, setTags] = useState([]);
     const [selectedTags, setSelectedTags] = useState(initialSelectedTags);
     const [tagOptions, setTagOptions] = useState({});
-    const [isLoading, setIsLoading] = useState(false);
-    const [loadingTags, setLoadingTags] = useState({
-        mnemonic: false,
-        rule: false,
-    });
+    const [loadingTags, setLoadingTags] = useState({});
     const [dropdownOpenState, setDropdownOpenState] = useState({});
+    const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
         fetchSyslogTags();
@@ -26,15 +23,15 @@ const SyslogSignalFilters = ({ onSelectedSyslogFiltersChange, initialSelectedTag
             const fetchedTags = response.data || [];
             setTags(fetchedTags);
 
-            const initialTags = { ...selectedTags };
-            fetchedTags.forEach((tag) => {
-                if (!initialTags[tag.name]) {
-                    initialTags[tag.name] = [];
+            const initial = { ...selectedTags };
+            fetchedTags.forEach(tag => {
+                if (!initial[tag.name]) {
+                    initial[tag.name] = [];
                 }
             });
 
-            setSelectedTags(initialTags);
-            onSelectedSyslogFiltersChange(initialTags);
+            setSelectedTags(initial);
+            onSelectedSyslogFiltersChange(initial);
         } catch (error) {
             console.error('Error fetching Syslog Tags:', error);
         } finally {
@@ -42,148 +39,98 @@ const SyslogSignalFilters = ({ onSelectedSyslogFiltersChange, initialSelectedTag
         }
     };
 
-    const fetchMnemonicOptions = async () => {
-        setLoadingTags((prev) => ({ ...prev, mnemonic: true }));
+    const fetchTagOptions = async (tagName, endpoint) => {
+        setLoadingTags(prev => ({ ...prev, [tagName]: true }));
         try {
-            const response = await apiClient.get('/signals/syslogSignals/used-mnemonics/');
-            const mnemonicsArray = response.data || [];
-
-            setTagOptions((prevOptions) => ({
-                ...prevOptions,
-                mnemonic: mnemonicsArray.map((mnemonic) => ({
-                    value: mnemonic.id,
-                    label: mnemonic.name,
-                })),
+            const response = await apiClient.get(endpoint);
+            const options = response.data.map((item) => ({
+                value: item,
+                label: item
             }));
+            setTagOptions(prev => ({ ...prev, [tagName]: options }));
         } catch (error) {
-            console.error('Error fetching mnemonic options:', error);
+            console.error(`Error fetching ${tagName} options:`, error);
         } finally {
-            setLoadingTags((prev) => ({ ...prev, mnemonic: false }));
+            setLoadingTags(prev => ({ ...prev, [tagName]: false }));
         }
     };
 
-    const fetchDevices = async () => {
-        setLoadingTags((prev) => ({ ...prev, device: true }));
-        try {
-            const response = await apiClient.get('/signals/syslogSignals/used-devices/');
-            const devicesArray = response.data || [];
+    const handleFocus = (tagName) => {
+        if (tagOptions[tagName]) return;
 
-            setTagOptions((prevOptions) => ({
-                ...prevOptions,
-                device: devicesArray.map((device) => ({
-                    value: device.id,
-                    label: device.name,
-                })),
-            }));
-        } catch (error) {
-            console.error('Error fetching devices options:', error);
-        } finally {
-            setLoadingTags((prev) => ({ ...prev, device: false }));
+        if (tagName === 'mnemonic') {
+            fetchTagOptions(tagName, '/signals/syslogs/mnemonics/options');
+        } else if (tagName === 'rule') {
+            fetchTagOptions(tagName, '/signals/syslogs/rules/options');
+        } else if (tagName === 'device') {
+            fetchTagOptions(tagName, '/signals/syslogs/devices/options');
+        } else {
+            fetchAffectedEntityOptions(tagName); // fallback for affected entities
         }
     };
 
-    const fetchRuleOptions = async () => {
-        setLoadingTags((prev) => ({ ...prev, rule: true }));
+    const fetchAffectedEntityOptions = async (tagName) => {
+        setLoadingTags((prev) => ({ ...prev, [tagName]: true }));
         try {
-            const response = await apiClient.get('/signals/syslogSignals/used-rules/');
-            const rulesArray = response.data || [];
+            const response = await apiClient.get(`/signals/syslogs/affected-entities/options/${tagName}`);
+            const valuesArray = response.data.values || [];
 
             setTagOptions((prevOptions) => ({
                 ...prevOptions,
-                rule: rulesArray.map((rule) => ({
-                    value: rule.id,
-                    label: rule.name,
+                [tagName]: valuesArray.map((value) => ({
+                    value: value,
+                    label: value,
                 })),
             }));
         } catch (error) {
-            console.error('Error fetching stateful syslog rules options:', error);
+            console.error(`Error fetching values for entity ${tagName}:`, error);
         } finally {
-            setLoadingTags((prev) => ({ ...prev, rule: false }));
+            setLoadingTags((prev) => ({ ...prev, [tagName]: false }));
         }
     };
 
     const handleChange = (selectedValues, tagName) => {
         const updatedSelectedTags = {
             ...selectedTags,
-            [tagName]: selectedValues,
+            [tagName]: selectedValues
         };
         setSelectedTags(updatedSelectedTags);
         onSelectedSyslogFiltersChange(updatedSelectedTags);
     };
 
-    const handleFocus = (tagName) => {
-        if (tagName === 'mnemonic' && !tagOptions['mnemonic']) {
-            fetchMnemonicOptions();
-        } else if (tagName === 'rule' && !tagOptions['rule']) {
-            fetchRuleOptions();
-        } else if (tagName === 'device' && !tagOptions['device']) {
-            fetchDevices();
-        }
-    };
-
     const handleMenuOpen = (tagName) => {
-        setDropdownOpenState((prev) => ({ ...prev, [tagName]: true }));
+        setDropdownOpenState(prev => ({ ...prev, [tagName]: true }));
     };
 
     const handleMenuClose = (tagName) => {
-        setDropdownOpenState((prev) => ({ ...prev, [tagName]: false }));
+        setDropdownOpenState(prev => ({ ...prev, [tagName]: false }));
     };
 
     return (
         <div className="dropdownConfigContainer" style={{ padding: '10px' }}>
             {isLoading ? (
-                <div>
-                    <p style={{ textAlign: 'center' }}>Loading Syslog Tags...</p>
-                </div>
+                <p style={{ textAlign: 'center' }}>Loading Syslog Tags...</p>
             ) : (
-                <div>
+                <>
                     <span style={{ color: 'var(--textColor2)' }}>Filter Syslog Signals:</span>
-                    <div className="search-signals-container" style={{ marginTop: '8px' }}>
-                        <div className="search-signals-item">
-                            <p>Device:</p>
-                            <Select
-                                options={tagOptions['device'] || []}
-                                isMulti
-                                value={selectedTags['device'] || []}
-                                onChange={(selectedValues) => handleChange(selectedValues, 'device')}
-                                name="device"
-                                styles={customStyles('300px')}
-                                onFocus={() => handleFocus('device')}
-                                isLoading={loadingTags.mnemonic}
-                                onMenuOpen={() => handleMenuOpen('device')}
-                                onMenuClose={() => handleMenuClose('device')}
-                            />
-                        </div>
-                        <div className="search-signals-item">
-                            <p>Mnemonic:</p>
-                            <Select
-                                options={tagOptions['mnemonic'] || []}
-                                isMulti
-                                value={selectedTags['mnemonic'] || []}
-                                onChange={(selectedValues) => handleChange(selectedValues, 'mnemonic')}
-                                name="mnemonic"
-                                styles={customStyles('300px')}
-                                onFocus={() => handleFocus('mnemonic')}
-                                isLoading={loadingTags.mnemonic}
-                                onMenuOpen={() => handleMenuOpen('mnemonic')}
-                                onMenuClose={() => handleMenuClose('mnemonic')}
-                            />
-                        </div>
-                        <div className="search-signals-item">
-                            <p>Stateful Rule:</p>
-                            <Select
-                                options={tagOptions['rule'] || []}
-                                isMulti
-                                value={selectedTags['rule'] || []}
-                                onChange={(selectedValues) => handleChange(selectedValues, 'rule')}
-                                name="rule"
-                                styles={customStyles('300px')}
-                                onFocus={() => handleFocus('rule')}
-                                isLoading={loadingTags.rule}
-                                onMenuOpen={() => handleMenuOpen('rule')}
-                                onMenuClose={() => handleMenuClose('rule')}
-                            />
-                        </div>
+                    <div className="search-signals-container" style={{ marginTop: '8px', padding: '10px' }}>
+                        {['device', 'mnemonic', 'rule'].map((tagName) => (
+                            <div key={tagName} className="search-signals-item">
+                                <p>{tagName.charAt(0).toUpperCase() + tagName.slice(1)}:</p>
+                                <Select
+                                    options={tagOptions[tagName] || []}
+                                    isMulti
+                                    value={selectedTags[tagName] || []}
+                                    onChange={(selected) => handleChange(selected, tagName)}
+                                    name={tagName}
+                                    styles={customStyles('280px')}
+                                    onFocus={() => handleFocus(tagName)}
+                                    isLoading={loadingTags[tagName]}
+                                    onMenuOpen={() => handleMenuOpen(tagName)}
+                                    onMenuClose={() => handleMenuClose(tagName)}
+                                />
+                            </div>
+                        ))}
                         {tags.map((tag) => (
                             <div key={tag.name} className="search-signals-item">
                                 <p>{tag.name}:</p>
@@ -193,7 +140,8 @@ const SyslogSignalFilters = ({ onSelectedSyslogFiltersChange, initialSelectedTag
                                     value={selectedTags[tag.name]}
                                     onChange={(selectedValues) => handleChange(selectedValues, tag.name)}
                                     name={tag.name}
-                                    styles={customStyles('300px')}
+                                    onFocus={() => handleFocus(tag.name)}
+                                    styles={customStyles('280px')}
                                     isLoading={loadingTags[tag.name]}
                                     onMenuOpen={() => handleMenuOpen(tag.name)}
                                     onMenuClose={() => handleMenuClose(tag.name)}
@@ -204,7 +152,7 @@ const SyslogSignalFilters = ({ onSelectedSyslogFiltersChange, initialSelectedTag
                     <div style={{ justifyContent: 'center' }}>
                         <button style={{ padding: '8px 60px' }}>Search</button>
                     </div>
-                </div>
+                </>
             )}
         </div>
     );

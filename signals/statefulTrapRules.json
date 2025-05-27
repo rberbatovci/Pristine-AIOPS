@@ -1,6 +1,6 @@
 [
     {
-        "id": 10,
+        "id": 1,
         "name": "InterfaceLinkDown",
         "opensignaltrap": "IF-MIB::linkDown",
         "closesignaltrap": "IF-MIB::linkUp",
@@ -12,7 +12,7 @@
         "affectedentity": [
             "Interface"
         ],
-        "description": "Interface changed state to down!",
+        "description": "",
         "warmup": 30,
         "cooldown": 30,
         "device_hostnames": []

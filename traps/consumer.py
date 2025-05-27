@@ -45,9 +45,9 @@ def shutdown(signum, frame):
     run = False
 
 data_stores = {
-    "app/traps/snmpTrapOids.json": "snmpTrapOidSettings",
-    "app/traps/statefulrules.json": "statefulRuleSettings",
-    "app/traps/trapTags.json": "trapTagSettings",
+    "snmpTrapOids.json": "snmpTrapOidSettings",
+    "statefulrules.json": "statefulRuleSettings",
+    "trapTags.json": "trapTagSettings",
 }
 
 def load_json_file(file_path):
@@ -112,15 +112,15 @@ def handle_message(msg):
 
     try:
         trap_data = json.loads(msg)
-        source_ip = trap_data.get('source_ip')
+        device = trap_data.get('device')
         snmpTrapOid = trap_data.get('SNMPv2-MIB::snmpTrapOID.0')
         logging.info(f"Received SNMP Trap: {trap_data}")
 
         processed_trap_data = trap_data.copy() # Create a copy to work with
 
-        if source_ip:
+        if device:
             # Add timestamp and trap_id
-            id_string = f"{source_ip}_{snmpTrapOid}"
+            id_string = f"{device}_{snmpTrapOid}"
             trap_id = hashlib.sha256(id_string.encode()).hexdigest()
             processed_trap_data['@timestamp'] = datetime.utcnow().isoformat()
             processed_trap_data['trap_id'] = trap_id
@@ -132,7 +132,7 @@ def handle_message(msg):
 
             total_latency += latency
             msg_count += 1
-            logging.info(f"[{msg_count}] Indexed trap from: {source_ip} (Latency: {latency:.4f}s)")
+            logging.info(f"[{msg_count}] Indexed trap from: {device} (Latency: {latency:.4f}s)")
 
             if snmpTrapOid:
                 logging.info(f"Received SNMP Trap OID: {snmpTrapOid}")
@@ -183,7 +183,7 @@ def handle_message(msg):
                                         value=json.dumps(enrichedTrap).encode('utf-8')
                                     )
                                     producer.flush()
-                                    logging.info(f"Sent signal to syslogs-signal topic: {enrichedTrap}")
+                                    logging.info(f"Sent signal to trap-signal topic: {enrichedTrap}")
                                 else:
                                     logging.warning(f"Rule '{rule}' not found in the list.")
         else:

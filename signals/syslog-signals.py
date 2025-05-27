@@ -8,7 +8,7 @@ import os
 import hashlib
 from datetime import datetime, timedelta
 from celery import Celery
-from tasks import promote_signal_to_open, promote_signal_to_closed
+from tasks import promote_syslog_signals_to_open, promote_syslog_signals_to_closed
 
 # === Configuration ===
 KAFKA_BROKER = 'Kafka:9092'
@@ -160,7 +160,7 @@ def create_signal(syslog, rule):
     opensearch_id = save_signal(new_signal)
     if opensearch_id:
         warmup_delay = rule.get("warmup", 0)
-        promote_signal_to_open.apply_async(args=[opensearch_id], countdown=warmup_delay)
+        promote_syslog_signals_to_open.apply_async(args=[opensearch_id], countdown=warmup_delay)
         logging.info(f"Created signal (ID: {opensearch_id}) with warmUp={warmup_delay}s: {new_signal}")
 
 # === Signal Reopening Function ===
@@ -265,7 +265,7 @@ def close_signal(syslog, rule, related_signal):
         update_signal(doc_id, update_data)
 
         cooldown_delay = rule.get("cooldown", 0)
-        promote_signal_to_closed.apply_async(args=[doc_id], countdown=cooldown_delay)
+        promote_syslog_signals_to_closed.apply_async(args=[doc_id], countdown=cooldown_delay)
         logging.info(f"Signal {related_signal_id} (_id={doc_id}) set to coolDown for {cooldown_delay}s before closing.")
 
     except Exception as e:

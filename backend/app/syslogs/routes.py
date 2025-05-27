@@ -251,6 +251,27 @@ def get_unique_terms(index: str, field: str, size: int = 1000) -> List[str]:
 def get_dynamic_unique_values(field: str = Query(..., description="Field to aggregate")):
     return get_unique_terms(index="syslogs", field=field)
 
+@router.get("/syslogs/tags/statistics/{tag_key}")
+def get_tag_statistics(tag_key: str):
+    query = {
+        "size": 0,
+        "aggs": {
+            "tag_value_counts": {
+                "terms": {
+                    "field": f"{tag_key}.keyword",
+                    "size": 1000
+                }
+            }
+        }
+    }
+
+    response = opensearch_client.search(index="syslogs", body=query)
+    stats = [
+        {"value": bucket["key"], "count": bucket["doc_count"]}
+        for bucket in response["aggregations"]["tag_value_counts"]["buckets"]
+    ]
+    return {"tag_key": tag_key, "statistics": stats}
+
 @router.get("/syslogs/filter")
 def filter_syslogs_by_tag(index: str, field: str = Query(...), value: str = Query(...), size: int = 100):
     try:

@@ -55,11 +55,11 @@ function Events({ currentUser, events, source, rule}) {
   }, []);
 
   const getColumnsAndHeaders = () => {
-    if (source === 'syslog') {
+    if (source === 'syslogs') {
       return {
         columns: ['timestamp', 'device', 'mnemonic', 'message', 'Severity'],
       };
-    } else if (source === 'snmptrap') {
+    } else if (source === 'traps') {
       return {
         columns: ['timestamp', 'device', 'snmpTrapOid', 'content'],
       };

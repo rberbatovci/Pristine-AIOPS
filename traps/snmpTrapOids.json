@@ -113,13 +113,17 @@
     "name": "IF-MIB::linkDown",
     "value": "IF-MIB::linkDown",
     "tags": [],
-    "rules": []
+    "rules": [
+      "InterfaceLinkDown"
+    ]
   },
   {
     "name": "IF-MIB::linkUp",
     "value": "IF-MIB::linkUp",
     "tags": [],
-    "rules": []
+    "rules": [
+      "InterfaceLinkDown"
+    ]
   },
   {
     "name": "CISCO-SMI::ciscoMgmt.41.2.0.1",
@@ -142,6 +146,12 @@
   {
     "name": "CISCO-SMI::ciscoMgmt.187.0.5",
     "value": "CISCO-SMI::ciscoMgmt.187.0.5",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.43.2.0.1",
+    "value": "CISCO-SMI::ciscoMgmt.43.2.0.1",
     "tags": [],
     "rules": []
   }
