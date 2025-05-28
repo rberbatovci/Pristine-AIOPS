@@ -354,6 +354,69 @@
             "severity": "Warning",
             "regexes": [],
             "rules": []
+        },
+        {
+            "name": "%PSD_MOD-5-DMI_NOTIFY_NETCONF_START",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%PMAN-3-PROC_EMPTY_EXEC_FILE",
+            "level": 3,
+            "severity": "Error",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%NDBMAN-5-ACTIVE",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%DMI-5-NACM_INIT",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%DMI-5-SYNC_COMPLETE",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%DMI-5-AUTHENTICATION_FAILED",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%DMI-5-AUTHORIZATION_FAILED",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%SEC_LOGIN-5-LOGIN_SUCCESS",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%DMI-5-AUTH_PASSED",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
         }
     ]
 }

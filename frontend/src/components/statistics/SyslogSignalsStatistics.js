@@ -4,75 +4,60 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend
 } from 'recharts';
 import {
-    Typography, MenuItem, FormControl,
-    InputLabel, OutlinedInput
+    Typography
 } from '@mui/material';
 import apiClient from '../misc/AxiosConfig.js';
 import '../../css/SyslogDatabase.css';
 import Select from 'react-select';
 import customStyles from '../misc/SelectStyles';
 
-const ITEM_HEIGHT = 48;
-const ITEM_PADDING_TOP = 8;
-const MenuProps = {
-    PaperProps: {
-        style: {
-            maxHeight: ITEM_HEIGHT * 4.5 + ITEM_PADDING_TOP,
-            width: 200,
-        },
-    },
-};
-
-function SyslogSignalsStatistics() {
-    const [selectedDataTypes, setSelectedDataTypes] = useState(['devices', 'mnemonics', 'rule', 'status']);
-    const [availableDataTypes, setAvailableDataTypes] = useState([]);
+function SyslogSignalsStatistics({ selectedSyslogSignalsTags }) {
     const [chartDataMap, setChartDataMap] = useState({});
     const [loadingMap, setLoadingMap] = useState({});
-    const [chartTypeMap, setChartTypeMap] = useState({}); // ✅ NEW: Chart type per data type
-
+    const [chartTypeMap, setChartTypeMap] = useState({});
     const colorPalette = ['#FF6347', '#32CD32', '#FFD700', '#87CEEB', '#8A2BE2', '#FF69B4', '#20B2AA'];
-
-    const additionalDataTypes = [
-        { name: 'devices' },
-        { name: 'mnemonics' },
-        { name: 'rule' },
-        { name: 'status' }
+    const chartOptions = [
+        { value: 'PieChart', label: 'Pie Chart' },
+        { value: 'BarChart', label: 'Bar Chart' },
     ];
 
+    // Fetch data when selectedSyslogSignalsTags change
     useEffect(() => {
-        apiClient.get('/syslogs/tags/')
-            .then(response => {
-                const serverDataTypes = response.data.map(item => item.name);
-                const allAvailableTypes = [...serverDataTypes, ...additionalDataTypes.map(item => item.name)];
-                setAvailableDataTypes(allAvailableTypes);
-            })
-            .catch(error => console.error('Error fetching available data types:', error));
-    }, []);
-
-    useEffect(() => {
-        selectedDataTypes.forEach(dataType => {
+        selectedSyslogSignalsTags.forEach(dataType => {
             if (!chartDataMap[dataType] && !loadingMap[dataType]) {
                 setLoadingMap(prev => ({ ...prev, [dataType]: true }));
 
-                // Decide the correct endpoint
-                const isDirectType = ['devices', 'mnemonics', 'rule', 'status'].includes(dataType);
-                const endpoint = isDirectType
-                    ? `/signals/stats/${dataType}/`
-                    : `/signals/stats/affected_entities/${dataType}/`;
+                let endpoint = '';
+                if (dataType === 'device') {
+                    endpoint = '/signals/syslogs/devices/statistics';
+                } else if (dataType === 'mnemonic') {
+                    endpoint = '/signals/syslogs/mnemonics/statistics';
+                } else if (dataType === 'status') {
+                    endpoint = '/signals/syslogs/status/statistics';
+                } else if (dataType === 'rules') {
+                    endpoint = '/signals/syslogs/rules/statistics';
+                } else if (dataType === 'severity') {
+                    endpoint = '/signals/syslogs/severity/statistics';
+                } else {
+                    endpoint = `/signals/syslogs/affected-entities/statistics/${dataType}`;
+                }
 
                 apiClient.get(endpoint)
                     .then(response => {
                         let processedData = [];
-                        if (response.data && Array.isArray(response.data)) {
-                            processedData = response.data.map(item => ({
-                                name: item.name || item.device || item.hostname || item.mnemonic || 'Item',
-                                value: item.count || item.value || 1,
+                        if (Array.isArray(response.data.statistics)) {
+                            processedData = response.data.statistics.map(item => ({
+                                name: item.value || item.name || 'N/A',
+                                value: item.count || 0,
                             }));
-                        } else if (response.data && typeof response.data === 'object') {
-                            processedData = Object.entries(response.data).map(([key, value]) => ({ name: key, value: value }));
+                        } else if (typeof response.data === 'object') {
+                            processedData = Object.entries(response.data).map(
+                                ([key, value]) => ({ name: key, value: value })
+                            );
                         } else {
-                            console.warn(`Data format not recognized for ${dataType}.`);
+                            console.warn(`Unrecognized data format for ${dataType}`);
                         }
+
                         setChartDataMap(prev => ({ ...prev, [dataType]: processedData }));
                         setLoadingMap(prev => ({ ...prev, [dataType]: false }));
                     })
@@ -84,9 +69,9 @@ function SyslogSignalsStatistics() {
             }
         });
 
-        // Clean up data for deselected types
+        // Clean up removed types
         Object.keys(chartDataMap).forEach(dataType => {
-            if (!selectedDataTypes.includes(dataType)) {
+            if (!selectedSyslogSignalsTags.includes(dataType)) {
                 const newChartDataMap = { ...chartDataMap };
                 delete newChartDataMap[dataType];
                 setChartDataMap(newChartDataMap);
@@ -96,12 +81,7 @@ function SyslogSignalsStatistics() {
                 setLoadingMap(newLoadingMap);
             }
         });
-    }, [selectedDataTypes]);
-
-    const handleDataTypeChange = (event) => {
-        const newSelection = event.target.value;
-        setSelectedDataTypes(newSelection);
-    };
+    }, [selectedSyslogSignalsTags]);
 
     const handleChartTypeChange = (dataType, type) => {
         setChartTypeMap(prev => ({ ...prev, [dataType]: type }));
@@ -120,24 +100,19 @@ function SyslogSignalsStatistics() {
         return null;
     };
 
-    const chartOptions = [
-        { value: 'PieChart', label: 'Pie Chart' },
-        { value: 'BarChart', label: 'Bar Chart' },
-    ];
-
     return (
         <div>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-around' }}>
-                {selectedDataTypes.map(dataType => {
+                {selectedSyslogSignalsTags.map(dataType => {
                     const chartType = chartTypeMap[dataType] || 'BarChart';
                     const chartData = chartDataMap[dataType] || [];
                     const isLoading = loadingMap[dataType];
 
                     return (
-                        <div className="signalRightElementContainer" style={{ width: '520px', height: '380px' }}>
-                            <div className="signalRightElementHeader" style={{marginBottom: '20px'}}>
+                        <div key={dataType} className="signalRightElementContainer" style={{ width: '520px', height: '380px' }}>
+                            <div className="signalRightElementHeader" style={{ marginBottom: '20px' }}>
                                 <h2 className="signalRightElementHeaderTxt">
-                                    {dataType.charAt(0).toUpperCase() + dataType.slice(1)} Statistics
+                                    {dataType ? dataType.charAt(0).toUpperCase() + dataType.slice(1) : 'Unknown'} Statistics
                                 </h2>
                                 <div style={{ width: '200px', zIndex: '50' }}>
                                     <Select
@@ -180,7 +155,7 @@ function SyslogSignalsStatistics() {
 
                             {!isLoading && chartData.length > 0 && chartType === 'BarChart' && (
                                 <BarChart width={480} height={300} data={chartData} top={20}>
-                                    <CartesianGrid strokeDasharray="4 4" />
+                                    <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="name" />
                                     <YAxis />
                                     <RechartsTooltip content={renderPieTooltip} />

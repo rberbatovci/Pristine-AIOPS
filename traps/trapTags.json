@@ -7,5 +7,23 @@
             "IF-MIB::ifDescr.3",
             "IF-MIB::ifDescr.4"
         ]
+    },
+    {
+        "name": "ISIS-Level",
+        "oids": [
+            "CISCO-IETF-ISIS-MIB::ciiNotifIsLevelIndex"
+        ]
+    },
+    {
+        "name": "ISIS-Neighbor",
+        "oids": [
+            "CISCO-IETF-ISIS-MIB::ciiPduLspId"
+        ]
+    },
+    {
+        "name": "State",
+        "oids": [
+            "CISCO-IETF-ISIS-MIB::ciiAdjState"
+        ]
     }
 ]

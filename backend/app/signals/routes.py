@@ -11,51 +11,41 @@ from typing import List
 router = APIRouter()
 
 @router.get("/signals/syslogsignals/")
-async def get_syslogSignals(page: int = Query(1, ge=1, description="Page number"),
-                      page_size: int = Query(10, ge=1, le=100, description="Number of items per page")):
-    start = (page - 1) * page_size
+async def get_all_syslog_signals():
     body = {
         "query": {"match_all": {}},
-        "from": start,
-        "size": page_size
+        "size": 10000  # Max number allowed by OpenSearch (default is 10,000)
     }
     response = opensearch_client.search(
         index='syslog-signals',
         body=body
     )
-    
+
     hits = response['hits']['hits']
-    total = response['hits']['total']['value']  # Get total number of matching documents
+    total = response['hits']['total']['value']
 
     return {
         "results": hits,
-        "total": total,
-        "page": page,
-        "page_size": page_size
+        "total": total
     }
 
 @router.get("/signals/trapsignals/")
-async def get_trapSignals(page: int = Query(1, ge=1, description="Page number"),
-                      page_size: int = Query(10, ge=1, le=100, description="Number of items per page")):
-    start = (page - 1) * page_size
+async def get_all_trap_signals():
     body = {
         "query": {"match_all": {}},
-        "from": start,
-        "size": page_size
+        "size": 10000  # Max number allowed by OpenSearch (default is 10,000)
     }
     response = opensearch_client.search(
         index='trap-signals',
         body=body
     )
-    
+
     hits = response['hits']['hits']
-    total = response['hits']['total']['value']  # Get total number of matching documents
+    total = response['hits']['total']['value']
 
     return {
         "results": hits,
-        "total": total,
-        "page": page,
-        "page_size": page_size
+        "total": total
     }
 
 @router.get("/signals/syslogs/devices/options")
@@ -219,10 +209,13 @@ def get_device_statistics():
         }
     }
     response = opensearch_client.search(index="syslog-signals", body=query)
-    return [
-        {"device": bucket["key"], "count": bucket["doc_count"]}
-        for bucket in response["aggregations"]["by_device"]["buckets"]
-    ]
+    return {
+        "tag_key": "device",
+        "statistics": [
+            {"value": bucket["key"], "count": bucket["doc_count"]}
+            for bucket in response["aggregations"]["by_device"]["buckets"]
+        ]
+    }
 
 @router.get("/signals/traps/devices/statistics")
 def get_device_statistics():
@@ -238,10 +231,13 @@ def get_device_statistics():
         }
     }
     response = opensearch_client.search(index="trap-signals", body=query)
-    return [
-        {"device": bucket["key"], "count": bucket["doc_count"]}
-        for bucket in response["aggregations"]["by_device"]["buckets"]
-    ]
+    return {
+        "tag_key": "device",
+        "statistics": [
+            {"value": bucket["key"], "count": bucket["doc_count"]}
+            for bucket in response["aggregations"]["by_device"]["buckets"]
+        ]
+    }
 
 @router.get("/signals/syslogs/mnemonics/statistics")
 def get_mnemonic_statistics():
@@ -257,18 +253,20 @@ def get_mnemonic_statistics():
         }
     }
     response = opensearch_client.search(index="syslog-signals", body=query)
-    return [
-        {"mnemonic": bucket["key"], "count": bucket["doc_count"]}
-        for bucket in response["aggregations"]["by_mnemonic"]["buckets"]
-    ]
-
+    return {
+        "tag_key": "mnemonic",
+        "statistics": [
+            {"value": bucket["key"], "count": bucket["doc_count"]}
+            for bucket in response["aggregations"]["by_mnemonic"]["buckets"]
+        ]
+    }
 
 @router.get("/signals/traps/snmpTrapOid/statistics")
-def get_mnemonic_statistics():
+def get_snmp_oid_statistics():
     query = {
         "size": 0,
         "aggs": {
-            "by_mnemonic": {
+            "by_snmpTrapOid": {
                 "terms": {
                     "field": "snmpTrapOid.keyword",
                     "size": 1000
@@ -276,11 +274,14 @@ def get_mnemonic_statistics():
             }
         }
     }
-    response = opensearch_client.search(index="syslog-signals", body=query)
-    return [
-        {"snmpTrapOid": bucket["key"], "count": bucket["doc_count"]}
-        for bucket in response["aggregations"]["by_snmpTrapOid"]["buckets"]
-    ]
+    response = opensearch_client.search(index="trap-signals", body=query)
+    return {
+        "tag_key": "snmpTrapOid",
+        "statistics": [
+            {"value": bucket["key"], "count": bucket["doc_count"]}
+            for bucket in response["aggregations"]["by_snmpTrapOid"]["buckets"]
+        ]
+    }
 
 @router.get("/signals/syslogs/rules/statistics")
 def get_rule_statistics():
@@ -296,10 +297,13 @@ def get_rule_statistics():
         }
     }
     response = opensearch_client.search(index="syslog-signals", body=query)
-    return [
-        {"rule": bucket["key"], "count": bucket["doc_count"]}
-        for bucket in response["aggregations"]["by_rule"]["buckets"]
-    ]
+    return {
+        "tag_key": "rule",
+        "statistics": [
+            {"value": bucket["key"], "count": bucket["doc_count"]}
+            for bucket in response["aggregations"]["by_rule"]["buckets"]
+        ]
+    }
 
 @router.get("/signals/traps/rules/statistics")
 def get_rule_statistics():
@@ -315,28 +319,101 @@ def get_rule_statistics():
         }
     }
     response = opensearch_client.search(index="trap-signals", body=query)
-    return [
-        {"rule": bucket["key"], "count": bucket["doc_count"]}
-        for bucket in response["aggregations"]["by_rule"]["buckets"]
-    ]
+    return {
+        "tag_key": "rule",
+        "statistics": [
+            {"value": bucket["key"], "count": bucket["doc_count"]}
+            for bucket in response["aggregations"]["by_rule"]["buckets"]
+        ]
+    }
 
-@router.get("/signals/stats/status/")
-async def get_mnemonic_statistics():
-    body = {
+@router.get("/signals/syslogs/status/statistics")
+def get_syslog_status_statistics():
+    query = {
         "size": 0,
         "aggs": {
-            "status": {
+            "by_status": {
                 "terms": {
-                    "field": "status.keyword", # Analyze each mnemonic in the list
+                    "field": "status.keyword",
                     "size": 1000
                 }
             }
         }
     }
-    response = opensearch_client.search(index="syslog-signals", body=body)
-    buckets = response["aggregations"]["status"]["buckets"]
-    stats = [{"mnemonic": b["key"], "count": b["doc_count"]} for b in buckets]
-    return stats
+    response = opensearch_client.search(index="syslog-signals", body=query)
+    return {
+        "tag_key": "status",
+        "statistics": [
+            {"value": bucket["key"], "count": bucket["doc_count"]}
+            for bucket in response["aggregations"]["by_status"]["buckets"]
+        ]
+    }
+
+@router.get("/signals/traps/status/statistics")
+def get_trap_status_statistics():
+    query = {
+        "size": 0,
+        "aggs": {
+            "by_status": {
+                "terms": {
+                    "field": "status.keyword",
+                    "size": 1000
+                }
+            }
+        }
+    }
+    response = opensearch_client.search(index="trap-signals", body=query)
+    return {
+        "tag_key": "status",
+        "statistics": [
+            {"value": bucket["key"], "count": bucket["doc_count"]}
+            for bucket in response["aggregations"]["by_status"]["buckets"]
+        ]
+    }
+
+@router.get("/signals/traps/severity/statistics")
+def get_trap_severity_statistics():
+    query = {
+        "size": 0,
+        "aggs": {
+            "by_severity": {
+                "terms": {
+                    "field": "severity.keyword",
+                    "size": 1000
+                }
+            }
+        }
+    }
+    response = opensearch_client.search(index="trap-signals", body=query)
+    return {
+        "tag_key": "severity",
+        "statistics": [
+            {"value": bucket["key"], "count": bucket["doc_count"]}
+            for bucket in response["aggregations"]["by_severity"]["buckets"]
+        ]
+    }
+
+@router.get("/signals/syslogs/severity/statistics")
+def get_trap_severity_statistics():
+    query = {
+        "size": 0,
+        "aggs": {
+            "by_severity": {
+                "terms": {
+                    "field": "severity.keyword",
+                    "size": 1000
+                }
+            }
+        }
+    }
+    response = opensearch_client.search(index="syslog-signals", body=query)
+    return {
+        "tag_key": "severity",
+        "statistics": [
+            {"value": bucket["key"], "count": bucket["doc_count"]}
+            for bucket in response["aggregations"]["by_severity"]["buckets"]
+        ]
+    }
 
 @router.get("/signals/syslogs/affected-entities/statistics/{entity_key}")
 def get_affected_entity_statistics(entity_key: str):
@@ -357,8 +434,8 @@ def get_affected_entity_statistics(entity_key: str):
 
     response = opensearch_client.search(index=index_name, body=query)
     return {
-        "entity_key": entity_key,
-        "values": [
+        "tag_key": entity_key,
+        "statistics": [
             {"value": bucket["key"], "count": bucket["doc_count"]}
             for bucket in response["aggregations"]["by_tag_value"]["buckets"]
         ]
@@ -383,122 +460,13 @@ def get_affected_entity_statistics(entity_key: str):
 
     response = opensearch_client.search(index=index_name, body=query)
     return {
-        "entity_key": entity_key,
-        "values": [
+        "tag_key": entity_key,
+        "statistics": [
             {"value": bucket["key"], "count": bucket["doc_count"]}
             for bucket in response["aggregations"]["by_tag_value"]["buckets"]
         ]
     }
 
-@router.get("/signals/stats/affected_entities/")
-async def get_affected_entities_statistics():
-    body = {
-        "size": 0,
-        "aggs": {
-            "affected_entities_keys": {
-                "terms": {
-                    "field": "affectedEntities.keyword", # To get the keys
-                    "size": 100
-                },
-                "aggs": {
-                    "entity_values": {
-                        "terms": {
-                            "field": "affectedEntities.*.keyword", # Aggregate values under each key
-                            "size": 100
-                        }
-                    }
-                }
-            }
-        }
-    }
-    response = opensearch_client.search(index="syslog-signals", body=body)
-    aggregations = response.get("aggregations", {})
-    affected_entities_keys = aggregations.get("affected_entities_keys", {}).get("buckets", [])
-
-    stats = []
-    for key_bucket in affected_entities_keys:
-        key_name = key_bucket["key"]
-        entity_values = key_bucket["entity_values"]["buckets"]
-        for value_bucket in entity_values:
-            stats.append({
-                "entity_type": key_name,
-                "entity_value": value_bucket["key"],
-                "count": value_bucket["doc_count"]
-            })
-    return stats
-
-# A slightly different approach to get counts per entity *type*:
-@router.get("/signals/stats/affected_entities_by_type/")
-async def get_affected_entities_statistics_by_type():
-    body = {
-        "size": 0,
-        "aggs": {
-            "affected_entities": {
-                "children": {
-                    "field": "affectedEntities"
-                },
-                "aggs": {
-                    "entity_type": {
-                        "terms": {
-                            "field": "affectedEntities.keyword",
-                            "size": 100
-                        },
-                        "aggs": {
-                            "entity_value": {
-                                "terms": {
-                                    "field": "affectedEntities.*.keyword",
-                                    "size": 100
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    response = opensearch_client.search(index="syslog-signals", body=body)
-    # This response structure will be more complex to parse.
-    # You might need to adjust the aggregation based on your exact needs.
-
-    # A simpler aggregation to get counts of values for each entity type:
-    body_simple = {
-        "size": 0,
-        "aggs": {
-            "affected_entities": {
-                "multi_terms": {
-                    "fields": ["affectedEntities.keyword", "affectedEntities.*.keyword"],
-                    "size": 1000
-                }
-            }
-        }
-    }
-    response_simple = opensearch_client.search(index="syslog-signals", body=body_simple)
-    buckets_simple = response_simple["aggregations"]["affected_entities"]["buckets"]
-    stats_simple = [{"entity": b["key"][0], "value": b["key"][1], "count": b["doc_count"]} for b in buckets_simple]
-    return stats_simple
-
-@router.get("/signals/stats/affected_entities/{entity_tag}")
-async def get_affected_entities_by_tag(entity_tag: str):
-    """
-    Returns statistics for a specific tag within the affectedEntities field.
-    For example: /signals/stats/affected_entities/Interface
-    """
-    field_name = f"affectedEntities.{entity_tag}.keyword"
-    body = {
-        "size": 0,
-        "aggs": {
-            "entity_values": {
-                "terms": {
-                    "field": field_name,
-                    "size": 1000
-                }
-            }
-        }
-    }
-    response = opensearch_client.search(index="syslog-signals", body=body)
-    buckets = response["aggregations"]["entity_values"]["buckets"]
-    stats = [{"name": b["key"], "count": b["doc_count"]} for b in buckets]
-    return stats
 
 @router.get("/syslogsignals/syslogsignalseverity", response_model=SyslogSignalSeverityBase)
 async def get_settings(db: AsyncSession = Depends(get_db)):

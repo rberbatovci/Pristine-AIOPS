@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import '../App.css';
 import '../css/SyslogDatabase.css';
 import SyslogSignalsStatistics from '../components/statistics/SyslogSignalsStatistics.js';
@@ -15,6 +15,11 @@ import TrapSignalsComponents from '../components/statistics/TrapSignalsComponent
 
 function Statistics() {
   const [dataSource, setDataSource] = useState('syslogSignals'); // default view
+  const [selectedTags, setSelectedTags] = useState([]);
+  const [selectedSyslogTags, setSelectedSyslogTags] = useState([]);
+  const [selectedTrapTags, setSelectedTrapTags] = useState([]);
+  const [selectedSyslogSignalsTags, setSelectedSyslogSignalsTags] = useState([]);
+  const [selectedTrapSignalsTags, setSelectedTrapSignalsTags] = useState([]);
 
   const [dropdowns, setDropdowns] = useState({
     components: { visible: false, position: { x: 0, y: 0 } },
@@ -39,6 +44,10 @@ function Statistics() {
       },
     });
   };
+
+  useEffect(() => {
+    console.log('Selected tags:', selectedTags);
+  }, [selectedTags]);
 
   return (
     <div className="mainContainer">
@@ -89,11 +98,13 @@ function Statistics() {
       </div>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-around' }}>
-        {dataSource === 'syslogSignals' && <SyslogSignalsStatistics />}
-        {dataSource === 'trapSignals' && <TrapSignalsStatistics />}
-        {dataSource === 'syslogs' && <SyslogStatistics />}
-        {dataSource === 'snmptraps' && <SNMPTrapStatistics />}
+        {dataSource === 'syslogSignals' && <SyslogSignalsStatistics selectedSyslogSignalsTags={selectedSyslogSignalsTags} />}
+        {dataSource === 'trapSignals' && <TrapSignalsStatistics selectedTrapSignalsTags={selectedTrapSignalsTags} />}
+        {dataSource === 'syslogs' && <SyslogStatistics selectedSyslogTags={selectedSyslogTags} />}
+        {dataSource === 'snmptraps' && <SNMPTrapStatistics selectedTrapTags={selectedTrapTags} />}
       </div>
+
+
 
       <div className="dropdownsContainer">
         {dataSource === 'syslogSignals' && (
@@ -105,7 +116,10 @@ function Statistics() {
               overflow: 'hidden',
             }}
           >
-            <SyslogSignalsComponents />
+            <SyslogSignalsComponents
+              selectedSyslogSignalsTags={selectedSyslogSignalsTags}
+              setSelectedSyslogSignalsTags={setSelectedSyslogSignalsTags}
+            />
           </div>
 
         )}
@@ -118,9 +132,12 @@ function Statistics() {
               overflow: 'hidden',
             }}
           >
-            <TrapSignalsComponents />
+            <TrapSignalsComponents
+              selectedTrapSignalsTags={selectedTrapSignalsTags}
+              setSelectedTrapSignalsTags={setSelectedTrapSignalsTags}
+            />
           </div>
-          
+
         )}
         {dataSource === 'syslogs' && (
           <div
@@ -131,9 +148,12 @@ function Statistics() {
               overflow: 'hidden',
             }}
           >
-            <SyslogComponents  />
+            <SyslogComponents
+              selectedSyslogTags={selectedSyslogTags}
+              setSelectedSyslogTags={setSelectedSyslogTags}
+            />
           </div>
-          
+
         )}
         {dataSource === 'snmptraps' && (
           <div
@@ -144,20 +164,23 @@ function Statistics() {
               overflow: 'hidden',
             }}
           >
-            <TrapComponents  />
+            <TrapComponents
+              selectedTrapTags={selectedTrapTags}
+              setSelectedTrapTags={setSelectedTrapTags}
+            />
           </div>
-          
+
         )}
         <div
-            className={`dropdownMenu ${dropdowns.time.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
-            style={{
-              width: 'auto',
-              maxHeight: '740px',
-              overflow: 'hidden',
-            }}
-          >
-            <SearchTime  />
-          </div>
+          className={`dropdownMenu ${dropdowns.time.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
+          style={{
+            width: 'auto',
+            maxHeight: '740px',
+            overflow: 'hidden',
+          }}
+        >
+          <SearchTime />
+        </div>
       </div>
     </div>
   );

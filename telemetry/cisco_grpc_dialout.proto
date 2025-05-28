@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package cisco_grpc_dialout;
+
+service GRPCDialout {
+    rpc Dialout(stream DialoutMsg) returns (DialoutArgs) {}
+}
+
+message DialoutMsg {
+    string ReqId = 1;
+    bytes data = 2;
+    string errors = 3;
+}
+
+message DialoutArgs {
+    string ReqId = 1;
+    string errors = 2;
+}
