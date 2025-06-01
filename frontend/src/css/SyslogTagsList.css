@@ -56,3 +56,47 @@
     background: var(--backgroundColor3);
     color: var(--textColor);
   }
+
+.searchTagListElement {
+  background: var(--tagListBack);
+  padding: 6px 10px;
+  margin: 4px 0;
+  border-radius: 2px;
+  border: none;
+  outline: none;
+  width: 220px;
+}
+
+.signalTagList {
+  height: auto;
+  min-height: 200px;
+  max-height: 350px;
+  overflow-y: auto;
+  background: var(--backgroundColor3);
+  padding: 10px;
+}
+
+.signalTagItem {
+  cursor: pointer;
+  padding: 8px 10px;
+  margin: 4px 0;
+  border-radius: 2px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--tagListBack);
+  transition: background 0.3s ease, transform 0.2s ease;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--tagListCol);
+}
+
+.signalTagItem:hover {
+  background-color: var(--tagListBackHover);
+  transform: scale(1.02);
+  text-shadow: 0 0 2px var(--tagListColHov), 0 0 5px var(--tagListColHov);
+}
+
+.signalTagItem.selected {
+  background-color: var(--tagListBackSel);
+  color: #fafafa;
+}

@@ -42,21 +42,9 @@ function EventsDatabase({ currentUser }) {
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(19);
     const [totalEvents, setTotalEvents] = useState(0);
-    const [columnConfigs, setColumnConfigs] = useState({
-        syslogs: [
-            'timestamp',
-            'device',
-            'severity',
-            'mnemonic',
-            'message',
-        ],
-        snmptraps: [
-            'timestamp',
-            'device',
-            'SysUpTime',
-            'SNMP Trap OID',
-            'content',
-        ],
+    const baseColumns = {
+        syslogs: ['timestamp', 'device', 'severity', 'mnemonic', 'message'],
+        snmptraps: ['timestamp', 'device', 'SysUpTime', 'SNMP Trap OID', 'content'],
         netflow: [
             'timestamp',
             'device',
@@ -70,7 +58,16 @@ function EventsDatabase({ currentUser }) {
             'bytes_count',
             'packets_count',
         ],
-    })
+    };
+
+    const [columnConfigs, setColumnConfigs] = useState(baseColumns);
+
+    useEffect(() => {
+        setColumnConfigs(prev => ({
+            ...prev,
+            [dataSource]: [...(baseColumns[dataSource] || []), ...selectedTags],
+        }));
+    }, [selectedTags, dataSource]);
     const [mnemonics, setMnemonics] = useState([]);
     const [regExpressions, setRegExpressions] = useState([]);
     const [snmpTrapOids, setSnmpTrapOids] = useState([]);
@@ -300,7 +297,7 @@ function EventsDatabase({ currentUser }) {
         }
     }, [page, dataSource, pageSize]);
 
-    const handleTagCheckboxChange = (tagName) => {
+    const onTagChange = (tagName) => {
         setColumnConfigs(prev => {
             const list = prev[dataSource] || []
 
@@ -357,13 +354,7 @@ function EventsDatabase({ currentUser }) {
                 <div className="mainContainerButtons">
                     {dataSource === 'syslogs' && (
                         <>
-                            <button
-                                className={`iconButton ${dropdowns.syslogTagsConfig.visible ? 'active' : ''}`}
-                                onClick={(event) => handleButtonClick(event, 'syslogTagsConfig')}
-                            >
-                                <IoSettingsOutline className="defaultIcon" />
-                                <IoSettingsSharp className="hoverIcon" />
-                            </button>
+                            
                             <button
                                 className={`iconButton ${dropdowns.mnemonics.visible ? 'active' : ''}`}
                                 onClick={(event) => handleButtonClick(event, 'mnemonics')}
@@ -524,9 +515,8 @@ function EventsDatabase({ currentUser }) {
                 style={{ width: '280px' }}>
                 <SyslogTags
                     dataSource={dataSource}
-                    tags={tagNames}
                     selectedTags={selectedTags}
-                    handleTagCheckboxChange={handleTagCheckboxChange}
+                    onTagChange={(updated) => setSelectedTags(updated)}
                 />
             </div>
             <div
@@ -565,7 +555,6 @@ function EventsDatabase({ currentUser }) {
                     width: 'auto',
                     maxHeight: '740px',
                     overflow: 'hidden',
-                    marginRight: '70px',
                 }}>
                 <Mnemonics
                     currentUser={currentUser}

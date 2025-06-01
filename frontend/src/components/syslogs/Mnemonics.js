@@ -63,21 +63,26 @@ function Mnemonics({ currentUser, mnemonics, entityOptions }) {
             ) : (
                 <>
                     <div style={{ display: 'flex', gap: '10px' }}>
-                        <div style={{ width: '220px', height: 'auto', maxHeight: '320px', overflowY: 'auto', padding: '8px', background: 'var(--backgroundColor3)', borderRadius: '8px' }}>
+                        <div className="signalTagList" style={{ flex: 1, maxHeight: '300px', overflowY: 'auto', paddingBottom: '10px' }}>
                             <input
                                 type="text"
                                 placeholder="Search Mnemonics..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="inputText"
-                                style={{ width: '200px', marginBottom: '5px' }}
+                                className="searchTagListElement"
                             />
-                            <ul style={{ padding: 0, listStyle: 'none', margin: 0 }}>
+                            <ul style={{ padding: 0, listStyle: 'none', margin: 0, marginBottom: '10px' }}>
                                 {filteredMnemonics.map((mnemonic) => (
                                     <li
                                         key={mnemonic.id}
-                                        className={`button ${selectedMnemonic && selectedMnemonic.id === mnemonic.id ? 'button-active' : ''}`}
+                                        className={`signalTagItem ${selectedMnemonic && selectedMnemonic.id === mnemonic.id ? 'selected' : ''}`}
                                         onClick={() => handleMnemonicSelection(mnemonic)}
+                                        style={{
+                                            width: '220px',
+                                            whiteSpace: 'nowrap',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                        }}
                                     >
                                         {mnemonic.label}
                                     </li>
@@ -85,7 +90,7 @@ function Mnemonics({ currentUser, mnemonics, entityOptions }) {
                             </ul>
                         </div>
                         {selectedMnemonic && (
-                            <div style={{ padding: '8px', background: 'var(--backgroundColor3)', borderRadius: '8px' }}>
+                            <div style={{ padding: '8px', background: 'var(--backgroundColor3)', borderRadius: '8px', padding: '10px' }}>
                                 <div style={{ marginBottom: '5px' }}>
                                     <span>Name:</span>
                                     <input

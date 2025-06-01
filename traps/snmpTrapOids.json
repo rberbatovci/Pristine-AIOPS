@@ -160,5 +160,11 @@
     "value": "CISCO-SMI::ciscoMgmt.43.2.0.1",
     "tags": [],
     "rules": []
+  },
+  {
+    "name": "CISCO-IETF-ISIS-MIB::ciiOwnLSPPurge",
+    "value": "CISCO-IETF-ISIS-MIB::ciiOwnLSPPurge",
+    "tags": [],
+    "rules": []
   }
 ]

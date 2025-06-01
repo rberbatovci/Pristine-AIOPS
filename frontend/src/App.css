@@ -39,6 +39,13 @@
   --dropdownBackground: rgba(231, 231, 231, 1);
   --signalRightElementHeaderBackground: rgba(255, 255, 255, 0.2);
 
+
+  --tagListBack: rgba(255, 255, 255, 0.3);
+  --tagListBackHover: rgba(14, 150, 241, 0.4);
+  --tagListBackSel: rgba(14, 150, 241, 0.8);
+  --tagListCol: rgba(0, 0, 0, 0.6);
+  --tagListColHov: rgba(32, 105, 153, .5);
+
 }
 
 [data-theme='dark'] {
@@ -83,6 +90,14 @@
   --configListButtonHoverBackground: rgba(145, 211, 255, 0.1);
   --configListButtonActiveBackground: rgba(7, 163, 235, 0.4);
   --signalRightElementHeaderBackground: rgba(55, 125, 172, 0.2);
+
+
+
+  --tagListBack: rgba(99, 166, 192, 0.1);
+  --tagListBackHover: rgba(7, 172, 248, 0.1);
+  --tagListBackSel: rgba(7, 172, 248, 0.3);
+  --tagListCol: rgba(255, 255, 255, 0.6);
+  --tagListColHov: rgba(122, 187, 231, 0.5);
 }
 
 html,
@@ -92,7 +107,6 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  /* Prevent scrollbars */
 }
 
 .App {
@@ -136,7 +150,6 @@ header {
 .content {
   display: flex;
   justify-content: center;
-  /* Center horizontally */
   align-items: center;
   width: calc(100% - 10px);
   position: relative;
@@ -230,7 +243,6 @@ header {
   left: 50%;
   transform: translateX(-50%);
   background-color: var(--background-color2);
-  /* Tomato color */
   color: white;
   padding: 10px;
   border-radius: 5px;
@@ -281,30 +293,23 @@ header {
   align-items: center;
   justify-content: center;
   height: 100%;
-  /* Set the height to full viewport height */
   background: rgba(206, 135, 135, .2);
 }
 
-
-
-
 ::-webkit-scrollbar {
   width: 10px;
-  /* Set width of the scrollbar */
   height: 10px;
   margin-top: 50px;
 }
 
 ::-webkit-scrollbar-thumb {
   background-color: #175a87;
-  /* Set color of the scrollbar thumb */
   border-radius: 6px;
-  /* Set border radius of the scrollbar thumb */
 }
 
 ::-webkit-scrollbar-track {
-  background-color: rgba(4, 27, 63, .05);
-  /* Set color of the scrollbar track */
+  background-color: rgba(109, 197, 248, 0.1);
+  border-radius: 8px;
 }
 
 
@@ -315,32 +320,23 @@ header {
   font-size: 14px;
   font-weight: 500;
   color: var(--textColor);
-  /* Default text color */
 }
 
-/* Apply background color for odd items */
 .listEle:nth-child(odd) {
   background-color: var(--listElementOddBackground);
-  /* Light gray */
 }
 
-/* Apply background color for even items */
 .listEle:nth-child(even) {
   background-color: var(--listElementEvenBackground);
-  /* Light blue */
 }
 
-/* Hover effect for all list elements */
 .listEle:hover {
   background: var(--listElementBackHover);
-  /* Highlight on hover */
   color: white;
-  /* Change text color */
 }
 
 .selectedTagConfig {
   background-color: #1e90ff;
-  /* Solid blue background for selected */
 }
 
 .listEle.selectedTagConfig {
@@ -350,44 +346,30 @@ header {
 
 .listEle:hover.selectedTagConfig {
   background: var(--listElementBackHover);
-  /* Darker blue when hovered and selected */
   color: white;
 }
 
 .inputText {
   display: block;
   width: 264px;
-  /* Match the width with the Select component */
   border-radius: 8px;
-  /* Same border radius */
   border: var(--borderDark);
-  /* Custom border like in the customStyles */
   height: 35px;
-  /* Match the height of the Select component */
   line-height: normal;
-  /* Ensure normal line height */
   background-color: var(--buttonBackground);
-  /* Same background color */
   color: var(--textColor);
-  /* Text color */
   font-size: 13px;
-  /* Match font size */
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   transition: border-color 0.5s;
 
 
-  /* Hover effect */
   &:hover {
     border: var(--borderDarkHvr);
-    /* Same hover border as the Select */
   }
 
-  /* Focus effect */
   &:focus {
     outline: none;
-    /* Remove default browser outline */
     border-color: var(--borderDarkHvr);
-    /* Same hover border for focus */
   }
 }
 
@@ -459,7 +441,7 @@ header {
 }
 
 .configMainListButton {
-  flex: 1; /* Distribute space evenly */
+  flex: 1; 
   text-align: center;
   padding: 10px;
   cursor: pointer;
@@ -497,7 +479,6 @@ header {
   border-radius: 5px;
 }
 
-  /* Button styles */
   .btn-primary {
     background-color: #007bff;
     border-color: #007bff;
@@ -539,19 +520,19 @@ header {
 }
 
 .newRuleButton {
-  background-color: #007bff; /* Blue */
+  background-color: #007bff; 
 }
 
 .saveRuleButton {
-  background-color: #28a745; /* Green */
+  background-color: #28a745;
 }
 
 .deleteRuleButton {
-  background-color: #dc3545; /* Red */
+  background-color: #dc3545; 
 }
 
 .cancelButton {
-  background-color: #6c757d; /* Gray */
+  background-color: #6c757d; 
 }
 
 .buttonStyles:hover {

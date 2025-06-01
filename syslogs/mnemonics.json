@@ -417,6 +417,27 @@
             "severity": "Notice",
             "regexes": [],
             "rules": []
+        },
+        {
+            "name": "%SYS-6-LOGOUT",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%SYS-3-CPUHOG",
+            "level": 3,
+            "severity": "Error",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "%DBAL-4-LONG_EXEC_BATCH",
+            "level": 4,
+            "severity": "Warning",
+            "regexes": [],
+            "rules": []
         }
     ]
 }
