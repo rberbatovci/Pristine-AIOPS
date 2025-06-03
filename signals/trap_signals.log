@@ -561,3 +561,9 @@
 2025-06-01 11:32:13,123 - INFO - Creating new signal (no related or closed).
 2025-06-01 11:32:13,556 - INFO - Signal saved to OpenSearch: {'signal_id': '9aa5339b', 'device': '192.168.1.213', 'rule': 'InterfaceLinkDown', 'snmpTrapOid': 'IF-MIB::linkDown', 'affectedEntities': {'Interface': 'GigabitEthernet3'}, 'severity': 'medium', 'description': '', '@startTime': '2025-06-01T11:31:50.071253', 'endTime': None, 'status': 'warmUp', 'events': ['b5da6434e736e8c276e58f8e7aaf8c9d996b2d67dfe12dc40a06e9b87c59e8e8']}
 2025-06-01 11:32:19,893 - INFO - Created signal (ID: I6hDK5cBzg-6ctuigBYI) with warmUp=30s: {'signal_id': '9aa5339b', 'device': '192.168.1.213', 'rule': 'InterfaceLinkDown', 'snmpTrapOid': 'IF-MIB::linkDown', 'affectedEntities': {'Interface': 'GigabitEthernet3'}, 'severity': 'medium', 'description': '', '@startTime': '2025-06-01T11:31:50.071253', 'endTime': None, 'status': 'warmUp', 'events': ['b5da6434e736e8c276e58f8e7aaf8c9d996b2d67dfe12dc40a06e9b87c59e8e8']}
+2025-06-01 19:45:11,120 - INFO - Trap Signals Consumer started.
+2025-06-01 19:45:11,120 - INFO - Loaded 2 stateful rules.
+2025-06-01 19:45:11,124 - INFO - Subscribed to topic: trap-signals
+2025-06-01 21:39:36,010 - INFO - Shutting down signal consumer...
+2025-06-01 21:39:36,299 - INFO - Signal consumer closed.
+2025-06-01 21:39:36,305 - INFO - Trap Signals Consumer started.

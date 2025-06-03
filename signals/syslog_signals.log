@@ -14442,3 +14442,8 @@
 2025-06-01 11:32:01,265 - INFO - Skipping rule 'Severity': {'syslog_id': '01451128cabc521f04cb9e72d489741d542ca73f6e70d447537bcc819b45a6a9', 'device': '192.168.1.213', 'message': '<187>56: *Jun  1 11:30:09.204: %LINK-3-UPDOWN: Interface GigabitEthernet1, changed state to up', 'mnemonic': '%LINK-3-UPDOWN', 'severity': 'Error', '@timestamp': '2025-06-01T11:30:09.204000', 'lsn': 56, 'Interface': 'GigabitEthernet1', 'State': 'up', 'rule': 'Severity'}
 2025-06-01 11:32:01,266 - INFO - Received rule: Severity
 2025-06-01 11:32:01,266 - INFO - Skipping rule 'Severity': {'syslog_id': '499b8be98cbcd208b42d7e14c6a83592a32ef605cef607c38c7e2ca3c891136e', 'device': '192.168.1.213', 'message': '<186>72: *Jun  1 11:31:01.164: %PKI-2-NON_AUTHORITATIVE_CLOCK: PKI functions can not be initialized until an authoritative time source, like NTP, can be obtained.', 'mnemonic': '%PKI-2-NON_AUTHORITATIVE_CLOCK', 'severity': 'Critical', '@timestamp': '2025-06-01T11:31:01.164000', 'lsn': 72, 'rule': 'Severity'}
+2025-06-01 19:45:11,113 - INFO - Syslog Signals Consumer started.
+2025-06-01 19:45:11,113 - INFO - Loaded 2 stateful rules.
+2025-06-01 19:45:11,117 - INFO - Subscribed to topic: syslog-signals
+2025-06-01 21:39:36,010 - INFO - Shutting down signal consumer...
+2025-06-01 21:39:36,300 - INFO - Signal consumer closed.
