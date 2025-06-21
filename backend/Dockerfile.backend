@@ -3,14 +3,18 @@ FROM python:3.11
 WORKDIR /app/backend
 
 COPY requirements.txt .
-RUN pip install -r requirements.txt
-RUN pip install alembic
 
-# Install netcat-traditional for checking service availability
-RUN apt-get update && apt-get install -y netcat-traditional --no-install-recommends && rm -rf /var/lib/apt/lists/*
+# Install Python dependencies
+RUN pip install -r requirements.txt
+RUN pip install alembic ansible paramiko ansible-pylibssh
+
+# Install system packages for Ansible and libssh
+RUN apt-get update && \
+    apt-get install -y netcat-traditional ansible sshpass libssh-4 --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY . .
 COPY entrypoint.sh .
 
-# CMD is now handled by the entrypoint script
-# CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Set entrypoint
+ENTRYPOINT ["./entrypoint.sh"]

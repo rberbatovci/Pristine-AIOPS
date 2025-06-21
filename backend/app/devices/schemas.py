@@ -1,6 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
-
+from typing import Optional, List
 
 class DeviceBase(BaseModel):
     hostname: str
@@ -26,9 +25,14 @@ class DeviceUpdatePartial(BaseModel):
     gps_latitude: Optional[float] = None
     gps_longitude: Optional[float] = None
 
+class DeviceFeatures(BaseModel):
+    syslogs: Optional[bool] = False
+    snmp_traps: Optional[bool] = False
+    netflow: Optional[bool] = False
+    telemetry: Optional[bool] = False
 
 class DeviceCreate(DeviceBase):
-    pass
+    features: Optional[DeviceFeatures] = DeviceFeatures()
 
 
 class DeviceUpdate(DeviceBase):
@@ -44,3 +48,10 @@ class DeviceInDBBase(DeviceBase):
 
 class DeviceResponse(DeviceInDBBase):
     pass
+
+class SyslogConfig(BaseModel):
+    severity: Optional[str] = "informational"
+
+class NetflowConfig(BaseModel):
+    enabled: bool
+    interfaces: List[str]

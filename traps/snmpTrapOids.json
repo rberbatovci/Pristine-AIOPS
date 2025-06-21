@@ -166,5 +166,23 @@
     "value": "CISCO-IETF-ISIS-MIB::ciiOwnLSPPurge",
     "tags": [],
     "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.187.0.1",
+    "value": "CISCO-SMI::ciscoMgmt.187.0.1",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "BGP4-MIB::bgpBackwardTransition",
+    "value": "BGP4-MIB::bgpBackwardTransition",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.187.0.2",
+    "value": "CISCO-SMI::ciscoMgmt.187.0.2",
+    "tags": [],
+    "rules": []
   }
 ]

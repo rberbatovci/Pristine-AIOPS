@@ -51,7 +51,8 @@ CREATE TABLE IF NOT EXISTS devices (
     type VARCHAR,
     version VARCHAR,
     gps_latitude DOUBLE PRECISION,
-    gps_longitude DOUBLE PRECISION
+    gps_longitude DOUBLE PRECISION,
+    features JSONB DEFAULT '{}',
 );
 
 CREATE TABLE IF NOT EXISTS stateful_syslog_rules (

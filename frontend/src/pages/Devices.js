@@ -3,6 +3,7 @@ import '../css/Devices.css';
 import AddNew from '../components/devices/AddNew';
 import List from '../components/devices/List';
 import Info from '../components/devices/Info';
+import InterfaceStats from '../components/devices/InterfaceStats';
 import Dashboard from '../components/devices/Dashboard';
 import { IoSettingsOutline, IoSettingsSharp } from "react-icons/io5";
 import { IoMdRefresh, IoMdRefreshCircle } from "react-icons/io";
@@ -151,7 +152,7 @@ function Devices({ currentUser }) {
                     </div>
                 </div>
                 {isDropdownVisible && (
-                    <div className="dropdown-menu">
+                    <div style={{ position: 'absolute', borderRadius: '10px', right: '10px', background: 'var(--dropdownBackground)',  width: '365px' }}>
                         {activeDropdown === 'addNew' && <AddNew onDeviceAdded={handleNewDevice}/>}
                     </div>
                 )}
@@ -171,6 +172,7 @@ function Devices({ currentUser }) {
                             {showComponents && (
                                 <>
                                     <Info currentUser={currentUser} selectedDevice={selectedDevice} onDeviceDeselect={handleDeviceDeselect} />
+                                    <InterfaceStats currentUser={currentUser} selectedDevice={selectedDevice} />
                                 </>
                             )}
                         </div>

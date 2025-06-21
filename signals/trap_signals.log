@@ -567,3 +567,53 @@
 2025-06-01 21:39:36,010 - INFO - Shutting down signal consumer...
 2025-06-01 21:39:36,299 - INFO - Signal consumer closed.
 2025-06-01 21:39:36,305 - INFO - Trap Signals Consumer started.
+2025-06-03 16:25:56,976 - INFO - Trap Signals Consumer started.
+2025-06-03 16:25:56,976 - INFO - Loaded 2 stateful rules.
+2025-06-03 16:25:57,698 - INFO - Subscribed to topic: trap-signals
+2025-06-03 16:29:44,746 - INFO - Shutting down signal consumer...
+2025-06-03 16:29:45,164 - INFO - Signal consumer closed.
+2025-06-03 16:29:45,164 - INFO - Trap Signals Consumer started.
+2025-06-03 16:51:58,035 - INFO - Trap Signals Consumer started.
+2025-06-03 16:51:58,141 - INFO - Loaded 2 stateful rules.
+2025-06-03 16:52:00,857 - INFO - Subscribed to topic: trap-signals
+2025-06-03 16:55:51,356 - INFO - Received rule: InterfaceLinkDown
+2025-06-03 16:55:51,356 - INFO - Matched rule: {'id': 1, 'name': 'InterfaceLinkDown', 'opensignaltrap': 'IF-MIB::linkDown', 'closesignaltrap': 'IF-MIB::linkUp', 'opensignaltag': '', 'opensignalvalue': '', 'closesignaltag': '', 'closesignalvalue': '', 'initialseverity': 'medium', 'affectedentity': ['Interface'], 'description': '', 'warmup': 30, 'cooldown': 30, 'device_hostnames': []}
+2025-06-03 16:55:51,357 - INFO - Trap data: {'device': '192.168.1.213', 'DISMAN-EXPRESSION-MIB::sysUpTimeInstance': '10:12:37.44', 'SNMPv2-MIB::snmpTrapOID.0': 'IF-MIB::linkUp', 'content': {'IF-MIB::ifIndex.2': '2', 'IF-MIB::ifDescr.2': 'GigabitEthernet2', 'IF-MIB::ifType.2': 'ethernetCsmacd(6)'}, '@timestamp': '2025-06-03T16:55:50.611107', 'trap_id': '7af26b5ffa196675f49b3e8b46c67ed0d9f8b9610dae6c3330f639c6c2021aa4', 'Interface': 'GigabitEthernet2', 'rule': 'InterfaceLinkDown'}
+2025-06-03 16:55:51,357 - INFO - Extracted affected_entity_values: {'Interface': 'GigabitEthernet2'}
+2025-06-03 16:55:51,357 - INFO - Trap SNMP Trap OID: IF-MIB::linkUp, Open Signal value: IF-MIB::linkDown: None
+2025-06-03 16:55:51,357 - INFO - Trap SNMP Trap OID: IF-MIB::linkUp, Close Signal value: IF-MIB::linkUp: None
+2025-06-03 16:55:51,357 - INFO - Trap elligible for closing signal: None
+2025-06-03 16:55:51,520 - ERROR - OpenSearch error (find related): 400 - {"error":{"root_cause":[{"type":"query_shard_exception","reason":"No mapping found for [@startTime] in order to sort on","index":"trap-signals","index_uuid":"xtYRr3v7QRq5mHYbcL8pmw"}],"type":"search_phase_execution_exception","reason":"all shards failed","phase":"query","grouped":true,"failed_shards":[{"shard":0,"index":"trap-signals","node":"EHUFFvUSQ3ypIbQ2xOVNJA","reason":{"type":"query_shard_exception","reason":"No mapping found for [@startTime] in order to sort on","index":"trap-signals","index_uuid":"xtYRr3v7QRq5mHYbcL8pmw"}}]},"status":400}
+2025-06-03 16:55:51,521 - INFO - Related signal ID: None, Related signal: None, Rule: {'id': 1, 'name': 'InterfaceLinkDown', 'opensignaltrap': 'IF-MIB::linkDown', 'closesignaltrap': 'IF-MIB::linkUp', 'opensignaltag': '', 'opensignalvalue': '', 'closesignaltag': '', 'closesignalvalue': '', 'initialseverity': 'medium', 'affectedentity': ['Interface'], 'description': '', 'warmup': 30, 'cooldown': 30, 'device_hostnames': []}, affected entities: {'Interface': 'GigabitEthernet2'}
+2025-06-03 16:55:51,521 - ERROR - No related signal found to close.
+2025-06-03 17:09:37,610 - INFO - Received rule: InterfaceLinkDown
+2025-06-03 17:09:37,610 - INFO - Matched rule: {'id': 1, 'name': 'InterfaceLinkDown', 'opensignaltrap': 'IF-MIB::linkDown', 'closesignaltrap': 'IF-MIB::linkUp', 'opensignaltag': '', 'opensignalvalue': '', 'closesignaltag': '', 'closesignalvalue': '', 'initialseverity': 'medium', 'affectedentity': ['Interface'], 'description': '', 'warmup': 30, 'cooldown': 30, 'device_hostnames': []}
+2025-06-03 17:09:37,610 - INFO - Trap data: {'device': '192.168.1.213', 'DISMAN-EXPRESSION-MIB::sysUpTimeInstance': '10:26:24.40', 'SNMPv2-MIB::snmpTrapOID.0': 'IF-MIB::linkDown', 'content': {'IF-MIB::ifIndex.2': '2', 'IF-MIB::ifDescr.2': 'GigabitEthernet2', 'IF-MIB::ifType.2': 'ethernetCsmacd(6)', 'CISCO-SMI::local.2.1.1.20.2': 'administratively down'}, '@timestamp': '2025-06-03T17:09:37.607618', 'trap_id': 'b5da6434e736e8c276e58f8e7aaf8c9d996b2d67dfe12dc40a06e9b87c59e8e8', 'Interface': 'GigabitEthernet2', 'rule': 'InterfaceLinkDown'}
+2025-06-03 17:09:37,611 - INFO - Extracted affected_entity_values: {'Interface': 'GigabitEthernet2'}
+2025-06-03 17:09:37,611 - INFO - Trap SNMP Trap OID: IF-MIB::linkDown, Open Signal value: IF-MIB::linkDown: None
+2025-06-03 17:09:37,611 - INFO - Trap SNMP Trap OID: IF-MIB::linkDown, Close Signal value: IF-MIB::linkUp: None
+2025-06-03 17:09:37,611 - INFO - Trap eligible for opening signal: None: 1.InterfaceLinkDown, 2.192.168.1.213, 3.{'Interface': 'GigabitEthernet2'}
+2025-06-03 17:09:37,619 - ERROR - OpenSearch error (find related): 400 - {"error":{"root_cause":[{"type":"query_shard_exception","reason":"No mapping found for [@startTime] in order to sort on","index":"trap-signals","index_uuid":"xtYRr3v7QRq5mHYbcL8pmw"}],"type":"search_phase_execution_exception","reason":"all shards failed","phase":"query","grouped":true,"failed_shards":[{"shard":0,"index":"trap-signals","node":"EHUFFvUSQ3ypIbQ2xOVNJA","reason":{"type":"query_shard_exception","reason":"No mapping found for [@startTime] in order to sort on","index":"trap-signals","index_uuid":"xtYRr3v7QRq5mHYbcL8pmw"}}]},"status":400}
+2025-06-03 17:09:37,620 - INFO - Related signal ID: None, Related signal: None, Rule: {'id': 1, 'name': 'InterfaceLinkDown', 'opensignaltrap': 'IF-MIB::linkDown', 'closesignaltrap': 'IF-MIB::linkUp', 'opensignaltag': '', 'opensignalvalue': '', 'closesignaltag': '', 'closesignalvalue': '', 'initialseverity': 'medium', 'affectedentity': ['Interface'], 'description': '', 'warmup': 30, 'cooldown': 30, 'device_hostnames': []}, affected entities: {'Interface': 'GigabitEthernet2'}
+2025-06-03 17:09:37,620 - INFO - Creating new signal (no related or closed).
+2025-06-03 17:09:37,830 - INFO - Signal saved to OpenSearch: {'signal_id': '81dd0213', 'device': '192.168.1.213', 'rule': 'InterfaceLinkDown', 'snmpTrapOid': 'IF-MIB::linkDown', 'affectedEntities': {'Interface': 'GigabitEthernet2'}, 'severity': 'medium', 'description': '', '@startTime': '2025-06-03T17:09:37.607618', 'endTime': None, 'status': 'warmUp', 'events': ['b5da6434e736e8c276e58f8e7aaf8c9d996b2d67dfe12dc40a06e9b87c59e8e8']}
+2025-06-03 17:09:38,209 - INFO - Created signal (ID: UurFNpcBDQH3BpIdHrrX) with warmUp=30s: {'signal_id': '81dd0213', 'device': '192.168.1.213', 'rule': 'InterfaceLinkDown', 'snmpTrapOid': 'IF-MIB::linkDown', 'affectedEntities': {'Interface': 'GigabitEthernet2'}, 'severity': 'medium', 'description': '', '@startTime': '2025-06-03T17:09:37.607618', 'endTime': None, 'status': 'warmUp', 'events': ['b5da6434e736e8c276e58f8e7aaf8c9d996b2d67dfe12dc40a06e9b87c59e8e8']}
+2025-06-03 18:19:48,463 - INFO - Shutting down signal consumer...
+2025-06-03 18:19:48,505 - INFO - Signal consumer closed.
+2025-06-03 18:19:48,507 - INFO - Trap Signals Consumer started.
+2025-06-03 20:27:26,070 - INFO - Trap Signals Consumer started.
+2025-06-03 20:27:26,912 - INFO - Loaded 2 stateful rules.
+2025-06-03 20:27:27,192 - INFO - Subscribed to topic: trap-signals
+2025-06-21 11:14:30,613 - INFO - Trap Signals Consumer started.
+2025-06-21 11:14:30,822 - INFO - Loaded 2 stateful rules.
+2025-06-21 11:14:31,830 - INFO - Subscribed to topic: trap-signals
+2025-06-21 11:19:31,940 - INFO - Received rule: InterfaceLinkDown
+2025-06-21 11:19:31,940 - INFO - Matched rule: {'id': 1, 'name': 'InterfaceLinkDown', 'opensignaltrap': 'IF-MIB::linkDown', 'closesignaltrap': 'IF-MIB::linkUp', 'opensignaltag': '', 'opensignalvalue': '', 'closesignaltag': '', 'closesignalvalue': '', 'initialseverity': 'medium', 'affectedentity': ['Interface'], 'description': '', 'warmup': 30, 'cooldown': 30, 'device_hostnames': []}
+2025-06-21 11:19:31,940 - INFO - Trap data: {'device': '192.168.1.211', 'DISMAN-EXPRESSION-MIB::sysUpTimeInstance': '4:08:41.46', 'SNMPv2-MIB::snmpTrapOID.0': 'IF-MIB::linkUp', 'content': {'IF-MIB::ifIndex.2': '2', 'IF-MIB::ifDescr.2': 'GigabitEthernet2', 'IF-MIB::ifType.2': 'ethernetCsmacd(6)'}, '@timestamp': '2025-06-21T11:19:31.935742', 'trap_id': '8d61fada47b63acd6038ba5da509d8bdc213f8b0504674dff1df0d17f504f488', 'Interface': 'GigabitEthernet2', 'rule': 'InterfaceLinkDown'}
+2025-06-21 11:19:31,941 - INFO - Extracted affected_entity_values: {'Interface': 'GigabitEthernet2'}
+2025-06-21 11:19:31,941 - INFO - Trap SNMP Trap OID: IF-MIB::linkUp, Open Signal value: IF-MIB::linkDown: None
+2025-06-21 11:19:31,941 - INFO - Trap SNMP Trap OID: IF-MIB::linkUp, Close Signal value: IF-MIB::linkUp: None
+2025-06-21 11:19:31,941 - INFO - Trap elligible for closing signal: None
+2025-06-21 11:19:32,227 - INFO - Related signal ID: None, Related signal: None, Rule: {'id': 1, 'name': 'InterfaceLinkDown', 'opensignaltrap': 'IF-MIB::linkDown', 'closesignaltrap': 'IF-MIB::linkUp', 'opensignaltag': '', 'opensignalvalue': '', 'closesignaltag': '', 'closesignalvalue': '', 'initialseverity': 'medium', 'affectedentity': ['Interface'], 'description': '', 'warmup': 30, 'cooldown': 30, 'device_hostnames': []}, affected entities: {'Interface': 'GigabitEthernet2'}
+2025-06-21 11:19:32,227 - ERROR - No related signal found to close.
+2025-06-21 22:47:39,091 - INFO - Shutting down signal consumer...

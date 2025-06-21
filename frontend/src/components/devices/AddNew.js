@@ -1,147 +1,75 @@
 import React, { useState } from 'react';
 import apiClient from '../misc/AxiosConfig';
 
-function AddNew({ onDeviceAdded }) {
-    const [ipAddress, setIpAddress] = useState('');
-    const [hostname, setHostname] = useState(''); // Changed hostname to name
-    const [vendor, setVendor] = useState('');
-    const [type, setType] = useState('');
-    const [version, setVersion] = useState('');
-    const [gpsLatitude, setGpsLatitude] = useState('');
-    const [gpsLongitude, setGpsLongitude] = useState('');
+import DeviceInfo from './DeviceInfo';
+import SyslogConfig from './SyslogConfig';
+import SnmpTrapConfig from './SnmpTrapConfig';
+import NetflowConfig from './NetflowConfig';
+import TelemetryConfig from './TelemetryConfig';
+
+const STEPS = {
+    DEVICE: 0,
+    SYSLOG: 1,
+    SNMP: 2,
+    NETFLOW: 3,
+    TELEMETRY: 4,
+    DONE: 5,
+};
+
+function AddNewDevice({ onDeviceAdded }) {
+    const [step, setStep] = useState(STEPS.DEVICE);
+    const [deviceIdentifier, setDeviceIdentifier] = useState(null); // hostname or id
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-
-        // Clear previous messages
-        setError('');
-        setSuccess(false);
-
-        // Validate inputs
-        if (!ipAddress || !hostname || !vendor || !type) { // Added vendor and type
-            setError('IP address, hostname, vendor, and type are required.');
-            return;
-        }
-
+    const handleDeviceSubmit = async (data) => {
         try {
-            // Submit data to the API
-            const response = await apiClient.post('/devices/', {
-                ip_address: ipAddress,
-                hostname, // Changed hostname to name
-                vendor,
-                type,
-                version: version || null,
-                gps_latitude: gpsLatitude ? parseFloat(gpsLatitude) : null,
-                gps_longitude: gpsLongitude ? parseFloat(gpsLongitude) : null,
+            const res = await apiClient.post('/devices/', {
+                ...data,
+                vendor: data.vendor.value,
+                version: data.version?.value || null,
             });
-
-            // Notify the parent about the new device
-            if (onDeviceAdded) {
-                onDeviceAdded(response.data);
-            }
-
-            // Reset the form and show success message
-            setIpAddress('');
-            setHostname(''); // Changed hostname to name
-            setVendor('');
-            setType('');
-            setVersion('');
-            setGpsLatitude('');
-            setGpsLongitude('');
-            setSuccess(true);
+            setDeviceIdentifier(res.data.hostname);
+            setStep(STEPS.SYSLOG);
         } catch (err) {
-            setError('Failed to add device. Please try again.');
+            setError('Failed to add device.');
+        }
+    };
+
+    const renderStep = () => {
+        switch (step) {
+            case STEPS.DEVICE:
+                return <DeviceInfo onSubmit={handleDeviceSubmit} onSuccess={() => setStep(STEPS.SYSLOG)} />;
+            case STEPS.SYSLOG:
+                return <SyslogConfig hostname={deviceIdentifier} onSuccess={() => setStep(STEPS.SNMP)} />;
+            case STEPS.SNMP:
+                return <SnmpTrapConfig hostname={deviceIdentifier} onSuccess={() => setStep(STEPS.NETFLOW)}  />;
+            case STEPS.NETFLOW:
+                return <NetflowConfig hostname={deviceIdentifier} onSuccess={() => setStep(STEPS.TELEMETRY)}  />;
+            case STEPS.TELEMETRY:
+                return <TelemetryConfig hostname={deviceIdentifier} onSuccess={() => setStep(STEPS.DONE)}  />;
+            case STEPS.DONE:
+                return (
+                    <div>
+                        <p style={{ color: 'var(--successColor)' }}>Device configuration complete!</p>
+                        <button onClick={() => {
+                            setStep(STEPS.DEVICE);
+                            setDeviceIdentifier(null);
+                            setSuccess(false);
+                        }}>Add Another</button>
+                    </div>
+                );
+            default:
+                return null;
         }
     };
 
     return (
-        <div className="add-new-device-form" style={{position: 'aboslute'}}>
-            <h3>Add New Device</h3>
-            <form onSubmit={handleSubmit}>
-                <div className="form-group">
-                    <label htmlFor="ipAddress">IP Address:</label>
-                    <input
-                        type="text"
-                        id="ipAddress"
-                        value={ipAddress}
-                        onChange={(e) => setIpAddress(e.target.value)}
-                        placeholder="Enter IP address"
-                        required
-                    />
-                </div>
-                <div className="form-group">
-                    <label htmlFor="name">Hostname:</label>
-                    <input
-                        type="text"
-                        id="hostname"
-                        value={hostname} // Changed hostname to name
-                        onChange={(e) => setHostname(e.target.value)} // Changed setHostname to setName
-                        placeholder="Enter name"
-                        required
-                    />
-                </div>
-                <div className="form-group">
-                    <label htmlFor="vendor">Vendor:</label>
-                    <input
-                        type="text"
-                        id="vendor"
-                        value={vendor}
-                        onChange={(e) => setVendor(e.target.value)}
-                        placeholder="Enter vendor"
-                        required
-                    />
-                </div>
-                <div className="form-group">
-                    <label htmlFor="type">Type:</label>
-                    <input
-                        type="text"
-                        id="type"
-                        value={type}
-                        onChange={(e) => setType(e.target.value)}
-                        placeholder="Enter type"
-                        required
-                    />
-                </div>
-                <div className="form-group">
-                    <label htmlFor="version">Version:</label>
-                    <input
-                        type="text"
-                        id="version"
-                        value={version}
-                        onChange={(e) => setVersion(e.target.value)}
-                        placeholder="Enter version"
-                    />
-                </div>
-                <div className="form-group">
-                    <label htmlFor="gpsLatitude">GPS Latitude:</label>
-                    <input
-                        type="text"
-                        id="gpsLatitude"
-                        value={gpsLatitude}
-                        onChange={(e) => setGpsLatitude(e.target.value)}
-                        placeholder="Enter GPS Latitude"
-                    />
-                </div>
-                <div className="form-group">
-                    <label htmlFor="gpsLongitude">GPS Longitude:</label>
-                    <input
-                        type="text"
-                        id="gpsLongitude"
-                        value={gpsLongitude}
-                        onChange={(e) => setGpsLongitude(e.target.value)}
-                        placeholder="Enter GPS Longitude"
-                    />
-                </div>
-                {error && <p className="error-message">{error}</p>}
-                {success && <p className="success-message">Device added successfully!</p>}
-                <button type="submit" className="submit-button">
-                    Add Device
-                </button>
-            </form>
+        <div className="add-new-device-form">
+            {error && <p className="error-message">{error}</p>}
+            {renderStep()}
         </div>
     );
 }
 
-export default AddNew;
+export default AddNewDevice;

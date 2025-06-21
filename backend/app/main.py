@@ -5,6 +5,7 @@ from app.syslogs import routes as syslogs
 from app.traps import routes as traps
 from app.netflow import routes as netflow
 from app.signals import routes as signals
+from app.telemetry import routes as telemetry
 from app.db.session import engine
 from sqlalchemy.ext.asyncio import AsyncEngine
 from fastapi.middleware.cors import CORSMiddleware
@@ -42,6 +43,7 @@ app.include_router(syslogs.router)
 app.include_router(traps.router)
 app.include_router(netflow.router)
 app.include_router(signals.router)
+app.include_router(telemetry.router)
 
 async def create_tables(engine: AsyncEngine):
     async with engine.begin() as conn:
