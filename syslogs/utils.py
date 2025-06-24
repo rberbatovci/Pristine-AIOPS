@@ -9,14 +9,17 @@ def extract_mnemonic(message: str) -> Tuple[str | None, str | None, int | None]:
         0: "Emergency", 1: "Alert", 2: "Critical", 3: "Error",
         4: "Warning", 5: "Notice", 6: "Informational", 7: "Debugging"
     }
+
     try:
-        match = re.search(r'(%[^:]+):', message)
+        # Match mnemonic between % and : with optional space before colon (XR format)
+        match = re.search(r'%([^:]+)\s*:', message)
         if not match:
             return None, None, None
 
-        mnemonic = match.group(1)
+        full_mnemonic = match.group(1)  # E.g. PKT_INFRA-LINK-3-UPDOWN
 
-        severity_match = re.search(r'%[^-]+-(\d+)-[^:]+', mnemonic)
+        # Extract severity level from the mnemonic, which is the digit between dashes
+        severity_match = re.search(r'-(\d)-', full_mnemonic)
         if severity_match:
             severity_level = int(severity_match.group(1))
             severity_name = severity_levels.get(severity_level, "Unknown")
@@ -24,14 +27,12 @@ def extract_mnemonic(message: str) -> Tuple[str | None, str | None, int | None]:
             severity_level = None
             severity_name = None
 
-        return mnemonic, severity_name, severity_level
-    except TypeError as e:
-        print(f"TypeError in extract_mnemonic: {e}")
-        return None, None, None
+        return full_mnemonic, severity_name, severity_level
+
     except Exception as e:
         print(f"Error in extract_mnemonic: {e}")
         return None, None, None
-
+    
 def extract_timestamp(message: str) -> datetime | None:
     try:
         match = re.search(r'([A-Z][a-z]{2})\s+(\d{1,2})\s+(\d{2}:\d{2}:\d{2}\.\d{3})', message)

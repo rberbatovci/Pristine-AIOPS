@@ -22,7 +22,7 @@ function NetflowConfig({ hostname, onSuccess }) {
         setLoading(true);
         setError('');
         try {
-            const response = await apiClient.post(`/devices/${hostname}/netflow-config/`, {
+            const response = await apiClient.post(`/devices/${hostname}/netflow-xe-config/`, {
                 enabled,
                 interfaces: interfaces.map((opt) => opt.value),
             });

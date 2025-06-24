@@ -1,75 +1,139 @@
 import React, { useState } from 'react';
+import Select from 'react-select';
 import apiClient from '../misc/AxiosConfig';
+import customStyles from '../misc/SelectStyles';
 
-import DeviceInfo from './DeviceInfo';
-import SyslogConfig from './SyslogConfig';
-import SnmpTrapConfig from './SnmpTrapConfig';
-import NetflowConfig from './NetflowConfig';
-import TelemetryConfig from './TelemetryConfig';
+const vendorOptions = [
+  { value: 'cisco', label: 'Cisco' },
+  { value: 'juniper', label: 'Juniper' },
+  { value: 'arista', label: 'Arista' },
+  // Add more as needed
+];
 
-const STEPS = {
-    DEVICE: 0,
-    SYSLOG: 1,
-    SNMP: 2,
-    NETFLOW: 3,
-    TELEMETRY: 4,
-    DONE: 5,
-};
+const versionOptions = [
+  { value: 'ios-xe', label: 'IOS XE' },
+  { value: 'ios-xr', label: 'IOS XR' },
+  { value: 'junos', label: 'JUNOS' },
+  // Add more as needed
+];
 
 function AddNewDevice({ onDeviceAdded }) {
-    const [step, setStep] = useState(STEPS.DEVICE);
-    const [deviceIdentifier, setDeviceIdentifier] = useState(null); // hostname or id
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState(false);
+  const [ipAddress, setIpAddress] = useState('');
+  const [hostname, setHostname] = useState('');
+  const [vendor, setVendor] = useState(null);
+  const [version, setVersion] = useState(null);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
 
-    const handleDeviceSubmit = async (data) => {
-        try {
-            const res = await apiClient.post('/devices/', {
-                ...data,
-                vendor: data.vendor.value,
-                version: data.version?.value || null,
-            });
-            setDeviceIdentifier(res.data.hostname);
-            setStep(STEPS.SYSLOG);
-        } catch (err) {
-            setError('Failed to add device.');
-        }
-    };
+  const handleClear = () => {
+    setIpAddress('');
+    setHostname('');
+    setVendor(null);
+    setVersion(null);
+    setError('');
+    setSuccess(false);
+  };
 
-    const renderStep = () => {
-        switch (step) {
-            case STEPS.DEVICE:
-                return <DeviceInfo onSubmit={handleDeviceSubmit} onSuccess={() => setStep(STEPS.SYSLOG)} />;
-            case STEPS.SYSLOG:
-                return <SyslogConfig hostname={deviceIdentifier} onSuccess={() => setStep(STEPS.SNMP)} />;
-            case STEPS.SNMP:
-                return <SnmpTrapConfig hostname={deviceIdentifier} onSuccess={() => setStep(STEPS.NETFLOW)}  />;
-            case STEPS.NETFLOW:
-                return <NetflowConfig hostname={deviceIdentifier} onSuccess={() => setStep(STEPS.TELEMETRY)}  />;
-            case STEPS.TELEMETRY:
-                return <TelemetryConfig hostname={deviceIdentifier} onSuccess={() => setStep(STEPS.DONE)}  />;
-            case STEPS.DONE:
-                return (
-                    <div>
-                        <p style={{ color: 'var(--successColor)' }}>Device configuration complete!</p>
-                        <button onClick={() => {
-                            setStep(STEPS.DEVICE);
-                            setDeviceIdentifier(null);
-                            setSuccess(false);
-                        }}>Add Another</button>
-                    </div>
-                );
-            default:
-                return null;
-        }
-    };
+  const handleSubmit = async () => {
+    setError('');
+    setSuccess(false);
 
-    return (
-        <div className="add-new-device-form">
-            {error && <p className="error-message">{error}</p>}
-            {renderStep()}
+    if (!ipAddress || !hostname || !vendor) {
+      setError('Please fill in all required fields.');
+      return;
+    }
+
+    try {
+      const payload = {
+        ip_address: ipAddress,
+        hostname: hostname,
+        vendor: vendor.value,
+        version: version?.value || null,
+      };
+
+      const res = await apiClient.post('/devices/', payload);
+
+      setSuccess(true);
+      if (onDeviceAdded) {
+        onDeviceAdded(res.data);
+      }
+
+      handleClear(); // Optionally clear form after submit
+    } catch (err) {
+      setError('Failed to add device. Make sure the hostname is unique.');
+    }
+  };
+
+  return (
+    <div className="searchSyslogsContainer">
+      <span className="searchSignalFilterText">Add a new device</span>
+      <div className="searchSyslogsFilterEntries" style={{ marginTop: '5px' }}>
+        <div className="searchSyslogsFilterEntry">
+          <span className="searchSignalFilterText">Agent IP address:</span>
+          <div style={{ marginTop: '6px', width: '300px' }}>
+            <input
+              placeholder="IP Address"
+              value={ipAddress}
+              onChange={(e) => setIpAddress(e.target.value)}
+              className="inputText"
+              style={{ width: '320px' }}
+            />
+          </div>
         </div>
-    );
+
+        <div className="searchSyslogsFilterEntry">
+          <span className="searchSignalFilterText">Agent hostname:</span>
+          <div style={{ marginTop: '6px' }}>
+            <input
+              placeholder="Hostname"
+              value={hostname}
+              onChange={(e) => setHostname(e.target.value)}
+              className="inputText"
+              style={{ width: '320px' }}
+            />
+          </div>
+        </div>
+
+        <div className="searchSyslogsFilterEntry">
+          <span className="searchSignalFilterText">Agent vendor:</span>
+          <div style={{ marginTop: '6px' }}>
+            <Select
+              placeholder="Vendor"
+              options={vendorOptions}
+              value={vendor}
+              onChange={setVendor}
+              styles={customStyles('325px')}
+            />
+          </div>
+        </div>
+
+        <div className="searchSyslogsFilterEntry">
+          <span className="searchSignalFilterText">Agent version:</span>
+          <div style={{ marginTop: '6px' }}>
+            <Select
+              placeholder="Version"
+              options={versionOptions}
+              value={version}
+              onChange={setVersion}
+              styles={customStyles('325px')}
+            />
+          </div>
+        </div>
+      </div>
+
+      {error && <div style={{ color: 'red', marginTop: '10px' }}>{error}</div>}
+      {success && <div style={{ color: 'green', marginTop: '10px' }}>Device added successfully!</div>}
+
+      <div className="searchButtonContainer">
+        <button onClick={handleClear} className="searchButton">
+          Clear and Hide
+        </button>
+        <button onClick={handleSubmit} className="searchButton">
+          Add and configure
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default AddNewDevice;

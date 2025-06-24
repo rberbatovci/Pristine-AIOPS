@@ -60,7 +60,7 @@ const InterfaceStats = ({ currentUser, selectedDevice }) => {
   };
 
   return (
-    <div className={`signalRightElementContainer ${showData ? 'expanded' : 'collapsed'}`} style={{ height: '600px' }}>
+    <div className={`signalRightElementContainer ${showData ? 'expanded' : 'collapsed'}`} style={{ height: '600px', zIndex: 1 }}>
       <div className="signalRightElementHeader">
         <h2 className="signalRightElementHeaderTxt" onClick={() => setShowData(!showData)}>
           {showData ? '\u25CF' : '\u25CB'} Signal Info

@@ -10,6 +10,7 @@
 #define KAFKA_BROKER "Kafka:9092"
 #define KAFKA_TOPIC "syslog-topic"
 #define UDP_PORT 1160
+#define MAX_BUFFER 4096
 
 // Global Kafka producer handle
 static rd_kafka_t *rk = NULL;
@@ -18,8 +19,8 @@ static rd_kafka_topic_t *rkt = NULL;
 // Syslog structure
 typedef struct {
     char device[16];
-    char message[2048];
-} Syslog;
+    char message[MAX_BUFFER];
+} SyslogMessage;
 
 // Cleanup function
 void cleanup() {
@@ -106,12 +107,35 @@ void send_to_kafka(const char *message) {
     rd_kafka_poll(rk, 0);
 }
 
+void escape_json_string(const char *input, char *output, size_t output_size) {
+    size_t j = 0;
+    for (size_t i = 0; input[i] != '\0' && j + 6 < output_size; i++) {
+        char c = input[i];
+        switch (c) {
+            case '\"': output[j++] = '\\'; output[j++] = '\"'; break;
+            case '\\': output[j++] = '\\'; output[j++] = '\\'; break;
+            case '\b': output[j++] = '\\'; output[j++] = 'b';  break;
+            case '\f': output[j++] = '\\'; output[j++] = 'f';  break;
+            case '\n': output[j++] = '\\'; output[j++] = 'n';  break;
+            case '\r': output[j++] = '\\'; output[j++] = 'r';  break;
+            case '\t': output[j++] = '\\'; output[j++] = 't';  break;
+            default:
+                if ((unsigned char)c < 0x20) {
+                    j += snprintf(&output[j], output_size - j, "\\u%04x", c);
+                } else {
+                    output[j++] = c;
+                }
+        }
+    }
+    output[j] = '\0';
+}
+
 // Main function to read syslog over UDP and send it to Kafka
 int main() {
     int sockfd;
     struct sockaddr_in server_addr, client_addr;
     socklen_t addr_len = sizeof(client_addr);
-    char buffer[2048];
+    char buffer[MAX_BUFFER];
 
     // Set up signal handlers
     signal(SIGINT, stop);
@@ -143,48 +167,41 @@ int main() {
 
     // Continuously read syslogs and send to Kafka
     while (1) {
-        ssize_t len = recvfrom(sockfd, (char *)buffer, sizeof(buffer), 0, 
-                             (struct sockaddr *)&client_addr, &addr_len);
-        if (len < 0) {
-            perror("Recvfrom failed");
+        ssize_t recv_len = recvfrom(sockfd, buffer, MAX_BUFFER - 1, 0,
+                                    (struct sockaddr *)&client_addr, &addr_len);
+        if (recv_len < 0) {
+            perror("recvfrom");
             continue;
         }
 
-        // Ensure null-termination
-        buffer[len] = '\0';
+        buffer[recv_len] = '\0';  // Null-terminate the received message
 
-        // Format syslog message
-        Syslog syslog;
-        inet_ntop(AF_INET, &client_addr.sin_addr, syslog.device, sizeof(syslog.device));
-        strncpy(syslog.message, buffer, sizeof(syslog.message));
-        syslog.message[sizeof(syslog.message) - 1] = '\0';
+        SyslogMessage syslog;
+        strncpy(syslog.device, inet_ntoa(client_addr.sin_addr), sizeof(syslog.device) - 1);
+        strncpy(syslog.message, buffer, sizeof(syslog.message) - 1);
 
-        // Convert syslog to JSON
-        char json_message[4096]; // Larger buffer for JSON
-        int required_len = snprintf(NULL, 0, "{\"device\":\"%s\",\"message\":\"%s\"}", 
-                                   syslog.device, syslog.message);
-        
-        if (required_len >= (int)sizeof(json_message)) {
-            fprintf(stderr, "Message too long to fit in json buffer. Truncating...\n");
-            // Truncate the message to fit
-            int max_msg_len = sizeof(json_message) - (required_len - strlen(syslog.message)) - 1;
-            snprintf(json_message, sizeof(json_message), 
-                    "{\"device\":\"%s\",\"message\":\"%.*s\"}", 
-                    syslog.device, max_msg_len, syslog.message);
-        } else {
-            snprintf(json_message, sizeof(json_message), 
-                    "{\"device\":\"%s\",\"message\":\"%s\"}", 
-                    syslog.device, syslog.message);
+        char escaped_message[MAX_BUFFER * 2];
+        escape_json_string(syslog.message, escaped_message, sizeof(escaped_message));
+
+        char json_message[MAX_BUFFER * 2];
+        snprintf(json_message, sizeof(json_message),
+                 "{\"device\":\"%s\",\"message\":\"%s\"}",
+                 syslog.device, escaped_message);
+
+        if (rd_kafka_produce(rkt, RD_KAFKA_PARTITION_UA,
+                             RD_KAFKA_MSG_F_COPY,
+                             json_message, strlen(json_message),
+                             NULL, 0, NULL) == -1) {
+            fprintf(stderr, "Failed to produce message: %s\n", rd_kafka_err2str(rd_kafka_last_error()));
         }
 
-        // Send message to Kafka
-        send_to_kafka(json_message);
-        printf("Sent syslog from %s to Kafka topic '%s': %.*s\n", 
-               syslog.device, KAFKA_TOPIC, 50, syslog.message); // Print first 50 chars
+        rd_kafka_poll(rk, 0);  // Serve delivery reports
     }
 
-    // Cleanup (should never reach here due to infinite loop)
-    cleanup();
+    // Clean up (never reached in this example)
+    rd_kafka_flush(rk, 10 * 1000);
+    rd_kafka_topic_destroy(rkt);
+    rd_kafka_destroy(rk);
     close(sockfd);
     return 0;
 }

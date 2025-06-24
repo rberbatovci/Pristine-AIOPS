@@ -438,6 +438,135 @@
             "severity": "Warning",
             "regexes": [],
             "rules": []
+        },
+        {
+            "name": "%PKI-4-NOCONFIGAUTOSAVE",
+            "level": 4,
+            "severity": "Warning",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "SECURITY-LOGIN-6-AUTHEN_SUCCESS ",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "PKT_INFRA-LINK-3-UPDOWN ",
+            "level": 3,
+            "severity": "Error",
+            "regexes": [
+                "LinkInterface",
+                "State"
+            ],
+            "rules": []
+        },
+        {
+            "name": "PKT_INFRA-LINEPROTO-5-UPDOWN ",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "MGBL-CONFIG-6-DB_COMMIT ",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "PKT_INFRA-LINK-5-CHANGED ",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "MGBL-SYS-5-CONFIG_I ",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "SECURITY-LOGIN-6-CLOSE ",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "SECURITY-SSHD-6-INFO_USER_LOGOUT ",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "ROUTING-ISIS-5-NSR_PM_ROLE_CHG ",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "ROUTING-ISIS-6-INFO_STARTUP_START ",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "ROUTING-ISIS-6-INFO_STARTUP_FINISH ",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "CLNS-5-ADJCHANGE",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "SYS-6-TTY_EXPIRE_TIMER",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "SYS-5-CONFIG_I",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "MGBL-EMS-6-EMSD_SERVICE_START ",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "SYS-6-LOGGINGHOST_STARTSTOP",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "SYS-6-LOGOUT",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
         }
     ]
 }

@@ -1,0 +1,19 @@
+---
+- name: Configure syslog on Cisco IOS XR device
+  hosts: all
+  gather_facts: no
+  connection: network_cli
+
+  vars:
+    ansible_user: "{{ username }}"
+    ansible_password: "{{ password }}"
+    ansible_network_os: iosxr
+    ansible_connection: network_cli
+    ansible_host: "{{ router_ip }}"
+
+  tasks:
+    - name: Configure syslog host
+      iosxr_config:
+        lines:
+          - "logging {{ syslog_host }} port {{ syslog_port }}"
+          - "logging format rfc5424"

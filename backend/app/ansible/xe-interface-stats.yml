@@ -1,0 +1,24 @@
+---
+- name: Configure Interface Statistics Monitoring on Cisco IOS XE device
+  hosts: all
+  gather_facts: no
+  connection: network_cli
+
+  vars:
+    ansible_user: "{{ username }}"
+    ansible_password: "{{ password }}"
+    ansible_network_os: ios
+    ansible_connection: network_cli
+    ansible_host: "{{ router_ip }}"
+
+  tasks:
+    - name: Configure telemetry subscription 100 (interfaces statistics)
+      ios_config:
+        lines:
+          - telemetry ietf subscription 100
+          -  encoding encode-kvgpb
+          -  filter xpath /interfaces/interface/statistics
+          -  source-address {{ telemetry_source_ip }}
+          -  stream yang-push
+          -  update-policy periodic 3000
+          -  receiver ip address {{ telemetry_receiver_ip }} {{ telemetry_receiver_port }} protocol grpc-tcp

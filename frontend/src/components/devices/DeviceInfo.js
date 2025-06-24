@@ -26,7 +26,7 @@ function DeviceInfo({ onSubmit, onClose }) {
         }
 
         setLocalError('');
-        onSubmit({ ip_address: ipAddress, hostname, vendor, version });
+        onSubmit({ ip_address: ipAddress, hostname, vendor, version: version });
     };
 
     const handleClear = () => {

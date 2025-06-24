@@ -184,5 +184,17 @@
     "value": "CISCO-SMI::ciscoMgmt.187.0.2",
     "tags": [],
     "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoExperiment.62.2.0.3",
+    "value": "CISCO-SMI::ciscoExperiment.62.2.0.3",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::cisco.0.1",
+    "value": "CISCO-SMI::cisco.0.1",
+    "tags": [],
+    "rules": []
   }
 ]

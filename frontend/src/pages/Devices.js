@@ -22,6 +22,8 @@ function Devices({ currentUser }) {
     const [dropdowns, setDropdowns] = useState({
         addNewDevice: { visible: false, position: { x: 0, y: 0 } },
     });
+    const [hostname, setHostname] = useState('');
+    const [version, setVersion] = useState('');
 
     const handleButtonClick = (event, dropdownKey) => {
         // Create a new dropdowns object with all dropdowns set to hidden

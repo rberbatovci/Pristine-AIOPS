@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.devices import models, schemas
-from app.devices.services import configure_syslog_with_ansible, configure_snmp_traps_with_ansible, configure_netflow_with_ansible
+from app.devices.services import configureDevice, syslogXEPlaybook, trapsXEPlaybook, netflowXEPlaybook, configureSyslogsXR
 import asyncio
 router = APIRouter()
 
@@ -35,7 +35,7 @@ async def create_device(device_in: schemas.DeviceCreate, db: AsyncSession = Depe
 
     return db_device
 
-@router.post("/devices/{hostname}/syslog-config/", response_model=schemas.DeviceResponse)
+@router.post("/devices/{hostname}/syslogs-xe-config/", response_model=schemas.DeviceResponse)
 async def configure_syslogs(
     hostname: str,
     config: schemas.SyslogConfig,
@@ -43,13 +43,67 @@ async def configure_syslogs(
 ):
     result = await db.execute(select(models.Device).where(models.Device.hostname == hostname))
     device = result.scalars().first()
-
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
 
-    ansible_result = await configure_syslog_with_ansible(
+    ansible_result = await configureDevice(
         router_ip=device.ip_address,
-        severity=config.severity
+        playbook=syslogXEPlaybook,
+        extra_vars={
+            "router_ip": device.ip_address,
+            "username": "admin",
+            "password": "cisco123",
+            "syslog_host": "192.168.1.191",
+            "syslog_port": "1160",
+            "syslog_severity": config.severity
+        }
+    )
+
+    if ansible_result["returncode"] != 0:
+        # Do NOT update features here (since configuration failed)
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": ansible_result["stderr"],
+                "output": ansible_result["stdout"]
+            },
+        )
+
+    # ✅ Only update features AFTER successful execution
+    if device.features is None:
+        device.features = {}
+
+    device.features["syslogs"] = "configured"
+    db.add(device)
+    await db.commit()
+    await db.refresh(device)
+
+    return device
+
+@router.post("/devices/{hostname}/traps-xe-config/", response_model=schemas.DeviceResponse)
+async def configure_snmp_traps(
+    hostname: str,
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(select(models.Device).where(models.Device.hostname == hostname))
+    device = result.scalars().first()
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    ansible_result = await configureDevice(
+        router_ip=device.ip_address,
+        playbook=trapsXEPlaybook,
+        extra_vars={
+            "router_ip": device.ip_address,
+            "username": "admin",
+            "password": "cisco123",
+            "snmp_trap_host": "192.168.1.191",
+            "snmp_trap_port": 1161,
+            "snmp_user": "SNMPv3",
+            "snmp_auth_pass": "AuTH_P@55w0rd123!",
+            "snmp_priv_pass": "PrIV@TE_P@55w0rd456!",
+            "snmp_engine_id": "800000090300500000030000"
+        }
     )
 
     if ansible_result["returncode"] != 0:
@@ -63,18 +117,27 @@ async def configure_syslogs(
 
     return device
 
-@router.post("/devices/{hostname}/snmp-traps-config/", response_model=schemas.DeviceResponse)
-async def configure_snmp_traps(
+@router.post("/devices/{hostname}/netflow-xe-config/", response_model=schemas.DeviceResponse)
+async def configure_netflow(
     hostname: str,
+    config: schemas.NetflowConfig,
     db: AsyncSession = Depends(get_db)
 ):
     result = await db.execute(select(models.Device).where(models.Device.hostname == hostname))
     device = result.scalars().first()
-
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
 
-    ansible_result = await configure_snmp_traps_with_ansible(router_ip=device.ip_address)
+    ansible_result = await configureDevice(
+        router_ip=device.ip_address,
+        playbook=netflowXEPlaybook,
+        extra_vars={
+            "router_ip": device.ip_address,
+            "username": "admin",
+            "password": "cisco123",
+            "netflow_interfaces": config.interfaces
+        }
+    )
 
     if ansible_result["returncode"] != 0:
         raise HTTPException(
@@ -87,10 +150,10 @@ async def configure_snmp_traps(
 
     return device
 
-@router.post("/devices/{hostname}/netflow-config/", response_model=schemas.DeviceResponse)
-async def configure_netflow(
+@router.post("/devices/{hostname}/syslog-xr-config/", response_model=schemas.DeviceResponse)
+async def configure_syslogs_xr(
     hostname: str,
-    config: schemas.NetflowConfig,
+    config: schemas.SyslogConfig,
     db: AsyncSession = Depends(get_db)
 ):
     result = await db.execute(select(models.Device).where(models.Device.hostname == hostname))
@@ -99,9 +162,9 @@ async def configure_netflow(
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
 
-    ansible_result = await configure_netflow_with_ansible(
+    ansible_result = await configureSyslogsXR(
         router_ip=device.ip_address,
-        interfaces=config.interfaces
+        severity=config.severity
     )
 
     if ansible_result["returncode"] != 0:

@@ -9,7 +9,7 @@ function SnmpTrapConfig({ hostname, onSuccess }) {
         setLoading(true);
         setError('');
         try {
-            const response = await apiClient.post(`/devices/${hostname}/snmp-traps-config/`);
+            const response = await apiClient.post(`/devices/${hostname}/traps-xe-config/`);
             if (onSuccess) onSuccess(response.data);
         } catch (error) {
             console.error('Syslog config failed:', error);

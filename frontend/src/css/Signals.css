@@ -109,6 +109,7 @@
     display: flex;
     align-items: center;
     transition: margin 1s ease-in-out, color 1s ease-in-out;
+    z-index: 1;
   }
   
   .signalRightElementHeaderTxt:hover {

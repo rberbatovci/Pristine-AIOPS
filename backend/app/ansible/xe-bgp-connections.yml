@@ -1,0 +1,23 @@
+---
+- name: Configure BGP connections on Cisco IOS device
+  hosts: all
+  gather_facts: no
+  connection: network_cli
+
+  vars:
+    ansible_user: "{{ username }}"
+    ansible_password: "{{ password }}"
+    ansible_network_os: ios
+    ansible_connection: network_cli
+    ansible_host: "{{ router_ip }}"
+
+  tasks:
+    - name: Configure telemetry subscription 103 (BGP neighbor connection)
+      ios_config:
+        lines:
+          - telemetry ietf subscription 103
+          -  encoding encode-kvgpb
+          -  filter xpath /bgp-state-data/neighbors/neighbor/connection
+          -  stream yang-push
+          -  update-policy periodic 3000
+          -  receiver ip address {{ telemetry_receiver_ip }} {{ telemetry_receiver_port }} protocol grpc-tcp

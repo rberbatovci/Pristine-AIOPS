@@ -3,7 +3,7 @@ import Select from 'react-select';
 import customStyles from '../misc/SelectStyles';
 import apiClient from '../misc/AxiosConfig';
 
-function SyslogConfig({ hostname, onSuccess }) {
+function SyslogConfig({ hostname, version, onSuccess }) {
     const [severity, setSeverity] = useState({ value: 'informational', label: '6 - Informational' });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -19,11 +19,25 @@ function SyslogConfig({ hostname, onSuccess }) {
         { value: 'debugging', label: '7 - Debugging' },
     ];
 
-    const sendConfig = async (config) => {
+    // Determine correct endpoint
+    const getSyslogEndpoint = () => {
+        if (!version) {
+            throw new Error('Device version not provided');
+        }
+        if (version === 'ios-xe') {
+            return `/devices/${hostname}/syslogs-xe-config/`;
+        }
+        if (version === 'ios-xr') {
+            return `/devices/${hostname}/syslogs-xr-config/`;
+        }
+        throw new Error(`Unsupported device version: ${version}`);
+    };
+
+    const sendConfig = async () => {
         setLoading(true);
         setError('');
         try {
-            const response = await apiClient.post(`/devices/${hostname}/syslog-config/`, {
+            const response = await apiClient.post(getSyslogEndpoint(), {
                 severity: severity.value,
             });
 
@@ -40,12 +54,8 @@ function SyslogConfig({ hostname, onSuccess }) {
         }
     };
 
-    const handleSubmit = () => {
-        sendConfig({ severity: severity.value });
-    };
-
     const handleSkip = () => {
-        sendConfig(false, null);
+        onSuccess && onSuccess(null);  // Let parent handle skipping
     };
 
     return (
@@ -66,11 +76,19 @@ function SyslogConfig({ hostname, onSuccess }) {
                 </div>
             </div>
 
+            {error && (
+                <div style={{ color: 'red', marginTop: '10px' }}>
+                    {typeof error === 'string' ? error : JSON.stringify(error)}
+                </div>
+            )}
+
             <div style={{ marginTop: '1rem' }}>
-                <button onClick={handleSkip} style={{ marginLeft: '1rem' }}>
+                <button onClick={handleSkip} style={{ marginRight: '1rem' }}>
                     Skip
                 </button>
-                <button onClick={handleSubmit}>Configure Syslogs</button>
+                <button onClick={sendConfig} disabled={loading}>
+                    {loading ? 'Configuring...' : 'Configure Syslogs'}
+                </button>
             </div>
         </div>
     );

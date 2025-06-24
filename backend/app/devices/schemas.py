@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
 class DeviceBase(BaseModel):
     hostname: str
@@ -10,11 +10,8 @@ class DeviceBase(BaseModel):
     version: Optional[str] = None
     gps_latitude: Optional[float] = None
     gps_longitude: Optional[float] = None
+    features: Optional[Dict[str, Any]]
 
-
-class DeviceCreateMinimal(BaseModel):
-    hostname: str
-    ip_address: str
 
 
 class DeviceUpdatePartial(BaseModel):
@@ -32,7 +29,8 @@ class DeviceFeatures(BaseModel):
     telemetry: Optional[bool] = False
 
 class DeviceCreate(DeviceBase):
-    features: Optional[DeviceFeatures] = DeviceFeatures()
+    hostname: str
+    ip_address: str
 
 
 class DeviceUpdate(DeviceBase):

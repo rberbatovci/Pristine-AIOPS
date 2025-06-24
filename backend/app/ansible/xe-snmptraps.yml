@@ -1,0 +1,32 @@
+---
+- name: Configure SNMP traps on Cisco IOS device
+  hosts: all
+  gather_facts: no
+  connection: network_cli
+
+  vars:
+    ansible_user: "{{ username }}"
+    ansible_password: "{{ password }}"
+    ansible_network_os: ios
+    ansible_connection: network_cli
+    ansible_host: "{{ router_ip }}"
+    snmp_trap_host: "192.168.1.191"
+    snmp_trap_port: 1161
+    snmp_user: "SNMPv3"
+    snmp_auth_pass: "AuTH_P@55w0rd123!"
+    snmp_priv_pass: "PrIV@TE_P@55w0rd456!"
+    snmp_engine_id: "800000090300500000030000"
+
+  tasks:
+    - name: Configure SNMP trap settings
+      ios_config:
+        lines:
+          - "snmp-server view READ iso included"
+          - "snmp-server view NOTIFY iso included"
+          - "snmp-server engineID local {{ snmp_engine_id }}"
+          - "snmp-server engineID remote {{ snmp_trap_host }} udp-port {{ snmp_trap_port }} {{ snmp_engine_id }}"
+          - "snmp-server group SNMPv3 v3 priv read READ notify NOTIFY"
+          - "snmp-server user {{ snmp_user }} SNMPv3 v3 auth sha {{ snmp_auth_pass }} priv aes 128 {{ snmp_priv_pass }}"
+          - "snmp-server host {{ snmp_trap_host }} version 3 priv {{ snmp_user }} udp-port {{ snmp_trap_port }}"
+          - "snmp-server host {{ snmp_trap_host }} traps version 3 priv {{ snmp_user }}"
+          - "snmp-server enable traps"
