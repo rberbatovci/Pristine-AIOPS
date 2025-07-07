@@ -138,7 +138,7 @@ function Mnemonics({ currentUser, mnemonics, entityOptions }) {
                                                 regexes: selectedNames,
                                             });
                                         }}
-                                        styles={customStyles}
+                                        styles={customStyles('380px')}
                                     />
                                 </div>
                             </div>

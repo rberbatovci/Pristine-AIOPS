@@ -14,6 +14,11 @@ syslogXEPlaybook = os.path.join(BASE_DIR, '..', 'ansible', 'xe-syslogs.yml')
 trapsXEPlaybook = os.path.join(BASE_DIR, '..', 'ansible', 'xe-snmptraps.yml')
 netflowXEPlaybook = os.path.join(BASE_DIR, '..', 'ansible', 'xe-netflow.yml')
 syslogXRPlaybook = os.path.join(BASE_DIR, '..', 'ansible', 'xr-syslogs.yml')
+cpuUtilXEPlaybook = os.path.join(BASE_DIR, '..', 'ansible', 'xe-cpu-util.yml')
+memStatsXEPlaybook = os.path.join(BASE_DIR, '..', 'ansible', 'xe-memory-stats.yml')
+interfaceStatsXEPlaybook = os.path.join(BASE_DIR, '..', 'ansible', 'xe-interface-stats.yml')
+BGPConnectionsXEPlaybook = os.path.join(BASE_DIR, '..', 'ansible', 'xe-bgp-connections.yml')
+ISISStatsXEPlaybook = os.path.join(BASE_DIR, '..', 'ansible', 'xe-isis-statistics.yml')
 
 async def create_device_minimal(db: AsyncSession, device: DeviceCreate) -> Device:
     db_device = Device(**device.dict())
@@ -93,7 +98,7 @@ async def configureSyslogsXE(router_ip, severity):
             "router_ip": router_ip,
             "username": "admin",
             "password": "cisco123",
-            "syslog_host": "192.168.1.191",
+            "syslog_host": "192.168.1.201",
             "syslog_port": "1160",
             "syslog_severity": severity
         })
@@ -123,7 +128,7 @@ async def configureTrapsXE(router_ip):
             "router_ip": router_ip,
             "username": "admin",
             "password": "cisco123",
-            "snmp_trap_host": "192.168.1.191",
+            "snmp_trap_host": "192.168.1.201",
             "snmp_trap_port": 1161,
             "snmp_user": "SNMPv3",
             "snmp_auth_pass": "AuTH_P@55w0rd123!",
@@ -180,39 +185,9 @@ async def configureSyslogsXR(router_ip, severity):
             "router_ip": router_ip,
             "username": "admin",
             "password": "admin",
-            "syslog_host": "192.168.1.191",
+            "syslog_host": "192.168.1.201",
             "syslog_port": "1160",
             "syslog_severity": severity
-        })
-    ]
-
-    env = os.environ.copy()
-    env["ANSIBLE_HOST_KEY_CHECKING"] = "False"
-
-    process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
-
-    print(f"Ansible stdout:\n{process.stdout}")
-    print(f"Ansible stderr:\n{process.stderr}")
-    print(f"Ansible returncode: {process.returncode}")
-
-    return {
-        "stdout": process.stdout,
-        "stderr": process.stderr,
-        "returncode": process.returncode
-    }
-
-async def configureTelemetryInterfaceStatsXE(router_ip: str):
-    cmd = [
-        "ansible-playbook",
-        InterfaceStatsPlaybook,
-        "-i", f"{router_ip},",
-        "--extra-vars", json.dumps({
-            "router_ip": router_ip,
-            "username": "admin",
-            "password": "cisco123",
-            "telemetry_source_ip": "192.168.1.213",
-            "telemetry_receiver_ip": "192.168.1.191",
-            "telemetry_receiver_port": "1163"
         })
     ]
 

@@ -18,10 +18,10 @@ const StatefulSyslogs = ({ devices, mnemonics }) => {
         name: '',
         devices: [],
         devicesFilter: '',
-        opensignalmnemonic : '',
+        opensignalmnemonic: '',
         opensignaltag: '',
         opensignalvalue: '',
-        closesignalmnemonic : '',
+        closesignalmnemonic: '',
         closesignaltag: '',
         closesignalvalue: '',
         initialseverity: '',
@@ -86,10 +86,10 @@ const StatefulSyslogs = ({ devices, mnemonics }) => {
             name: newRuleData.name,
             devices: newRuleData.devices,
             devicesFilter: newRuleData.devicesFilter,
-            opensignalmnemonic : newRuleData.opensignalmnemonic ,
+            opensignalmnemonic: newRuleData.opensignalmnemonic,
             opensignaltag: newRuleData.opensignaltag,
             opensignalvalue: newRuleData.opensignalvalue,
-            closesignalmnemonic : newRuleData.closesignalmnemonic ,
+            closesignalmnemonic: newRuleData.closesignalmnemonic,
             closesignaltag: newRuleData.closesignaltag,
             closesignalvalue: newRuleData.closesignalvalue,
             initialseverity: newRuleData.initialseverity,
@@ -143,18 +143,18 @@ const StatefulSyslogs = ({ devices, mnemonics }) => {
     }
 
     return (
-        <div className="signalConfigRuleContainer">
+        <div className="signalTagContainer">
             {isLoading ? (
                 <div className="signalConfigRuleMessage">Loading stateful syslog rules. Please wait...</div>
             ) : error ? (
                 <div className="signalConfigRuleMessage">{error}</div>
             ) : (
                 <>
-                    <div className="signalConfigRuleContent" style={{ height: '420px', display: 'flex', flexDirection: 'row' }}>
-                        <div className="signalConfigRulesList">
-                            <ul>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <div style={{ width: '270px', padding: '8px', background: 'var(--backgroundColor3)', borderRadius: '8px' }}>
+                            <ul style={{ padding: 0, listStyle: 'none'}}>
                                 <li
-                                    className={`button ${isAddingNewRule ? 'button-active' : ''}`}
+                                    className={`signalTagItem ${isAddingNewRule ? 'selected' : ''}`}
                                     onClick={() => {
                                         setIsAddingNewRule(true);
                                         setSelectedOption(null);
@@ -163,10 +163,10 @@ const StatefulSyslogs = ({ devices, mnemonics }) => {
                                             devices: [],
                                             devicesFilter: '',
                                             mnemonic: [],
-                                            opensignalmnemonic : '',
+                                            opensignalmnemonic: '',
                                             opensignaltag: '',
                                             opensignalvalue: '',
-                                            closesignalmnemonic : '',
+                                            closesignalmnemonic: '',
                                             closesignaltag: '',
                                             closesignalvalue: '',
                                             initialseverity: '',
@@ -182,7 +182,7 @@ const StatefulSyslogs = ({ devices, mnemonics }) => {
                                 {syslogRules.map((rule) => (
                                     <li
                                         key={rule.id}
-                                        className={`button ${selectedOption && selectedOption.id === rule.id ? 'button-active' : ''
+                                        className={`signalTagItem ${selectedOption && selectedOption.id === rule.id ? 'selected' : ''
                                             }`}
                                         onClick={() => handleOptionChange(rule)}
                                     >
@@ -191,253 +191,249 @@ const StatefulSyslogs = ({ devices, mnemonics }) => {
                                 ))}
                             </ul>
                         </div>
-                        <div style={{ width: '70%', margin: '5px' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, padding: '10px', width: '100%' }}>
-                                {/* Name Field */}
-                                <div style={{ height: '360px', overflowY: 'auto', padding: '8px' }}>
-                                    <div style={{ marginRight: '15px' }}>
-                                        <span>Name:</span>
-                                        <input
-                                            type="text"
-                                            name="name"
-                                            value={newRuleData.name}
-                                            className="inputText"
-                                            style={{ width: '535px' }}
-                                            onChange={(e) =>
-                                                setNewRuleData({ ...newRuleData, name: e.target.value })
-                                            }
-                                        />
-                                    </div>
-                                    {/* Hostname Field */}
-                                    <div style={{ marginTop: '5px', marginRight: '15px' }}>
-                                        <span>Hostname:</span>
-                                        <Select
-                                            name="hostname"
-                                            value={devices.filter(device => newRuleData.devices.includes(device.id)).map(device => ({
-                                                value: device.id,
-                                                label: device.hostname,
-                                            }))}
-                                            isMulti
-                                            options={devices.map(device => ({
-                                                value: device.id,
-                                                label: device.hostname,
-                                            }))}
-                                            onChange={handleHostnameChange}
-                                            styles={customStyles('540px')}
-                                        />
-                                    </div>
-                                    {/* Hostname Filter */}
-                                    {newRuleData.devices && newRuleData.devices.length > 0 && (
-                                        <div className="tag-detail-row">
-                                            <div>
-                                                <div style={{ display: 'flex', alignItems: 'center', marginTop: '5px', paddingLeft: '15px' }}>
-                                                    <label style={{ marginRight: '15px' }}>
-                                                        <input
-                                                            type="radio"
-                                                            name="devicesFilter"
-                                                            value="include"
-                                                            checked={newRuleData.devicesFilter === 'include'}
-                                                            onChange={() => setNewRuleData({ ...newRuleData, devicesFilter: 'include' })}
-                                                        />
-                                                        Include
-                                                    </label>
-                                                    <label>
-                                                        <input
-                                                            type="radio"
-                                                            name="devicesFilter"
-                                                            value="exclude"
-                                                            checked={newRuleData.newRuleData === 'exclude'}
-                                                            onChange={() => setNewRuleData({ ...newRuleData, devicesFilter: 'exclude' })}
-                                                        />
-                                                        Exclude
-                                                    </label>
-                                                </div>
+                        <div style={{ width: '67%', padding: '8px', background: 'var(--backgroundColor3)', borderRadius: '8px', color: 'var(--textColor)' }}>
+                            {/* Name Field */}
+                            <div style={{ height: '360px', overflowY: 'auto', padding: '8px' }}>
+                                <div style={{ marginRight: '15px' }}>
+                                    <span>Name:</span>
+                                    <input
+                                        type="text"
+                                        name="name"
+                                        value={newRuleData.name}
+                                        className="inputText"
+                                        style={{ width: '500px' }}
+                                        onChange={(e) =>
+                                            setNewRuleData({ ...newRuleData, name: e.target.value })
+                                        }
+                                    />
+                                </div>
+                                {/* Hostname Field */}
+                                <div style={{ marginTop: '5px', marginRight: '15px' }}>
+                                    <span>Hostname:</span>
+                                    <Select
+                                        name="hostname"
+                                        value={devices.filter(device => newRuleData.devices.includes(device.id)).map(device => ({
+                                            value: device.id,
+                                            label: device.hostname,
+                                        }))}
+                                        isMulti
+                                        options={devices.map(device => ({
+                                            value: device.id,
+                                            label: device.hostname,
+                                        }))}
+                                        onChange={handleHostnameChange}
+                                        styles={customStyles('505px')}
+                                    />
+                                </div>
+                                {/* Hostname Filter */}
+                                {newRuleData.devices && newRuleData.devices.length > 0 && (
+                                    <div className="tag-detail-row">
+                                        <div>
+                                            <div style={{ display: 'flex', alignItems: 'center', marginTop: '5px', paddingLeft: '15px' }}>
+                                                <label style={{ marginRight: '15px' }}>
+                                                    <input
+                                                        type="radio"
+                                                        name="devicesFilter"
+                                                        value="include"
+                                                        checked={newRuleData.devicesFilter === 'include'}
+                                                        onChange={() => setNewRuleData({ ...newRuleData, devicesFilter: 'include' })}
+                                                    />
+                                                    Include
+                                                </label>
+                                                <label>
+                                                    <input
+                                                        type="radio"
+                                                        name="devicesFilter"
+                                                        value="exclude"
+                                                        checked={newRuleData.newRuleData === 'exclude'}
+                                                        onChange={() => setNewRuleData({ ...newRuleData, devicesFilter: 'exclude' })}
+                                                    />
+                                                    Exclude
+                                                </label>
                                             </div>
                                         </div>
-                                    )}
-                                    <div style={{ marginTop: '5px', marginRight: '15px' }}>
-                                        <span>Open Signal Mnemonic:</span>
-                                        <Select
-                                            name="opensignalmnemonic "
-                                            // Find the mnemonic by its name from newRuleData and set the default value
-                                            value={mnemonics.find(option => option.label === newRuleData.opensignalmnemonic )}
-                                            isMulti={false}
-                                            options={mnemonics.map(mnemonic => ({
-                                                value: mnemonic.value,
-                                                label: mnemonic.label,
-                                            }))}
-                                            onChange={(selectedOption) => {
-                                                setNewRuleData({
-                                                    ...newRuleData,
-                                                    opensignalmnemonic : selectedOption.label // Use name as the value
-                                                });
-                                            }}
-                                            isLoading={isLoading}
-                                            styles={customStyles('540px')}
-                                        />
+                                    </div>
+                                )}
+                                <div style={{ marginTop: '5px', marginRight: '15px' }}>
+                                    <span>Open Signal Mnemonic:</span>
+                                    <Select
+                                        name="opensignalmnemonic "
+                                        // Find the mnemonic by its name from newRuleData and set the default value
+                                        value={mnemonics.find(option => option.label === newRuleData.opensignalmnemonic)}
+                                        isMulti={false}
+                                        options={mnemonics.map(mnemonic => ({
+                                            value: mnemonic.value,
+                                            label: mnemonic.label,
+                                        }))}
+                                        onChange={(selectedOption) => {
+                                            setNewRuleData({
+                                                ...newRuleData,
+                                                opensignalmnemonic: selectedOption.label // Use name as the value
+                                            });
+                                        }}
+                                        isLoading={isLoading}
+                                        styles={customStyles('505px')}
+                                    />
 
-                                    </div>
-                                    {/* SNMP Trap OID */}
-                                    <div style={{ marginTop: '5px', display: 'flex' }}>
-                                        <div>
-                                            <span>Open Signal Event:</span>
-                                            <Select
-                                                name="opensignaltag"
-                                                value={tagNames.find(option => option.value === newRuleData.opensignaltag) || null}
-                                                options={tagNames}
-                                                onChange={(selectedOption) =>
-                                                    setNewRuleData({ ...newRuleData, opensignaltag: selectedOption ? selectedOption.value : null })
-                                                }
-                                                styles={customStyles('260px')}
-                                                isMulti={false} // Single-select
-                                            />
-                                        </div>
-                                        {/* SNMP Trap OID */}
-                                        <div style={{ marginLeft: '13px' }}>
-                                            <span>Open signal value:</span>
-                                            <input
-                                                type="text"
-                                                name="opensignalvalue"
-                                                value={newRuleData.opensignalvalue}
-                                                className="inputText"
-                                                onChange={(e) =>
-                                                    setNewRuleData({ ...newRuleData, opensignalvalue: e.target.value })
-                                                }
-                                                style={{ width: '260px' }}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div style={{ marginTop: '5px' }}>
-                                        <span>Close Signal Mnemonic:</span>
+                                </div>
+                                {/* SNMP Trap OID */}
+                                <div style={{ marginTop: '5px', display: 'flex' }}>
+                                    <div>
+                                        <span>Open Signal Event:</span>
                                         <Select
-                                            name="closesignalmnemonic  "
-                                            // Find the mnemonic by its name from newRuleData and set the default value
-                                            value={mnemonics.find(option => option.label === newRuleData.closesignalmnemonic )}
-                                            isMulti={false}
-                                            options={mnemonics.map(mnemonic => ({
-                                                value: mnemonic.value,
-                                                label: mnemonic.label,
-                                            }))}
-
-                                            onChange={(selectedOption) =>
-                                                setNewRuleData({ ...newRuleData, closesignalmnemonic : selectedOption.label })}
-                                            isLoading={isLoading}
-                                            styles={customStyles('540px')}
-                                        />
-                                    </div>
-                                    {/* SNMP Trap OID */}
-                                    <div style={{ marginTop: '5px', display: 'flex' }}>
-                                        <div>
-                                            <span>Close Signal Event:</span>
-                                            <Select
-                                                name="closesignaltag"
-                                                value={tagNames.find(option => option.value === newRuleData.closesignaltag) || null}
-                                                options={tagNames}
-                                                onChange={(selectedOption) =>
-                                                    setNewRuleData({ ...newRuleData, closesignaltag: selectedOption ? selectedOption.value : null })
-                                                }
-                                                styles={customStyles('260px')}
-                                                isMulti={false} // Single-select
-                                            />
-                                        </div>
-                                        {/* SNMP Trap OID */}
-                                        <div style={{ marginLeft: '13px' }}>
-                                            <span>Close signal value:</span>
-                                            <input
-                                                type="text"
-                                                name="closesignalvalue"
-                                                value={newRuleData.closesignalvalue}
-                                                className="inputText"
-                                                onChange={(e) =>
-                                                    setNewRuleData({ ...newRuleData, closesignalvalue: e.target.value })
-                                                }
-                                                style={{ width: '260px' }}
-                                            />
-                                        </div>
-                                    </div>
-                                    {/* SNMP Trap OID */}
-                                    <div style={{ marginTop: '5px' }}>
-                                        <span>Affected Entities:</span>
-                                        <Select
-                                            name="affectedentity"
-                                            value={tagNames.filter((tag) => newRuleData.affectedentity.includes(tag.value))}
+                                            name="opensignaltag"
+                                            value={tagNames.find(option => option.value === newRuleData.opensignaltag) || null}
                                             options={tagNames}
-                                            onChange={(selectedOptions) =>
-                                                setNewRuleData({
-                                                    ...newRuleData,
-                                                    affectedentity: selectedOptions ? selectedOptions.map(option => option.value) : []
-                                                })
-                                            }
-                                            styles={customStyles('540px')}
-                                            isMulti
-                                        />
-                                    </div>
-                                    {/* SNMP Trap OID */}
-                                    <div style={{ marginTop: '5px' }}>
-                                        <span>Initial Severity:</span>
-                                        <Select
-                                            name="initialseverity"
-                                            value={{ label: newRuleData.initialseverity, value: newRuleData.initialseverity }}
-                                            options={[
-                                                { label: "Low", value: "low" },
-                                                { label: "Medium", value: "medium" },
-                                                { label: "High", value: "high" }
-                                            ]}
                                             onChange={(selectedOption) =>
-                                                setNewRuleData({ ...newRuleData, initialseverity: selectedOption.value })}
-                                            styles={customStyles('540px')}
+                                                setNewRuleData({ ...newRuleData, opensignaltag: selectedOption ? selectedOption.value : null })
+                                            }
+                                            styles={customStyles('243px')}
                                             isMulti={false} // Single-select
                                         />
                                     </div>
                                     {/* SNMP Trap OID */}
-                                    <div style={{ marginTop: '5px' }}>
-                                        <span>Description:</span>
+                                    <div style={{ marginLeft: '13px' }}>
+                                        <span>Open signal value:</span>
                                         <input
                                             type="text"
-                                            name="description"
-                                            value={newRuleData.description}
+                                            name="opensignalvalue"
+                                            value={newRuleData.opensignalvalue}
                                             className="inputText"
-                                            style={{ width: '535px' }}
                                             onChange={(e) =>
-                                                setNewRuleData({ ...newRuleData, description: e.target.value })
+                                                setNewRuleData({ ...newRuleData, opensignalvalue: e.target.value })
+                                            }
+                                            style={{ width: '243px' }}
+                                        />
+                                    </div>
+                                </div>
+                                <div style={{ marginTop: '5px' }}>
+                                    <span>Close Signal Mnemonic:</span>
+                                    <Select
+                                        name="closesignalmnemonic  "
+                                        // Find the mnemonic by its name from newRuleData and set the default value
+                                        value={mnemonics.find(option => option.label === newRuleData.closesignalmnemonic)}
+                                        isMulti={false}
+                                        options={mnemonics.map(mnemonic => ({
+                                            value: mnemonic.value,
+                                            label: mnemonic.label,
+                                        }))}
+
+                                        onChange={(selectedOption) =>
+                                            setNewRuleData({ ...newRuleData, closesignalmnemonic: selectedOption.label })}
+                                        isLoading={isLoading}
+                                        styles={customStyles('505px')}
+                                    />
+                                </div>
+                                {/* SNMP Trap OID */}
+                                <div style={{ marginTop: '5px', display: 'flex' }}>
+                                    <div>
+                                        <span>Close Signal Event:</span>
+                                        <Select
+                                            name="closesignaltag"
+                                            value={tagNames.find(option => option.value === newRuleData.closesignaltag) || null}
+                                            options={tagNames}
+                                            onChange={(selectedOption) =>
+                                                setNewRuleData({ ...newRuleData, closesignaltag: selectedOption ? selectedOption.value : null })
+                                            }
+                                            styles={customStyles('243px')}
+                                            isMulti={false} // Single-select
+                                        />
+                                    </div>
+                                    {/* SNMP Trap OID */}
+                                    <div style={{ marginLeft: '13px' }}>
+                                        <span>Close signal value:</span>
+                                        <input
+                                            type="text"
+                                            name="closesignalvalue"
+                                            value={newRuleData.closesignalvalue}
+                                            className="inputText"
+                                            onChange={(e) =>
+                                                setNewRuleData({ ...newRuleData, closesignalvalue: e.target.value })
+                                            }
+                                            style={{ width: '243px' }}
+                                        />
+                                    </div>
+                                </div>
+                                {/* SNMP Trap OID */}
+                                <div style={{ marginTop: '5px' }}>
+                                    <span>Affected Entities:</span>
+                                    <Select
+                                        name="affectedentity"
+                                        value={tagNames.filter((tag) => newRuleData.affectedentity.includes(tag.value))}
+                                        options={tagNames}
+                                        onChange={(selectedOptions) =>
+                                            setNewRuleData({
+                                                ...newRuleData,
+                                                affectedentity: selectedOptions ? selectedOptions.map(option => option.value) : []
+                                            })
+                                        }
+                                        styles={customStyles('505px')}
+                                        isMulti
+                                    />
+                                </div>
+                                {/* SNMP Trap OID */}
+                                <div style={{ marginTop: '5px' }}>
+                                    <span>Initial Severity:</span>
+                                    <Select
+                                        name="initialseverity"
+                                        value={{ label: newRuleData.initialseverity, value: newRuleData.initialseverity }}
+                                        options={[
+                                            { label: "Low", value: "low" },
+                                            { label: "Medium", value: "medium" },
+                                            { label: "High", value: "high" }
+                                        ]}
+                                        onChange={(selectedOption) =>
+                                            setNewRuleData({ ...newRuleData, initialseverity: selectedOption.value })}
+                                        styles={customStyles('505px')}
+                                        isMulti={false} // Single-select
+                                    />
+                                </div>
+                                {/* SNMP Trap OID */}
+                                <div style={{ marginTop: '5px' }}>
+                                    <span>Description:</span>
+                                    <input
+                                        type="text"
+                                        name="description"
+                                        value={newRuleData.description}
+                                        className="inputText"
+                                        style={{ width: '500px' }}
+                                        onChange={(e) =>
+                                            setNewRuleData({ ...newRuleData, description: e.target.value })
+                                        }
+                                    />
+                                </div>
+                                {/* SNMP Trap OID */}
+                                <div style={{ marginTop: '5px', display: 'flex' }}>
+                                    <div style={{ width: '45%', marginRight: '15px' }}>
+                                        <span>Warm Up:</span>
+                                        <input
+                                            type="number"
+                                            name="warmup"
+                                            value={newRuleData.warmup}
+                                            className="inputText"
+                                            style={{ width: '243px' }}
+                                            onChange={(e) =>
+                                                setNewRuleData({ ...newRuleData, warmup: e.target.value })
                                             }
                                         />
                                     </div>
                                     {/* SNMP Trap OID */}
-                                    <div style={{ marginTop: '5px', display: 'flex' }}>
-                                        <div style={{ width: '45%', marginRight: '15px' }}>
-                                            <span>Warm Up:</span>
-                                            <input
-                                                type="number"
-                                                name="warmup"
-                                                value={newRuleData.warmup}
-                                                className="inputText"
-                                                style={{ width: '260px' }}
-                                                onChange={(e) =>
-                                                    setNewRuleData({ ...newRuleData, warmup: e.target.value })
-                                                }
-                                            />
-                                        </div>
-                                        {/* SNMP Trap OID */}
-                                        <div style={{ width: '47%' }}>
-                                            <span>Cool Down:</span>
-                                            <input
-                                                type="number"
-                                                name="cooldown"
-                                                value={newRuleData.cooldown}
-                                                className="inputText"
-                                                style={{ width: '260px' }}
-                                                onChange={(e) =>
-                                                    setNewRuleData({ ...newRuleData, cooldown: e.target.value })
-                                                }
-                                            />
-                                        </div>
+                                    <div style={{ marginLeft: '13px' }}>
+                                        <span>Cool Down:</span>
+                                        <input
+                                            type="number"
+                                            name="cooldown"
+                                            value={newRuleData.cooldown}
+                                            className="inputText"
+                                            style={{ width: '243px' }}
+                                            onChange={(e) =>
+                                                setNewRuleData({ ...newRuleData, cooldown: e.target.value })
+                                            }
+                                        />
                                     </div>
                                 </div>
-
                             </div>
                         </div>
-
                     </div>
                 </>
             )}

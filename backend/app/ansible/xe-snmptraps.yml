@@ -10,7 +10,7 @@
     ansible_network_os: ios
     ansible_connection: network_cli
     ansible_host: "{{ router_ip }}"
-    snmp_trap_host: "192.168.1.191"
+    snmp_trap_host: "192.168.1.201"
     snmp_trap_port: 1161
     snmp_user: "SNMPv3"
     snmp_auth_pass: "AuTH_P@55w0rd123!"

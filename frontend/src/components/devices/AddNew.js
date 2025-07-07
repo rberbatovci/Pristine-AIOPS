@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Select from 'react-select';
 import apiClient from '../misc/AxiosConfig';
 import customStyles from '../misc/SelectStyles';
@@ -33,6 +33,11 @@ function AddNewDevice({ onDeviceAdded }) {
     setError('');
     setSuccess(false);
   };
+
+  useEffect(() => {
+    setVendor(vendorOptions.find(option => option.value === 'cisco'));
+    setVersion(versionOptions.find(option => option.value === 'ios-xe'));
+  }, []);
 
   const handleSubmit = async () => {
     setError('');
@@ -103,6 +108,7 @@ function AddNewDevice({ onDeviceAdded }) {
               value={vendor}
               onChange={setVendor}
               styles={customStyles('325px')}
+              isDisabled={true}
             />
           </div>
         </div>
@@ -116,6 +122,7 @@ function AddNewDevice({ onDeviceAdded }) {
               value={version}
               onChange={setVersion}
               styles={customStyles('325px')}
+              isDisabled={true}
             />
           </div>
         </div>
@@ -125,11 +132,8 @@ function AddNewDevice({ onDeviceAdded }) {
       {success && <div style={{ color: 'green', marginTop: '10px' }}>Device added successfully!</div>}
 
       <div className="searchButtonContainer">
-        <button onClick={handleClear} className="searchButton">
-          Clear and Hide
-        </button>
         <button onClick={handleSubmit} className="searchButton">
-          Add and configure
+          Add Device
         </button>
       </div>
     </div>

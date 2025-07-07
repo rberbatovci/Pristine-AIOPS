@@ -1,0 +1,20 @@
+[
+    {
+        "id": 1,
+        "name": "InterfaceLinkDown",
+        "opensignalmnemonic": "LINEPROTO-5-UPDOWN",
+        "closesignalmnemonic": "LINEPROTO-5-UPDOWN",
+        "opensignaltag": "State",
+        "opensignalvalue": "down",
+        "closesignaltag": "State",
+        "closesignalvalue": "up",
+        "initialseverity": "medium",
+        "affectedentity": [
+            "Interface"
+        ],
+        "description": "Interface changed state to down!",
+        "warmup": 30,
+        "cooldown": 30,
+        "device_hostnames": []
+    }
+]

@@ -26,7 +26,7 @@ const SearchTime = ({ onTimeRangeSelect, onTimeRangeChange }) => {
     };
 
     return (
-        <div className="timeButtonsContainer">
+        <div className="signalTagContainer">
             <div className="button-group" style={{background: 'var(--background3)'}}>
                 {[
                     { label: '1 Hour', value: 'last_1_hour' },
@@ -38,7 +38,7 @@ const SearchTime = ({ onTimeRangeSelect, onTimeRangeChange }) => {
                 ].map(({ label, value }) => (
                     <button
                         key={value}
-                        className={`button ${activeRange === value ? 'button-active' : ''}`}
+                        className={`signalTagItem ${activeRange === value ? 'selected' : ''}`}
                         onClick={() => handleTimeRangeSelect(value)}
                     >
                         {label}

@@ -123,7 +123,7 @@ class RuleInfo(BaseModel):
     name: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class MnemonicSyslog(BaseModel):
@@ -209,4 +209,4 @@ class MnemonicWithRules(MnemonicSyslog):
     rules: List[str] = []  # New field for rule names
 
     class Config:
-        orm_mode = True
+        from_attributes = True

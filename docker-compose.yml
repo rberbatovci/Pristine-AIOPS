@@ -66,9 +66,12 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_CREATE_TOPICS: "telemetry-topic-100:1:1,syslog-topic:1:1,trap-topic:1:1,netflow-topic:1:1,syslog-signals:1:1,trap-signals:1:1"
+      KAFKA_CREATE_TOPICS: "cpu-statistics-signals:1:1,cpu-utilization:1:1,memory-statistics:1:1,interface-statistics:1:1,bgp-connections:1:1,isis-statistics:1:1,syslog-topic:1:1,trap-topic:1:1,netflow-topic:1:1,syslog-signals:1:1,trap-signals:1:1"
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_OFFSETS_TOPIC_NUM_PARTITIONS: 50
+      KAFKA_BROKER_ID: 1
+      KAFKA_NUM_PARTITIONS: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
     ports:
       - "9092:9092"
     depends_on:
@@ -180,7 +183,7 @@ services:
       context: ./syslogs
       dockerfile: Dockerfile.consumer
     volumes:
-      - ./syslogs:/app/syslogs
+      - ./syslogs/rules:/app/syslogs/rules
     command: python /app/syslogs/consumer.py
     depends_on:
       kafka:
@@ -194,7 +197,7 @@ services:
       context: ./signals
       dockerfile: Dockerfile.syslogSignals
     volumes:
-      - ./signals:/app/signals
+      - ./signals/rules:/app/signals/rules
     command: python /app/signals/syslog-signals.py
     depends_on:
       kafka: 
@@ -208,7 +211,7 @@ services:
       context: ./signals
       dockerfile: Dockerfile.trapSignals
     volumes:
-      - ./signals:/app/signals
+      - ./signals/rules:/app/signals/rules
     command: python /app/signals/trap-signals.py
     depends_on:
       kafka: 
@@ -238,7 +241,7 @@ services:
       context: ./traps
       dockerfile: Dockerfile.consumer
     volumes:
-      - ./traps:/app/traps
+      - ./traps/rules:/app/traps/rules
     command: python /app/traps/consumer.py
     depends_on:
       kafka:
@@ -273,8 +276,8 @@ services:
     networks:
       - kafka-net
 
-  telemetry-producer:
-    container_name: TelemetryProducer
+  telemetry-xe-producer:
+    container_name: TelemetryXEProducer
     build:
       context: ./telemetry
       dockerfile: producer/Dockerfile.producer
@@ -291,11 +294,30 @@ services:
     networks:
       - kafka-net
 
-  interface-statistics:
-    container_name: InterfaceStatistics
+  telemetry-xr-producer:
+    container_name: TelemetryXRProducer
     build:
       context: ./telemetry
-      dockerfile: consumer/Dockerfile.consumer
+      dockerfile: producer-xr/Dockerfile.producer
+    environment:
+      - KAFKA_BROKER=kafka:9092
+      - KAFKA_TOPIC=telemetry-topic
+    ports:
+      - "1164:1164"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      zookeeper:
+        condition: service_healthy
+    networks:
+      - kafka-net
+
+
+  cpu-statistics:
+    container_name: CpuStatistics
+    build:
+      context: ./telemetry
+      dockerfile: cpu-util-consumer/Dockerfile.consumer
     depends_on:
       kafka:
         condition: service_healthy
@@ -309,21 +331,7 @@ services:
     container_name: MemoryStatistics
     build:
       context: ./telemetry
-      dockerfile: consumer/Dockerfile.consumer
-    depends_on:
-      kafka:
-        condition: service_healthy
-      opensearch:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - kafka-net
-
-  cpu-statistics:
-    container_name: CpuStatistics
-    build:
-      context: ./telemetry
-      dockerfile: consumer/Dockerfile.consumer
+      dockerfile: mem-stats-consumer/Dockerfile.consumer
     depends_on:
       kafka:
         condition: service_healthy
@@ -333,6 +341,34 @@ services:
     networks:
       - kafka-net
       
+  interface-statistics:
+    container_name: InterfaceStatistics
+    build:
+      context: ./telemetry
+      dockerfile: interface-stats-consumer/Dockerfile.consumer
+    depends_on:
+      kafka:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - kafka-net
+  
+  bgp-conections-statistics:
+    container_name: BGPConnectionsStatistics
+    build:
+      context: ./telemetry
+      dockerfile: bgp-connections-consumer/Dockerfile.consumer
+    depends_on:
+      kafka:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - kafka-net
+    
 volumes:
   postgres_data:
   opensearch-data1:

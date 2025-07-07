@@ -12,10 +12,10 @@
     ansible_host: "{{ router_ip }}"
 
   tasks:
-    - name: Configure telemetry subscription 103 (BGP neighbor connection)
+    - name: Configure telemetry subscription 104 (BGP neighbor connection)
       ios_config:
         lines:
-          - telemetry ietf subscription 103
+          - telemetry ietf subscription 104
           -  encoding encode-kvgpb
           -  filter xpath /bgp-state-data/neighbors/neighbor/connection
           -  stream yang-push

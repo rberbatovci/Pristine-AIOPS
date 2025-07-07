@@ -4,7 +4,7 @@ from app.signals.models import SyslogSignalSeverity
 from app.signals.schemas import SyslogSignalSeverityBase
 from app.syslogs.models import Mnemonic
 from app.db.session import get_db, opensearch_client
-from app.syslogs.services import update_mnemonics_list_in_json
+from .services import updateMnemonicSettings
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
@@ -468,6 +468,7 @@ def get_affected_entity_statistics(entity_key: str):
     }
 
 
+
 @router.get("/syslogsignals/syslogsignalseverity", response_model=SyslogSignalSeverityBase)
 async def get_settings(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(SyslogSignalSeverity).where(SyslogSignalSeverity.id == 1))
@@ -500,6 +501,6 @@ async def update_settings(updated_settings: SyslogSignalSeverityBase, db: AsyncS
     await db.refresh(settings)
 
     # Save to file after updating/creating severity
-    await update_mnemonics_list_in_json(db)
+    await updateMnemonicSettings(db)
 
     return settings

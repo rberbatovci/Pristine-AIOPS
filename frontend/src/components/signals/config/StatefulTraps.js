@@ -169,18 +169,18 @@ const StatefulTraps = () => {
     }
 
     return (
-        <div className="signalConfigRuleContainer">
+        <div className="dropdownConfigContainer" style={{ height: '500px'}}>
             {isLoading ? (
                 <div className="signalConfigRuleMessage">Loading stateful syslog rules. Please wait...</div>
             ) : error ? (
                 <div className="signalConfigRuleMessage">{error}</div>
             ) : (
                 <>
-                    <div className="signalConfigRuleContent">
-                        <div className="signalConfigRulesList">
+                    <div style={{ display: 'flex', padding: '10px' }}>
+                        <div style={{ width: '270px', padding: '8px', background: 'var(--backgroundColor3)', borderRadius: '8px' }}>
                             <ul>
                                 <li
-                                    className={`button ${isAddingNewRule ? 'button-active' : ''}`}
+                                    className={`signalTagItem ${isAddingNewRule ? 'selected' : ''}`}
                                     onClick={() => {
                                         setIsAddingNewRule(true);
                                         setSelectedOption(null);
@@ -206,7 +206,7 @@ const StatefulTraps = () => {
                                 {snmpTrapRule.map((rule) => (
                                     <li
                                         key={rule.id}
-                                        className={`button ${selectedOption && selectedOption.id === rule.id ? 'button-active' : ''}`}
+                                        className={`signalTagItem ${selectedOption && selectedOption.id === rule.id ? 'selected' : ''}`}
                                         onClick={() => handleOptionChange(rule)}
                                     >
                                         {rule.name}
@@ -214,7 +214,7 @@ const StatefulTraps = () => {
                                 ))}
                             </ul>
                         </div>
-                        <div style={{ width: '570px', margin: '5px' }}>
+                        <div style={{ width: '570px', margin: '5px', background: 'var(--backgroundColor3)', borderRadius: '8px', color: 'var(--textColor)' }}>
                             <div className="tag-details" style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
                                 <div style={{ height: '400px', overflowY: 'auto', padding: '8px' }}>
                                     <div style={{ marginTop: '5px' }}>
@@ -224,7 +224,7 @@ const StatefulTraps = () => {
                                             name="name"
                                             value={newRule.name}
                                             className="inputText"
-                                            style={{ width: '535px' }}
+                                            style={{ width: '500px' }}
                                             onChange={(e) =>
                                                 setNewRule({ ...newRule, name: e.target.value })
                                             }
@@ -244,7 +244,7 @@ const StatefulTraps = () => {
                                                 label: device.hostname,
                                             }))}
                                             onChange={handleHostnameChange}
-                                            styles={customStyles('540px')}
+                                            styles={customStyles('505px')}
                                         />
                                     </div>
                                     {newRule.devices && newRule.devices.length > 0 && (
@@ -287,7 +287,7 @@ const StatefulTraps = () => {
                                             }))}
                                             onChange={(selectedOption) =>
                                                 setNewRule({ ...newRule, opensignaltrap: selectedOption.value })}
-                                            styles={customStyles('540px')}
+                                            styles={customStyles('505px')}
                                         />
                                     </div>
                                     <div style={{ marginTop: '5px', display: 'flex' }}>
@@ -299,7 +299,7 @@ const StatefulTraps = () => {
                                                 options={trapTags}
                                                 onChange={(selectedOption) =>
                                                     setNewRule({ ...newRule, opensignaltag: selectedOption.value })}
-                                                styles={customStyles('260px')}
+                                                styles={customStyles('243px')}
                                                 isMulti={false}
                                             />
                                         </div>
@@ -310,7 +310,7 @@ const StatefulTraps = () => {
                                                 name="opensignalvalue"
                                                 value={newRule.opensignalvalue}
                                                 className="inputText"
-                                                style={{ width: '260px' }}
+                                                style={{ width: '243px' }}
                                                 onChange={(e) =>
                                                     setNewRule({ ...newRule, opensignalvalue: e.target.value })
                                                 }
@@ -329,7 +329,7 @@ const StatefulTraps = () => {
                                             }))}
                                             onChange={(selectedOption) =>
                                                 setNewRule({ ...newRule, closesignaltrap: selectedOption.value })}
-                                            styles={customStyles('540px')}
+                                            styles={customStyles('505px')}
                                         />
                                     </div>
                                     <div style={{ marginTop: '5px', display: 'flex' }}>
@@ -341,7 +341,7 @@ const StatefulTraps = () => {
                                                 options={trapTags}
                                                 onChange={(selectedOption) =>
                                                     setNewRule({ ...newRule, closesignaltag: selectedOption.value })}
-                                                styles={customStyles('260px')}
+                                                styles={customStyles('243px')}
                                                 isMulti={false}
                                             />
                                         </div>
@@ -352,7 +352,7 @@ const StatefulTraps = () => {
                                                 name="closesignalvalue"
                                                 value={newRule.closesignalvalue}
                                                 className="inputText"
-                                                style={{ width: '260px' }}
+                                                style={{ width: '243px' }}
                                                 onChange={(e) =>
                                                     setNewRule({ ...newRule, closesignalvalue: e.target.value })
                                                 }
@@ -371,7 +371,7 @@ const StatefulTraps = () => {
                                                     affectedentity: selectedOptions ? selectedOptions.map(option => option.label) : []
                                                 })
                                             }
-                                            styles={customStyles('540px')}
+                                            styles={customStyles('505px')}
                                             isMulti
                                         />
                                     </div>
@@ -388,7 +388,7 @@ const StatefulTraps = () => {
                                             ]}
                                             onChange={(selectedOption) =>
                                                 setNewRule({ ...newRule, initialseverity: selectedOption.value })}
-                                            styles={customStyles('540px')}
+                                            styles={customStyles('505px')}
                                             isMulti={false}
                                         />
                                     </div>
@@ -399,7 +399,7 @@ const StatefulTraps = () => {
                                             name="description"
                                             value={newRule.description}
                                             className="inputText"
-                                            style={{ width: '535px' }}
+                                            style={{ width: '500px' }}
                                             onChange={(e) =>
                                                 setNewRule({ ...newRule, description: e.target.value })
                                             }
@@ -413,7 +413,7 @@ const StatefulTraps = () => {
                                                 name="warmup"
                                                 value={newRule.warmup}
                                                 className="inputText"
-                                                style={{ width: '260px' }}
+                                                style={{ width: '243px' }}
                                                 onChange={(e) =>
                                                     setNewRule({ ...newRule, warmup: parseInt(e.target.value, 10) || 0 })
                                                 }
@@ -426,7 +426,7 @@ const StatefulTraps = () => {
                                                 name="cooldown"
                                                 value={newRule.cooldown}
                                                 className="inputText"
-                                                style={{ width: '260px' }}
+                                                style={{ width: '243px' }}
                                                 onChange={(e) =>
                                                     setNewRule({ ...newRule, cooldown: parseInt(e.target.value, 10) || 0 })
                                                 }

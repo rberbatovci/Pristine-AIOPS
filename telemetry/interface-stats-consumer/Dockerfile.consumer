@@ -1,0 +1,27 @@
+FROM golang:1.23-alpine AS builder
+
+WORKDIR /app/telemetry/interface-stats-consumer
+
+# Copy go.mod and go.sum for interface-stats-consumer
+COPY interface-stats-consumer/go.mod interface-stats-consumer/go.sum ./
+
+# Copy protobuf module folder one level up from interface-stats-consumer (to match ../protobuf)
+COPY protobuf /app/telemetry/protobuf
+
+# Copy interface-stats-consumer source files
+COPY interface-stats-consumer/. .
+
+RUN go mod download
+
+# Build your binary
+RUN go build -o consumer main.go
+
+FROM alpine:3.18
+
+WORKDIR /app/telemetry/interface-stats-consumer
+
+COPY --from=builder /app/telemetry/interface-stats-consumer/consumer .
+
+RUN apk add --no-cache bash
+
+CMD ["./consumer"]

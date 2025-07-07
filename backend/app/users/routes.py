@@ -8,7 +8,7 @@ from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
 from app.core.config import settings
-from .models import User  
+from app.users.models import User
 
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -41,12 +41,18 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
         raise credentials_exception
     return user
 
-@router.post("/users/", response_model=UserResponse)
+@router.post("/users/register/", response_model=UserResponse)
 async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
-    db_user = await get_user_by_username(db, user.username)
-    if db_user:
-        raise HTTPException(status_code=400, detail="Username already registered")
-    return await create_user_in_db(db, user)
+    try:
+        print("Received user:", user.dict())
+        db_user = await get_user_by_username(db, user.username)
+        if db_user:
+            raise HTTPException(status_code=400, detail="Username already registered")
+        return await create_user_in_db(db, user)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=400, detail=f"Registration error: {str(e)}")
 
 @router.get("/users/me/", response_model=UserResponse)
 async def read_users_me(current_user: User = Depends(get_current_user)):

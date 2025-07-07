@@ -114,7 +114,7 @@ const SnmpTrapOid = ({ currentUser }) => {
                         background: 'var(--backgroundColor3)',
                         borderRadius: '8px',
                         display: 'block',
-                        width: '200px',
+                        width: '250px',
                     }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <input
@@ -138,14 +138,7 @@ const SnmpTrapOid = ({ currentUser }) => {
                                 {filteredSnmpTrapOids.map((trapOid, index) => (
                                     <li
                                         key={index}
-                                        style={{
-                                            padding: '8px 12px',
-                                            marginBottom: '6px',
-                                            background: 'var(--buttonBackground)',
-                                            borderRadius: '4px',
-                                            cursor: 'pointer',
-                                            opacity: selectedTrapOid?.id === trapOid.id ? '1' : '0.7',
-                                        }}
+                                        className={`signalTagItem ${selectedTrapOid && selectedTrapOid.id === trapOid.id ? 'selected' : ''}`}
                                         onClick={() => handleTrapOidSelect(trapOid)}
                                     >
                                         {trapOid.name} ({trapOid.oid})
@@ -157,10 +150,7 @@ const SnmpTrapOid = ({ currentUser }) => {
                 )}
             </div>
             {selectedTrapOid && (
-                <div style={{ flex: 1, padding: '10px', background: 'var(--backgroundColor3)', borderRadius: '8px' }}> {/* Right side */}
-                    <div style={{ marginBottom: '15px', borderBottom: '1px solid var(--borderColor)' }}>
-                        <h3>Edit SNMP Trap OID</h3>
-                    </div>
+                <div style={{ padding: '14px', background: 'var(--backgroundColor3)', color: 'var(--textColor)', borderRadius: '8px', height: '280px', overflowY: 'auto' }}>
                     <div style={{ marginBottom: '10px' }}>
                         <span>Name:</span>
                         <input
@@ -168,7 +158,7 @@ const SnmpTrapOid = ({ currentUser }) => {
                             name="name"
                             value={selectedTrapOid?.name || ''}
                             className="inputText"
-                            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--borderColor)', background: 'var(--inputBackground)', color: 'var(--textColor)' }}
+                            style={{ width: '325px' }}
                             readOnly
                         />
                     </div>
@@ -179,7 +169,7 @@ const SnmpTrapOid = ({ currentUser }) => {
                             name="label"
                             value={selectedTrapOid?.label || ''}
                             className="inputText"
-                            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--borderColor)', background: 'var(--inputBackground)', color: 'var(--textColor)' }}
+                            style={{ width: '325px' }}
                             readOnly
                         />
                     </div>
@@ -191,7 +181,7 @@ const SnmpTrapOid = ({ currentUser }) => {
                             value={selectedTagsForOid}
                             options={availableTags}
                             onChange={handleTagsChange}
-                            styles={customStyles}
+                            styles={customStyles('330px')}
                             placeholder="Select tags"
                         />
                     </div>

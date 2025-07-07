@@ -258,7 +258,7 @@ async def create_snmpTrapOid(snmpTrapOid: TrapOidCreate, db: AsyncSession = Depe
     # Check if mnemonic exists
     existing = await db.execute(select(TrapOidModel).filter(TrapOidModel.name == snmpTrapOid.name))
     if existing.scalars().first():
-        raise HTTPException(status_code=400, detail="Mnemonic already exists")
+        raise HTTPException(status_code=400, detail="SNMP Trap OID already exists")
 
     # Create new mnemonic
     db_snmpTrapOid = TrapOidModel(

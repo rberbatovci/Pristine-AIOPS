@@ -19,6 +19,7 @@ import UploadMIB from '../components/snmptraps/UploadMIB.js';
 import { PiUploadBold, PiUploadFill } from "react-icons/pi";
 import SnmpTrapOid from '../components/snmptraps/SnmpTrapOid.js';
 import TrapTags from '../components/snmptraps/TrapTags.js';
+import Pagination from '@mui/material/Pagination';
 
 function EventsDatabase({ currentUser }) {
     const [loading, setLoading] = useState(false);
@@ -40,7 +41,7 @@ function EventsDatabase({ currentUser }) {
         trapTags: { visible: false, position: { x: 0, y: 0 } },
     });
     const [page, setPage] = useState(1);
-    const [pageSize, setPageSize] = useState(19);
+    const [pageSize, setPageSize] = useState(20);
     const [totalEvents, setTotalEvents] = useState(0);
     const baseColumns = {
         syslogs: ['timestamp', 'device', 'severity', 'mnemonic', 'message'],
@@ -76,7 +77,7 @@ function EventsDatabase({ currentUser }) {
     const [syslogTags, setSyslogTags] = useState([]);
     const [devices, setDevices] = useState([]);
     const [timeRange, setTimeRange] = useState('last_4_hour');
-
+    const totalPages = Math.ceil(totalEvents / pageSize);
     const handleButtonClick = (event, dropdownKey) => {
         const updatedDropdowns = Object.keys(dropdowns).reduce((acc, key) => {
             acc[key] = { ...dropdowns[key], visible: false };
@@ -95,7 +96,7 @@ function EventsDatabase({ currentUser }) {
     const loadData = (
         dataSource,
         page = 1,
-        pageSize = 19,
+        pageSize = 20,
         timeRange2 = timeRange,
         startTime = null,
         endTime = null,
@@ -354,7 +355,7 @@ function EventsDatabase({ currentUser }) {
                 <div className="mainContainerButtons">
                     {dataSource === 'syslogs' && (
                         <>
-                            
+
                             <button
                                 className={`iconButton ${dropdowns.mnemonics.visible ? 'active' : ''}`}
                                 onClick={(event) => handleButtonClick(event, 'mnemonics')}
@@ -452,27 +453,34 @@ function EventsDatabase({ currentUser }) {
                         />
                     </div>
                 )}
-                <div className="paginationContainer">
-                    <div onClick={handlePrevPage} disabled={page === 1} style={{ cursor: 'pointer', marginLeft: '10px' }}>
-                        <BsArrowLeftCircle /> Previous
-                    </div>
-                    <div>
-                        <label htmlFor="syslogsPerPage">Syslogs Per Page:</label>
+                <div className="paginationContainer" >
+
+                    <div style={{ paddingLeft: '20px' }}>
+                        <span>Events Per Page: </span>
                         <input
                             type="number"
                             id="syslogsPerPage"
                             value={pageSize}
                             min="1"
                             onChange={handlePageSizeChange}
-
+                            style={{ width: '30px', background: 'none', marginRight: '6px', border: 'none', outline: 'none', paddingLeft: '10px', padding: '5px', borderRadius: '5px', color: 'var(--textColor)' }}
                         />
+
                     </div>
-                    <div>
-                        Page {page} of totalPages | Total Entries: {totalEvents}
-                    </div>
-                    <div onClick={handleNextPage} disabled={page * pageSize >= totalEvents} style={{ cursor: 'pointer', marginRight: '10px', }}>
-                        Next <BsArrowRightCircle />
-                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', marginTop: '10px' }}>
+                        <Pagination
+                            count={totalPages}
+                            page={page}
+                            onChange={(event, value) => setPage(value)}
+                            shape="rounded"
+                            color="primary" // optional: change to "secondary", or customize with sx
+                            sx={{
+                                '& .MuiPaginationItem-root': {
+                                    color: 'var(--textColor)', // your custom theme color
+                                }
+                            }}
+                        /></div>
+                    <div style={{ paddingRight: '20px' }}><span>Total Entries: {totalEvents}</span></div>
                 </div>
             </div>
             <div
@@ -503,7 +511,7 @@ function EventsDatabase({ currentUser }) {
             </div>
             <div
                 className={`dropdownMenu ${dropdowns.timerangeFilters.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
-                style={{ width: '460px' }}
+                style={{ width: '500px' }}
             >
                 <SearchTime
                     onTimeRangeSelect={handleTimeRangeSelect}
@@ -531,7 +539,6 @@ function EventsDatabase({ currentUser }) {
                     width: 'auto',
                     maxHeight: '740px',
                     overflow: 'hidden',
-                    marginRight: '70px',
                 }}>
                 <SnmpTrapOid
                     currentUser={currentUser}

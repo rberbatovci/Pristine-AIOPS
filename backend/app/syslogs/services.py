@@ -15,16 +15,15 @@ from app.devices.models import Device
 from datetime import datetime, timezone
 from pathlib import Path
 
-SHARED_DATA_DIR = "/app/syslogs"
+SHARED_DATA_DIR = "/app/syslogs/rules"
 REGEX_JSON_PATH = os.path.join(SHARED_DATA_DIR, "regex_data.json")
 MNEMONICS_JSON_PATH = os.path.join(SHARED_DATA_DIR, "mnemonics.json")
-MNEMONICS_FILE = Path("/app/syslogs/mnemonics.json")
 
 def create_mnemonic_in_file(name: str, level: int, severity: int):
-    if not MNEMONICS_FILE.exists():
-        raise FileNotFoundError(f"{MNEMONICS_FILE} does not exist")
+    if not Path(MNEMONICS_JSON_PATH).exists():
+        raise FileNotFoundError(f"{MNEMONICS_JSON_PATH} does not exist")
 
-    with open(MNEMONICS_FILE, "r") as f:
+    with open(MNEMONICS_JSON_PATH, "r") as f:
         data = json.load(f)
 
     # Avoid duplicate entries by name
@@ -41,7 +40,7 @@ def create_mnemonic_in_file(name: str, level: int, severity: int):
 
     data.setdefault("mnemonics", []).append(new_mnemonic)
 
-    with open(MNEMONICS_FILE, "w") as f:
+    with open(MNEMONICS_JSON_PATH, "w") as f:
         json.dump(data, f, indent=4)
 
 async def updateSeveritySettings(db: AsyncSession):
@@ -103,7 +102,7 @@ async def save_statefulrules_to_file(db: AsyncSession):
                 "device_hostnames": [device.hostname for device in rule.devices],
             })
 
-        STATEFUL_RULES_JSON_PATH = "/app/signals/statefulSyslogRules.json"
+        STATEFUL_RULES_JSON_PATH = "/app/signals/rules/statefulSyslogRules.json"
         os.makedirs(os.path.dirname(STATEFUL_RULES_JSON_PATH), exist_ok=True)
 
         with open(STATEFUL_RULES_JSON_PATH, "w") as f:
@@ -115,7 +114,7 @@ async def save_statefulrules_to_file(db: AsyncSession):
         print(f"Error writing statefulrules.json: {e}")
 
 async def remove_rule_from_json(rule_name: str):
-    STATEFUL_RULES_JSON_PATH = "/app/signals/statefulSyslogRules.json"
+    STATEFUL_RULES_JSON_PATH = "/app/signals/rules/statefulSyslogRules.json"
     print(f">>> Attempting to remove rule '{rule_name}' from JSON")
 
     try:
@@ -143,10 +142,13 @@ async def remove_rule_from_json(rule_name: str):
         traceback.print_exc()
 
 async def update_mnemonics_list_in_json(db: AsyncSession):
-    if not MNEMONICS_FILE.exists():
-        raise FileNotFoundError(f"{MNEMONICS_FILE} not found.")
 
-    with MNEMONICS_FILE.open("r") as f:
+    MnemonicPath = Path(MNEMONICS_JSON_PATH)
+
+    if not MnemonicPath.exists():
+        raise FileNotFoundError(f"{MnemonicPath} not found.")
+
+    with MnemonicPath.open("r") as f:
         data = json.load(f)
 
     if "mnemonics" not in data:
@@ -195,14 +197,17 @@ async def update_mnemonics_list_in_json(db: AsyncSession):
 
         json_mnemonic["rules"] = list(mnemonic_to_rules.get(db_mnemonic.name, []))
 
-    with MNEMONICS_FILE.open("w") as f:
+    with MnemonicPath.open("w") as f:
         json.dump(data, f, indent=4)
 
 async def save_rules_to_mnemonic(db: AsyncSession):
-    if not MNEMONICS_FILE.exists():
-        raise FileNotFoundError(f"{MNEMONICS_FILE} not found.")
 
-    with MNEMONICS_FILE.open("r") as f:
+    MnemonicPath = Path(MNEMONICS_JSON_PATH)
+
+    if not MnemonicPath.exists():
+        raise FileNotFoundError(f"{MnemonicPath} not found.")
+
+    with MnemonicPath.open("r") as f:
         data = json.load(f)
 
     if "mnemonics" not in data:
@@ -237,14 +242,16 @@ async def save_rules_to_mnemonic(db: AsyncSession):
             if rule.name not in rules_list:
                 rules_list.append(rule.name)
 
-    with MNEMONICS_FILE.open("w") as f:
+    with MnemonicPath.open("w") as f:
         json.dump(data, f, indent=4)
 
 async def remove_rule_from_mnemonics_json(rule_name: str, open_mnemonic_name: str, close_mnemonic_name: str):
-    if not MNEMONICS_FILE.exists():
-        raise FileNotFoundError(f"{MNEMONICS_FILE} not found.")
+    MnemonicPath = Path(MNEMONICS_JSON_PATH)
 
-    with MNEMONICS_FILE.open("r") as f:
+    if not MnemonicPath.exists():
+        raise FileNotFoundError(f"{MnemonicPath} not found.")
+
+    with MnemonicPath.open("r") as f:
         data = json.load(f)
 
     if "mnemonics" not in data:
@@ -258,7 +265,7 @@ async def remove_rule_from_mnemonics_json(rule_name: str, open_mnemonic_name: st
                 updated = True
 
     if updated:
-        with MNEMONICS_FILE.open("w") as f:
+        with MnemonicPath.open("w") as f:
             json.dump(data, f, indent=4)
 
 async def create_syslog(db: AsyncSession, syslog: SyslogCreate):

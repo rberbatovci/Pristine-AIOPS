@@ -2,8 +2,16 @@ import React, { useState, useEffect } from 'react';
 import '../css/Devices.css';
 import AddNew from '../components/devices/AddNew';
 import List from '../components/devices/List';
+import SyslogConfig from '../components/devices/SyslogConfig';
+import SnmpTrapConfig from '../components/devices/SnmpTrapConfig';
+import NetflowConfig from '../components/devices/NetflowConfig';
+import TelemetryConfig from '../components/devices/TelemetryConfig';
 import Info from '../components/devices/Info';
+import CPUUtilsStats from '../components/devices/CPUUtilsStats';
+import MemoryStats from '../components/devices/MemoryStats';
 import InterfaceStats from '../components/devices/InterfaceStats';
+import BGPStats from '../components/devices/BGPStats';
+import ISISStats from '../components/devices/ISISStats';
 import Dashboard from '../components/devices/Dashboard';
 import { IoSettingsOutline, IoSettingsSharp } from "react-icons/io5";
 import { IoMdRefresh, IoMdRefreshCircle } from "react-icons/io";
@@ -19,30 +27,14 @@ function Devices({ currentUser }) {
     const [selectedDevice, setSelectedDevice] = useState(null);
     const [isDropdownVisible, setIsDropdownVisible] = useState(false);
     const [activeDropdown, setActiveDropdown] = useState(null);
-    const [dropdowns, setDropdowns] = useState({
-        addNewDevice: { visible: false, position: { x: 0, y: 0 } },
-    });
+
     const [hostname, setHostname] = useState('');
     const [version, setVersion] = useState('');
+    const [activeConfig, setActiveConfig] = useState(null);
 
-    const handleButtonClick = (event, dropdownKey) => {
-        // Create a new dropdowns object with all dropdowns set to hidden
-        const updatedDropdowns = Object.keys(dropdowns).reduce((acc, key) => {
-            acc[key] = { ...dropdowns[key], visible: false };
-            return acc;
-        }, {});
-
-        // Toggle visibility of the selected dropdown
-        setDropdowns({
-            ...updatedDropdowns,
-            [dropdownKey]: {
-                ...dropdowns[dropdownKey],
-                visible: !dropdowns[dropdownKey].visible,
-            },
-        });
+    const handleConfigClick = (type) => {
+        setActiveConfig(prev => prev === type ? null : type);
     };
-
-
 
     useEffect(() => {
         const fetchDevices = async () => {
@@ -52,6 +44,8 @@ function Devices({ currentUser }) {
                     id: device.id,
                     hostname: device.hostname,
                     ip_address: device.ip_address,
+                    version: device.version,
+                    vendor: device.vendor,
                     label: device.hostname,
                 }));
                 setDevices(devices);
@@ -69,8 +63,7 @@ function Devices({ currentUser }) {
 
     const handleDeviceSelect = async (device) => {
         console.log('Selected device:', device);
-        setSelectedDevice(device);  // Temporarily set selected device to update UI
-
+        setSelectedDevice(device);
         try {
             const response = await apiClient.get(`/devices/${device.hostname}/`);
             setSelectedDevice(response.data);
@@ -92,7 +85,7 @@ function Devices({ currentUser }) {
         setDevices((prevDevices) =>
             prevDevices.filter((device) => device.id !== deviceId)
         );
-        setSelectedDevice(null); // Clear the selected device after deletion
+        setSelectedDevice(null);
     };
 
     const handleDeviceDeselect = () => {
@@ -110,7 +103,7 @@ function Devices({ currentUser }) {
         }
     };
 
-    const handleNewDevice  = {
+    const handleNewDevice = {
 
     };
 
@@ -118,7 +111,7 @@ function Devices({ currentUser }) {
         <div className="signals-container" style={{ width: selectedDevice ? '80%' : '50%' }}>
             <div className="left-column" style={{ width: selectedDevice ? '40%' : '100%', height: '100vh' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <h2 style={{ marginTop: '-5px', paddingLeft: '20px', fontSize: '23px', color: 'var(--text-color)' }}>Incidents Dashboard</h2>
+                    <h2 style={{ marginTop: '-5px', paddingLeft: '20px', fontSize: '23px', color: 'var(--text-color)' }}>Devices Management</h2>
                     <div style={{ marginRight: '10px', display: 'flex', alignItems: 'center' }}>
                         <input
                             type="text"
@@ -154,8 +147,8 @@ function Devices({ currentUser }) {
                     </div>
                 </div>
                 {isDropdownVisible && (
-                    <div style={{ position: 'absolute', borderRadius: '10px', right: '10px', background: 'var(--dropdownBackground)',  width: '365px' }}>
-                        {activeDropdown === 'addNew' && <AddNew onDeviceAdded={handleNewDevice}/>}
+                    <div className={`dropdownMenu ${isDropdownVisible ? 'dropdownVisible' : 'dropdownHidden'}`} style={{ width: '370px'}}>
+                        {activeDropdown === 'addNew' && <AddNew onDeviceAdded={handleNewDevice} />}
                     </div>
                 )}
                 <div style={{ marginTop: '10px', marginLeft: '10px', marginRight: '10px', marginBottom: '5px', background: 'var(--backgroundColor3)', padding: '10px', borderRadius: '10px', height: 'calc(100vh - 185px)', overflowY: 'auto' }}>
@@ -173,11 +166,60 @@ function Devices({ currentUser }) {
                         <div className="right-content">
                             {showComponents && (
                                 <>
-                                    <Info currentUser={currentUser} selectedDevice={selectedDevice} onDeviceDeselect={handleDeviceDeselect} />
-                                    <InterfaceStats currentUser={currentUser} selectedDevice={selectedDevice} />
+                                    <Info
+                                        currentUser={currentUser}
+                                        selectedDevice={selectedDevice}
+                                        onDeviceDeselect={handleDeviceDeselect}
+                                        onConfigClick={handleConfigClick}
+                                    />
+
+                                    {/* Dynamically render telemetry stats based on what's enabled */}
+                                    {selectedDevice.features?.telemetry?.cpu_util && (
+                                        <CPUUtilsStats currentUser={currentUser} selectedDevice={selectedDevice.hostname} />
+                                    )}
+                                    {selectedDevice.features?.telemetry?.memory_stats && (
+                                        <MemoryStats currentUser={currentUser} selectedDevice={selectedDevice} />
+                                    )}
+                                    {selectedDevice.features?.telemetry?.interface_stats && (
+                                        <InterfaceStats currentUser={currentUser} selectedDevice={selectedDevice} />
+                                    )}
+                                    {selectedDevice.features?.telemetry?.bgp_connections && (
+                                        <BGPStats currentUser={currentUser} selectedDevice={selectedDevice} />
+                                    )}
+                                    {selectedDevice.features?.telemetry?.isis_stats && (
+                                        <ISISStats currentUser={currentUser} selectedDevice={selectedDevice} />
+                                    )}
                                 </>
                             )}
                         </div>
+                        {activeConfig && (
+                            <div
+                                className="dropdownMenu dropdownVisible"
+                                style={{
+                                    width:
+                                        activeConfig === 'syslogs' ? '340px' :
+                                            activeConfig === 'netflow' ? '400px' :
+                                                activeConfig === 'telemetry' ? '250px' :
+                                                    '420px', // fallback
+                                    marginTop: '30px',
+                                    right: '30px',
+                                    position: 'absolute',
+                                }}
+                            >
+                                {activeConfig === 'syslogs' && (
+                                    <SyslogConfig hostname={selectedDevice.hostname} version={selectedDevice.version} />
+                                )}
+                                {activeConfig === 'snmpTraps' && (
+                                    <SnmpTrapConfig hostname={selectedDevice.hostname} version={selectedDevice.version} />
+                                )}
+                                {activeConfig === 'netflow' && (
+                                    <NetflowConfig hostname={selectedDevice.hostname} version={selectedDevice.version} />
+                                )}
+                                {activeConfig === 'telemetry' && (
+                                    <TelemetryConfig hostname={selectedDevice.hostname} version={selectedDevice.version} telemetryFeatures={selectedDevice.features?.telemetry || {}} />
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

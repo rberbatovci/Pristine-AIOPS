@@ -19,25 +19,36 @@
   
   .right-content-wrapper {
     flex: 1;
+    
   }
   
   .right-content {
     display: flex;
     flex-direction: column;
     white-space: nowrap;
+    
   }
   
   .right-column {
-    padding-top: 20px;
-    padding-bottom: 20px;
-    display: flex;
-    flex-direction: column;
-    height: calc(100% - 80px); /* Adjusted height to account for padding */
-    position: relative;
-    width: 60%;
-    max-width: 60%;
-    flex-grow: 0;
-  }
+  padding-top: 10px;
+  padding-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - 40px);
+  position: relative;
+  width: 60%;
+  max-width: 60%;
+  flex-grow: 0;
+  overflow-y: auto;
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;  /* IE and Edge */
+}
+
+.right-column::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
+}
   
   .right-column > div:first-child {
     flex: 0 0 25%; /* Set height of the first div to 30% */
@@ -69,6 +80,14 @@
   
   .signalRightElementContainer.expanded {
     height: 240px;
+  }
+
+  .signalRightElementContainer.memoryStatistics {
+    height: 350px;
+  }
+
+  .signalRightElementContainer.interfaceStatistics {
+    height: 340px;
   }
   
   .signalRightElementContainer.collapsed {

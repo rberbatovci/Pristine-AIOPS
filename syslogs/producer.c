@@ -140,6 +140,8 @@ int main() {
     // Set up signal handlers
     signal(SIGINT, stop);
     signal(SIGTERM, stop);
+    setbuf(stdout, NULL);
+    setbuf(stderr, NULL);
 
     // Initialize Kafka producer once
     init_kafka_producer();
@@ -164,6 +166,7 @@ int main() {
     }
 
     printf("Listening for syslogs on UDP port %d...\n", UDP_PORT);
+    fflush(stdout);
 
     // Continuously read syslogs and send to Kafka
     while (1) {
@@ -187,7 +190,11 @@ int main() {
         snprintf(json_message, sizeof(json_message),
                  "{\"device\":\"%s\",\"message\":\"%s\"}",
                  syslog.device, escaped_message);
-
+        
+        printf("Received from %s: %s\n", syslog.device, syslog.message);
+        printf("Produced message: %s\n", json_message);
+        fflush(stdout); 
+        
         if (rd_kafka_produce(rkt, RD_KAFKA_PARTITION_UA,
                              RD_KAFKA_MSG_F_COPY,
                              json_message, strlen(json_message),

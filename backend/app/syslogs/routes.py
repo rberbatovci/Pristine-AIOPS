@@ -28,7 +28,7 @@ es = Elasticsearch("http://localhost:9200")  # Update your ES host
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-SHARED_DATA_DIR = "/app/syslogs"
+SHARED_DATA_DIR = "/app/syslogs/rules"
 REGEX_JSON_PATH = os.path.join(SHARED_DATA_DIR, "regex_data.json")
 MNEMONICS_JSON_PATH = os.path.join(SHARED_DATA_DIR, "mnemonics.json")
 os.makedirs(SHARED_DATA_DIR, exist_ok=True)

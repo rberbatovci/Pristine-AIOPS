@@ -11,8 +11,9 @@ import os
 from sqlalchemy.orm import selectinload
 from typing import Any
 
-TRAP_TAGS_JSON_PATH = "/app/traps/trapTags.json"
-SnmpTrapOidFile = Path("/app/traps/snmpTrapOids.json")
+TrapTagFile = "/app/traps/rules/trapTags.json"
+SnmpTrapOidFile = Path("/app/traps/rules/snmpTrapOids.json")
+StatefulRulesFile = Path("/app/signals/rules/statefulTrapRules.json")
 
 async def createTrap(db: AsyncSession, trap: TrapCreate):
     # Get device by IP address
@@ -34,15 +35,13 @@ async def createTrap(db: AsyncSession, trap: TrapCreate):
     return db_syslog
 
 def create_snmpTrapOid_in_file(name: str):
-    filepath = "/app/traps/snmpTrapOids.json"
-
     # Create the file if it does not exist
-    if not os.path.exists(filepath):
-        with open(filepath, "w") as f:
+    if not os.path.exists(SnmpTrapOidFile):
+        with open(SnmpTrapOidFile, "w") as f:
             json.dump([], f)  # initialize with empty list or dict
 
     # Read safely
-    with open(filepath, "r") as f:
+    with open(SnmpTrapOidFile, "r") as f:
         try:
             data = json.load(f)
         except json.JSONDecodeError:
@@ -52,7 +51,7 @@ def create_snmpTrapOid_in_file(name: str):
     data.append({"name": name, "value": name, "tags": [], "rules": []})
 
     # Save back to file
-    with open(filepath, "w") as f:
+    with open(SnmpTrapOidFile, "w") as f:
         json.dump(data, f, indent=2)
 
 async def getTraps(db: AsyncSession, skip: int = 0, limit: int = 100):
@@ -107,13 +106,12 @@ async def save_statefulrules_to_file(db: AsyncSession):
                 "device_hostnames": [device.hostname for device in rule.devices],
             })
 
-        STATEFUL_RULES_JSON_PATH = "/app/signals/statefulTrapRules.json"
-        os.makedirs(os.path.dirname(STATEFUL_RULES_JSON_PATH), exist_ok=True)
+        os.makedirs(os.path.dirname(StatefulRulesFile), exist_ok=True)
 
-        with open(STATEFUL_RULES_JSON_PATH, "w") as f:
+        with open(StatefulRulesFile, "w") as f:
             json.dump(rule_list, f, indent=4)
 
-        print(f"Stateful rules saved to: {STATEFUL_RULES_JSON_PATH}")
+        print(f"Stateful rules saved to: {StatefulRulesFile}")
 
     except Exception as e:
         print(f"Error writing statefulrules.json: {e}")
@@ -141,15 +139,14 @@ async def remove_rule_from_snmpTrapOid(rule_name: str):
         raise
 
 async def remove_rule_from_json(rule_name: str):
-    STATEFUL_RULES_JSON_PATH = "/app/signals/statefulTrapRules.json"
     print(f">>> Attempting to remove rule '{rule_name}' from JSON")
 
     try:
-        if not os.path.exists(STATEFUL_RULES_JSON_PATH):
-            print(f">>> File does not exist: {STATEFUL_RULES_JSON_PATH}")
+        if not os.path.exists(StatefulRulesFile):
+            print(f">>> File does not exist: {StatefulRulesFile}")
             return
 
-        with open(STATEFUL_RULES_JSON_PATH, "r") as f:
+        with open(StatefulRulesFile, "r") as f:
             rules = json.load(f)
 
         print(f">>> Loaded {len(rules)} rule(s) from JSON")
@@ -160,15 +157,15 @@ async def remove_rule_from_json(rule_name: str):
         if len(updated_rules) == len(rules):
             print(f">>> No rule named '{rule_name}' found in JSON.")
         else:
-            with open(STATEFUL_RULES_JSON_PATH, "w") as f:
+            with open(StatefulRulesFile, "w") as f:
                 json.dump(updated_rules, f, indent=4)
             print(f">>> Rule '{rule_name}' removed and JSON updated")
 
     except Exception as e:
-        print(f">>> Error removing rule from {STATEFUL_RULES_JSON_PATH}")
+        print(f">>> Error removing rule from {StatefulRulesFile}")
         traceback.print_exc()
 
-def save_tags_to_json_file(tag_data: dict, json_path: str = TRAP_TAGS_JSON_PATH) -> None:
+def save_tags_to_json_file(tag_data: dict, json_path: str = TrapTagFile) -> None:
     try:
         os.makedirs(os.path.dirname(json_path), exist_ok=True)
         path = Path(json_path)
@@ -195,7 +192,7 @@ def save_tags_to_json_file(tag_data: dict, json_path: str = TRAP_TAGS_JSON_PATH)
     except Exception as e:
         print(f"Error writing tag to JSON: {e}")
 
-def update_tag_in_json_file(name: str, new_oids: Any, json_path: str = TRAP_TAGS_JSON_PATH) -> None:
+def update_tag_in_json_file(name: str, new_oids: Any, json_path: str = TrapTagFile) -> None:
     """
     Find the tag by `name` in the JSON file and replace its `oids` value.
     """
@@ -222,7 +219,7 @@ def update_tag_in_json_file(name: str, new_oids: Any, json_path: str = TRAP_TAGS
         json.dump(data, f, indent=4)
         f.truncate()
 
-def delete_tag_from_json_file(name: str, json_path: str = TRAP_TAGS_JSON_PATH) -> None:
+def delete_tag_from_json_file(name: str, json_path: str = TrapTagFile) -> None:
     """
     Remove any entry with `name` from the JSON file.
     """

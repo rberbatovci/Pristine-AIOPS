@@ -8,7 +8,7 @@
   --listElementHoverBackground: rgba(241, 241, 241, .8);
   --background1: rgba(255, 255, 255, 0.3);
   --sidebarBck: rgba(255, 255, 255, 0.05);
-  --textColor: rgb(90, 90, 90);
+  --textColor: rgb(83, 83, 83);
   --textColor2: rgb(7, 49, 73);
   --textColor3: rgba(0, 0, 0, .4);
   --iconHoverColor: rgb(25, 111, 161);
@@ -41,10 +41,14 @@
 
 
   --tagListBack: rgba(255, 255, 255, 0.3);
-  --tagListBackHover: rgba(14, 150, 241, 0.4);
+  --tagListBackHover: rgba(235, 235, 235, 0.2);
   --tagListBackSel: rgba(14, 150, 241, 0.8);
   --tagListCol: rgba(0, 0, 0, 0.6);
   --tagListColHov: rgba(32, 105, 153, .5);
+
+
+  --dropdownTopBorder: rgba(245, 245, 245, 0.5);
+  --dropdownBottomBorder: rgba(139, 139, 139, 0.3);
 
 }
 
@@ -59,7 +63,7 @@
   --background2: rgba(3, 45, 61, 0.3);
   --sidebarBck: rgba(11, 72, 97, 0.18);
   --wallpaperBackground: radial-gradient(circle, rgba(1, 78, 107, 1) 0%, rgba(20, 77, 98, 1) 15%, rgba(0, 43, 59, 1) 100%);
-  --textColor: rgba(201, 201, 201, 0.8);
+  --textColor: rgba(213, 214, 214, 0.8);
   --textColor2: rgb(255, 255, 255);
   --textColor3: rgba(255, 255, 255, .4);
   --headerBackground: purple;
@@ -94,10 +98,13 @@
 
 
   --tagListBack: rgba(99, 166, 192, 0.1);
-  --tagListBackHover: rgba(7, 172, 248, 0.1);
+  --tagListBackHover: rgba(22, 163, 228, 0.15);
   --tagListBackSel: rgba(7, 172, 248, 0.3);
   --tagListCol: rgba(255, 255, 255, 0.6);
   --tagListColHov: rgba(122, 187, 231, 0.5);
+
+  --dropdownTopBorder: rgba(51, 95, 121, 0.5);
+  --dropdownBottomBorder: rgba(1, 44, 78, 0.5);
 }
 
 html,
@@ -425,7 +432,7 @@ header {
   width: 830px;
   height: auto;
   min-height: 140px;
-  max-height: 730px;
+  max-height: 850px;
   backdrop-filter: blur(20px);
   overflow-y: auto;
 }

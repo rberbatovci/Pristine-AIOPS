@@ -176,7 +176,13 @@ const App = () => {
           </div>
         </div>
       ) : (
-        <Login onAuthentication={handleAuthentication} />
+        <div data-theme={isDarkTheme ? 'dark' : 'light'} className="login-container">
+          <Login
+            onAuthentication={handleAuthentication}
+            toggleTheme={toggleTheme}
+            isDarkTheme={isDarkTheme}
+          />
+        </div>
       )}
     </BrowserRouter>
   );

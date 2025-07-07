@@ -34,6 +34,30 @@ INDEXES = {
             "number_of_shards": 1,
             "number_of_replicas": 0
         }
+    },
+    "cpu-utilization": {
+        "settings": {
+            "number_of_shards": 1,
+            "number_of_replicas": 0
+        }
+    },
+    "memory-statistics": {
+        "settings": {
+            "number_of_shards": 1,
+            "number_of_replicas": 0
+        }
+    },
+    "interface-statistics": {
+        "settings": {
+            "number_of_shards": 1,
+            "number_of_replicas": 0
+        }
+    },
+    "bgp-connections-statistics": {
+        "settings": {
+            "number_of_shards": 1,
+            "number_of_replicas": 0
+        }
     }
 }
 

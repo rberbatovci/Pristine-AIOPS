@@ -4,7 +4,7 @@ import apiClient from '../misc/AxiosConfig';
 import { IoMdAddCircleOutline, IoMdAddCircle } from "react-icons/io";
 import { RiDeleteBin6Line } from "react-icons/ri";
 
-const UploadMIB = ({currentUser}) => {
+const UploadMIB = ({ currentUser }) => {
     const [searchValue, setSearchValue] = useState('');
     const [file, setFile] = useState(null);
     const [response, setResponse] = useState(null);
@@ -71,7 +71,7 @@ const UploadMIB = ({currentUser}) => {
         <div className="signalTagContainer">
             {!mibList.length && <p>Loading SNMP MIBs...</p>}
             {mibList.length > 0 && (
-                
+
                 <div style={{
                     padding: '10px',
                     height: '350px',
@@ -80,7 +80,7 @@ const UploadMIB = ({currentUser}) => {
                     borderRadius: '8px',
                     display: 'block'
                 }}>
-                    
+
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <input
                             type="text"
@@ -113,16 +113,9 @@ const UploadMIB = ({currentUser}) => {
                     <div style={{ marginTop: '10px' }}>
                         <ul style={{ marginTop: '10px' }}>
                             {filteredMibs.map((mib, index) => (
-                                <li key={index} style={{
-                                    padding: '8px 12px',
-                                    marginBottom: '6px',
-                                    background: 'var(--buttonBackground)',
-                                    borderRadius: '4px',
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    opacity: '0.7'
-                                }}>
+                                <li key={index}
+                                    className="signalTagItem"
+                                >
                                     <span>{mib}</span>
                                     <button
                                         onClick={() => handleDelete(mib)}

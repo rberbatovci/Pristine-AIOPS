@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from app.db.session import Base
 from app.db.associatedTables import stateful_syslog_rule_devices
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.mutable import MutableDict
 
 class Device(Base):
     __tablename__ = "devices"
@@ -16,7 +17,7 @@ class Device(Base):
     version = Column(String, nullable=True)
     gps_latitude = Column(Float, nullable=True)
     gps_longitude = Column(Float, nullable=True)
-    features = Column(JSONB) 
+    features = Column(MutableDict.as_mutable(JSONB))
 
     statefulSyslogRules = relationship(
         "StatefulSyslogRule",

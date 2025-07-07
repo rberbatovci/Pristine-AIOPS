@@ -5,11 +5,6 @@ WORKDIR /app/traps
 # Copy app files
 COPY consumer.py .
 
-RUN touch snmpTrapOids.json
-RUN touch trapTags.json
-
-COPY snmpTrapOids.json /app/traps/
-
 # Copy and install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

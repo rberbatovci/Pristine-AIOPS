@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Base URL for your backend
-const baseUrl = "http://192.168.1.191:8000";
+const baseUrl = "http://192.168.1.201:8000";
 
 // Create an Axios instance
 const apiClient = axios.create({

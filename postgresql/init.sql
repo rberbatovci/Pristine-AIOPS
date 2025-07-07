@@ -7,6 +7,19 @@ CREATE TABLE IF NOT EXISTS users (
     is_staff BOOLEAN DEFAULT FALSE
 );
 
+CREATE TABLE IF NOT EXISTS devices (
+    id SERIAL PRIMARY KEY,
+    hostname VARCHAR NOT NULL UNIQUE,
+    ip_address VARCHAR NOT NULL UNIQUE,
+    status BOOLEAN,
+    vendor VARCHAR,
+    type VARCHAR,
+    version VARCHAR,
+    gps_latitude DOUBLE PRECISION,
+    gps_longitude DOUBLE PRECISION,
+    features JSONB
+);
+
 -- Create table syslogTags
 CREATE TABLE IF NOT EXISTS "syslogTags" (
     name VARCHAR(50) PRIMARY KEY
@@ -42,18 +55,6 @@ CREATE TABLE IF NOT EXISTS mnemonic_regex (
     FOREIGN KEY (regex_id) REFERENCES regex(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS devices (
-    id SERIAL PRIMARY KEY,
-    hostname VARCHAR,
-    ip_address VARCHAR UNIQUE NOT NULL,
-    status BOOLEAN,
-    vendor VARCHAR,
-    type VARCHAR,
-    version VARCHAR,
-    gps_latitude DOUBLE PRECISION,
-    gps_longitude DOUBLE PRECISION,
-    features JSONB DEFAULT '{}',
-);
 
 CREATE TABLE IF NOT EXISTS stateful_syslog_rules (
     id SERIAL PRIMARY KEY,
@@ -113,7 +114,7 @@ CREATE TABLE IF NOT EXISTS snmp_trap_oids (
 
 -- Create table syslogTags
 CREATE TABLE IF NOT EXISTS "trapTags" (
-    name VARCHAR(50) PRIMARY KEY
+    name VARCHAR(50) PRIMARY KEY,
     oids TEXT[] DEFAULT '{}'
 );
 

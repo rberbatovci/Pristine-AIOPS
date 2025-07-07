@@ -1,7 +1,6 @@
 :root {
     --itemBck: rgba(30, 77, 116, 0.1);
     --elementBg: rgba(0, 255, 34, 0.2);
-    --textColor: rgba(0, 0, 0, 0.4);
     --strongTextColor: rgba(0, 0, 0, .7);
     --spanTextColor: rgba(0,0,0,0.8);
     --spanTextColorHover: rgb(46, 103, 129);
@@ -10,7 +9,6 @@
   [data-theme='dark'] {
     --itemBck: rgba(11, 64, 95, 0.2);
     --elementBg: rgba(93, 154, 247, 0.1);
-    --textColor: rgba(255, 255, 255, .4);
     --strongTextColor: rgba(255, 255, 255, .5);
     --spanTextColor: rgba(255,255,255,0.7);
     --spanTextColorHover: rgba(255, 255, 255, .8);

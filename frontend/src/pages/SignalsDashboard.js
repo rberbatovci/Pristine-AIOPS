@@ -305,7 +305,8 @@ const SignalsDashboard = ({ currentUser }) => {
                         {activeDropdown === 'trapConfig' && <StatefulTraps />}
                         {activeDropdown === 'time' && (
                             <div
-                                style={{ position: 'absolute', background: 'var(--dropdownBackground)', opacity: '1', width: '420px' }}
+                                style={{width: '500px', position: 'absolute', top: '50px', right: '10px'}}
+                                className="dropdownMenu dropdownVisible"
                             >
                                 <SearchTime
                                     onTimeRangeSelect={handleTimeRangeSelect}

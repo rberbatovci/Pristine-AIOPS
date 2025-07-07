@@ -80,7 +80,6 @@
   
     .signalConfigRuleContent {
       display: flex;
-      background: var(--backgroundColor3);
       color: var(--textColor);
       border-radius: 8px;
     }

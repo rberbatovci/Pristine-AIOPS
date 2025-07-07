@@ -2,7 +2,6 @@
     --background1: rgba(255, 255, 255, 0.3);
     --sidebarBck: rgba(255, 255, 255, 0.05);
     --borderLight: 1px solid rgba(235, 235, 235, 0.2);
-    --textColor: #000; /* Default text color */
     --activeBackground: rgb(1, 70, 102); /* Active background color */
     --sidebarContainerBg: rgba(238, 238, 238, 0.4);
   }
@@ -11,7 +10,6 @@
     --background1: rgba(67, 112, 138, 0.3);
     --background2: rgba(3, 45, 61, 0.3);
     --sidebarBck: rgba(11, 72, 97, 0.18);
-    --textColor: #fff; /* Dark mode text color */
     --activeBackground: rgba(0, 0, 0, 0.2); /* Dark mode active background color */
     --sidebarContainerBg: rgba(6, 61, 75, 0.25);
   }

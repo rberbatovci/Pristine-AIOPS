@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.devices import models, schemas
-from app.devices.services import configureDevice, syslogXEPlaybook, trapsXEPlaybook, netflowXEPlaybook, configureSyslogsXR
+from app.devices.services import configureDevice, syslogXEPlaybook, trapsXEPlaybook, netflowXEPlaybook, cpuUtilXEPlaybook, configureSyslogsXR, memStatsXEPlaybook, interfaceStatsXEPlaybook, BGPConnectionsXEPlaybook
 import asyncio
 router = APIRouter()
 
@@ -15,10 +15,45 @@ async def get_device_ids_names(db: AsyncSession = Depends(get_db)):
     """
     Retrieve a list of device IDs and hostnames.
     """
-    result = await db.execute(select(models.Device.id, models.Device.hostname))
-    devices = result.all()
-    return [{"id": id, "hostname": hostname} for id, hostname in devices]
+    result = await db.execute(
+        select(
+            models.Device.hostname,
+            models.Device.ip_address,
+            models.Device.vendor,
+            models.Device.version,
+            models.Device.features
+        )
+    )
 
+    devices = result.all()
+    return [
+        {
+            "hostname": hostname,
+            "ip_address": ip_address,
+            "vendor": vendor,
+            "version": version,
+            "features": features
+        }
+        for hostname, ip_address, vendor, version, features in devices
+    ]
+
+default_features = {
+    "syslogs": False,
+    "snmp_traps": False,
+    "netflow": False,
+    "telemetry": {
+        "cpu_util": False,
+        "memory_stats": False,
+        "interface_stats": False
+    }
+}
+
+telemetry_playbook_map = {
+    "cpu_util": cpuUtilXEPlaybook,
+    "memory_stats": memStatsXEPlaybook,
+    "interface_stats": interfaceStatsXEPlaybook,
+    "bgp_connections": BGPConnectionsXEPlaybook
+}
 
 @router.post("/devices/", response_model=schemas.DeviceResponse, status_code=201)
 async def create_device(device_in: schemas.DeviceCreate, db: AsyncSession = Depends(get_db)):
@@ -28,7 +63,20 @@ async def create_device(device_in: schemas.DeviceCreate, db: AsyncSession = Depe
     if existing.scalars().first():
         raise HTTPException(status_code=400, detail="Device with this hostname already exists")
 
-    db_device = models.Device(**device_in.model_dump())
+    device_data = device_in.model_dump()
+
+    # Force only the wanted keys (ip_address, hostname, vendor, version)
+    filtered_data = {
+        "ip_address": device_data.get("ip_address"),
+        "hostname": device_data.get("hostname"),
+        "vendor": device_data.get("vendor"),
+        "version": device_data.get("version"),
+    }
+
+    # Set features to default all-false dict
+    filtered_data["features"] = default_features
+
+    db_device = models.Device(**filtered_data)
     db.add(db_device)
     await db.commit()
     await db.refresh(db_device)
@@ -53,14 +101,13 @@ async def configure_syslogs(
             "router_ip": device.ip_address,
             "username": "admin",
             "password": "cisco123",
-            "syslog_host": "192.168.1.191",
+            "syslog_host": "192.168.1.201",
             "syslog_port": "1160",
             "syslog_severity": config.severity
         }
     )
 
     if ansible_result["returncode"] != 0:
-        # Do NOT update features here (since configuration failed)
         raise HTTPException(
             status_code=500,
             detail={
@@ -69,11 +116,66 @@ async def configure_syslogs(
             },
         )
 
-    # ✅ Only update features AFTER successful execution
+    # Correct way to update JSONB field:
+    features = device.features or {}
+    features["syslogs"] = True
+    device.features = features  # <-- re-assign to trigger update detection
+
+    db.add(device)
+    await db.commit()
+    await db.refresh(device)
+
+    return device
+
+@router.post("/devices/{hostname}/xe/configure/{feature_name}/", response_model=schemas.DeviceResponse)
+async def configure_telemetry_feature(
+    hostname: str,
+    feature_name: str,
+    config: schemas.CPUTelemetryConfig,
+    db: AsyncSession = Depends(get_db)
+):
+    # Validate supported telemetry feature
+    playbook = telemetry_playbook_map.get(feature_name)
+    if not playbook:
+        raise HTTPException(status_code=400, detail=f"Unsupported telemetry feature: {feature_name}")
+
+    # Fetch device
+    result = await db.execute(select(models.Device).where(models.Device.hostname == hostname))
+    device = result.scalars().first()
+
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    # Run Ansible playbook
+    ansible_result = await configureDevice(
+        router_ip=device.ip_address,
+        playbook=playbook,
+        extra_vars={
+            "router_ip": device.ip_address,
+            "username": "admin",
+            "password": "cisco123",
+            "telemetry_receiver_ip": "192.168.1.201",
+            "telemetry_receiver_port": "1163"
+        }
+    )
+
+    if ansible_result["returncode"] != 0:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": ansible_result["stderr"],
+                "output": ansible_result["stdout"]
+            },
+        )
+
+    # Safely update telemetry feature flag
     if device.features is None:
         device.features = {}
 
-    device.features["syslogs"] = "configured"
+    telemetry = device.features.get("telemetry", {}) or {}
+    telemetry[feature_name] = True
+    device.features["telemetry"] = telemetry
+
     db.add(device)
     await db.commit()
     await db.refresh(device)
@@ -97,7 +199,7 @@ async def configure_snmp_traps(
             "router_ip": device.ip_address,
             "username": "admin",
             "password": "cisco123",
-            "snmp_trap_host": "192.168.1.191",
+            "snmp_trap_host": "192.168.1.201",
             "snmp_trap_port": 1161,
             "snmp_user": "SNMPv3",
             "snmp_auth_pass": "AuTH_P@55w0rd123!",
@@ -115,6 +217,14 @@ async def configure_snmp_traps(
             },
         )
 
+    # Safely update features dict and reassign
+    features = device.features or {}
+    features["snmp_traps"] = True
+    device.features = features  # re-assign so SQLAlchemy detects change
+
+    db.add(device)
+    await db.commit()
+    await db.refresh(device)
     return device
 
 @router.post("/devices/{hostname}/netflow-xe-config/", response_model=schemas.DeviceResponse)
@@ -147,6 +257,15 @@ async def configure_netflow(
                 "output": ansible_result["stdout"]
             },
         )
+
+    # Update netflow feature flag after successful config
+    features = device.features or {}
+    features["netflow"] = True
+    device.features = features  # Re-assign to trigger change detection
+
+    db.add(device)
+    await db.commit()
+    await db.refresh(device)
 
     return device
 

@@ -1,0 +1,20 @@
+[
+    {
+        "name": "LinkInterface",
+        "pattern": "Interface\\s+(\\S+),",
+        "matchfunction": "search",
+        "matchnumber": 1,
+        "groupnumber": 1,
+        "nomatch": "",
+        "tag": "Interface"
+    },
+    {
+        "name": "State",
+        "pattern": "(up|Up|Down|down|administratively down)",
+        "matchfunction": "search",
+        "matchnumber": 1,
+        "groupnumber": 1,
+        "nomatch": "",
+        "tag": "State"
+    }
+]

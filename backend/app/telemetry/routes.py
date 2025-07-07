@@ -1,63 +1,160 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, Dict, Any, List
 from ..db.session import get_db, opensearch_client
 
 router = APIRouter()
 
-@router.get("/telemetry/interface-statistics/", response_model=List[Dict[str, Any]])
-async def getInterfaceStatistics(
-    device_id: str,
-    interface_name: str,
-    size: int = 10,  # Number of documents to fetch (default 10)
-    from_: int = 0  # Starting offset for pagination
+@router.get("/telemetry/cpu-utilization/")
+def get_cpu_utilization(
+    device: Optional[str] = Query(None),
+    limit: int = Query(100)
 ):
-    """
-    Fetches telemetry data from the OpenSearch database based on device ID and interface name.
+    must_clauses = []
 
-    Args:
-        device_id (str): The ID of the network device (e.g., "CSR1kvRouter3").
-        interface_name (str): The name of the interface (e.g., "Loopback0").
-        size (int): The number of documents to return.
-        from_ (int): The starting offset for the results (for pagination).
+    if device:
+        must_clauses.append({"term": {"device.keyword": device}})
 
-    Returns:
-        List[Dict[str, Any]]: A list of telemetry data documents matching the criteria.
-    """
-    if opensearch_client is None:
-        raise HTTPException(status_code=500, detail="OpenSearch connection not established.")
-
-    search_body: Dict[str, Any] = {
-        "size": size,
-        "from": from_,
-        "_source": True, 
+    query = {
         "query": {
             "bool": {
-                "must": [
-                    {
-                        "term": {
-                            "node_id.NodeIdStr.keyword": device_id
-                        }
-                    },
-                    {
-                        "term": {
-                            "stats.keys.name.keyword": interface_name 
-                        }
-                    }
-                ]
+                "must": must_clauses
+            }
+        },
+        "size": limit,
+        "sort": [
+            {"msg_timestamp": {"order": "desc"}}
+        ]
+    }
+
+    try:
+        res = opensearch_client.search(index="cpu-utilization", body=query)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"OpenSearch query failed: {str(e)}")
+
+    results = [hit["_source"] for hit in res["hits"]["hits"]]
+    return {"results": results}
+
+@router.get("/telemetry/memory-statistics/")
+def get_memory_statistics(
+    device: Optional[str] = Query(None),
+    memory: Optional[str] = Query(None),
+    limit: int = Query(100)
+):
+    must_clauses = []
+
+    if device:
+        must_clauses.append({"term": {"device.keyword": device}})
+    if memory:
+        must_clauses.append({"term": {"memory.keyword": memory}})
+
+    query = {
+        "query": {
+            "bool": {
+                "must": must_clauses
+            }
+        },
+        "size": limit,
+        "sort": [
+            {"msg_timestamp": {"order": "desc"}}
+        ]
+    }
+
+    try:
+        response = opensearch_client.search(index="memory-statistics", body=query)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"OpenSearch query failed: {str(e)}")
+
+    hits = response["hits"]["hits"]
+
+    results = [
+        {
+            "device": doc["_source"]["device"],
+            "memory": doc["_source"]["memory"],
+            "stats": doc["_source"]["stats"],
+            "timestamp": doc["_source"]["msg_timestamp"],
+            "ingested_at": doc["_source"]["ingested_at"],
+            "collection_id": doc["_source"]["collection_id"],
+        }
+        for doc in hits
+    ]
+
+    return {"results": results}
+
+@router.get("/telemetry/interface-statistics/interfaces/")
+def getDeviceInterfaces(device: Optional[str] = Query(None)):
+    must_clauses = []
+    if device:
+        must_clauses.append({"term": {"device.keyword": device}})
+
+    query = {
+        "size": 0,
+        "query": {
+            "bool": {
+                "must": must_clauses
+            }
+        },
+        "aggs": {
+            "unique_interfaces": {
+                "terms": {
+                    "field": "interface.keyword",
+                    "size": 1000
+                }
             }
         }
     }
 
     try:
-        response = opensearch_client.search(
-            index="telemetry-data",
-            body=search_body
-        )
-        hits = response.get('hits', {}).get('hits', [])
-        # Extract just the _source part of each hit
-        telemetry_documents = [hit.get('_source') for hit in hits if hit.get('_source')]
-        return telemetry_documents
-    except ConnectionError as e:
-        raise HTTPException(status_code=503, detail=f"OpenSearch connection error: {e}")
+        response = opensearch_client.search(index="interface-statistics", body=query)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching data from OpenSearch: {e}")
+        raise HTTPException(status_code=500, detail=f"OpenSearch query failed: {str(e)}")
+
+    buckets = response.get("aggregations", {}).get("unique_interfaces", {}).get("buckets", [])
+    interfaces = [bucket["key"] for bucket in buckets]
+
+    return {"interfaces": interfaces}
+
+@router.get("/telemetry/interface-statistics/")
+def get_memory_statistics(
+    device: Optional[str] = Query(None),
+    interface: Optional[str] = Query(None),
+    limit: int = Query(100)
+):
+    must_clauses = []
+
+    if device:
+        must_clauses.append({"term": {"device.keyword": device}})
+    if interface:
+        must_clauses.append({"term": {"interface.keyword": interface}})
+
+    query = {
+        "query": {
+            "bool": {
+                "must": must_clauses
+            }
+        },
+        "size": limit,
+        "sort": [
+            {"msg_timestamp": {"order": "desc"}}
+        ]
+    }
+
+    try:
+        response = opensearch_client.search(index="interface-statistics", body=query)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"OpenSearch query failed: {str(e)}")
+
+    hits = response["hits"]["hits"]
+
+    results = [
+        {
+            "device": doc["_source"]["device"],
+            "interface": doc["_source"]["interface"],
+            "stats": doc["_source"]["stats"],
+            "timestamp": doc["_source"]["msg_timestamp"],
+            "ingested_at": doc["_source"]["ingested_at"],
+            "collection_id": doc["_source"]["collection_id"],
+        }
+        for doc in hits
+    ]
+
+    return {"results": results}

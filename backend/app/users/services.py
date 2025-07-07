@@ -1,29 +1,31 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from .models import User
+from app.users.models import User
 from .schemas import UserCreate, UserUpdate
 from sqlalchemy import select
 from passlib.context import CryptContext
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
-def hash_password(password: str) -> str:
+def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
+
+async def create_user_in_db(db: AsyncSession, user: UserCreate):
+
+    hashed_pw = get_password_hash(user.password)
+    new_user = User(
+        username=user.username,
+        email=user.email,
+        hashed_password=hashed_pw,
+        is_staff=user.is_staff
+    )
+
+    db.add(new_user)
+    await db.commit()
+    await db.refresh(new_user)
+    return new_user
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
-
-async def create_user_in_db(db: AsyncSession, user: UserCreate) -> User:
-    hashed_password = hash_password(user.password)
-    db_user = User(
-        username=user.username,
-        email=user.email,
-        hashed_password=hashed_password,
-        is_staff=user.is_staff
-    )
-    db.add(db_user)
-    await db.commit()
-    await db.refresh(db_user)
-    return db_user
 
 async def get_user_by_username(db: AsyncSession, username: str) -> User | None:
     result = await db.execute(select(User).where(User.username == username))

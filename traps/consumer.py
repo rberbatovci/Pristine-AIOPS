@@ -18,7 +18,7 @@ KAFKA_TOPIC = 'trap-topic'
 CONSUMER_GROUP = 'snmp-opensearch-consumer-group'
 RELOAD_INTERVAL_SECONDS = 60
 OPENSEARCH_URL = 'http://OpenSearch:9200/traps/_doc/'
-DATA_DIR = "/app/traps"
+DATA_DIR = "/app/traps/rules"
 FASTAPI_URL = "http://FastAPI:8000/traps/trapOids/"
 KAFKA_SIGNAL_TOPIC = 'trap-signals'
 
@@ -30,17 +30,10 @@ trapTagSettings = []
 
 producer = Producer({'bootstrap.servers': KAFKA_BROKER})
 
-LOG_FILE = 'snmptrap_consumer.log'
-LOG_LEVEL = logging.INFO
-
-# Logging configuration
-logging.basicConfig(filename=LOG_FILE, level=LOG_LEVEL,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
-logging.info("SNMP Trap Consumer started.")
 
 def shutdown(signum, frame):
     global run
-    logging.info("Shutting down...")
+    print("Shutting down...")
     run = False
 
 data_stores = {
@@ -53,22 +46,22 @@ def load_json_file(file_path):
         with open(file_path, 'r') as f:
             return json.load(f)
     except FileNotFoundError:
-        logging.warning(f"{file_path} not found. Returning empty list.")
+        print(f"{file_path} not found. Returning empty list.")
         return []
     except json.JSONDecodeError:
-        logging.warning(f"Error decoding JSON from {file_path}. Returning empty list.")
+        print(f"Error decoding JSON from {file_path}. Returning empty list.")
         return []
 
 def reload_all_data():
     global snmpTrapOidSettings, trapTagSettings
-    logging.info("Reloading all configuration data...")
+    print("Reloading all configuration data...")
     for file_name, global_var_name in data_stores.items():
         file_path = os.path.join(DATA_DIR, file_name)
         data = load_json_file(file_path)
         globals()[global_var_name] = data
-        logging.info(f"Reloaded data from {file_name} into {global_var_name}.")
+        print(f"Reloaded data from {file_name} into {global_var_name}.")
 
-    logging.info(f"Current trapTagSettings after reload: {trapTagSettings}") # Added logging
+    print(f"Current trapTagSettings after reload: {trapTagSettings}") # Added logging
 
     if run:
         threading.Timer(RELOAD_INTERVAL_SECONDS, reload_all_data).start()
@@ -78,13 +71,13 @@ def send_to_opensearch(json_doc):
         headers = {'Content-Type': 'application/json'}
         response = requests.post(OPENSEARCH_URL, headers=headers, data=json_doc)
         if response.status_code not in (200, 201):
-            logging.error(f"Failed to index: {response.text}")
+            print(f"Failed to index: {response.text}")
         else:
-            logging.info(f"Indexed document to OpenSearch: {json_doc}")
+            print(f"Indexed document to OpenSearch: {json_doc}")
     except requests.exceptions.ConnectionError as e:
-        logging.error(f"OpenSearch Connection Error: {e}")
+        print(f"OpenSearch Connection Error: {e}")
     except Exception as e:
-        logging.exception(f"OpenSearch Error: {e}")
+        print(f"OpenSearch Error: {e}")
 
 async def create_snmpTrapOid_via_api(name):
     newSnmpTrapOid = {
@@ -94,14 +87,14 @@ async def create_snmpTrapOid_via_api(name):
     async with aiohttp.ClientSession() as session:
         async with session.post(FASTAPI_URL, json=newSnmpTrapOid) as resp:
             if resp.status in (200, 201):
-                logging.info(f"SNMP Trap OID '{name}' created via API.")
+                print(f"SNMP Trap OID '{name}' created via API.")
                 return await resp.json()
             elif resp.status == 400:
-                logging.info(f"SNMP Trap OID '{name}' already exists (according to API).")
+                print(f"SNMP Trap OID '{name}' already exists (according to API).")
                 return None
             else:
                 error = await resp.text()
-                logging.error(f"Failed to create SNMP Trap OID via API: {resp.status} {error}")
+                print(f"Failed to create SNMP Trap OID via API: {resp.status} {error}")
                 raise Exception(f"Failed to create SNMP Trap OID via API: {resp.status} {error}")
 
 
@@ -112,10 +105,10 @@ def handle_message(msg):
         trap_data = json.loads(msg)
         device = trap_data.get('device')
         snmpTrapOid = trap_data.get('SNMPv2-MIB::snmpTrapOID.0')
-        logging.info(f"Received SNMP Trap: {trap_data}")
+        print(f"Received SNMP Trap: {trap_data}")
 
         if not device:
-            logging.warning(f"Could not determine source IP for indexing: {trap_data}")
+            print(f"Could not determine source IP for indexing: {trap_data}")
             return
 
         processed_trap_data = trap_data.copy()
@@ -127,23 +120,23 @@ def handle_message(msg):
 
         # Process OID definition
         if snmpTrapOid:
-            logging.info(f"Received SNMP Trap OID: {snmpTrapOid}")
+            print(f"Received SNMP Trap OID: {snmpTrapOid}")
             snmpTrapOid_entry = next((item for item in snmpTrapOidSettings if item["name"] == snmpTrapOid), None)
 
             if not snmpTrapOid_entry:
-                logging.warning(f"SNMP Trap OID '{snmpTrapOid}' not found in the list.")
-                logging.info(f"SNMP Trap OID '{snmpTrapOid}' not found locally, calling FastAPI to create...")
+                print(f"SNMP Trap OID '{snmpTrapOid}' not found in the list.")
+                print(f"SNMP Trap OID '{snmpTrapOid}' not found locally, calling FastAPI to create...")
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 try:
                     created_snmpTrapOid = loop.run_until_complete(
                         create_snmpTrapOid_via_api(snmpTrapOid)
                     )
-                    logging.info(f"FastAPI create_snmpTrapOid response: {created_snmpTrapOid}")
+                    print(f"FastAPI create_snmpTrapOid response: {created_snmpTrapOid}")
                 finally:
                     loop.close()
             else:
-                logging.info(f"SNMP Trap OID '{snmpTrapOid}' found in the list: {snmpTrapOid_entry}")
+                print(f"SNMP Trap OID '{snmpTrapOid}' found in the list: {snmpTrapOid_entry}")
                 
                 # Tag processing
                 if "tags" in snmpTrapOid_entry and snmpTrapOid_entry["tags"]:
@@ -153,12 +146,12 @@ def handle_message(msg):
                             for oid in tag_entry["oids"]:
                                 if 'content' in trap_data and oid in trap_data['content']:
                                     processed_trap_data[tag_name] = trap_data['content'][oid]
-                                    logging.info(f"Added tag '{tag_name}' with value '{trap_data['content'][oid]}'")
+                                    print(f"Added tag '{tag_name}' with value '{trap_data['content'][oid]}'")
                                     break
                                 else:
-                                    logging.warning(f"OID '{oid}' not found in the trap data.")
+                                    print(f"OID '{oid}' not found in the trap data.")
                         else:
-                            logging.warning(f"Tag '{tag_name}' not found in the list.")
+                            print(f"Tag '{tag_name}' not found in the list.")
 
                 # Rule processing + send to Kafka
                 if "rules" in snmpTrapOid_entry and snmpTrapOid_entry["rules"]:
@@ -172,9 +165,9 @@ def handle_message(msg):
                                 value=json.dumps(enrichedTrap).encode('utf-8')
                             )
                             producer.flush()
-                            logging.info(f"Sent signal to trap-signal topic: {enrichedTrap}")
+                            print(f"Sent signal to trap-signal topic: {enrichedTrap}")
                         else:
-                            logging.warning(f"Rule '{rule}' not found in the list.")
+                            print(f"Rule '{rule}' not found in the list.")
 
         # Finally send to OpenSearch (with tags and rule if added)
         json_doc_for_os = json.dumps(processed_trap_data)
@@ -184,16 +177,16 @@ def handle_message(msg):
 
         total_latency += latency
         msg_count += 1
-        logging.info(f"[{msg_count}] Indexed trap from: {device} (Latency: {latency:.4f}s)")
+        print(f"[{msg_count}] Indexed trap from: {device} (Latency: {latency:.4f}s)")
 
     except json.JSONDecodeError as e:
-        logging.error(f"JSON decode error: {e}")
+        print(f"JSON decode error: {e}")
     except Exception as e:
-        logging.exception(f"Message processing error: {e}")
+        print(f"Message processing error: {e}")
 
 def main():
     global snmpTrapOidSettings
-    logging.info("Starting SNMP Trap Consumer...")
+    print("Starting SNMP Trap Consumer...")
     reload_all_data()
     signal.signal(signal.SIGINT, shutdown)
     signal.signal(signal.SIGTERM, shutdown)
@@ -206,7 +199,7 @@ def main():
 
     consumer.subscribe([KAFKA_TOPIC])
 
-    logging.info(f"Python SNMP Trap Consumer started. Listening for messages on '{KAFKA_TOPIC}'...")
+    print(f"Python SNMP Trap Consumer started. Listening for messages on '{KAFKA_TOPIC}'...")
 
     try:
         while run:
@@ -217,7 +210,7 @@ def main():
                 if msg.error().code() == KafkaError._PARTITION_EOF:
                     continue
                 else:
-                    logging.error(f"Kafka error: {msg.error()}")
+                    print(f"Kafka error: {msg.error()}")
                     break
 
             if msg.value() is not None:
@@ -229,20 +222,20 @@ def main():
                         trap_data_str = msg.value().decode('utf-8')  # Fallback to UTF-8
                         handle_message(trap_data_str)
                     except UnicodeDecodeError as e:
-                        logging.error(f"UnicodeDecodeError: Could not decode message with UTF-8 or Latin-1: {e}")
+                        print(f"UnicodeDecodeError: Could not decode message with UTF-8 or Latin-1: {e}")
                     except json.JSONDecodeError as e:
-                        logging.error(f"JSON decode error after encoding attempts: {e}")
+                        print(f"JSON decode error after encoding attempts: {e}")
                 except json.JSONDecodeError as e:
-                    logging.error(f"JSON decode error after Latin-1 decoding: {e}")
+                    print(f"JSON decode error after Latin-1 decoding: {e}")
             time.sleep(0.01)
 
     except KeyboardInterrupt:
         pass
     except KafkaException as e:
-        logging.error(f"Kafka consumer error: {e}")
+        print(f"Kafka consumer error: {e}")
     finally:
         consumer.close()
-        logging.info("SNMP Trap Consumer stopped.")
+        print("SNMP Trap Consumer stopped.")
 
 if __name__ == "__main__":
     main()

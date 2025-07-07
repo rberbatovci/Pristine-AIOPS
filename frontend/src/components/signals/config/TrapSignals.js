@@ -11,6 +11,7 @@ const ConfigDashboard = () => {
     const [selectedSignalConfigElement, setSelectedSignalConfigElement] = useState(options[0]);
     const [hostnames, setHostnames] = useState([]);
     const [devices, setDevices] = useState([]);
+    const [isAddingNewRule, setIsAddingNewRule] = useState(true);
 
     useEffect(() => {
         const fetchHostnames = async () => {
@@ -41,18 +42,7 @@ const ConfigDashboard = () => {
 
     return (
         <div className="dropdownConfigContainer">
-            <div>
-                <ul className="configMainList">
-                    {options.map((option) => (
-                        <li
-                            key={option.value}
-                            className={`configMainListButton ${selectedSignalConfigElement && selectedSignalConfigElement.value === option.value ? 'active' : ''}`}
-                            onClick={() => handleOptionChange(option)}
-                        >
-                            {option.label}
-                        </li>
-                    ))}
-                </ul>
+            <div className="signalTagContainer">
             </div>
             <div style={{ borderRadius: '12px' }}>
                 {selectedSignalConfigElement && contentMap[selectedSignalConfigElement.value]}

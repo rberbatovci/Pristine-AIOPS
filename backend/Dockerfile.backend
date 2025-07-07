@@ -2,19 +2,28 @@ FROM python:3.11
 
 WORKDIR /app/backend
 
-COPY requirements.txt .
-
-# Install Python dependencies
-RUN pip install -r requirements.txt
-RUN pip install alembic ansible paramiko ansible-pylibssh
-
-# Install system packages for Ansible and libssh
+# Install system packages for bcrypt/passlib and Ansible
 RUN apt-get update && \
-    apt-get install -y netcat-traditional ansible sshpass libssh-4 --no-install-recommends && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        libffi-dev \
+        libssl-dev \
+        python3-dev \
+        cargo \
+        netcat-traditional \
+        ansible \
+        sshpass \
+        libssh-4 && \
     rm -rf /var/lib/apt/lists/*
 
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir alembic ansible paramiko ansible-pylibssh
+
+# Copy project files
 COPY . .
-COPY entrypoint.sh .
 
 # Set entrypoint
+COPY entrypoint.sh .
 ENTRYPOINT ["./entrypoint.sh"]

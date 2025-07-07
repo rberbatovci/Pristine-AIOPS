@@ -13,6 +13,7 @@ function TrapTags({ currentUser, onAdd, onDelete, onEdit, onSave }) {
         oids: [], // OIDs will now be an array of { value: string, label: string }
     });
     const [selectedTag, setSelectedTag] = useState(null);
+    const [isAddNewTag, setIsAddNewTag] = useState(true);
 
     useEffect(() => {
         fetchTrapTags();
@@ -129,8 +130,9 @@ function TrapTags({ currentUser, onAdd, onDelete, onEdit, onSave }) {
                     <div style={{ width: '240px', padding: '8px', background: 'var(--backgroundColor3)', borderRadius: '8px', height: '350px', overflowY: 'auto' }}>
                         <ul style={{ padding: 0, listStyle: 'none', margin: 0 }}>
                             <li
-                                className="button"
+                                className={`signalTagItem ${isAddNewTag ? 'selected' : ''}`}
                                 onClick={() => {
+                                    setIsAddNewTag(true);
                                     setSelectedTag(null);
                                     setNewTag({ name: '', oids: [] });
                                 }}
@@ -141,7 +143,7 @@ function TrapTags({ currentUser, onAdd, onDelete, onEdit, onSave }) {
                             {trapTags.map((tag) => (
                                 <li
                                     key={tag.name}
-                                    className={`button ${selectedTag?.name === tag.name ? 'button-active' : ''}`}
+                                    className={`signalTagItem ${selectedTag?.name === tag.name ? 'selected' : ''}`}
                                     onClick={() => handleSelectTag(tag)}
                                     style={{
                                         display: 'flex',
@@ -171,10 +173,7 @@ function TrapTags({ currentUser, onAdd, onDelete, onEdit, onSave }) {
                             ))}
                         </ul>
                     </div>
-                    <div style={{ padding: '8px', background: 'var(--backgroundColor3)', borderRadius: '8px', width: '400px' }}>
-                        <div style={{ marginBottom: '10px', borderBottom: '1px solid var(--borderColor)', paddingBottom: '5px' }}>
-                            <h3>{selectedTag ? 'Edit Tag' : 'New Tag'}</h3>
-                        </div>
+                    <div style={{ padding: '8px', background: 'var(--backgroundColor3)', borderRadius: '8px', width: '400px', height: '150px' }}>
                         <div style={{ marginBottom: '10px' }}>
                             <span>Name:</span>
                             <input
@@ -182,7 +181,7 @@ function TrapTags({ currentUser, onAdd, onDelete, onEdit, onSave }) {
                                 name="name"
                                 value={newTag.name}
                                 className="inputText"
-                                style={{ width: '100%' }}
+                                style={{ width: '375px' }}
                                 onChange={handleInputChange}
                             />
                         </div>
@@ -194,7 +193,7 @@ function TrapTags({ currentUser, onAdd, onDelete, onEdit, onSave }) {
                                 value={newTag.oids}
                                 onChange={handleOidsChange}
                                 onCreateOption={handleCreateOption}
-                                styles={customStyles}
+                                styles={customStyles('380px')}
                                 placeholder="Type OIDs and hit Enter or Space"
                             />
                         </div>

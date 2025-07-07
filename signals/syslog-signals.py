@@ -16,9 +16,7 @@ SIGNAL_TOPIC = 'syslog-signals'
 OPENSEARCH_URL = 'http://OpenSearch:9200/syslog-signals/_doc/'
 OPENSEARCH_INDEX = 'syslog-signals'
 CONSUMER_GROUP = 'syslog-signals-consumer-group'
-STATEFUL_RULES_FILE = 'statefulSyslogRules.json'
-LOG_FILE = 'syslog_signals.log'
-LOG_LEVEL = logging.INFO
+STATEFUL_RULES_FILE = 'rules/statefulSyslogRules.json'
 CELERY_BROKER = os.environ.get('CELERY_BROKER', 'redis://redis:6380/0')
 CELERY_BACKEND = os.environ.get('CELERY_BACKEND', 'redis://redis:6380/0')
 
@@ -31,14 +29,11 @@ celery_app = Celery('syslog_signals',
 run = True
 stateful_rules = []
 active_signals = {}  # (optional local tracking)
-logging.basicConfig(filename=LOG_FILE, level=LOG_LEVEL,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
-logging.info("Syslog Signals Consumer started.")
 
 # === Signal Handling ===
 def shutdown(signum, frame):
     global run
-    logging.info("Shutting down signal consumer...")
+    print("Shutting down signal consumer...")
     run = False
 
 # === Rule Loading ===
@@ -49,10 +44,10 @@ def load_stateful_rules():
                 rules = json.load(f)
                 return rules
         else:
-            logging.warning(f"{STATEFUL_RULES_FILE} not found.")
+            print(f"{STATEFUL_RULES_FILE} not found.")
             return []
     except json.JSONDecodeError as e:
-        logging.error(f"Failed to parse {STATEFUL_RULES_FILE}: {e}")
+        print(f"Failed to parse {STATEFUL_RULES_FILE}: {e}")
         return []
 
 # === Signal ID Utility ===
@@ -67,12 +62,12 @@ def save_signal(signal_json):
         headers = {'Content-Type': 'application/json'}
         response = requests.post(OPENSEARCH_URL, headers=headers, data=json.dumps(signal_json))
         if response.status_code not in (200, 201):
-            logging.error(f"OpenSearch error (save): {response.status_code} - {response.text}")
+            print(f"OpenSearch error (save): {response.status_code} - {response.text}")
         else:
-            logging.info(f"Signal saved to OpenSearch: {signal_json}")
+            print(f"Signal saved to OpenSearch: {signal_json}")
             return response.json().get('_id')
     except Exception as e:
-        logging.error(f"Failed to save signal: {e}")
+        print(f"Failed to save signal: {e}")
         return None
 
 
@@ -83,11 +78,11 @@ def update_signal(signal_id, update_data):
         headers = {'Content-Type': 'application/json'}
         response = requests.post(url, headers=headers, data=json.dumps({"doc": update_data}))
         if response.status_code != 200:
-            logging.error(f"OpenSearch error (update): {response.status_code} - {response.text}")
+            print(f"OpenSearch error (update): {response.status_code} - {response.text}")
         else:
-            logging.info(f"Signal updated in OpenSearch: {signal_id} - {update_data}")
+            print(f"Signal updated in OpenSearch: {signal_id} - {update_data}")
     except Exception as e:
-        logging.error(f"Failed to update signal {signal_id}: {e}")
+        print(f"Failed to update signal {signal_id}: {e}")
 
 # === Find Related Signal Function ===
 def find_related_signal(rule_name, device, affected_entities):
@@ -121,9 +116,9 @@ def find_related_signal(rule_name, device, affected_entities):
             if hits:
                 return hits[0]['_id'], hits[0]['_source']
         else:
-            logging.error(f"OpenSearch error (find related): {response.status_code} - {response.text}")
+            print(f"OpenSearch error (find related): {response.status_code} - {response.text}")
     except Exception as e:
-        logging.error(f"Error querying OpenSearch for related signal: {e}")
+        print(f"Error querying OpenSearch for related signal: {e}")
     return None, None
 
 # === Signal Creation Function ===
@@ -135,7 +130,7 @@ def create_signal(syslog, rule):
             affected_entity_values[entity_type] = entity_value
 
     if not affected_entity_values:
-        logging.warning(f"No affected entities found in syslog for rule: {rule['name']}")
+        print(f"No affected entities found in syslog for rule: {rule['name']}")
         return
 
     signal_id = generate_signal_id(
@@ -161,7 +156,7 @@ def create_signal(syslog, rule):
     if opensearch_id:
         warmup_delay = rule.get("warmup", 0)
         promote_syslog_signals_to_open.apply_async(args=[opensearch_id], countdown=warmup_delay)
-        logging.info(f"Created signal (ID: {opensearch_id}) with warmUp={warmup_delay}s: {new_signal}")
+        print(f"Created signal (ID: {opensearch_id}) with warmUp={warmup_delay}s: {new_signal}")
 
 # === Signal Reopening Function ===
 def reopen_signal(signal, syslog, rule):
@@ -173,7 +168,7 @@ def reopen_signal(signal, syslog, rule):
             signal_id = signal
 
         if not signal_id:
-            logging.error(f"No signal_id provided to reopen_signal.")
+            print(f"No signal_id provided to reopen_signal.")
             return
 
         # Step 1: Find the document by signal_id
@@ -193,7 +188,7 @@ def reopen_signal(signal, syslog, rule):
         search_result = search_response.json()
         hits = search_result.get("hits", {}).get("hits", [])
         if not hits:
-            logging.error(f"No signal found with signal_id: {signal_id}")
+            print(f"No signal found with signal_id: {signal_id}")
             return
 
         hit = hits[0]
@@ -219,10 +214,10 @@ def reopen_signal(signal, syslog, rule):
         update_response = requests.post(update_url, headers=headers, data=json.dumps(update_data))
         update_response.raise_for_status()
 
-        logging.info(f"Successfully reopened signal {signal_id} (_id: {doc_id}) and added syslog {syslog_id}")
+        print(f"Successfully reopened signal {signal_id} (_id: {doc_id}) and added syslog {syslog_id}")
 
     except Exception as e:
-        logging.error(f"Error reopening signal {signal}: {e}")
+        print(f"Error reopening signal {signal}: {e}")
 
 # === Signal Closing Function ===
 def close_signal(syslog, rule, related_signal):
@@ -244,7 +239,7 @@ def close_signal(syslog, rule, related_signal):
         search_result = search_response.json()
         hits = search_result.get("hits", {}).get("hits", [])
         if not hits:
-            logging.error(f"No document found with signal_id: {related_signal_id}")
+            print(f"No document found with signal_id: {related_signal_id}")
             return
 
         doc_id = hits[0]["_id"]
@@ -266,34 +261,34 @@ def close_signal(syslog, rule, related_signal):
 
         cooldown_delay = rule.get("cooldown", 0)
         promote_syslog_signals_to_closed.apply_async(args=[doc_id], countdown=cooldown_delay)
-        logging.info(f"Signal {related_signal_id} (_id={doc_id}) set to coolDown for {cooldown_delay}s before closing.")
+        print(f"Signal {related_signal_id} (_id={doc_id}) set to coolDown for {cooldown_delay}s before closing.")
 
     except Exception as e:
-        logging.error(f"Failed to close signal {related_signal_id}: {e}")
+        print(f"Failed to close signal {related_signal_id}: {e}")
 
 # === Main Signal Handler ===
 def handle_message(msg):
     try:
         raw_value = msg.value()
         if raw_value is None:
-            logging.warning("Received empty message.")
+            print("Received empty message.")
             return
 
         try:
             syslog = json.loads(raw_value.decode('utf-8'))
         except Exception as e:
-            logging.error(f"JSON decoding failed: {e}. Raw message: {raw_value}")
+            print(f"JSON decoding failed: {e}. Raw message: {raw_value}")
             return
 
         if not isinstance(syslog, dict):
-            logging.error(f"Unexpected message format (not dict): {syslog}")
+            ogging.error(f"Unexpected message format (not dict): {syslog}")
             return
 
         syslogsRule = syslog.get("rule")
-        logging.info(f"Received rule: {syslogsRule}")
+        print(f"Received rule: {syslogsRule}")
         
         if syslogsRule == "Severity":
-            logging.info(f"Skipping rule 'Severity': {syslog}")
+            print(f"Skipping rule 'Severity': {syslog}")
             return
 
         rule = next(
@@ -302,7 +297,7 @@ def handle_message(msg):
         )
 
         if rule:
-            logging.info(f"Matched rule: {rule}")
+            print(f"Matched rule: {rule}")
             closeTag = rule.get("closesignaltag")
             openTag = rule.get("opensignaltag")
 
@@ -312,51 +307,50 @@ def handle_message(msg):
                 if entity_value:
                     affected_entity_values[entity_type] = entity_value
             
-            logging.info(f"Syslog data: {syslog}")
-            logging.info(f"Syslog mnemonic: {syslog.get('mnemonic')}, Open Signal value: {rule.get('opensignaltag')}: {syslog.get(openTag)}")
-            logging.info(f"Syslog mnemonic: {syslog.get('mnemonic')}, Close Signal value: {rule.get('closesignaltag')}: {syslog.get(closeTag)}")
+            print(f"Syslog data: {syslog}")
+            print(f"Syslog mnemonic: {syslog.get('mnemonic')}, Open Signal value: {rule.get('opensignaltag')}: {syslog.get(openTag)}")
+            print(f"Syslog mnemonic: {syslog.get('mnemonic')}, Close Signal value: {rule.get('closesignaltag')}: {syslog.get(closeTag)}")
 
             if rule.get("mnemonic") == syslog.get("opensignalmnemonic"):
                 if rule.get("opensignalvalue") == syslog.get(openTag):
-                    logging.info(f"Syslog elligible for opening signal: {syslog.get(openTag)}")
+                    print(f"Syslog elligible for opening signal: {syslog.get(openTag)}")
                     related_signal_id, related_signal = find_related_signal(
                         syslogsRule, syslog.get("device"), affected_entity_values
                     )
-                    logging.info(f"Related signal ID: {related_signal_id}, Related signal: {related_signal}, Rule: {rule}, affected entities: {affected_entity_values}")
+                    print(f"Related signal ID: {related_signal_id}, Related signal: {related_signal}, Rule: {rule}, affected entities: {affected_entity_values}")
                     if related_signal is None or related_signal.get("status") == "closed":
-                        logging.info("Creating new signal (no related or closed).")
+                        print("Creating new signal (no related or closed).")
                         create_signal(syslog, rule)
                     elif related_signal.get("status") == "coolDown":
-                        logging.info(f"Reopening signal {related_signal_id} (coolDown).")
+                        print(f"Reopening signal {related_signal_id} (coolDown).")
                         reopen_signal(related_signal, syslog, rule)
                     elif related_signal.get("status") == "open":
-                        logging.error(f"Related signal {related_signal_id} is already open.")
-                        logging.error(f"Related signal: {related_signal}")
+                        print(f"Related signal {related_signal_id} is already open.")
                     return
             
             if rule.get("mnemonic") == syslog.get("closesignalmnemonic"):
                 if rule.get("closesignalvalue") == syslog.get(closeTag):
-                    logging.info(f"Syslog elligible for closing signal: {syslog.get(closeTag)}")
+                    print(f"Syslog elligible for closing signal: {syslog.get(closeTag)}")
                     related_signal_id, related_signal = find_related_signal(
                         syslogsRule, syslog.get("device"), affected_entity_values
                     )
-                    logging.info(f"Related signal ID: {related_signal_id}, Related signal: {related_signal}, Rule: {rule}, affected entities: {affected_entity_values}")     
+                    print(f"Related signal ID: {related_signal_id}, Related signal: {related_signal}, Rule: {rule}, affected entities: {affected_entity_values}")     
                     if related_signal is None:
-                        logging.error("No related signal found to close.")
+                        print("No related signal found to close.")
                     elif related_signal.get("status") == "warmUp":
-                        logging.error(f"Signal {related_signal_id} in warmUp. Should be deleted.")
+                        print(f"Signal {related_signal_id} in warmUp. Should be deleted.")
                     elif related_signal.get("status") == "open":
-                        logging.info(f"Closing signal {related_signal_id}.")
+                        print(f"Closing signal {related_signal_id}.")
                         close_signal(syslog, rule, related_signal)
                     elif related_signal.get("status") == "coolDown":
-                        logging.error(f"Signal {related_signal_id} is in coolDown. Cannot close.")
+                        print(f"Signal {related_signal_id} is in coolDown. Cannot close.")
                     return
 
         else:
-            logging.warning(f"No matching rule found for: {rule}. Syslog message: {syslog}")
+            print(f"No matching rule found for: {rule}. Syslog message: {syslog}")
 
     except Exception as e:
-        logging.error(f"Unexpected error in handle_message: {e}")
+        print(f"Unexpected error in handle_message: {e}")
 
 # === Main Loop ===
 def main():
@@ -365,7 +359,7 @@ def main():
     signal.signal(signal.SIGTERM, shutdown)
 
     stateful_rules = load_stateful_rules()
-    logging.info(f"Loaded {len(stateful_rules)} stateful rules.")
+    print(f"Loaded {len(stateful_rules)} stateful rules.")
 
     consumer = Consumer({
         'bootstrap.servers': KAFKA_BROKER,
@@ -374,7 +368,7 @@ def main():
     })
 
     consumer.subscribe([SIGNAL_TOPIC])
-    logging.info(f"Subscribed to topic: {SIGNAL_TOPIC}")
+    print(f"Subscribed to topic: {SIGNAL_TOPIC}")
 
     try:
         while run:
@@ -382,14 +376,14 @@ def main():
             if msg is None:
                 continue
             if msg.error():
-                logging.error(f"Consumer error: {msg.error()}")
+                print(f"Consumer error: {msg.error()}")
                 continue
 
             handle_message(msg)
 
     finally:
         consumer.close()
-        logging.info("Signal consumer closed.")
+        print("Signal consumer closed.")
 
 if __name__ == "__main__":
     main()

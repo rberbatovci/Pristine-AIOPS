@@ -1,7 +1,7 @@
 :root {
     --tlineBorder: 1px solid black;
     --tlineText: black;
-    --textColor: rgb(90, 90, 90);
+    --textColor3333: rgb(90, 90, 90);
   
   
   }
@@ -9,7 +9,7 @@
   [data-theme='dark'] {
     --tlineBorder: white;
     --tlineText: white;
-    --textColor: rgba(201, 201, 201, .8);
+    --textColor3333: rgba(201, 201, 201, .8);
   }
   
   .signal-timeline-container {
@@ -220,7 +220,7 @@
   
   .hour {
     text-align: left;
-    border-left: 1px solid var(textColor);
+    border-left: 1px solid var(textColor3333);
     font-size: 10px;
     height: 7px;
     padding-left: 5px;
@@ -230,14 +230,14 @@
   
   .minute {
     text-align: left;
-    border-left: 1px solid var(textColor);
+    border-left: 1px solid var(textColor3333);
     display: none;
     /* Display minutes horizontally */
     font-size: 10px;
     height: 10px;
     width: calc(100% / 30);
     padding-left: 2px;
-    color: var(textColor);
+    color: var(textColor3333);
     flex-grow: 1;
   
   }

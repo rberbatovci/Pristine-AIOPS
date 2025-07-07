@@ -1,0 +1,27 @@
+FROM golang:1.23-alpine AS builder
+
+WORKDIR /app/telemetry/bgp-connections-consumer
+
+# Copy go.mod and go.sum for bgp-connections-consumer
+COPY bgp-connections-consumer/go.mod bgp-connections-consumer/go.sum ./
+
+# Copy protobuf module folder one level up from bgp-connections-consumer (to match ../protobuf)
+COPY protobuf /app/telemetry/protobuf
+
+# Copy bgp-connections-consumer source files
+COPY bgp-connections-consumer/. .
+
+RUN go mod download
+
+# Build your binary
+RUN go build -o consumer main.go
+
+FROM alpine:3.18
+
+WORKDIR /app/telemetry/bgp-connections-consumer
+
+COPY --from=builder /app/telemetry/bgp-connections-consumer/consumer .
+
+RUN apk add --no-cache bash
+
+CMD ["./consumer"]

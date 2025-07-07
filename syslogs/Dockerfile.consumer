@@ -2,15 +2,12 @@ FROM python:3.11-slim
 
 WORKDIR /app/syslogs
 
-# Create empty JSON files
-RUN touch regex_data.json
-
 # Copy app files
 COPY consumer.py .
-COPY mnemonics.json /app/syslogs/
+COPY utils.py .
 
 # Copy and install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-CMD ["python", "consumer.py"]
+CMD ["python", "-u", "consumer.py"]

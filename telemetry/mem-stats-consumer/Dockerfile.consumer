@@ -1,0 +1,24 @@
+FROM golang:1.23-alpine AS builder
+
+WORKDIR /app/telemetry/mem-stats-consumer
+
+COPY mem-stats-consumer/go.mod mem-stats-consumer/go.sum ./
+
+COPY protobuf /app/telemetry/protobuf
+
+COPY mem-stats-consumer/. .
+
+RUN go mod download
+
+# Build your binary
+RUN go build -o consumer main.go
+
+FROM alpine:3.18
+
+WORKDIR /app/telemetry/mem-stats-consumer
+
+COPY --from=builder /app/telemetry/mem-stats-consumer/consumer .
+
+RUN apk add --no-cache bash
+
+CMD ["./consumer"]

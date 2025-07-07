@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Select from 'react-select';
 import customStyles from '../misc/SelectStyles';
 import apiClient from '../misc/AxiosConfig';
+import { TailSpin } from 'react-loader-spinner';
 
 function SyslogConfig({ hostname, version, onSuccess }) {
     const [severity, setSeverity] = useState({ value: 'informational', label: '6 - Informational' });
@@ -59,18 +60,21 @@ function SyslogConfig({ hostname, version, onSuccess }) {
     };
 
     return (
-        <div className="searchSyslogsContainer">
+        <div className="searchSyslogsContainer" style={{color: 'var(--spanTextColor)'}}>
             <span className="searchSignalFilterText">Configure syslogs</span>
             <div className="searchSyslogsFilterEntries" style={{ marginTop: '5px' }}>
                 <div className="searchSyslogsFilterEntry">
                     <span className="searchSignalFilterText">Minimum Severity:</span>
-                    <div style={{ marginTop: '6px' }}>
+                    <div style={{ marginTop: '6px', marginBottom: '6px' }}>
                         <Select
                             placeholder="Minimal Severity"
                             options={severityOptions}
                             value={severity}
                             onChange={setSeverity}
                             styles={customStyles('300px')}
+                            menuPortalTarget={document.body}
+                            menuPosition="absolute"
+                            menuShouldBlockScroll={true}
                         />
                     </div>
                 </div>
@@ -82,12 +86,22 @@ function SyslogConfig({ hostname, version, onSuccess }) {
                 </div>
             )}
 
-            <div style={{ marginTop: '1rem' }}>
-                <button onClick={handleSkip} style={{ marginRight: '1rem' }}>
-                    Skip
-                </button>
-                <button onClick={sendConfig} disabled={loading}>
-                    {loading ? 'Configuring...' : 'Configure Syslogs'}
+            <div style={{ marginTop: '1rem', right: '10px' }}>
+
+                <button onClick={sendConfig} disabled={loading} className="buttonStyles addRuleButton">
+                    {loading ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <TailSpin
+                                height="20"
+                                width="20"
+                                color="#ffffff"
+                                ariaLabel="loading"
+                            />
+                            <span>Configuring...</span>
+                        </div>
+                    ) : (
+                        'Configure Netflow'
+                    )}
                 </button>
             </div>
         </div>
