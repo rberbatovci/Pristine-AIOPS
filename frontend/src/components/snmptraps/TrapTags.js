@@ -33,6 +33,14 @@ function TrapTags({ currentUser, onAdd, onDelete, onEdit, onSave }) {
         }
     };
 
+    const handleSyncToRedis = async () => {
+        try {
+            await apiClient.post(`/snmptraps/tags/syncToRedis/`);
+        } catch (error) {
+            console.error('Error syncing regex rules:', error);
+        }
+    };
+
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setNewTag({ ...newTag, [name]: value });
@@ -198,6 +206,9 @@ function TrapTags({ currentUser, onAdd, onDelete, onEdit, onSave }) {
                             />
                         </div>
                         <div className="signalConfigButtonContainer">
+                            <button onClick={handleSyncToRedis} className="addRuleButton">
+                                Sync to Redis
+                            </button>
                             {selectedTag ? (
                                 <button
                                     className="saveRuleButton"
@@ -207,6 +218,7 @@ function TrapTags({ currentUser, onAdd, onDelete, onEdit, onSave }) {
                                     Save Tag
                                 </button>
                             ) : (
+
                                 <button
                                     className="addRuleButton"
                                     onClick={handleAddTag}

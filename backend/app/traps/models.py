@@ -5,6 +5,20 @@ from sqlalchemy.sql import func
 from app.db.session import Base
 from app.db.associatedTables import stateful_trap_rule_devices
 
+
+trap_oid_tags = Table(
+    'trap_oid_tags',
+    Base.metadata,
+    Column('trap_oid_id', Integer, ForeignKey('snmp_trap_oids.id', ondelete="CASCADE"), primary_key=True),
+    Column('tag_name', String(50), ForeignKey('trapTags.name', ondelete="CASCADE"), primary_key=True),
+)
+
+trap_rules_association = Table(
+    'trap_rules', Base.metadata,
+    Column('trap_id', Integer, ForeignKey('snmp_trap_oids.id'), primary_key=True),
+    Column('rule_id', Integer, ForeignKey('stateful_trap_rules.id'), primary_key=True)
+)
+
 class SNMPOID(Base):
     __tablename__ = "snmp_oids"
     
@@ -13,51 +27,17 @@ class SNMPOID(Base):
     oid = Column(String(255), index=True)
     description = Column(String(255), nullable=True)
 
-class Tag(Base):
-    __tablename__ = "trapTags"
-
-    name = Column(String(50), primary_key=True, index=True)
-    oids = Column(ARRAY(String), nullable=True) 
-
-
-
-class Trap(Base):
-    __tablename__ = "traps"
-
-    id = Column(Integer, primary_key=True, index=True)
-    timestamp = Column(DateTime, nullable=False, server_default=func.now())
-    content = Column(JSON, nullable=False, default=dict)
-    signal = Column(JSON, nullable=True, default=dict)
-    tags = Column(JSON, nullable=True, default=dict)
-    device = Column(String(255), nullable=False)
-    trapOid = Column(String(255), nullable=True)
-
-class SNMPAuthentication(Base):
-    __tablename__ = "snmp_authentications"
-
-    id = Column(Integer, primary_key=True, index=True)
-    engineId = Column(String(25), nullable=False)
-    user = Column(String(10), nullable=False)
-    authProtocol = Column(String(20), nullable=True)
-    authPassword = Column(String(25), nullable=False)
-    privProtocol = Column(String(20), nullable=True)
-    privPassword = Column(String(25), nullable=False)
-    secModel = Column(String(15), nullable=True)
-
-trap_rules_association = Table(
-    'trap_rules', Base.metadata,
-    Column('trap_id', Integer, ForeignKey('snmp_trap_oids.id'), primary_key=True),
-    Column('rule_id', Integer, ForeignKey('stateful_trap_rules.id'), primary_key=True) # Corrected ForeignKey
-)
-
-
 class TrapOid(Base):
     __tablename__ = "snmp_trap_oids"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=True)
     value = Column(String(255), nullable=False)
-    tags = Column(ARRAY(String), nullable=True)
+    tags = relationship(
+        "Tag",
+        secondary=trap_oid_tags,
+        back_populates="trapOids"
+    )
     rules = relationship(
         'StatefulTrapRule',
         secondary=trap_rules_association,
@@ -70,6 +50,29 @@ class TrapOid(Base):
 
     def __str__(self):
         return self.name
+
+class Tag(Base):
+    __tablename__ = "trapTags"
+
+    name = Column(String(50), primary_key=True, index=True)
+    oids = Column(ARRAY(String), nullable=True) 
+    trapOids = relationship(
+        "TrapOid",
+        secondary=trap_oid_tags,
+        back_populates="tags"
+    )
+
+class Trap(Base):
+    __tablename__ = "traps"
+
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, nullable=False, server_default=func.now())
+    content = Column(JSON, nullable=False, default=dict)
+    signal = Column(JSON, nullable=True, default=dict)
+    tags = Column(JSON, nullable=True, default=dict)
+    device = Column(String(255), nullable=False)
+    trapOid = Column(String(255), nullable=True)
+
 
 class StatefulTrapRule(Base):
     __tablename__ = "stateful_trap_rules"

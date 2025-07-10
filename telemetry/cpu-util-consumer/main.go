@@ -172,7 +172,7 @@ func sendToKafkaSignalTopic(payload []byte, writer *kafka.Writer) {
 func initKafkaWriter() {
     kafkaWriter = &kafka.Writer{
         Addr:         kafka.TCP(kafkaBroker),
-        Topic:        "cpu-statistics-signals",
+        Topic:        "telemetry-signals",
         Balancer:     &kafka.LeastBytes{},
         RequiredAcks: kafka.RequireAll,
         Async:        false,
@@ -180,7 +180,7 @@ func initKafkaWriter() {
         BatchSize:    100,
         BatchTimeout: 100 * time.Millisecond,
     }
-    log.Println("🛠️ Kafka writer initialized for topic: cpu-statistics-signals")
+    log.Println("🛠️ Kafka writer initialized for topic: telemetry-signals")
 }
 
 func convertToFloat(v interface{}) (float64, bool) {

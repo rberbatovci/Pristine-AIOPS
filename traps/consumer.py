@@ -11,12 +11,13 @@ import aiohttp
 import threading
 import asyncio
 import hashlib
+import redis
 
 # Kafka configuration
 KAFKA_BROKER = 'Kafka:9092'
 KAFKA_TOPIC = 'trap-topic'
 CONSUMER_GROUP = 'snmp-opensearch-consumer-group'
-RELOAD_INTERVAL_SECONDS = 60
+RELOAD_INTERVAL_SECONDS = 10
 OPENSEARCH_URL = 'http://OpenSearch:9200/traps/_doc/'
 DATA_DIR = "/app/traps/rules"
 FASTAPI_URL = "http://FastAPI:8000/traps/trapOids/"
@@ -30,6 +31,36 @@ trapTagSettings = []
 
 producer = Producer({'bootstrap.servers': KAFKA_BROKER})
 
+def loadSnmpTrapOidsFromRedis():
+    r = redis.Redis(host='redis', port=6379, decode_responses=True)
+    oids = {}
+
+    keys = r.keys("traps:oid:*")
+    for key in keys:
+        if key == "traps:oid:all":
+            continue
+
+        data = r.hgetall(key)
+        if data:
+            data['tags'] = data['tags'].split(',') if data.get('tags') else []
+            oids[data['name']] = data
+
+    return oids
+
+
+def loadTagsFromRedis():
+    r = redis.Redis(host='redis', port=6379, decode_responses=True)
+    tags = {}
+
+    
+    for tag_name in r.smembers("traps:tags:all"):
+        key = f"traps:tags:{tag_name}"
+        data = r.hgetall(key)
+        if data:
+            data['oids'] = data['oids'].split(',') if data.get('oids') else []
+            tags[data['name']] = data['oids']
+
+    return tags
 
 def shutdown(signum, frame):
     global run
@@ -54,14 +85,12 @@ def load_json_file(file_path):
 
 def reload_all_data():
     global snmpTrapOidSettings, trapTagSettings
-    print("Reloading all configuration data...")
-    for file_name, global_var_name in data_stores.items():
-        file_path = os.path.join(DATA_DIR, file_name)
-        data = load_json_file(file_path)
-        globals()[global_var_name] = data
-        print(f"Reloaded data from {file_name} into {global_var_name}.")
-
-    print(f"Current trapTagSettings after reload: {trapTagSettings}") # Added logging
+    print("Reloading configuration data...")
+    snmpTrapOidSettings = loadSnmpTrapOidsFromRedis()
+    trapTagSettings = loadTagsFromRedis()
+    
+    print(f"Current snmpTrapOidSettings after reload: {snmpTrapOidSettings}")
+    print(f"Current trapTagSettings after reload: {trapTagSettings}")
 
     if run:
         threading.Timer(RELOAD_INTERVAL_SECONDS, reload_all_data).start()
@@ -121,7 +150,7 @@ def handle_message(msg):
         # Process OID definition
         if snmpTrapOid:
             print(f"Received SNMP Trap OID: {snmpTrapOid}")
-            snmpTrapOid_entry = next((item for item in snmpTrapOidSettings if item["name"] == snmpTrapOid), None)
+            snmpTrapOid_entry = snmpTrapOidSettings.get(snmpTrapOid)
 
             if not snmpTrapOid_entry:
                 print(f"SNMP Trap OID '{snmpTrapOid}' not found in the list.")
@@ -141,15 +170,16 @@ def handle_message(msg):
                 # Tag processing
                 if "tags" in snmpTrapOid_entry and snmpTrapOid_entry["tags"]:
                     for tag_name in snmpTrapOid_entry["tags"]:
-                        tag_entry = next((item for item in trapTagSettings if item["name"] == tag_name), None)
-                        if tag_entry and "oids" in tag_entry:
-                            for oid in tag_entry["oids"]:
-                                if 'content' in trap_data and oid in trap_data['content']:
-                                    processed_trap_data[tag_name] = trap_data['content'][oid]
-                                    print(f"Added tag '{tag_name}' with value '{trap_data['content'][oid]}'")
-                                    break
-                                else:
-                                    print(f"OID '{oid}' not found in the trap data.")
+                        tag_entry = trapTagSettings.get(tag_name)
+                        if tag_entry:
+                            for oid in tag_entry:
+                                for oid in tag_entry["oids"]:
+                                    if 'content' in trap_data and oid in trap_data['content']:
+                                        processed_trap_data[tag_name] = trap_data['content'][oid]
+                                        print(f"Added tag '{tag_name}' with value '{trap_data['content'][oid]}'")
+                                        break
+                                    else:
+                                        print(f"OID '{oid}' not found in the trap data.")
                         else:
                             print(f"Tag '{tag_name}' not found in the list.")
 
@@ -185,9 +215,11 @@ def handle_message(msg):
         print(f"Message processing error: {e}")
 
 def main():
-    global snmpTrapOidSettings
+    global snmpTrapOidSettings, trapTagSettings
     print("Starting SNMP Trap Consumer...")
-    reload_all_data()
+    snmpTrapOidSettings = loadSnmpTrapOidsFromRedis()
+    trapTagSettings = loadTagsFromRedis()
+    threading.Timer(RELOAD_INTERVAL_SECONDS, reload_all_data).start()
     signal.signal(signal.SIGINT, shutdown)
     signal.signal(signal.SIGTERM, shutdown)
 

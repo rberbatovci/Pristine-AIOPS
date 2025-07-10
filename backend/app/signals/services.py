@@ -2,8 +2,19 @@ import json
 import os
 from sqlalchemy import select
 from .models import SyslogSignalSeverity
+import redis
 
 MnemonicsJson = "/app/syslogs/rules/mnemonics.json"
+
+def save_syslog_severity_to_redis(number: int, severity: str, description: str):
+    r = redis.Redis(host='redis', port=6379, decode_responses=True)
+    key = "syslog:signal:severity"
+    r.hset(key, mapping={
+        "number": number,
+        "severity": severity,
+        "description": description,
+    })
+
 
 async def updateMnemonicSettings(db):
     # Read the current file if it exists, otherwise start with an empty structure

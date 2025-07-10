@@ -2,30 +2,24 @@
 
 FROM debian:bookworm-slim
 
-# Set timezone (e.g., UTC)
-RUN apt-get update && apt-get install -y tzdata && \
-    ln -snf /usr/share/zoneinfo/Etc/UTC /etc/localtime && \
-    echo Etc/UTC > /etc/timezone && \
-    dpkg-reconfigure -f noninteractive tzdata && \
-    rm -rf /var/lib/apt/lists/*
+ENV TZ=Etc/UTC
 
-# Install dependencies
 RUN apt-get update && apt-get install -y \
+    tzdata \
     build-essential \
     librdkafka-dev \
     libcurl4-openssl-dev \
     libjansson-dev \
     curl \
+    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
+    && echo $TZ > /etc/timezone \
+    && dpkg-reconfigure -f noninteractive tzdata \
     && rm -rf /var/lib/apt/lists/*
 
-# Set the working directory
 WORKDIR /app/netflow
 
-# Copy the source file to the working directory
 COPY consumer.c .
 
-# Compile the C program
 RUN gcc -o consumer consumer.c -lrdkafka -lcurl -ljansson
 
-# Run the consumer binary
 CMD ["./consumer"]

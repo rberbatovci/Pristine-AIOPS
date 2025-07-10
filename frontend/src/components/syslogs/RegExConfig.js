@@ -27,7 +27,7 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
   const handleOptionChange = (regEx) => {
     setSelectedRegEx(regEx);
     setIsAddNewRegEx(false);
-    setEditedData(regEx); 
+    setEditedData(regEx);
     apiClient.get(`/syslogs/regex/${regEx.name}/`)
       .then((response) => {
         setNewRegEx(response.data);
@@ -103,7 +103,7 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
         nomatch: null,
         tag: '',
       });
-      setIsAddNewRegEx(true); 
+      setIsAddNewRegEx(true);
     } catch (error) {
       console.error('Error updating tag:', error);
       setAlert("Failed to update tag. Please try again.");
@@ -119,6 +119,16 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
     } catch (error) {
       console.error('Error deleting tag:', error);
       setAlert("Failed to delete tag. Please try again.");
+    }
+  };
+
+  const handleSyncToRedis = async () => {
+    try {
+      await apiClient.post(`/syslogs/regex/handleSyncToRedis/`);
+      setAlert("Regex rules synchronized successfully!");
+    } catch (error) {
+      console.error('Error syncing regex rules:', error);
+      setAlert("Failed to sync regex rules. Please try again.");
     }
   };
 
@@ -158,13 +168,13 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
                     className={`signalTagItem ${selectedRegEx && selectedRegEx.id === regex.id ? 'selected' : ''}`}
                     onClick={() => handleOptionChange(regex)}
                   >
-                    {regex.name} 
+                    {regex.name}
                   </li>
                 ))}
               </ul>
             </div>
             <div style={{ padding: '14px', background: 'var(--backgroundColor3)', color: 'var(--textColor)', borderRadius: '8px', height: '280px', overflowY: 'auto' }}>
-              <div style={{ marginBottom: '5px'}}>
+              <div style={{ marginBottom: '5px' }}>
                 <span>Name:</span>
                 <input
                   type="text"
@@ -208,7 +218,7 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
                   onChange={(selectedOption) =>
                     setNewRegEx({ ...newRegEx, matchfunction: selectedOption.value })}
                   styles={customStyles('330px')}
-                  isMulti={false} 
+                  isMulti={false}
                 />
               </div>
               <div style={{ display: "flex", marginBottom: '5px' }}>
@@ -241,16 +251,16 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
               </div>
               <div className="tag-detail-row" style={{ marginTop: '6px' }}>
                 <span>No match:</span>
-                  <input
-                    type="text"
-                    name="nomatch"
-                    value={newRegEx.nomatch}
-                    className="inputText"
-                    style={{ width: '325px' }}
-                    onChange={(e) =>
-                      setNewRegEx({ ...newRegEx, nomatch: e.target.value })
-                    }
-                  />
+                <input
+                  type="text"
+                  name="nomatch"
+                  value={newRegEx.nomatch}
+                  className="inputText"
+                  style={{ width: '325px' }}
+                  onChange={(e) =>
+                    setNewRegEx({ ...newRegEx, nomatch: e.target.value })
+                  }
+                />
               </div>
             </div>
           </div>
@@ -262,6 +272,9 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
           <div className="signalConfigButtonContainer">
             {isAddNewRegEx ? (
               <>
+                <button onClick={handleSyncToRedis} className="addRuleButton">
+                  Sync to Redis
+                </button>
                 <button onClick={handleAddRule} className="addRuleButton">
                   Add Rule
                 </button>
@@ -279,6 +292,9 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
                     className="deleteRuleButton"
                   >
                     Delete
+                  </button>
+                  <button onClick={handleSyncToRedis} className="addRuleButton">
+                    Sync to Redis
                   </button>
                 </>
               )

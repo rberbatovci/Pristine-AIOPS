@@ -39,6 +39,13 @@ const SnmpTrapOid = ({ currentUser }) => {
         }
     };
 
+    const handleSyncToRedis = async () => {
+        try {
+            await apiClient.post(`/snmptraps/snmpTrapOids/syncToRedis/`);
+        } catch (error) {
+            console.error('Error syncing regex rules:', error);
+        }
+    };
 
 
     useEffect(() => {
@@ -56,7 +63,7 @@ const SnmpTrapOid = ({ currentUser }) => {
 
     const handleTrapOidSelect = async (trapOid) => {
         try {
-            const response = await apiClient.get(`/traps/trapOids/${trapOid.name                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  }/`);
+            const response = await apiClient.get(`/traps/trapOids/${trapOid.name}/`);
             const fetchedTrapOid = response.data;
             setSelectedTrapOid(fetchedTrapOid);
         } catch (err) {
@@ -186,6 +193,9 @@ const SnmpTrapOid = ({ currentUser }) => {
                         />
                     </div>
                     {updateError && <p style={{ color: 'red' }}>{updateError}</p>}
+                    <button onClick={handleSyncToRedis} className="addRuleButton">
+                        Sync to Redis
+                    </button>
                     <button
                         onClick={handleUpdateTrapOid}
                         disabled={isUpdating}

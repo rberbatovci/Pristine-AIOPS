@@ -11,26 +11,26 @@
     --tableDataRowSelectedColor: rgb(13, 89, 112);
     --tableHeaderRowRightBorderColor: rgb(1,1,1);
     --tableDataRowRightBorderColor: rgba(172, 172, 172, 0.10);
-    --tableDataHeaderBackground: rgb(87, 133, 155);
+    --tableDataHeaderBackground: rgba(196, 196, 196, 0.1);
     --tableContainerBackground: rgba(255, 255, 255, 0.1);
     --tableHeaderColor: rgb(214, 214, 214);
-    --tableDataHeaderColor: rgba(255, 255, 255, .8);
+    --tableDataHeaderColor: rgba(255, 255, 255, .8);  
   }
   
   [data-theme='dark'] {
     --tableHeader: rgb(1,1,1);
     --selectedRowColor: rgb(48, 84, 109);
     --selectedRowColor: rgb(48, 113, 151);
-    --tabledataRowEvenBackground: rgba(15, 72, 97, 0.3);
-    --tabledataRowOddBackground: rgba(1, 75, 112, 0.2);
+    --tabledataRowEvenBackground: rgba(0, 57, 77, 0.5);
+    --tabledataRowOddBackground: rgba(0, 57, 77, 0.7);
     --tableDataRowEvenColor: rgba(184, 184, 184, 0.7);
     --tableDataRowOddColor: rgba(184, 184, 184, .55);
-    --tableDataRowSelectedBackground: rgba(4, 149, 206, 0.2);
+    --tableDataRowSelectedBackground: rgba(0, 81, 110, 0.6);
     --tableDataRowSelectedColor: rgba(253, 253, 253, 0.8);
     --tableDataRowSelectedTopBorder: 1px solid rgba(255, 255, 255, 0.2);
     --tableDataRowRightBorderColor: rgba(172, 172, 172, 0.10);
-    --tableDataHeaderBackground: rgba(9, 38, 54, 0.4);
-    --tableContainerBackground: rgba(0, 0, 0, 0.2);
+    --tableDataHeaderBackground: rgba(43, 101, 131, 0.1);
+    --tableContainerBackground: rgba(0, 18, 46, 0.2);
     --tableDataHeaderColor: rgba(255, 255, 255, .5);
   }
   
@@ -38,7 +38,7 @@
     width: 100%;
     overflow-x: scroll; /* To manage horizontal overflow */
     border-radius: 10px;
-    background-color: var(--tableContainerBackground);
+    background-color: var(--backgroundColor3);
     margin: 12px 8px;
     padding-bottom: 10px;
   }

@@ -5,9 +5,17 @@
 #include <librdkafka/rdkafka.h>
 #include <curl/curl.h>
 #include <jansson.h>
+#include <signal.h>
+#include <unistd.h>
 
 #define OPENSEARCH_URL "http://OpenSearch:9200/netflow/_doc/"
 #define TOPIC_NAME "netflow-topic"
+
+volatile sig_atomic_t keep_running = 1;
+
+void handle_sigterm(int sig) {
+    keep_running = 0;
+}
 
 struct response_string {
     char *ptr;
@@ -105,6 +113,10 @@ char* timestamp_to_iso(json_t *ts_item) {
 }
 
 int main() {
+
+    signal(SIGINT, handle_sigterm);
+    signal(SIGTERM, handle_sigterm);
+
     char errstr[512];
     rd_kafka_conf_t *conf = rd_kafka_conf_new();
 
@@ -135,7 +147,7 @@ int main() {
 
     printf("📡 Listening for messages on Kafka topic: %s\n", TOPIC_NAME);
 
-    while (1) {
+    while (keep_running) {
         rd_kafka_message_t *rkmessage = rd_kafka_consumer_poll(rk, 1000);
         if (!rkmessage) continue;
 

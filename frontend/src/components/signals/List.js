@@ -45,7 +45,7 @@ function List({ onSignalSelect, signals }) {
           <li
             key={signal.id}
             onClick={() => handleSignalClick(signal)}
-            className={`listElement ${selectedSignal?.id === signal.id ? 'listElementActive' : ''}`}
+            className={`signalTagItem ${selectedSignal?.id === signal.id ? 'selected' : ''}`}
           >
             <div style={{ display: 'flex' }}>
               {/* Signal Badge */}

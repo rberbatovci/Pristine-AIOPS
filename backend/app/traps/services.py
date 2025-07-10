@@ -10,10 +10,96 @@ import json
 import os
 from sqlalchemy.orm import selectinload
 from typing import Any
+import redis
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 TrapTagFile = "/app/traps/rules/trapTags.json"
 SnmpTrapOidFile = Path("/app/traps/rules/snmpTrapOids.json")
 StatefulRulesFile = Path("/app/signals/rules/statefulTrapRules.json")
+
+def add_tag_to_redis(name: str, oids: list[str]):
+    r = redis.Redis(host='redis', port=6379, decode_responses=True)
+    key = f"traps:tags:{name}"
+
+    r.hset(key, mapping={
+        "name": name,
+        "oids": ",".join(oids)
+    })
+
+    r.sadd("traps:tags:all", name)
+
+def update_tag_in_redis(name: str, oids: list[str]):
+    add_tag_to_redis(name, oids)  # same as add (overwrites existing)
+
+def delete_tag_from_redis(regex_name):
+    r = redis.Redis(host='redis', port=6379, decode_responses=True)
+    key = f"traps:tags:{regex_name}"
+    r.delete(key)
+    r.srem("traps:tags:all", regex_name)
+
+def sync_tags_to_redis():
+    conn = psycopg2.connect(
+        dbname="fpristine",
+        user="PristineAdmin",
+        password="PristinePassword",
+        host="postgresql"
+    )
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+    r = redis.Redis(host='redis', port=6379, decode_responses=True)
+
+    # Clear previous trapTags from Redis
+    for key in r.scan_iter("traps:tags:*"):
+        r.delete(key)
+    r.delete("traps:tags:all")
+
+    # Fetch data from PostgreSQL
+    cursor.execute('SELECT * FROM "trapTags";')
+    tags = cursor.fetchall()
+
+    # Store in Redis
+    for tag in tags:
+        key = f"traps:tags:{tag['name']}"
+        r.hset(key, mapping={
+            'name': tag['name'],
+            'oids': ','.join(tag['oids']) if tag['oids'] else ''
+        })
+        r.sadd("traps:tags:all", tag['name'])
+
+    conn.close()
+
+def sync_snmp_trap_oids_to_redis():
+    conn = psycopg2.connect(
+        dbname="fpristine",
+        user="PristineAdmin",
+        password="PristinePassword",
+        host="postgresql"
+    )
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+    r = redis.Redis(host='redis', port=6379, decode_responses=True)
+
+    # Clear previous SNMP Trap OID entries
+    for key in r.scan_iter("traps:oid:*"):
+        r.delete(key)
+    r.delete("traps:oid:all")
+
+    # Fetch rows from PostgreSQL
+    cursor.execute("SELECT * FROM snmp_trap_oids;")
+    rows = cursor.fetchall()
+
+    # Store each row in Redis
+    for row in rows:
+        key = f"traps:oid:{row['id']}"
+        r.hset(key, mapping={
+            'id': row['id'],
+            'name': row['name'] or '',
+            'tags': ','.join(row['tags']) if row['tags'] else ''
+        })
+        r.sadd("traps:oid:all", row['id'])
+
+    conn.close()
 
 async def createTrap(db: AsyncSession, trap: TrapCreate):
     # Get device by IP address
@@ -322,3 +408,4 @@ async def update_trap_rules_in_json(opensignaltrap_name: str, closesignaltrap_na
     except Exception as e:
         print(f"Error updating trap rules in JSON: {e}")
         raise
+

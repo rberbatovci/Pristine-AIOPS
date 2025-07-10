@@ -1,3 +1,4 @@
 requests
 confluent_kafka
 aiohttp
+redis==5.0.4

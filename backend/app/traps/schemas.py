@@ -63,12 +63,6 @@ class SNMPOIDSchema(BaseModel):
     tag_id: Optional[int]
     description: Optional[str]
 
-class TrapOid(BaseModel):
-    id: Optional[int] = None
-    name: Optional[str]
-    value: Optional[str] = None
-    tags: Optional[List[str]] = []
-    rules: Optional[List[str]] = []
 
 class TrapOidCreate(BaseModel):
     name: str
@@ -77,9 +71,27 @@ class TrapOidCreate(BaseModel):
     class Config:
         from_attributes = True
 
+class OIDTag(BaseModel):
+    name: str
+
+    class Config:
+        orm_mode = True
+
+class TrapOid(BaseModel):
+    id: Optional[int] = None
+    name: Optional[str]
+    value: Optional[str] = None
+    tags: Optional[List[OIDTag]] = []
+    rules: Optional[List[str]] = []
+
 class TrapOidBrief(BaseModel):
     id: int
-    name: str
+    name: Optional[str]
+    value: str
+    tags: List[OIDTag] = [] 
+
+    class Config:
+        orm_mode = True
 
 class TrapCreate(BaseModel):
     content: Dict[str, Any]

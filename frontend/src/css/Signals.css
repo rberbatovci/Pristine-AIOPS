@@ -124,7 +124,8 @@
     font-weight: bold;
     margin-left: 10px;
     cursor: pointer;
-    color: var(--text-color);
+    color: var(--textColor);
+    opacity: 0.7;
     display: flex;
     align-items: center;
     transition: margin 1s ease-in-out, color 1s ease-in-out;
@@ -132,8 +133,8 @@
   }
   
   .signalRightElementHeaderTxt:hover {
-    margin-left: 20px;
-    color: var(--text-color-hover);
+    margin-left: 10px;
+    color: var(--textColor);
   }
 
   .zoom-buttons-container {

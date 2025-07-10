@@ -19,7 +19,6 @@
             "level": 5,
             "severity": "Notice",
             "regexes": [
-                "LinkInterface",
                 "State"
             ],
             "rules": []
@@ -28,21 +27,15 @@
             "name": "LINEPROTO-5-UPDOWN",
             "level": 5,
             "severity": "Notice",
-            "regexes": [
-                "LinkInterface",
-                "State"
-            ],
-            "rules": [
-                "InterfaceLinkDown"
-            ]
+            "regexes": [],
+            "rules": []
         },
         {
             "name": "LINK-3-UPDOWN",
             "level": 3,
             "severity": "Error",
             "regexes": [
-                "LinkInterface",
-                "State"
+                "LinkInterface"
             ],
             "rules": []
         },
@@ -188,6 +181,244 @@
         },
         {
             "name": "PLATFORM_INFRA-5-IOS_INTR_OVER_LIMIT_HIGH_STIME",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "BGP-5-NBR_RESET",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "SMART_LIC-6-AGENT_READY",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "SMART_LIC-6-AGENT_ENABLED",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "SMART_LIC-6-EXPORT_CONTROLLED",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "VXE_THROUGHPUT-6-LEVEL",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "SMART_LIC-6-HA_ROLE_CHANGED",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "VUDI-6-EVENT",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "SPANTREE-5-EXTENDED_SYSID",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "CRYPTO_ENGINE-4-CSDL_COMPLIANCE_DISABLED",
+            "level": 4,
+            "severity": "Warning",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "CUBE-3-LICENSING",
+            "level": 3,
+            "severity": "Error",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "SIP-1-LICENSING",
+            "level": 1,
+            "severity": "Alert",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "PNP-6-PNP_DISCOVERY_STARTED",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "IOSXE-3-PLATFORM",
+            "level": 3,
+            "severity": "Error",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "BOOT-5-OPMODE_LOG",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "CPPDRV-4-CPU_FEATURE",
+            "level": 4,
+            "severity": "Warning",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "CPPDRV-3-GUEST_CPU_FEATURE",
+            "level": 3,
+            "severity": "Error",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "ONEP_BASE-6-SS_ENABLED",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "IOSXE_OIR-6-INSCARD",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "IOSXE_OIR-6-ONLINECARD",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "SYS-5-RESTART",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "SSH-5-ENABLED",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "CRYPTO-6-ISAKMP_ON_OFF",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "CRYPTO-6-GDOI_ON_OFF",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "PNP-6-PNP_BEST_UDI_UPDATE",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "PNP-6-PNP_CDP_UPDATE",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "PNP-6-PNP_DISCOVERY_STOPPED",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "SNMP-5-COLDSTART",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "PKI-2-NON_AUTHORITATIVE_CLOCK",
+            "level": 2,
+            "severity": "Critical",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "CALL_HOME-6-CALL_HOME_ENABLED",
+            "level": 6,
+            "severity": "Informational",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "NDBMAN-5-ACTIVE",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "BGP-3-NOTIFICATION",
+            "level": 3,
+            "severity": "Error",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "BGP_SESSION-5-ADJCHANGE",
+            "level": 5,
+            "severity": "Notice",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "BGP-3-BGP_NO_REMOTE_READ",
+            "level": 3,
+            "severity": "Error",
+            "regexes": [],
+            "rules": []
+        },
+        {
+            "name": "CLNS-5-ADJCLEAR",
             "level": 5,
             "severity": "Notice",
             "regexes": [],

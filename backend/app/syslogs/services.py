@@ -14,10 +14,100 @@ from sqlalchemy.orm import selectinload
 from app.devices.models import Device
 from datetime import datetime, timezone
 from pathlib import Path
+import redis
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 SHARED_DATA_DIR = "/app/syslogs/rules"
 REGEX_JSON_PATH = os.path.join(SHARED_DATA_DIR, "regex_data.json")
 MNEMONICS_JSON_PATH = os.path.join(SHARED_DATA_DIR, "mnemonics.json")
+
+def delete_regex_from_redis(regex_id):
+    r = redis.Redis(host='redis', port=6379, decode_responses=True)
+    key = f"syslogs:regex:{regex_id}"
+    r.delete(key)
+    r.srem("syslogs:regex:all", regex_id)
+
+def updated_mnemonic_in_redis(mnemonic_obj):
+    r = redis.Redis(host='redis', port=6379, decode_responses=True)
+    key = f"syslogs:mnemonics:{mnemonic_obj.id}"
+
+    r.hset(key, mapping={
+        "id": mnemonic_obj.id,
+        "name": mnemonic_obj.name,
+        "severity": mnemonic_obj.severity,
+        "regexes": ",".join([r.name for r in mnemonic_obj.regexes]),
+        "rules": ",".join([r.name for r in mnemonic_obj.rules]),
+    })
+
+    r.sadd("syslogs:mnemonics:all", mnemonic_obj.id)
+
+def add_regex_to_redis(regex_obj):
+    r = redis.Redis(host='redis', port=6379, decode_responses=True)
+    key = f"syslogs:regex:{regex_obj.id}"
+
+    r.hset(key, mapping={
+        "id": regex_obj.id,
+        "name": regex_obj.name,
+        "pattern": regex_obj.pattern,
+        "matchfunction": regex_obj.matchfunction,
+        "matchnumber": regex_obj.matchnumber,
+        "groupnumber": regex_obj.groupnumber,
+        "nomatch": regex_obj.nomatch,
+        "tag": regex_obj.tag,
+    })
+
+    r.sadd("syslogs:regex:all", regex_obj.id)
+
+def sync_regex_to_redis():
+    conn = psycopg2.connect(
+        dbname="fpristine",
+        user="PristineAdmin",
+        password="PristinePassword",
+        host="postgresql"
+    )
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+    r = redis.Redis(host='redis', port=6379, decode_responses=True)
+
+    for key in r.scan_iter("syslogs:regex:*"):
+        r.delete(key)
+    r.delete("syslogs:regex:all")
+
+    cursor.execute("SELECT * FROM regex;")
+    regexes = cursor.fetchall()
+
+    for row in regexes:
+        key = f"syslogs:regex:{row['id']}"
+        r.hset(key, mapping=row)
+        r.sadd("syslogs:regex:all", row['id'])
+
+    conn.close()
+
+def sync_mnemonics_to_redis():
+    conn = psycopg2.connect(
+        dbname="fpristine",
+        user="PristineAdmin",
+        password="PristinePassword",
+        host="postgresql"
+    )
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+    r = redis.Redis(host='redis', port=6379, decode_responses=True)
+
+    for key in r.scan_iter("syslogs:mnemonics:*"):
+        r.delete(key)
+    r.delete("syslogs:mnemonics:all")
+
+    cursor.execute("SELECT * FROM mnemonics;")
+    mnemonics = cursor.fetchall()
+
+    for row in mnemonics:
+        key = f"syslogs:mnemonics:{row['id']}"
+        r.hset(key, mapping=row)
+        r.sadd("syslogs:mnemonics:all", row['id'])
+
+    conn.close()
 
 def create_mnemonic_in_file(name: str, level: int, severity: int):
     if not Path(MNEMONICS_JSON_PATH).exists():

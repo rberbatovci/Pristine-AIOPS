@@ -123,7 +123,7 @@ class RuleInfo(BaseModel):
     name: str
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 
 class MnemonicSyslog(BaseModel):
@@ -133,8 +133,9 @@ class MnemonicSyslog(BaseModel):
     regexes: Optional[List[str]] = None
     rules: Optional[List[RuleInfo]] = None
 
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True
+    }
 
 # ===== ReceiverAgentConfig Schemas =====
 class ReceiverAgentConfigBase(BaseModel):

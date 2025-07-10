@@ -93,33 +93,37 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: var(--tagListBack);
+  background: var(--signalRightElementHeaderBackground);
   border-top: 1px solid rgba(255, 255, 255, 0.05);
   color: var(--tagListCol);
   transition: 
-    background-color 0.2s ease,
+    background-color 1s ease,
     box-shadow 0.2s ease,
     transform 0.2s ease,
     margin 0.5s ease,
     text-shadow 0.2s ease,
-    padding 0.3s ease;
+    padding 0.3s ease,
+    color 0.5s ease;
   will-change: transform;
 }
 
 .signalTagItem:hover {
-  padding: 10px 12px;
+  padding: 8px 10px;
   background-color: var(--tagListBackHover);
   transform: scale(1.01);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-  text-shadow: 0 0 2px var(--tagListColHov);
-  margin-top: 10px;
-  margin-bottom: 10px;
-  color: var(--textColor2);
+  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
+  margin-top: 12px;
+  margin-bottom: 12px;
+  color: #fafafa;
   border-top: 1px solid var(--dropdownTopBorder);
 }
 
 .signalTagItem.selected {
   background-color: var(--tagListBackSel);
+  padding: 8px 10px;
+  margin-top: 12px;
+  margin-bottom: 12px;
+  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
   color: #fafafa;
 }
 

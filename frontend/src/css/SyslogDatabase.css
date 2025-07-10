@@ -280,6 +280,7 @@ ul {
     flex: 1;
     display: flex;
     height: calc(100vh - 180px);
+    background-color: var(--backgroundColor3);
 }
 
 .paginationContainer {

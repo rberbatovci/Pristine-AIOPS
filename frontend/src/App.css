@@ -16,7 +16,6 @@
   --borderDark: 1px solid rgba(31, 65, 78, 0.2);
   --borderDarkHvr: 1px solid rgba(3, 92, 151, 0.4);
   --elementBg: cyan;
-  --inputPlaceholderText: green;
   --darkBack: rgba(244, 244, 244, .2);
   --contentBackground: rgba(228, 228, 228, 0.6);
   --searchButtonBack: rgb(204, 204, 204);
@@ -24,7 +23,6 @@
   --inputTextBck: rgba(255, 255, 255, .2);
   --inputTextBck2: rgba(255, 255, 255, 0.4);
   --contentShadow: 8px 40px 40px rgba(109, 109, 109, 0.1);
-  --headerBackground: green;
   --detailBack: rgba(123, 169, 190, 0.1);
   --sidebarActiveBackground: rgb(129, 71, 184);
   --listElementBack: rgb(87, 133, 155);
@@ -37,12 +35,12 @@
   --inactiveButtonTopBorder: 1px solid rgba(255, 255, 255, .6);
   --inactiveButtonBottomBorder: 1px solid rgba(5, 112, 155, 0.2);
   --dropdownBackground: rgba(231, 231, 231, 1);
-  --signalRightElementHeaderBackground: rgba(255, 255, 255, 0.2);
+  --signalRightElementHeaderBackground: rgba(209, 209, 209, 0.2);
 
 
   --tagListBack: rgba(255, 255, 255, 0.3);
-  --tagListBackHover: rgba(235, 235, 235, 0.2);
-  --tagListBackSel: rgba(14, 150, 241, 0.8);
+  --tagListBackHover: rgba(168, 57, 168, 0.9);
+  --tagListBackSel: rgba(1, 84, 139, 0.8);
   --tagListCol: rgba(0, 0, 0, 0.6);
   --tagListColHov: rgba(32, 105, 153, .5);
 
@@ -93,12 +91,12 @@
   --configListButtonBackground: rgba(51, 61, 68, 0.64);
   --configListButtonHoverBackground: rgba(145, 211, 255, 0.1);
   --configListButtonActiveBackground: rgba(7, 163, 235, 0.4);
-  --signalRightElementHeaderBackground: rgba(55, 125, 172, 0.2);
+  --signalRightElementHeaderBackground: rgba(55, 125, 172, 0.15);
 
 
 
   --tagListBack: rgba(99, 166, 192, 0.1);
-  --tagListBackHover: rgba(22, 163, 228, 0.15);
+  --tagListBackHover: rgba(97, 179, 211, 0.20);
   --tagListBackSel: rgba(7, 172, 248, 0.3);
   --tagListCol: rgba(255, 255, 255, 0.6);
   --tagListColHov: rgba(122, 187, 231, 0.5);
@@ -310,7 +308,7 @@ header {
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: #175a87;
+  background-color: var(--signalRightElementHeaderBackground);
   border-radius: 6px;
 }
 

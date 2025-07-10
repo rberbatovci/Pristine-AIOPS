@@ -78,5 +78,239 @@
     "value": "CISCO-SMI::ciscoMgmt.187.0.6",
     "tags": [],
     "rules": []
+  },
+  {
+    "name": "CISCO-SMI::cisco.0.1",
+    "value": "CISCO-SMI::cisco.0.1",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.187.0.1",
+    "value": "CISCO-SMI::ciscoMgmt.187.0.1",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "BGP4-MIB::bgpBackwardTransition",
+    "value": "BGP4-MIB::bgpBackwardTransition",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.187.0.2",
+    "value": "CISCO-SMI::ciscoMgmt.187.0.2",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "BGP4-MIB::bgpEstablished",
+    "value": "BGP4-MIB::bgpEstablished",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.831.1.13",
+    "value": "CISCO-SMI::ciscoMgmt.831.1.13",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.43.2.0.1",
+    "value": "CISCO-SMI::ciscoMgmt.43.2.0.1",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.43.2.0.2",
+    "value": "CISCO-SMI::ciscoMgmt.43.2.0.2",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "IF-MIB::linkUp",
+    "value": "IF-MIB::linkUp",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.41.2.0.1",
+    "value": "CISCO-SMI::ciscoMgmt.41.2.0.1",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.43.2.0.1",
+    "value": "CISCO-SMI::ciscoMgmt.43.2.0.1",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.43.2.0.2",
+    "value": "CISCO-SMI::ciscoMgmt.43.2.0.2",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "IF-MIB::linkDown",
+    "value": "IF-MIB::linkDown",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.43.2.0.1",
+    "value": "CISCO-SMI::ciscoMgmt.43.2.0.1",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.43.2.0.2",
+    "value": "CISCO-SMI::ciscoMgmt.43.2.0.2",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "IF-MIB::linkUp",
+    "value": "IF-MIB::linkUp",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.41.2.0.1",
+    "value": "CISCO-SMI::ciscoMgmt.41.2.0.1",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.43.2.0.1",
+    "value": "CISCO-SMI::ciscoMgmt.43.2.0.1",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.43.2.0.2",
+    "value": "CISCO-SMI::ciscoMgmt.43.2.0.2",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "IF-MIB::linkDown",
+    "value": "IF-MIB::linkDown",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.43.2.0.1",
+    "value": "CISCO-SMI::ciscoMgmt.43.2.0.1",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.43.2.0.2",
+    "value": "CISCO-SMI::ciscoMgmt.43.2.0.2",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "IF-MIB::linkUp",
+    "value": "IF-MIB::linkUp",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.41.2.0.1",
+    "value": "CISCO-SMI::ciscoMgmt.41.2.0.1",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.43.2.0.1",
+    "value": "CISCO-SMI::ciscoMgmt.43.2.0.1",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.43.2.0.2",
+    "value": "CISCO-SMI::ciscoMgmt.43.2.0.2",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "IF-MIB::linkDown",
+    "value": "IF-MIB::linkDown",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.43.2.0.1",
+    "value": "CISCO-SMI::ciscoMgmt.43.2.0.1",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.43.2.0.2",
+    "value": "CISCO-SMI::ciscoMgmt.43.2.0.2",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "IF-MIB::linkUp",
+    "value": "IF-MIB::linkUp",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.41.2.0.1",
+    "value": "CISCO-SMI::ciscoMgmt.41.2.0.1",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "IF-MIB::linkDown",
+    "value": "IF-MIB::linkDown",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.43.2.0.1",
+    "value": "CISCO-SMI::ciscoMgmt.43.2.0.1",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.43.2.0.2",
+    "value": "CISCO-SMI::ciscoMgmt.43.2.0.2",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "IF-MIB::linkUp",
+    "value": "IF-MIB::linkUp",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.41.2.0.1",
+    "value": "CISCO-SMI::ciscoMgmt.41.2.0.1",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.187.0.5",
+    "value": "CISCO-SMI::ciscoMgmt.187.0.5",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "CISCO-SMI::ciscoMgmt.187.0.7",
+    "value": "CISCO-SMI::ciscoMgmt.187.0.7",
+    "tags": [],
+    "rules": []
+  },
+  {
+    "name": "IF-MIB::linkDown",
+    "value": "IF-MIB::linkDown",
+    "tags": [],
+    "rules": []
   }
 ]

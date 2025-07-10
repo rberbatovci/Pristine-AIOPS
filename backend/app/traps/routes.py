@@ -1,5 +1,5 @@
 from .schemas import Trap, TrapCreate, TrapOidCreate, TagBrief, StatefulTrapRuleResponse, SNMPConfig, TagSchema, TrapOid, StatefulTrapRuleBase, TagCreate, TagUpdate, StatefulTrapRule, TagDelete, TrapOidBrief, TrapOidUpdate, StatefulTrapRuleBrief
-from .services import remove_rule_from_snmpTrapOid, checkOids, update_trap_rules_in_json, update_snmpTrapOid_tags_in_file, save_tags_to_json_file, update_tag_in_json_file, delete_tag_from_json_file, save_statefulrules_to_file, remove_rule_from_json
+from .services import add_tag_to_redis, delete_tag_from_redis, update_tag_in_redis, sync_snmp_trap_oids_to_redis, sync_tags_to_redis, remove_rule_from_snmpTrapOid, checkOids, update_trap_rules_in_json, update_snmpTrapOid_tags_in_file, save_tags_to_json_file, update_tag_in_json_file, delete_tag_from_json_file, save_statefulrules_to_file, remove_rule_from_json
 from app.devices.models import Device as DeviceModel
 from .models import Tag as TagModel
 from .models import Trap as TrapModel
@@ -17,10 +17,28 @@ from .services import create_snmpTrapOid_in_file
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import selectinload
 import traceback
+import redis
 
 router = APIRouter()
 
 MIBS_DIR = "/app/traps/mibs"
+
+@router.post("/snmptraps/tags/syncToRedis/")
+def sync_snmpTrapTags():
+    try:
+        sync_tags_to_redis()
+        return {"message": "SNMP tags synchronized successfully to Redis"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/snmptraps/snmpTrapOids/syncToRedis/")
+def sync_snmpTrapOids():
+    try:
+        sync_snmp_trap_oids_to_redis()
+        return {"message": "SNMP Trap OIDs synchronized successfully to Redis"}
+    except Exception as e:
+        traceback.print_exc() 
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/traps/mibs/")
 def list_mibs():
@@ -187,30 +205,16 @@ async def get_tag_by_name(name: str, db: AsyncSession = Depends(get_db)):
 
 @router.post("/traps/tags/", response_model=TagSchema, status_code=201)
 async def create_tag(tag: TagCreate, db: AsyncSession = Depends(get_db)):
-    try:
-        async with db.begin():
-            stmt = (
-                insert(TagModel)
-                .values(name=tag.name, oids=tag.oids)
-                .returning(TagModel.name, TagModel.oids)
-            )
-            result = await db.execute(stmt)
-            name, oids = result.one()
+    async with db.begin():
+        new_tag = TagModel(name=tag.name, oids=tag.oids or [])
+        db.add(new_tag)
 
-        # ✅ Save only after DB commit
-        save_tags_to_json_file({"name": name, "oids": oids})
+    await db.commit()
+    await db.refresh(new_tag)
 
-        return TagSchema(name=name, oids=oids)
+    add_tag_to_redis(new_tag.name, new_tag.oids)
 
-    except Exception:
-        await db.rollback()
-        existing = await db.execute(
-            select(TagModel).where(TagModel.name == tag.name)
-        )
-        if existing.scalar_one_or_none():
-            raise HTTPException(status_code=400, detail="Tag with this name already exists")
-
-        raise HTTPException(status_code=500, detail="Failed to create tag due to server error.")
+    return new_tag
 
 
 @router.put("/traps/tags/{name}", response_model=TagSchema)
@@ -229,38 +233,33 @@ async def update_tag(name: str, tag: TagUpdate, db: AsyncSession = Depends(get_d
     if not updated:
         raise HTTPException(404, "Tag not found")
 
-    update_tag_in_json_file(name, tag.oids)
+    add_tag_to_redis(name, tag.oids)
+
     return TagSchema.from_orm(updated)
 
 @router.delete("/traps/tags/{name}", status_code=204)
 async def delete_tag(name: str, db: AsyncSession = Depends(get_db)):
     async with db.begin():
-        stmt = delete(TagModel).where(TagModel.name == name)
-        result = await db.execute(stmt)
-        if result.rowcount == 0:
+        result = await db.execute(select(TagModel).where(TagModel.name == name))
+        tag = result.scalar_one_or_none()
+
+        if not tag:
             raise HTTPException(404, "Tag not found")
 
-        # delete from JSON
-        delete_tag_from_json_file(name)
+        await db.delete(tag)
 
-
-@router.delete("/traps/tags/{tag_name}", status_code=204)
-async def delete_tag(tag_name: str, db: AsyncSession = Depends(get_db)):
-    async with db.begin():
-        stmt = delete(TagModel).where(TagModel.name == tag_name)
-        result = await db.execute(stmt)
-        if result.rowcount == 0:
-            raise HTTPException(status_code=404, detail=f"Tag '{tag_name}' not found")
+    delete_tag_from_redis(name)  # ✅ Redis sync
     return
+
 
 @router.post("/traps/trapOids/", response_model=TrapOidCreate)
 async def create_snmpTrapOid(snmpTrapOid: TrapOidCreate, db: AsyncSession = Depends(get_db)):
-    # Check if mnemonic exists
+    # Check if SNMP Trap OID already exists
     existing = await db.execute(select(TrapOidModel).filter(TrapOidModel.name == snmpTrapOid.name))
     if existing.scalars().first():
         raise HTTPException(status_code=400, detail="SNMP Trap OID already exists")
 
-    # Create new mnemonic
+    # Create and persist in PostgreSQL
     db_snmpTrapOid = TrapOidModel(
         name=snmpTrapOid.name,
         value=snmpTrapOid.name,
@@ -269,7 +268,7 @@ async def create_snmpTrapOid(snmpTrapOid: TrapOidCreate, db: AsyncSession = Depe
     await db.commit()
     await db.refresh(db_snmpTrapOid)
 
-    # Re-fetch with eager loading of related fields to avoid lazy loading
+    # Re-fetch with eager loading of related fields
     result = await db.execute(
         select(TrapOidModel)
         .options(selectinload(TrapOidModel.rules))
@@ -277,25 +276,55 @@ async def create_snmpTrapOid(snmpTrapOid: TrapOidCreate, db: AsyncSession = Depe
     )
     snmpTrapOid_with_relations = result.scalars().first()
 
+    # Add to Redis
+    try:
+        r = redis.Redis(host='redis', port=6379, decode_responses=True)
+        redis_key = f"traps:oid:{db_snmpTrapOid.id}"
+        r.hset(redis_key, mapping={
+            'id': db_snmpTrapOid.id,
+            'name': db_snmpTrapOid.name or '',
+        })
+        r.sadd("traps:oid:all", db_snmpTrapOid.id)
+    except Exception as e:
+        print(f"Failed to write to Redis: {e}")
+
+    # Optional: create a rule file
     create_snmpTrapOid_in_file(snmpTrapOid.name)
 
     return snmpTrapOid_with_relations
 
 @router.get("/traps/trapOids/", response_model=list[TrapOidBrief])
 async def read_mnemonics(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(TrapOidModel).offset(skip).limit(limit))
+    result = await db.execute(
+        select(TrapOidModel)
+        .options(selectinload(TrapOidModel.tags))  # eager load tags here
+        .offset(skip)
+        .limit(limit)
+    )
     mnemonics = result.scalars().all()
     return mnemonics
 
-@router.get("/traps/trapOids/{trap_oid_name}", response_model=TrapOid)
+@router.get("/traps/trapOids/{trap_oid_name}", response_model=dict)
 async def get_trap_oid_by_name(trap_oid_name: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(TrapOidModel).options(selectinload(TrapOidModel.rules)).where(TrapOidModel.name == trap_oid_name)
+        select(TrapOidModel)
+        .options(
+            selectinload(TrapOidModel.rules),
+            selectinload(TrapOidModel.tags)
+        )
+        .where(TrapOidModel.name == trap_oid_name)
     )
     trap_oid = result.scalars().first()
     if not trap_oid:
         raise HTTPException(status_code=404, detail="TrapOid not found")
-    return trap_oid
+
+    return {
+        "id": trap_oid.id,
+        "name": trap_oid.name,
+        "value": trap_oid.value,
+        "tags": [tag.name for tag in trap_oid.tags],
+        "rules": [rule.name for rule in trap_oid.rules]  # if rules are ORM objects
+    }
 
 @router.patch("/traps/trapOids/{trap_oid_name}", response_model=TrapOid)
 async def update_trap_oid_by_name(
@@ -305,7 +334,7 @@ async def update_trap_oid_by_name(
 ):
     result = await db.execute(
         select(TrapOidModel)
-        .options(selectinload(TrapOidModel.rules))
+        .options(selectinload(TrapOidModel.rules), selectinload(TrapOidModel.tags))
         .filter(TrapOidModel.name == trap_oid_name)
     )
     trap_oid = result.scalars().first()
@@ -313,18 +342,32 @@ async def update_trap_oid_by_name(
         raise HTTPException(status_code=404, detail="TrapOid not found")
 
     if trap_oid_update.tags is not None:
-        trap_oid.tags = trap_oid_update.tags
+        # Assume trap_oid_update.tags is List[str] of tag names
+        tag_names = trap_oid_update.tags
+
+        # Query Tag objects for these names
+        tags_result = await db.execute(select(TagModel).where(TagModel.name.in_(tag_names)))
+        tag_objs = tags_result.scalars().all()
+
+        # Assign ORM Tag objects to trap_oid.tags
+        trap_oid.tags = tag_objs
 
     db.add(trap_oid)
     await db.commit()
     await db.refresh(trap_oid)
 
-    # ✅ Update JSON file
-    if trap_oid_update.tags is not None:
-        try:
-            update_snmpTrapOid_tags_in_file(trap_oid_name, trap_oid_update.tags)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to update JSON file: {str(e)}")
+        # ✅ Update Redis entry
+    try:
+        r = redis.Redis(host='redis', port=6379, decode_responses=True)
+        redis_key = f"traps:oid:{trap_oid.id}"
+        r.hset(redis_key, mapping={
+            'id': trap_oid.id,
+            'name': trap_oid.name or '',
+            'tags': ','.join(trap_oid.tags) if trap_oid.tags else ''
+        })
+        r.sadd("traps:oid:all", trap_oid.id)
+    except Exception as e:
+        print(f"Failed to update Redis: {e}")
 
     return trap_oid
 

@@ -113,22 +113,7 @@ function Devices({ currentUser }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <h2 style={{ marginTop: '-5px', paddingLeft: '20px', fontSize: '23px', color: 'var(--text-color)' }}>Devices Management</h2>
                     <div style={{ marginRight: '10px', display: 'flex', alignItems: 'center' }}>
-                        <input
-                            type="text"
-                            style={{
-                                background: 'var(--background1)',
-                                border: 'none',
-                                outline: 'none',
-                                height: '30px',
-                                width: '250px',
-                                paddingLeft: '15px',
-                                color: 'white',
-                                fontSize: '15px',
-                                borderRadius: '10px',
-                                marginRight: '10px',
-                            }}
-                            placeholder="Search Event..."
-                        />
+
                         {!selectedDevice && (
                             <>
                                 <button className="iconButton" disabled="true">

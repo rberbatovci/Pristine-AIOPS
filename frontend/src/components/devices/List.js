@@ -17,6 +17,8 @@ function List({ devices, onDeviceSelect }) {
         onDeviceSelect(device);
     };
 
+
+    
     console.log("Devices in List component:", devices);
 
     return (
@@ -31,15 +33,15 @@ function List({ devices, onDeviceSelect }) {
                         <li
                             key={device.id}
                             onClick={() => handleDeviceClick(device)}
-                            className={`listElement ${selectedDevice?.id === device.id ? 'listElementActive' : ''}`}
-                            style={{ height: '80px', display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+                            className={`signalTagItem ${selectedDevice?.id === device.id ? 'selected' : ''}`}
+                            style={{ height: '60px', display: 'flex', alignItems: 'center', cursor: 'pointer' }}
                         >
                             <div style={{ display: 'column', marginLeft: '20px' }}>
-                                <div><span className="spanText">Hostname: {device.hostname}</span></div>
+                                <div><span >Hostname: {device.hostname}</span></div>
                                 <div style={{ display: 'flex', gap: '20px' }}>
-                                <div><span className="spanText">IP Address: {device.ip_address}</span></div>
-                                <div><span className="spanText">Vendor: {device.vendor}</span></div>
-                                <div><span className="spanText">Version: {device.version}</span></div>
+                                <div><span >IP Address: {device.ip_address}</span></div>
+                                <div><span >Vendor: {device.vendor}</span></div>
+                                <div><span >Version: {device.version}</span></div>
                                 </div>
                             </div>
                             <div style={{ display: 'flex', marginLeft: 'auto' }}>

@@ -1,4 +1,4 @@
-from .services import update_mnemonics_list_in_json, create_mnemonic_in_file, update_mnemonics_list_in_json, remove_rule_from_mnemonics_json, save_statefulrules_to_file, remove_rule_from_json
+from .services import updated_mnemonic_in_redis, add_regex_to_redis, delete_regex_from_redis, sync_mnemonics_to_redis, sync_regex_to_redis, update_mnemonics_list_in_json, create_mnemonic_in_file, update_mnemonics_list_in_json, remove_rule_from_mnemonics_json, save_statefulrules_to_file, remove_rule_from_json
 from ..db.session import get_db, opensearch_client
 from fastapi import APIRouter, Depends, status, HTTPException, Query, Body, Request 
 from . import schemas
@@ -21,6 +21,7 @@ from opensearchpy import OpenSearch
 from elasticsearch import Elasticsearch
 import logging
 from collections import defaultdict
+import redis
 
 # Add this line to define the global variable
 listener_process = None
@@ -32,6 +33,22 @@ SHARED_DATA_DIR = "/app/syslogs/rules"
 REGEX_JSON_PATH = os.path.join(SHARED_DATA_DIR, "regex_data.json")
 MNEMONICS_JSON_PATH = os.path.join(SHARED_DATA_DIR, "mnemonics.json")
 os.makedirs(SHARED_DATA_DIR, exist_ok=True)
+
+@router.post("/syslogs/regex/syncToRedis/")
+def sync_regex():
+    try:
+        sync_regex_to_redis()
+        return {"message": "Regex rules synchronized successfully to Redis"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/syslogs/mnemonics/syncToRedis/")
+def sync_mnemonics():
+    try:
+        sync_mnemonics_to_redis()
+        return {"message": "Mnemonic rules synchronized successfully to Redis"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/syslogs/receiver/start/")
 async def start_syslog(port: int):
@@ -364,12 +381,18 @@ async def delete_regex(regex_name: str, db: AsyncSession = Depends(get_db)):
     if not db_regex:
         raise HTTPException(status_code=404, detail="RegEx not found")
 
+    regex_id = db_regex.id  # Save before deleting
     tag_name = db_regex.tag
+
     await db.delete(db_regex)
     await db.commit()
 
+    # Delete from Redis
+    delete_regex_from_redis(regex_id)
+
     response = {"regex_deleted": True, "tag_deleted": False}
 
+    # Check if tag can also be deleted
     if tag_name:
         result = await db.execute(select(models.RegEx).filter(models.RegEx.tag == tag_name))
         remaining_regexes = result.scalars().all()
@@ -380,9 +403,6 @@ async def delete_regex(regex_name: str, db: AsyncSession = Depends(get_db)):
                 await db.delete(db_tag_result)
                 await db.commit()
                 response["tag_deleted"] = True
-
-    # Save regex data to the file after deleting the regex
-    await save_regex_to_file(db)
 
     return response
 
@@ -412,8 +432,7 @@ async def create_regex(regex: schemas.RegExCreate, db: AsyncSession = Depends(ge
     await db.commit()
     await db.refresh(db_regex_create)
 
-    # Save regex data to the file after creating the regex
-    await save_regex_to_file(db)
+    add_regex_to_redis(db_regex_create)
 
     return db_regex_create
 
@@ -483,14 +502,14 @@ async def delete_tag(tag_name: str, db: AsyncSession = Depends(get_db)):
     
     return {"message": f"Tag '{tag_name}' deleted successfully"}
 
-@router.post("/syslogs/mnemonics/", response_model=schemas.MnemonicSyslog)
+@router.post("/syslogs/mnemonics/", response_model=schemas.MnemonicSyslog, status_code=status.HTTP_201_CREATED)
 async def create_mnemonic(mnemonic: schemas.MnemonicCreate, db: AsyncSession = Depends(get_db)):
     # Check if mnemonic exists
     existing = await db.execute(select(models.Mnemonic).filter(models.Mnemonic.name == mnemonic.name))
     if existing.scalars().first():
         raise HTTPException(status_code=400, detail="Mnemonic already exists")
 
-    # Create new mnemonic
+    # Create new mnemonic in PostgreSQL
     db_mnemonic = models.Mnemonic(
         name=mnemonic.name,
         level=mnemonic.level,
@@ -500,17 +519,37 @@ async def create_mnemonic(mnemonic: schemas.MnemonicCreate, db: AsyncSession = D
     await db.commit()
     await db.refresh(db_mnemonic)
 
-    # Re-fetch with eager loading of related fields to avoid lazy loading
+    # Re-query with eager load
     result = await db.execute(
         select(models.Mnemonic)
-        .options(selectinload(models.Mnemonic.rules), selectinload(models.Mnemonic.regexes))
+        .options(
+            selectinload(models.Mnemonic.regexes),
+            selectinload(models.Mnemonic.rules)
+        )
         .filter(models.Mnemonic.id == db_mnemonic.id)
     )
-    mnemonic_with_relations = result.scalars().first()
+    mnemonic_with_rels = result.scalars().first()
 
-    create_mnemonic_in_file(mnemonic.name, mnemonic.level, mnemonic.severity)
+    # Now sync the newly created mnemonic to Redis
+    try:
+        r = redis.Redis(host='redis', port=6379, decode_responses=True)
+        redis_key = f"syslogs:mnemonics:{db_mnemonic.id}"
 
-    return mnemonic_with_relations
+        # Insert to Redis hash
+        r.hset(redis_key, mapping={
+            "id": db_mnemonic.id,
+            "name": db_mnemonic.name,
+            "level": db_mnemonic.level,
+            "severity": db_mnemonic.severity
+        })
+
+        # Add to Redis set
+        r.sadd("syslogs:mnemonics:all", db_mnemonic.id)
+
+    except Exception as e:
+        print(f"Error syncing mnemonic to Redis: {e}")
+
+    return schemas.MnemonicSyslog.from_orm(mnemonic_with_rels)
 
 @router.get("/syslogs/mnemonics/", response_model=list[schemas.MnemonicSyslog])
 async def read_mnemonics(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
@@ -602,6 +641,8 @@ async def update_mnemonic_by_name(mnemonic_name: str, mnemonic_update: schemas.M
     await db.commit()
     await db.refresh(db_mnemonic)
 
+    updated_mnemonic_in_redis(db_mnemonic)
+
     # Save mnemonics data to the file after updating
     await update_mnemonics_list_in_json(db)
 
@@ -613,8 +654,6 @@ async def update_mnemonic_by_name(mnemonic_name: str, mnemonic_update: schemas.M
         regexes=[regex.name for regex in db_mnemonic.regexes],
         rules=[rule.name for rule in db_mnemonic.rules],
     )
-
-
 
 mnemonic_rules_association = models.mnemonic_rules_association # Assuming this is defined in your models
 

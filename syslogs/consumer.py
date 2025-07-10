@@ -12,10 +12,11 @@ import asyncio
 import os
 import threading
 import hashlib
+import redis
 
 FASTAPI_URL = "http://FastAPI:8000/syslogs/mnemonics/"
 DATA_DIR = "/app/syslogs"
-RELOAD_INTERVAL_SECONDS = 60
+RELOAD_INTERVAL_SECONDS = 10
 
 KAFKA_SIGNAL_TOPIC = 'syslog-signals'
 KAFKA_BROKER = 'Kafka:9092'
@@ -33,6 +34,83 @@ mnemonics_data = []
 regex_data = []
 severity_minimum = 0
 severity_description = ""
+
+def load_regex_from_redis():
+    try:
+        r = redis.Redis(host='redis', port=6379, decode_responses=True)
+        ids = r.smembers("syslogs:regex:all")
+
+        rules = []
+        print(f"[DEBUG] Found regex rule IDs: {ids}")
+
+        for id in ids:
+            key = f"syslogs:regex:{id}"
+            rule = r.hgetall(key)
+            if rule:
+                rules.append(rule)
+            else:
+                print(f"[WARNING] No data found for key: {key}")
+
+        print(f"[DEBUG] Total regex rules loaded: {len(rules)}")
+
+        # Print all regex rules in a readable format
+        for idx, rule in enumerate(rules, 1):
+            print(f"[DEBUG] Regex Rule #{idx}:")
+            for k, v in rule.items():
+                print(f"    {k}: {v}")
+            print()
+
+        return rules
+
+    except Exception as e:
+        print(f"[ERROR] Error loading regex from Redis: {e}")
+        return []
+
+
+def load_mnemonics_from_redis():
+    try:
+        r = redis.Redis(host='redis', port=6379, decode_responses=True)
+        ids = r.smembers("syslogs:mnemonics:all")
+
+        rules = []
+        print(f"[DEBUG] Found mnemonic IDs: {ids}")
+
+        for id in ids:
+            key = f"syslogs:mnemonics:{id}"
+            rule = r.hgetall(key)
+            if rule:
+                rules.append(rule)
+            else:
+                print(f"[WARNING] No data found for key: {key}")
+
+        print(f"[DEBUG] Total mnemonics loaded: {len(rules)}")
+
+        # Print all mnemonics in a readable format
+        for idx, rule in enumerate(rules, 1):
+            print(f"[DEBUG] Mnemonic #{idx}:")
+            for k, v in rule.items():
+                print(f"    {k}: {v}")
+            print()
+
+        return rules
+
+    except Exception as e:
+        print(f"[ERROR] Error loading mnemonics from Redis: {e}")
+        return []
+
+def load_severity_rule_from_redis():
+    try:
+        r = redis.Redis(host='redis', port=6379, decode_responses=True)
+        rule = r.hgetall("syslog:signal:severity")
+        if rule:
+            print(f"[DEBUG] Loaded severity rule from Redis: {rule}")
+        else:
+            print("[DEBUG] No severity rule found in Redis.")
+        return rule
+    except Exception as e:
+        print(f"[ERROR] Error loading severity rule from Redis: {e}")
+        return {}
+
 
 def shutdown(signum, frame):
     global run
@@ -53,13 +131,16 @@ def load_json_file(file_name):
 
 def reload_data():
     global mnemonics_data, regex_data, severity_minimum, severity_description
-    print("Reloading mnemonics and regex data...")
-    data = load_json_file("rules/mnemonics.json")
-    mnemonics_data = data.get("mnemonics", [])
-    severity_info = data.get("severity", {})
-    severity_minimum = severity_info.get("minimum", 0)
-    severity_description = severity_info.get("description", "")
-    regex_data = load_json_file("rules/regex_data.json")
+
+    print("Reloading mnemonics, regex, and severity data...")
+    mnemonics_data = load_mnemonics_from_redis()
+    regex_data = load_regex_from_redis()
+    severity_rule = load_severity_rule_from_redis()
+    severity_minimum = int(severity_rule.get("number", 0))
+    severity_description = severity_rule.get("description", "")
+
+    print(f"[INFO] Severity threshold: {severity_minimum}, Description: {severity_description}")
+
     if run:
         threading.Timer(RELOAD_INTERVAL_SECONDS, reload_data).start()
 
@@ -202,11 +283,11 @@ def main():
 
     print("Starting syslog consumer...")
     data = load_json_file("rules/mnemonics.json")
-    mnemonics_data = data.get("mnemonics", [])
+    mnemonics_data = load_mnemonics_from_redis()
     severity_info = data.get("severity", {})
     severity_minimum = severity_info.get("minimum", 0)
     severity_description = severity_info.get("description", "")
-    regex_data = load_json_file("rules/regex_data.json")
+    regex_data = load_regex_from_redis()
 
     threading.Timer(RELOAD_INTERVAL_SECONDS, reload_data).start()
 

@@ -17,6 +17,7 @@ async def get_device_ids_names(db: AsyncSession = Depends(get_db)):
     """
     result = await db.execute(
         select(
+            models.Device.id,
             models.Device.hostname,
             models.Device.ip_address,
             models.Device.vendor,
@@ -28,13 +29,14 @@ async def get_device_ids_names(db: AsyncSession = Depends(get_db)):
     devices = result.all()
     return [
         {
+            "id": id,
             "hostname": hostname,
             "ip_address": ip_address,
             "vendor": vendor,
             "version": version,
             "features": features
         }
-        for hostname, ip_address, vendor, version, features in devices
+        for id, hostname, ip_address, vendor, version, features in devices
     ]
 
 default_features = {

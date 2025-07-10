@@ -2,6 +2,22 @@
     {
         "name": "Interface",
         "oids": [
+            "asdasdsd",
+            "asdsdsds",
+            "wqweqwe"
+        ]
+    },
+    {
+        "name": "Interface",
+        "oids": [
+            "IF-MIB::ifDescr.1",
+            "IF-MIB::ifDescr.2",
+            "IF-MIB::ifDescr.3"
+        ]
+    },
+    {
+        "name": "Interface",
+        "oids": [
             "IF-MIB::ifDescr.1",
             "IF-MIB::ifDescr.2",
             "IF-MIB::ifDescr.3"

@@ -14,8 +14,6 @@ import Netflow from './pages/Netflow';
 import TrapSignals from './pages/TrapSignals';
 import EventsDatabase from './pages/EventsDatabase';
 import ProtectedRoute from './components/misc/ProtectedRoute';
-import Syslogs from './pages/Syslogs';
-import SNMPTraps from './pages/SNMPTraps';
 import Geolocation from './pages/Geolocation';
 import Devices from './pages/Devices';
 
@@ -143,16 +141,6 @@ const App = () => {
                 <Route path="/devices" element={
                   <ProtectedRoute isAuthenticated={isAuthenticated}>
                     <Devices currentUser={currentUser} />
-                  </ProtectedRoute>
-                } />
-                <Route path="/syslogs" element={
-                  <ProtectedRoute isAuthenticated={isAuthenticated}>
-                    <Syslogs currentUser={currentUser} />
-                  </ProtectedRoute>
-                } />
-                <Route path="/snmptraps" element={
-                  <ProtectedRoute isAuthenticated={isAuthenticated}>
-                    <SNMPTraps currentUser={currentUser} />
                   </ProtectedRoute>
                 } />
                 <Route path="/netflow" element={

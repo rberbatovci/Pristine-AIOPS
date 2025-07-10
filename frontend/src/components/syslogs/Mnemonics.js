@@ -43,6 +43,16 @@ function Mnemonics({ currentUser, mnemonics, entityOptions }) {
         }
     };
 
+    const handleSyncToRedis = async () => {
+        try {
+            await apiClient.post(`/syslogs/mnemonics/handleSyncToRedis/`);
+            setAlert("Mnemonic rules synchronized successfully!");
+        } catch (error) {
+            console.error('Error syncing mnemonics rules:', error);
+            setAlert("Failed to sync mnemonics rules. Please try again.");
+        }
+    };
+
     useEffect(() => {
         setFilteredMnemonics(
             mnemonics?.filter(mnemonic =>
@@ -150,6 +160,9 @@ function Mnemonics({ currentUser, mnemonics, entityOptions }) {
                 <div className="signalConfigButtonContainer">
                     <button onClick={handleSave} style={{ marginRight: '10px' }} className="buttonStyles saveRuleButton">
                         Save
+                    </button>
+                    <button onClick={handleSyncToRedis} className="addRuleButton">
+                        Sync to Redis
                     </button>
                 </div>
             )}

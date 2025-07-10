@@ -124,7 +124,6 @@
     }
   
     .strongText {
-      color: var(--strongTextColor);
       font-size: 12px;
     }
   
