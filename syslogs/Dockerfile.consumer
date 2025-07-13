@@ -1,13 +1,27 @@
-FROM python:3.11-slim
+# Dockerfile
 
-WORKDIR /app/syslogs
+FROM debian:bullseye
 
-# Copy app files
-COPY consumer.py .
-COPY utils.py .
+RUN apt-get update && \
+    apt-get install -y \
+        gcc \
+        make \
+        libcurl4-openssl-dev \
+        librdkafka-dev \
+        libhiredis-dev \
+        libpq-dev \
+        libjansson-dev \
+        libc-dev \
+        libpthread-stubs0-dev \
+        pkg-config \
+        ca-certificates && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Copy and install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+WORKDIR /app
+COPY consumer.c .
 
-CMD ["python", "-u", "consumer.py"]
+RUN gcc consumer.c -o consumer \
+    -I/usr/include/postgresql -L/usr/lib \
+    -lrdkafka -ljansson -lcurl -lpthread -lpq -Wall
+
+CMD ["./consumer"]

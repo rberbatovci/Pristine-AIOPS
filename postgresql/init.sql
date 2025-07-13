@@ -43,7 +43,8 @@ CREATE TABLE IF NOT EXISTS mnemonics (
     id SERIAL PRIMARY KEY,
     name VARCHAR(50) UNIQUE NOT NULL,
     severity VARCHAR(15) DEFAULT NULL,
-    level INTEGER DEFAULT NULL
+    level INTEGER DEFAULT NULL,
+    alert BOOLEAN DEFAULT FALSE;
 );
 
 -- Create association table mnemonic_regex for many-to-many relationship
@@ -109,7 +110,8 @@ CREATE TABLE IF NOT EXISTS snmp_trap_oids (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255),
     value VARCHAR(255) NOT NULL,
-    tags TEXT[] DEFAULT '{}'
+    tags TEXT[] DEFAULT '{}',
+    alert BOOLEAN DEFAULT FALSE;
 );
 
 -- Create table syslogTags
@@ -135,9 +137,9 @@ CREATE TABLE IF NOT EXISTS stateful_trap_rules (
     cooldown INTEGER NOT NULL,
 
     -- Foreign key constraints
-    CONSTRAINT fk_opensignalmnemonic
+    CONSTRAINT fk_opensignaltrap
         FOREIGN KEY (opensignaltrap_id) REFERENCES snmp_trap_oids(id) ON DELETE SET NULL,
-    CONSTRAINT fk_closesignalmnemonic
+    CONSTRAINT fk_opensignaltrap
         FOREIGN KEY (closesignaltrap_id) REFERENCES snmp_trap_oids(id) ON DELETE SET NULL
 );
 

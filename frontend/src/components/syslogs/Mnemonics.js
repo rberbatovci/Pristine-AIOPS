@@ -43,6 +43,18 @@ function Mnemonics({ currentUser, mnemonics, entityOptions }) {
         }
     };
 
+    const handleDelete = async () => {
+        try {
+            const { name } = selectedMnemonic;
+            const response = await apiClient.delete(`/syslogs/mnemonics/${name}/`, selectedMnemonic);
+            setSelectedMnemonic(null);
+            setAlert("Tag deleted successfully!");
+        } catch (error) {
+            console.error('Error delete mnemonic:', error);
+            setAlert("Failed to delete mnemonic. Please try again.");
+        }
+    };
+
     const handleSyncToRedis = async () => {
         try {
             await apiClient.post(`/syslogs/mnemonics/handleSyncToRedis/`);
@@ -160,6 +172,9 @@ function Mnemonics({ currentUser, mnemonics, entityOptions }) {
                 <div className="signalConfigButtonContainer">
                     <button onClick={handleSave} style={{ marginRight: '10px' }} className="buttonStyles saveRuleButton">
                         Save
+                    </button>
+                    <button onClick={handleDelete} style={{ marginRight: '10px' }} className="buttonStyles saveRuleButton">
+                        Delete
                     </button>
                     <button onClick={handleSyncToRedis} className="addRuleButton">
                         Sync to Redis

@@ -1,0 +1,29 @@
+# Base image
+FROM debian:bullseye
+
+# Install build tools and dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    libpq-dev \
+    postgresql-server-dev-all \
+    librdkafka-dev \
+    libjansson-dev \
+    libpthread-stubs0-dev \
+    pkg-config \
+    ca-certificates \
+    libcurl4-openssl-dev \
+    libssl-dev \
+    && apt-get clean
+
+# Set working directory
+WORKDIR /app
+
+# Copy everything into the image
+COPY . .
+
+# Create build directory and compile using CMake
+RUN mkdir build && cd build && cmake .. && make
+
+# Set the default command
+CMD ["./build/trap_consumer"]
