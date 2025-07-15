@@ -2,13 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import '../css/SyslogDatabase.css';
 import EventsTable from '../components/misc/EventsTable.js';
 import apiClient from '../components/misc/AxiosConfig.js';
-import { IoSettingsOutline, IoSettingsSharp } from "react-icons/io5";
 import { MdBookmarkBorder, MdBookmark } from "react-icons/md";
 import { RiAddCircleLine, RiAddCircleFill } from "react-icons/ri";
 import { FaClock, FaRegClock } from "react-icons/fa";
 import { RiFilterLine, RiFilterFill } from "react-icons/ri";
 import { RiDownloadCloudLine, RiDownloadCloudFill } from "react-icons/ri";
-import { BsArrowLeftCircle, BsArrowRightCircle } from "react-icons/bs";
 import Mnemonics from '../components/syslogs/Mnemonics.js';
 import SyslogTags from '../components/syslogs/TagColumns.js';
 import { HiOutlineViewColumns, HiViewColumns } from "react-icons/hi2";
@@ -21,7 +19,7 @@ import SnmpTrapOid from '../components/snmptraps/SnmpTrapOid.js';
 import TrapTags from '../components/snmptraps/TrapTags.js';
 import Pagination from '@mui/material/Pagination';
 
-function EventsDatabase({ currentUser }) {
+function EventsDatabase({ currentUser, setDashboardTitle }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(false);
     const [selectedTags, setSelectedTags] = useState([]);
@@ -45,7 +43,7 @@ function EventsDatabase({ currentUser }) {
     const [totalEvents, setTotalEvents] = useState(0);
     const baseColumns = {
         syslogs: ['timestamp', 'device', 'severity', 'mnemonic', 'message'],
-        snmptraps: ['timestamp', 'device', 'SysUpTime', 'SNMP Trap OID', 'content'],
+        snmptraps: ['timestamp', 'device', 'sysUpTime', 'snmpTrapOid', 'content'],
         netflow: [
             'timestamp',
             'device',
@@ -73,8 +71,6 @@ function EventsDatabase({ currentUser }) {
     const [regExpressions, setRegExpressions] = useState([]);
     const [snmpTrapOids, setSnmpTrapOids] = useState([]);
     const [tagNames, setTagNames] = useState([]);
-    const [trapTags, setTrapTags] = useState([]);
-    const [syslogTags, setSyslogTags] = useState([]);
     const [devices, setDevices] = useState([]);
     const [timeRange, setTimeRange] = useState('last_4_hour');
     const totalPages = Math.ceil(totalEvents / pageSize);
@@ -92,6 +88,11 @@ function EventsDatabase({ currentUser }) {
             },
         });
     };
+
+    useEffect(() => {
+        setDashboardTitle("Events Dashboard");
+        return () => setDashboardTitle(''); // Clean up when navigating away
+    }, [setDashboardTitle]);
 
     const loadData = (
         dataSource,
@@ -332,7 +333,6 @@ function EventsDatabase({ currentUser }) {
         <div className="mainContainer">
             <div className="mainContainerHeader">
                 <div className="headerTitles">
-                    <h2 className="mainContainerTitle">Events Database</h2>
                     <h2
                         className={`eventsTitleHeader ${dataSource === 'syslogs' ? 'eventsTitleHeaderActive' : ''}`}
                         onClick={() => handleHeaderClick('syslogs')}
@@ -397,11 +397,6 @@ function EventsDatabase({ currentUser }) {
                                 <RiAddCircleLine className="defaultIcon" />
                                 <RiAddCircleFill className="hoverIcon" />
                             </button>
-                        </>
-                    )}
-                    {dataSource === 'netflow' && (
-                        <>
-                            <button className="mainButton">Netflow</button>
                         </>
                     )}
                     <button
@@ -511,7 +506,7 @@ function EventsDatabase({ currentUser }) {
             </div>
             <div
                 className={`dropdownMenu ${dropdowns.timerangeFilters.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
-                style={{ width: '500px' }}
+                style={{ width: 'auto' }}
             >
                 <SearchTime
                     onTimeRangeSelect={handleTimeRangeSelect}

@@ -56,6 +56,14 @@ CREATE TABLE IF NOT EXISTS mnemonic_regex (
     FOREIGN KEY (regex_id) REFERENCES regex(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS trap_oid_tags (
+    trap_oid_id; INTEGER NOT NULL,
+    tag_name VARCHAR NOT NULL,
+    PRIMARY KEY (trap_oid_id;, tag_name),
+    FOREIGN KEY (trap_oid_id;) REFERENCES snmp_trap_oids(id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_name) REFERENCES "trapTags"(name) ON DELETE CASCADE
+);
+
 
 CREATE TABLE IF NOT EXISTS stateful_syslog_rules (
     id SERIAL PRIMARY KEY,

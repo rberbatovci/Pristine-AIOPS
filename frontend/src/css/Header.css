@@ -1,22 +1,18 @@
+@import url('https://fonts.googleapis.com/css2?family=Russo+One&display=swap');
 
-:root {
-    --MainHeaderBackground: green;
-  }
-  
-  [data-theme='dark'] {
-    --MainHeaderBackground: purple;
-  }
-  
   .header-container {
       position: relative;
       display: flex;
       justify-content: space-between;
       align-items: center;
       height: 50px;
+      width: 100%;
       font-size: 18px;
       background: rgb(0,57,77);
-      background: linear-gradient(90deg, rgba(0,57,77,1) 0%, rgba(72,150,180,.15) 100%);
+      background: var(--headerGradiendBack);
       backdrop-filter: blur(15px);
+      border-bottom: 1px solid rgba(0, 33, 48, 0.25);
+      box-shadow: var(--mainHeaderShadow);
       color: white;
     }
     

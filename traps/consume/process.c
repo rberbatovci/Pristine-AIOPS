@@ -6,6 +6,7 @@
 #include "regex.h"
 #include "config.h"
 #include "bulk.h"
+#include <time.h>
 
 // Assumes: opensearch_buffer[] and opensearch_count are declared globally
 // Also assumes: send_bulk_to_opensearch(...) is defined elsewhere
@@ -44,11 +45,39 @@ void process_kafka_message_loop(rd_kafka_t *rk) {
             continue;
         }
 
-        json_t *message_field = json_object_get(root, "message");
-        if (json_is_string(message_field)) {
-            const char *msg_str = json_string_value(message_field);
-
+        // Rename DISMAN-EXPRESSION-MIB::sysUpTimeInstance → sysUpTimeInstance
+        json_t *uptime_val = json_object_get(root, "DISMAN-EXPRESSION-MIB::sysUpTimeInstance");
+        if (uptime_val && json_is_string(uptime_val)) {
+            json_object_set_new(root, "sysUpTime", json_string(json_string_value(uptime_val)));
+            printf("[INFO] sysUpTimeInstance: %s\n", json_string_value(uptime_val));
         }
+
+        // Rename SNMPv2-MIB::snmpTrapOID.0 → snmpTrapOid
+        json_t *trap_oid_val = json_object_get(root, "SNMPv2-MIB::snmpTrapOID.0");
+        if (trap_oid_val && json_is_string(trap_oid_val)) {
+            json_object_set_new(root, "snmpTrapOid", json_string(json_string_value(trap_oid_val)));
+            printf("[INFO] snmpTrapOid: %s\n", json_string_value(trap_oid_val));
+        }
+
+        const char *snmpTrapOidStr = json_string_value(trap_oid_val);
+        SNMPTrapOID *trapOidInfo = findSnmpTrapOid(snmpTrapOidStr);
+        if (trapOidInfo == NULL) {
+            fprintf(stderr, "[ERROR] Could not load SNMP Trap OID: %s\n", snmpTrapOidStr);
+            // Depending on your logic, maybe continue instead of return?
+            json_decref(root);
+            free(payload);
+            rd_kafka_message_destroy(rkmessage);
+            continue;
+        }
+
+        json_object_del(root, "DISMAN-EXPRESSION-MIB::sysUpTimeInstance");
+        json_object_del(root, "SNMPv2-MIB::snmpTrapOID.0");
+
+        time_t now = time(NULL);
+        struct tm *tm_info = gmtime(&now);
+        char timestamp[30];
+        strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%SZ", tm_info);
+        json_object_set_new(root, "timestamp", json_string(timestamp));
 
         // Print and buffer the enriched JSON
         char *final_json = json_dumps(root, JSON_INDENT(2));

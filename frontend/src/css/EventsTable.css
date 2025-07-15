@@ -9,12 +9,12 @@
     --tableDataRowOddColor: rgba(0,0,0, .55);
     --tableDataRowSelectedBackground:  rgba(255, 255, 255, 0.5);
     --tableDataRowSelectedColor: rgb(13, 89, 112);
-    --tableHeaderRowRightBorderColor: rgb(1,1,1);
+    --tableHeaderRowRightBorderColor: rgba(110, 110, 110, .2);
     --tableDataRowRightBorderColor: rgba(172, 172, 172, 0.10);
     --tableDataHeaderBackground: rgba(196, 196, 196, 0.1);
     --tableContainerBackground: rgba(255, 255, 255, 0.1);
     --tableHeaderColor: rgb(214, 214, 214);
-    --tableDataHeaderColor: rgba(255, 255, 255, .8);  
+    --tableDataHeaderColor: rgba(99, 99, 99, 0.8);  
   }
   
   [data-theme='dark'] {
@@ -26,6 +26,7 @@
     --tableDataRowEvenColor: rgba(184, 184, 184, 0.7);
     --tableDataRowOddColor: rgba(184, 184, 184, .55);
     --tableDataRowSelectedBackground: rgba(0, 81, 110, 0.6);
+    --tableHeaderRowRightBorderColor: rgba(0, 28, 39, 0.3);
     --tableDataRowSelectedColor: rgba(253, 253, 253, 0.8);
     --tableDataRowSelectedTopBorder: 1px solid rgba(255, 255, 255, 0.2);
     --tableDataRowRightBorderColor: rgba(172, 172, 172, 0.10);

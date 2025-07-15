@@ -2,17 +2,17 @@ import './App.css';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Particles, { initParticlesEngine } from "@tsparticles/react";
+import { loadFull } from "tsparticles";
 import { loadSlim } from "@tsparticles/slim";
 import { lightThemeOptions, darkThemeOptions } from './components/misc/ParticleOptions';
-import Header from './components/Header';
+import Header from './components/misc/Header';
+import UserProfile from './components/misc/UserProfile';
 import Incidents from './pages/Incidents';
-import Sidebar from './components/Sidebar';
+import Sidebar from './components/misc/Sidebar';
 import Statistics from './pages/Statistics';
-import Login from './components/Login';
-import SignalsDashboard from './pages/SignalsDashboard';
-import Netflow from './pages/Netflow';
-import TrapSignals from './pages/TrapSignals';
-import EventsDatabase from './pages/EventsDatabase';
+import Login from './components/misc/Login';
+import Signals from './pages/Signals';
+import Events from './pages/Events';
 import ProtectedRoute from './components/misc/ProtectedRoute';
 import Geolocation from './pages/Geolocation';
 import Devices from './pages/Devices';
@@ -23,12 +23,16 @@ const App = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const containerRef = useRef(null);
+  const userProfileRef = useRef(null);
   const [init, setInit] = useState(false);
+  const [dashboardTitle, setDashboardTitle] = useState('');
+  const [showUserProfile, setShowUserProfile] = useState(false);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("currentUser");
     const storedAuthStatus = localStorage.getItem("isAuthenticated");
     const storedTheme = localStorage.getItem("theme");
+
 
     if (storedUser && storedAuthStatus) {
       try {
@@ -48,12 +52,29 @@ const App = () => {
 
     if (init) return;
 
-    initParticlesEngine(async (engine) => {
-      console.log("engine:", engine);
-      await loadSlim(engine);
-      console.log("loadSlim completed");
-    }).then(() => setInit(true));
+    if (!init) {
+      initParticlesEngine(async (engine) => {
+        await loadFull(engine);
+        setInit(true);
+      });
+    }
   }, [init]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (userProfileRef.current && !userProfileRef.current.contains(event.target)) {
+        setShowUserProfile(false);
+      }
+    };
+
+    if (showUserProfile) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showUserProfile]);
 
   const toggleTheme = () => {
     setIsDarkTheme((prevTheme) => {
@@ -93,6 +114,8 @@ const App = () => {
 
   const options = useMemo(() => (isDarkTheme ? darkThemeOptions : lightThemeOptions), [isDarkTheme]);
 
+  const toggleUserProfile = () => setShowUserProfile(prev => !prev);
+
   return (
     <BrowserRouter>
       {isAuthenticated ? (
@@ -104,15 +127,23 @@ const App = () => {
               options={options}
             />
           )}
-          <Header currentUser={currentUser} />
+          <div className="header">
+            <Header currentUser={currentUser} dashboardTitle={dashboardTitle} onToggleUserProfile={toggleUserProfile} />
+          </div >
+          {showUserProfile && (
+            <div ref={userProfileRef} className="userProfile">
+              <UserProfile
+                currentUser={currentUser}
+                onLogout={handleLogout}
+                toggleTheme={toggleTheme}
+                isDarkTheme={isDarkTheme}
+              />
+            </div>
+          )}
           <div className="main-container">
             <div className="sidebar-container">
               <div className="sidebar">
-                <Sidebar
-                  toggleTheme={toggleTheme}
-                  isDarkTheme={isDarkTheme}
-                  currentUser={currentUser}
-                  onLogout={handleLogout} />
+                <Sidebar />
               </div>
               <div className="brand"></div>
             </div>
@@ -120,42 +151,35 @@ const App = () => {
               <Routes>
                 <Route path="/incidents" element={
                   <ProtectedRoute isAuthenticated={isAuthenticated}>
-                    <Incidents currentUser={currentUser} />
+                    <Incidents currentUser={currentUser} setDashboardTitle={setDashboardTitle}
+                    />
                   </ProtectedRoute>
                 } />
                 <Route path="/signalsdashboard" element={
                   <ProtectedRoute isAuthenticated={isAuthenticated}>
-                    <SignalsDashboard currentUser={currentUser} />
-                  </ProtectedRoute>
-                } />
-                <Route path="/trapsignals" element={
-                  <ProtectedRoute isAuthenticated={isAuthenticated}>
-                    <TrapSignals currentUser={currentUser} />
+                    <Signals currentUser={currentUser} setDashboardTitle={setDashboardTitle}
+                    />
                   </ProtectedRoute>
                 } />
                 <Route path="/statistics" element={
                   <ProtectedRoute isAuthenticated={isAuthenticated}>
-                    <Statistics currentUser={currentUser} />
+                    <Statistics currentUser={currentUser} setDashboardTitle={setDashboardTitle} />
                   </ProtectedRoute>
                 } />
                 <Route path="/devices" element={
                   <ProtectedRoute isAuthenticated={isAuthenticated}>
-                    <Devices currentUser={currentUser} />
-                  </ProtectedRoute>
-                } />
-                <Route path="/netflow" element={
-                  <ProtectedRoute isAuthenticated={isAuthenticated}>
-                    <Netflow currentUser={currentUser} />
+                    <Devices currentUser={currentUser} setDashboardTitle={setDashboardTitle} />
                   </ProtectedRoute>
                 } />
                 <Route path="/geolocation" element={
-                  <ProtectedRoute isAuthenticated={isAuthenticated}>
-                    <Geolocation currentUser={currentUser} />
+                  <ProtectedRoute isAuthenticated={isAuthenticated} >
+                    <Geolocation currentUser={currentUser} setDashboardTitle={setDashboardTitle} />
                   </ProtectedRoute>
                 } />
                 <Route path="/events" element={
                   <ProtectedRoute isAuthenticated={isAuthenticated}>
-                    <EventsDatabase currentUser={currentUser} />
+                    <Events currentUser={currentUser} setDashboardTitle={setDashboardTitle}
+                    />
                   </ProtectedRoute>
                 } />
                 <Route path="*" element={<Navigate to="/login" />} />

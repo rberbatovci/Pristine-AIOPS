@@ -107,33 +107,36 @@ const SyslogSignalFilters = ({ onSelectedSyslogFiltersChange, initialSelectedTag
     };
 
     return (
-        <div className="dropdownConfigContainer" style={{ padding: '10px' }}>
+        <div className="dropdownConfigContainer" style={{  color: 'var(--textColor)', padding: '10px', width: '400px' }}>
             {isLoading ? (
                 <p style={{ textAlign: 'center' }}>Loading Syslog Tags...</p>
             ) : (
                 <>
-                    <span style={{ color: 'var(--textColor2)' }}>Filter Syslog Signals:</span>
-                    <div className="search-signals-container" style={{ marginTop: '8px', padding: '10px' }}>
+                    <span >Filter Syslog Signals:</span>
+                    <div className="searchSyslogsFilterEntries" style={{ marginTop: '8px', padding: '10px' }}>
                         {['device', 'mnemonic', 'rule'].map((tagName) => (
-                            <div key={tagName} className="search-signals-item">
-                                <p>{tagName.charAt(0).toUpperCase() + tagName.slice(1)}:</p>
+                            <div className="searchSyslogsFilterEntry">
+                                <span className="searchSignalFilterText">{tagName.charAt(0).toUpperCase() + tagName.slice(1)}:</span>
+                                <div style={{ marginTop: '6px' }}>
                                 <Select
                                     options={tagOptions[tagName] || []}
                                     isMulti
                                     value={selectedTags[tagName] || []}
                                     onChange={(selected) => handleChange(selected, tagName)}
                                     name={tagName}
-                                    styles={customStyles('280px')}
+                                    styles={customStyles('370px')}
                                     onFocus={() => handleFocus(tagName)}
                                     isLoading={loadingTags[tagName]}
                                     onMenuOpen={() => handleMenuOpen(tagName)}
                                     onMenuClose={() => handleMenuClose(tagName)}
                                 />
+                                </div>
                             </div>
                         ))}
                         {tags.map((tag) => (
-                            <div key={tag.name} className="search-signals-item">
-                                <p>{tag.name}:</p>
+                            <div className="searchSyslogsFilterEntry">
+                                <span className="searchSignalFilterText">{tag.name}:</span>
+                                <div style={{ marginTop: '6px' }}>
                                 <Select
                                     options={tagOptions[tag.name] || []}
                                     isMulti
@@ -141,16 +144,17 @@ const SyslogSignalFilters = ({ onSelectedSyslogFiltersChange, initialSelectedTag
                                     onChange={(selectedValues) => handleChange(selectedValues, tag.name)}
                                     name={tag.name}
                                     onFocus={() => handleFocus(tag.name)}
-                                    styles={customStyles('280px')}
+                                    styles={customStyles('370px')}
                                     isLoading={loadingTags[tag.name]}
                                     onMenuOpen={() => handleMenuOpen(tag.name)}
                                     onMenuClose={() => handleMenuClose(tag.name)}
                                 />
+                                </div>
                             </div>
                         ))}
                     </div>
                     <div style={{ justifyContent: 'center' }}>
-                        <button style={{ padding: '8px 60px' }}>Search</button>
+                        <button style={{ padding: '8px 60px', color: 'green' }}>Search</button>
                     </div>
                 </>
             )}

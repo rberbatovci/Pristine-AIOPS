@@ -3,8 +3,13 @@ import apiClient from '../components/misc/AxiosConfig';
 import GeolocationMap from '../components/geolocation/GeolocationMap';
 import '../css/Geolocation.css';
 
-function Geolocation({ currentUser }) {
+function Geolocation({ currentUser, setDashboardTitle }) {
   const [locations, setLocations] = useState([]);
+
+  useEffect(() => {
+    setDashboardTitle("Geolocation");
+    return () => setDashboardTitle(''); // Clean up when navigating away
+  }, [setDashboardTitle]);
 
   // Fetch device data with GPS locations
   useEffect(() => {
@@ -21,7 +26,7 @@ function Geolocation({ currentUser }) {
           { lat: 35.6895, lng: 139.6917, name: 'Tokyo' },
           { lat: 42.6629, lng: 21.1655, name: 'Pristina' },
         ];
-  
+
         setLocations(testLocations);
       } catch (error) {
         console.error('Error fetching device locations:', error);
@@ -34,16 +39,15 @@ function Geolocation({ currentUser }) {
   return (
     <div className="mainContainer">
       <div className="mainContainerHeader">
-        <h2 className="mainContainerTitle">Geolocation Dashboard</h2>
         <div className="mainContainerButtons">
           <div className="headerButtons">
-          {currentUser.is_staff  && (
+            {currentUser.is_staff && (
               <button className="headerButton">Settings</button>
             )}
           </div>
         </div>
       </div>
-      <div className="mainGeolocationContent" style={{ padding: '10px'}}>
+      <div className="mainGeolocationContent" style={{ padding: '10px' }}>
         <GeolocationMap locations={locations} />
       </div>
     </div>

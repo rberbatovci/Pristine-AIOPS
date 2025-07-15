@@ -13,7 +13,7 @@ import TrapComponents from '../components/statistics/TrapComponents.js';
 import SyslogSignalsComponents from '../components/statistics/SyslogSignalsComponents.js';
 import TrapSignalsComponents from '../components/statistics/TrapSignalsComponents.js';
 
-function Statistics() {
+function Statistics( {setDashboardTitle} ) {
   const [dataSource, setDataSource] = useState('syslogSignals'); // default view
   const [selectedTags, setSelectedTags] = useState([]);
   const [selectedSyslogTags, setSelectedSyslogTags] = useState([]);
@@ -49,11 +49,15 @@ function Statistics() {
     console.log('Selected tags:', selectedTags);
   }, [selectedTags]);
 
+  useEffect(() => {
+    setDashboardTitle("Statistics Dashboard");
+    return () => setDashboardTitle(''); // Clean up when navigating away
+  }, [setDashboardTitle]);
+
   return (
     <div className="mainContainer">
       <div className="mainContainerHeader">
         <div className="headerTitles">
-          <h2 className="mainContainerTitle">Statistics Dashboard</h2>
           <h2
             className={`eventsTitleHeader ${dataSource === 'syslogSignals' ? 'eventsTitleHeaderActive' : ''}`}
             onClick={() => handleHeaderClick('syslogSignals')}

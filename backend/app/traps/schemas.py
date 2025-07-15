@@ -88,7 +88,8 @@ class TrapOidBrief(BaseModel):
     id: int
     name: Optional[str]
     value: str
-    tags: List[OIDTag] = [] 
+    tags: List[OIDTag] = []
+    alert: Optional[bool] = False
 
     class Config:
         orm_mode = True

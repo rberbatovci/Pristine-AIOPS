@@ -30,3 +30,38 @@
 .date-picker-container {
   margin-top: 10px;
 }
+
+.rs-picker,
+.rs-picker-toggle {
+  background-color: red;
+  color: var(--textColor);
+  border: 1px solid var(--borderColor);
+  border-radius: 8px;
+}
+
+/* Dropdown popup menu */
+.rs-picker-menu {
+  background-color: green;
+  color: var(--textColor);
+  border: 1px solid var(--borderColor);
+  border-radius: 8px;
+  z-index: 9999;
+}
+
+/* Calendar day cells */
+.rs-calendar-table-cell-content {
+  background: transparent;
+  color: var(--textColor);
+}
+
+.rs-calendar-table-cell-selected .rs-calendar-table-cell-content {
+  background-color: var(--primaryColor);
+  color: #fff;
+  border-radius: 6px;
+}
+
+/* Calendar hover effect */
+.rs-calendar-table-cell-content:hover {
+  background-color: var(--hoverColor);
+  color: var(--textColor);
+}

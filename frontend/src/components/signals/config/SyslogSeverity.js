@@ -99,62 +99,14 @@ const SyslogSeverity = () => {
         <div className="signalConfigRuleMessage">Loading syslog severity config. Please wait...</div>
       ) : error ? (
         <div className="signalConfigRuleMessage">{error}</div>
-      ) : showCreateForm ? (
-        <div>
-          <div style={{padding: '10px'}}>No configuration found. Please create a new configuration.</div>
-          <div style={{ background: 'var(--backgroundColor3)', borderRadius: '5px', color: 'var(--textColor)', padding: '10px', paddingLeft: '15px', height: '170px' }}>
+      )  : (
+        <>
+          <div style={{ background: 'var(--backgroundColor3)', borderRadius: '5px', color: 'var(--textColor)', padding: '10px', paddingLeft: '15px' }}>
             <div style={{ marginBottom: '10px', top: '10px' }}>
               <span>Syslogs Severity Levels:</span>
             </div>
             <div style={{ width: '100%' }}>
-              <div style={{ display: 'flex', gap: '5px', marginBottom: '10px', width: '90px' }}>
-                {severityOptions.map(({ label, value }) => (
-                  <button
-                    key={value}
-                    onClick={() => setActiveSeverity(value)}
-                    onMouseEnter={() => setHoveredSeverity(value)}
-                    onMouseLeave={() => setHoveredSeverity(null)}
-                    className={`button ${activeSeverity === value ? 'button-active' : ''}`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div style={{ marginBottom: '10px' }}>
-              <span>Description:</span>
-              <div>
-                <input
-                  type="text"
-                  placeholder="Enter description..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  style={{
-                    width: '83%',
-                    padding: '10px',
-                    borderRadius: '5px',
-                    border: '1px solid var(--borderColor)',
-                    background: 'var(--buttonBackground)',
-                  }}
-                />
-                <button onClick={handleUpdate} className="update-button">
-                  Create
-                </button>
-              </div>
-              <div className="signalConfigButtonContainer">
-                
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div style={{ background: 'var(--backgroundColor3)', borderRadius: '5px', color: 'var(--textColor)', padding: '10px', paddingLeft: '15px' }}>
-            <div style={{ marginBottom: '10px', top: '10px' }}>
-              <strong>Syslogs Severity Levels:</strong>
-            </div>
-            <div style={{ width: '100%' }}>
-              <div style={{ display: 'flex', gap: '5px', marginBottom: '10px', width: '90px' }}>
+              <div style={{ display: 'flex', gap: '5px', marginBottom: '10px', width: '100%' }}>
                 {severityOptions.map(({ label, value }) => {
                   const isActive = value <= Math.max(activeSeverity ?? -1, hoveredSeverity ?? -1);
                   return (
@@ -163,7 +115,7 @@ const SyslogSeverity = () => {
                       onClick={() => setActiveSeverity(value)}
                       onMouseEnter={() => setHoveredSeverity(value)}
                       onMouseLeave={() => setHoveredSeverity(null)}
-                      className={`button ${isActive ? 'button-active' : ''}`}
+                      className={`syslogSeverityX ${isActive ? 'selectedSyslogSeverityX' : ''}`}
                     >
                       {label}
                     </button>
@@ -172,7 +124,7 @@ const SyslogSeverity = () => {
               </div>
             </div>
             <div style={{ marginBottom: '10px', display: 'flex', flexDirection: 'column' }}>
-              <strong style={{ marginBottom: '5px' }}>Description:</strong>
+              <span style={{ marginBottom: '5px' }}>Description:</span>
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <div style={{ marginTop: '5px', flexGrow: 1 }}>
                   <input

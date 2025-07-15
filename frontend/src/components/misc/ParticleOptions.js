@@ -11,21 +11,21 @@ export const lightThemeOptions = {
     },
     particles: {
         color: {
-            value: "#000000",
+            value: "#22508bff",
         },
         links: {
-            color: "#000000",
+            color: "#7996bdff",
             distance: 150,
             enable: true,
-            opacity: 0.5,
-            width: 1,
+            opacity: 0.3,
+            width: .5,
         },
         move: {
             enable: true,
             speed: 2,
         },
         number: {
-            value: 80,
+            value: 120,
         },
         shape: {
             type: "circle",
@@ -33,6 +33,44 @@ export const lightThemeOptions = {
         size: {
             value: { min: 1, max: 5 },
         },
+    },
+    interactivity: {
+        detectsOn: "canvas",
+        events: {
+            onHover: {
+                enable: true,
+                mode: "repulse"
+            },
+            onClick: {
+                enable: true,
+                mode: "push"
+            },
+            resize: true
+        },
+        modes: {
+            repulse: {
+                distance: 100,
+                duration: 0.4
+            },
+            push: {
+                quantity: 4
+            },
+            grab: {
+                distance: 200,
+                links: {
+                    opacity: 0.5
+                }
+            },
+            bubble: {
+                distance: 250,
+                size: 4,
+                duration: 2,
+                opacity: 0.8
+            },
+            remove: {
+                quantity: 2
+            }
+        }
     },
 };
 
@@ -47,20 +85,20 @@ export const darkThemeOptions = {
     },
     particles: {
         number: {
-            value: 100,
+            value: 120,
             density: {
                 enable: true,
-                value_area: 800,
+                value_area: 1200,
             },
         },
         color: {
-            value: "#c0e6f2", // Retained your particle color
+            value: "#49a1d8ff",
         },
         shape: {
             type: "circle",
             stroke: {
                 width: 0,
-                color: "#000000",
+                color: "#247bc2ff",
             },
             polygon: {
                 nb_sides: 5,
@@ -77,17 +115,10 @@ export const darkThemeOptions = {
             },
         },
         size: {
-            value: 3,
-            random: true,
-            anim: {
-                enable: false,
-                speed: 40,
-                size_min: 0.1,
-                sync: false,
-            },
+            value: { min: 1, max: 5 },
         },
         links: {
-            color: "#34bef5", // Retained your link color
+            color: "#7ea7c0ff",
             distance: 150,
             enable: true,
             opacity: 0.4,
@@ -109,43 +140,42 @@ export const darkThemeOptions = {
         },
     },
     interactivity: {
-        detect_on: "canvas",
+        detectsOn: "canvas",
         events: {
-            onhover: {
+            onHover: {
                 enable: true,
-                mode: "repulse",
+                mode: "repulse"
             },
-            onclick: {
+            onClick: {
                 enable: true,
-                mode: "push",
+                mode: "push"
             },
-            resize: true,
+            resize: true
         },
         modes: {
-            grab: {
-                distance: 400,
-                line_linked: {
-                    opacity: 1,
-                },
-            },
-            bubble: {
-                distance: 400,
-                size: 40,
-                duration: 2,
-                opacity: 8,
-                speed: 3,
-            },
             repulse: {
-                distance: 200,
-                duration: 0.4,
+                distance: 100,
+                duration: 0.4
             },
             push: {
-                particles_nb: 4,
+                quantity: 4
+            },
+            grab: {
+                distance: 200,
+                links: {
+                    opacity: 0.5
+                }
+            },
+            bubble: {
+                distance: 250,
+                size: 4,
+                duration: 2,
+                opacity: 0.8
             },
             remove: {
-                particles_nb: 2,
-            },
-        },
+                quantity: 2
+            }
+        }
     },
     retina_detect: true,
 };

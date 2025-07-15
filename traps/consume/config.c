@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <time.h>
-#include "config.h"
-#include <libpq-fe.h>
 #include <stdlib.h>
 #include <string.h>
+#include <libpq-fe.h>
+#include <pthread.h>
+#include "config.h"
 #include "regex.h"
 
 SNMPTrapOID *trapOids = NULL;
@@ -16,8 +17,7 @@ pthread_mutex_t config_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void* reload_data_thread(void* args) {
     ReloadArgs* reload_args = (ReloadArgs*)args;
-
-    const char *conninfo = "host=localhost dbname=fpristine user=PristineAdmin password=PristinePassword";
+    const char *conninfo = "host=postgresql dbname=fpristine user=PristineAdmin password=PristinePassword";
     PGconn *conn = PQconnectdb(conninfo);
 
     if (PQstatus(conn) != CONNECTION_OK) {
@@ -28,10 +28,8 @@ void* reload_data_thread(void* args) {
 
     while (1) {
         pthread_mutex_lock(&config_mutex);
-
         load_trap_oids(conn);
         load_trap_tags(conn);
-
         pthread_mutex_unlock(&config_mutex);
         sleep(reload_args->interval_seconds);
     }
@@ -41,7 +39,7 @@ void* reload_data_thread(void* args) {
 }
 
 void load_trap_oids(PGconn *conn) {
-    const char *query = "SELECT name, value, tags FROM snmp_trap_oids";
+    const char *query = "SELECT id, name, value, alert FROM snmp_trap_oids";
     PGresult *res = PQexec(conn, query);
 
     if (PQresultStatus(res) != PGRES_TUPLES_OK) {
@@ -50,7 +48,7 @@ void load_trap_oids(PGconn *conn) {
         return;
     }
 
-    // Free old cache
+    // Free previous memory
     for (int i = 0; i < trapOidCount; i++) {
         free(trapOids[i].name);
         free(trapOids[i].value);
@@ -65,35 +63,42 @@ void load_trap_oids(PGconn *conn) {
     trapOids = malloc(sizeof(SNMPTrapOID) * trapOidCount);
 
     for (int i = 0; i < trapOidCount; i++) {
-        trapOids[i].name = strdup(PQgetvalue(res, i, 0));
-        trapOids[i].value = strdup(PQgetvalue(res, i, 1));
+        int oid_id = atoi(PQgetvalue(res, i, 0));
+        trapOids[i].name = strdup(PQgetvalue(res, i, 1));
+        trapOids[i].value = strdup(PQgetvalue(res, i, 2));
+        trapOids[i].alert = strcmp(PQgetvalue(res, i, 3), "t") == 0;
         trapOids[i].tags = NULL;
         trapOids[i].tag_count = 0;
-        trapOids[i].alert = false; // default
 
-        char *tags_raw = PQgetvalue(res, i, 2);
-        if (tags_raw && strlen(tags_raw) > 2) {
-            char *tags_clean = strdup(tags_raw + 1);
-            tags_clean[strlen(tags_clean) - 1] = '\0';
+        // Load tags for this OID
+        const char *tag_query = "SELECT tag_name FROM trap_oid_tags WHERE trap_oid_id = $1";
+        const char *paramValues[1];
+        char oid_id_str[12];
+        snprintf(oid_id_str, sizeof(oid_id_str), "%d", oid_id);
+        paramValues[0] = oid_id_str;
 
-            char *token = strtok(tags_clean, ",");
-            while (token) {
+        PGresult *tag_res = PQexecParams(conn, tag_query, 1, NULL, paramValues, NULL, NULL, 0);
+        if (PQresultStatus(tag_res) == PGRES_TUPLES_OK) {
+            int tag_rows = PQntuples(tag_res);
+            for (int j = 0; j < tag_rows; j++) {
                 trapOids[i].tags = realloc(trapOids[i].tags, sizeof(char*) * (trapOids[i].tag_count + 1));
-                trapOids[i].tags[trapOids[i].tag_count++] = strdup(token);
-                token = strtok(NULL, ",");
+                trapOids[i].tags[trapOids[i].tag_count++] = strdup(PQgetvalue(tag_res, j, 0));
             }
-            free(tags_clean);
+        } else {
+            fprintf(stderr, "[ERROR] Failed to load tags for OID id %d: %s\n", oid_id, PQerrorMessage(conn));
         }
+
+        PQclear(tag_res);
     }
 
     PQclear(res);
 
-    // Print for deployment
     printf("=== Loaded SNMP Trap OIDs (%d entries) ===\n", trapOidCount);
     for (int i = 0; i < trapOidCount; i++) {
         printf("OID %d:\n", i + 1);
-        printf("  Name: %s\n", trapOids[i].name ? trapOids[i].name : "(null)");
+        printf("  Name: %s\n", trapOids[i].name);
         printf("  Value: %s\n", trapOids[i].value);
+        printf("  Alert: %s\n", trapOids[i].alert ? "true" : "false");
         printf("  Tags: ");
         for (int j = 0; j < trapOids[i].tag_count; j++) {
             printf("%s%s", trapOids[i].tags[j], (j < trapOids[i].tag_count - 1) ? ", " : "");
@@ -124,10 +129,11 @@ void load_trap_tags(PGconn *conn) {
     trapTagCount = PQntuples(res);
     trapTags = malloc(sizeof(SNMPTrapTag) * trapTagCount);
 
+    printf("=== Loaded SNMP Trap Tags (%d entries) ===\n", trapTagCount);
+
     for (int i = 0; i < trapTagCount; i++) {
         trapTags[i].name = strdup(PQgetvalue(res, i, 0));
         char *oids_raw = PQgetvalue(res, i, 1);
-
         trapTags[i].oids = NULL;
         trapTags[i].oid_count = 0;
 
@@ -143,20 +149,17 @@ void load_trap_tags(PGconn *conn) {
             }
             free(oids_clean);
         }
+
+        printf("Tag %d:\n", i + 1);
+        printf("  Name: %s\n", trapTags[i].name);
+        printf("  OIDs: ");
+        for (int j = 0; j < trapTags[i].oid_count; j++) {
+            printf("%s%s", trapTags[i].oids[j], (j < trapTags[i].oid_count - 1) ? ", " : "");
+        }
+        printf("\n");
     }
 
     PQclear(res);
-}
-
-void free_snmpTrapOid(SNMPTrapOID *oid) {
-    if (!oid) return;
-    free(oid->name);
-    free(oid->value);
-    for (int i = 0; i < oid->tag_count; i++) {
-        free(oid->tags[i]);
-    }
-    free(oid->tags);
-    free(oid);
 }
 
 SNMPTrapOID *fetch_snmpTrapOid_from_db(PGconn *conn, const char *snmpTrapOid) {
@@ -174,7 +177,7 @@ SNMPTrapOID *fetch_snmpTrapOid_from_db(PGconn *conn, const char *snmpTrapOid) {
     result->value = strdup(PQgetvalue(res, 0, 1));
     result->tags = NULL;
     result->tag_count = 0;
-    result->alert = false; // default
+    result->alert = false;
 
     char *tags_raw = PQgetvalue(res, 0, 2);
     if (tags_raw && strlen(tags_raw) > 2) {
@@ -195,81 +198,67 @@ SNMPTrapOID *fetch_snmpTrapOid_from_db(PGconn *conn, const char *snmpTrapOid) {
 }
 
 SNMPTrapOID *create_snmpTrapOid_and_cache(const char *snmpTrapOid) {
-    const char *default_severity = "warning";
-    int default_level = 1;
-
-    char extracted_severity[32];
-    int extracted_level;
-
-    // Try extracting severity from the mnemonic
-    if (!extract_severity(mnemonic, extracted_severity, sizeof(extracted_severity), &extracted_level)) {
-        strcpy(extracted_severity, default_severity);
-        extracted_level = default_level;
-        printf("[INFO] [Config Data] Using default severity and level for '%s'\n", mnemonic);
-    }
-
-    // Connect to DB
     const char *conninfo = "host=postgresql dbname=fpristine user=PristineAdmin password=PristinePassword";
     PGconn *conn = PQconnectdb(conninfo);
 
     if (PQstatus(conn) != CONNECTION_OK) {
-        fprintf(stderr, "[ERROR] [Config Data] Connection to database failed: %s\n", PQerrorMessage(conn));
+        fprintf(stderr, "[ERROR] Connection to DB failed: %s\n", PQerrorMessage(conn));
         PQfinish(conn);
         return NULL;
     }
 
-    char level_str[12];
-    snprintf(level_str, sizeof(level_str), "%d", extracted_level);
-    const char *paramValues[3] = { mnemonic, extracted_severity, level_str };
+    // Insert a new default OID if not exists
+    const char *insertQuery = "INSERT INTO snmp_trap_oids (name, value, tags) VALUES ($1, $2, ARRAY[]::text[]) ON CONFLICT DO NOTHING";
+    const char *defaultName = snmpTrapOid; // or provide another default name
+    const char *paramValues[2] = { defaultName, snmpTrapOid };
 
-    PGresult *res = PQexecParams(conn,
-        "INSERT INTO mnemonics (name, severity, level) VALUES ($1, $2, $3) RETURNING id",
-        3, NULL, paramValues, NULL, NULL, 0);
-
-    if (PQresultStatus(res) != PGRES_TUPLES_OK) {
-        fprintf(stderr, "[ERROR] [Config Data] Failed to insert mnemonic: %s\n", PQerrorMessage(conn));
+    PGresult *res = PQexecParams(conn, insertQuery, 2, NULL, paramValues, NULL, NULL, 0);
+    if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+        fprintf(stderr, "[ERROR] Failed to insert new snmpTrapOid: %s\n", PQerrorMessage(conn));
         PQclear(res);
         PQfinish(conn);
         return NULL;
     }
-
     PQclear(res);
+
+    // Now fetch and return it
+    SNMPTrapOID *result = fetch_snmpTrapOid_from_db(conn, snmpTrapOid);
     PQfinish(conn);
-
-    // Expand cache
-    cache = realloc(cache, sizeof(MnemonicCache) * (cache_size + 1));
-    int i = cache_size++;
-
-    cache[i].mnemonic = strdup(mnemonic);
-    cache[i].info.severity = strdup(extracted_severity);
-    cache[i].info.level = extracted_level;
-    cache[i].info.alert = strdup("drop");
-    cache[i].info.regexes = NULL;
-    cache[i].info.regex_count = 0;
-
-    printf("[INFO] [Config Data] Created new mnemonic '%s' with severity '%s' (level %d) and cached\n", mnemonic, extracted_severity, extracted_level);
-
-    return &cache[i].info;
+    return result;
 }
 
 SNMPTrapOID *findSnmpTrapOid(const char *snmpTrapOid) {
-    printf("[DEBUG] [Config Data] Checking cache for mnemonic: %s\n", mnemonic);
+    printf("[DEBUG] Checking SNMP Trap OID in cache: %s\n", snmpTrapOid);
 
-    for (int i = 0; i < cache_size; i++) {
-        if (strcmp(cache[i].mnemonic, mnemonic) == 0) {
-            printf("[DEBUG] [Config Data] Found mnemonic in cache: %s\n", mnemonic);
-            return &cache[i].info;
+    // Check if the OID exists in the current cache
+    for (int i = 0; i < trapOidCount; i++) {
+        if (strcmp(trapOids[i].value, snmpTrapOid) == 0) {
+            printf("[DEBUG] Found in cache: %s\n", snmpTrapOid);
+            return &trapOids[i];
         }
     }
 
-    printf("[DEBUG] [Config Data] Mnemonic not found in cache. Trying DB: %s\n", mnemonic);
+    printf("[DEBUG] Not found in cache, fetching from DB: %s\n", snmpTrapOid);
 
-    SNMPTrapOID *info = fetch_mnemonic_from_db(mnemonic);
+    const char *conninfo = "host=postgresql dbname=fpristine user=PristineAdmin password=PristinePassword";
+    PGconn *conn = PQconnectdb(conninfo);
+
+    if (PQstatus(conn) != CONNECTION_OK) {
+        fprintf(stderr, "[ERROR] Connection to DB failed: %s\n", PQerrorMessage(conn));
+        PQfinish(conn);
+        return NULL;
+    }
+
+    // Try to fetch from DB
+    SNMPTrapOID *info = fetch_snmpTrapOid_from_db(conn, snmpTrapOid);
+    PQfinish(conn);
+
     if (info) {
-        printf("[DEBUG] [Config Data] Found mnemonic in database: %s\n", mnemonic);
+        printf("[DEBUG] Loaded from DB: %s\n", snmpTrapOid);
         return info;
     }
 
-    printf("[DEBUG] [Config Data] Mnemonic not found in DB. Creating new entry: %s\n", mnemonic);
-    return create_mnemonic_and_cache(mnemonic);
+    // If not found in DB, create a new one (this function will fetch and return a new one from DB again)
+    printf("[DEBUG] Not found in DB either. Creating new trap OID: %s\n", snmpTrapOid);
+    return create_snmpTrapOid_and_cache(snmpTrapOid);
 }

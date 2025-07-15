@@ -216,7 +216,6 @@ async def create_tag(tag: TagCreate, db: AsyncSession = Depends(get_db)):
 
     return new_tag
 
-
 @router.put("/traps/tags/{name}", response_model=TagSchema)
 async def update_tag(name: str, tag: TagUpdate, db: AsyncSession = Depends(get_db)):
     async with db.begin():
@@ -268,29 +267,6 @@ async def create_snmpTrapOid(snmpTrapOid: TrapOidCreate, db: AsyncSession = Depe
     await db.commit()
     await db.refresh(db_snmpTrapOid)
 
-    # Re-fetch with eager loading of related fields
-    result = await db.execute(
-        select(TrapOidModel)
-        .options(selectinload(TrapOidModel.rules))
-        .filter(TrapOidModel.id == db_snmpTrapOid.id)
-    )
-    snmpTrapOid_with_relations = result.scalars().first()
-
-    # Add to Redis
-    try:
-        r = redis.Redis(host='redis', port=6379, decode_responses=True)
-        redis_key = f"traps:oid:{db_snmpTrapOid.id}"
-        r.hset(redis_key, mapping={
-            'id': db_snmpTrapOid.id,
-            'name': db_snmpTrapOid.name or '',
-        })
-        r.sadd("traps:oid:all", db_snmpTrapOid.id)
-    except Exception as e:
-        print(f"Failed to write to Redis: {e}")
-
-    # Optional: create a rule file
-    create_snmpTrapOid_in_file(snmpTrapOid.name)
-
     return snmpTrapOid_with_relations
 
 @router.get("/traps/trapOids/", response_model=list[TrapOidBrief])
@@ -302,6 +278,7 @@ async def read_mnemonics(skip: int = 0, limit: int = 100, db: AsyncSession = Dep
         .limit(limit)
     )
     mnemonics = result.scalars().all()
+    
     return mnemonics
 
 @router.get("/traps/trapOids/{trap_oid_name}", response_model=dict)

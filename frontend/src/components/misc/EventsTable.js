@@ -96,10 +96,6 @@ const EventsTable = ({ currentUser, data, columns, signalSource, onDownload, onR
   const getValue = (row, columnName) => {
     if (columnName === 'timestamp') {
       return row['@timestamp'] || row['timestamp'] || '';
-    } else if (columnName === 'SysUpTime') {
-      return row['DISMAN-EXPRESSION-MIB::sysUpTimeInstance'] ?? '';
-    } else if (columnName === 'SNMP Trap OID') {
-      return row['SNMPv2-MIB::snmpTrapOID.0'] ?? '';
     }
     return row?.[columnName] ?? '';
   };
@@ -197,7 +193,7 @@ const EventsTable = ({ currentUser, data, columns, signalSource, onDownload, onR
                   background: 'var(--tableDataHeaderBackground)',
                   borderRadius: '0',
                   justifyContent: 'flex-start',
-                  borderRight: '1px solid var(--tableHeaderBorder)'
+                  borderRight: '1px solid var(--tableHeaderRowRightBorderColor)'
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center' }}>

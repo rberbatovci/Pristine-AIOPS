@@ -19,7 +19,7 @@ import { MdDeleteForever, MdOutlineDeleteForever } from "react-icons/md";
 import apiClient from '../components/misc/AxiosConfig';
 import { RiAddCircleLine, RiAddCircleFill } from "react-icons/ri";
 
-function Devices({ currentUser }) {
+function Devices({ currentUser, setDashboardTitle }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [devices, setDevices] = useState([]);
@@ -31,6 +31,11 @@ function Devices({ currentUser }) {
     const [hostname, setHostname] = useState('');
     const [version, setVersion] = useState('');
     const [activeConfig, setActiveConfig] = useState(null);
+
+    useEffect(() => {
+        setDashboardTitle("Devices Dashboard");
+        return () => setDashboardTitle(''); // Clean up when navigating away
+    }, [setDashboardTitle]);
 
     const handleConfigClick = (type) => {
         setActiveConfig(prev => prev === type ? null : type);
@@ -111,7 +116,6 @@ function Devices({ currentUser }) {
         <div className="signals-container" style={{ width: selectedDevice ? '80%' : '50%' }}>
             <div className="left-column" style={{ width: selectedDevice ? '40%' : '100%', height: '100vh' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <h2 style={{ marginTop: '-5px', paddingLeft: '20px', fontSize: '23px', color: 'var(--text-color)' }}>Devices Management</h2>
                     <div style={{ marginRight: '10px', display: 'flex', alignItems: 'center' }}>
 
                         {!selectedDevice && (
@@ -132,7 +136,7 @@ function Devices({ currentUser }) {
                     </div>
                 </div>
                 {isDropdownVisible && (
-                    <div className={`dropdownMenu ${isDropdownVisible ? 'dropdownVisible' : 'dropdownHidden'}`} style={{ width: '370px'}}>
+                    <div className={`dropdownMenu ${isDropdownVisible ? 'dropdownVisible' : 'dropdownHidden'}`} style={{ width: '370px' }}>
                         {activeDropdown === 'addNew' && <AddNew onDeviceAdded={handleNewDevice} />}
                     </div>
                 )}

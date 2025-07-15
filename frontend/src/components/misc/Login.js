@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import Particles from "@tsparticles/react";
 import { loadSlim } from "@tsparticles/slim";
-import { lightThemeOptions, darkThemeOptions } from './misc/ParticleOptions';
+import { lightThemeOptions, darkThemeOptions } from '../misc/ParticleOptions';
 import { useNavigate } from 'react-router-dom';
-import apiClient from './misc/AxiosConfig';
+import apiClient from '../misc/AxiosConfig';
 import { FaSun, FaMoon } from "react-icons/fa";
 
 function Login({ onAuthentication, toggleTheme, isDarkTheme }) {

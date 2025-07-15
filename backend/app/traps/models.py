@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, JSON, DateTime, ARRAY, Text, Table
+from sqlalchemy import Column, Integer, String, ForeignKey, JSON, DateTime, ARRAY, Text, Table, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from sqlalchemy.sql import func
@@ -33,6 +33,7 @@ class TrapOid(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=True)
     value = Column(String(255), nullable=False)
+    alert = Column(Boolean, default=False)
     tags = relationship(
         "Tag",
         secondary=trap_oid_tags,

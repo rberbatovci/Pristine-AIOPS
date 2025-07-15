@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import List from '../components/signals/List.js';
 import Info from '../components/signals/Info.js';
 import Timeline from '../components/signals/Timeline.js';
@@ -11,11 +11,11 @@ import TrapSignalFilters from '../components/signals/filters/TrapSignals.js'; //
 import { IoSettingsOutline, IoSettingsSharp } from "react-icons/io5";
 import apiClient from '../components/misc/AxiosConfig.js';
 import { RiFilterLine, RiFilterFill } from "react-icons/ri";
-import { MdDeleteForever, MdOutlineDeleteForever } from "react-icons/md";
 import SearchTime from '../components/misc/SearchTime.js';
 import { FaClock, FaRegClock } from "react-icons/fa";
+import { IoSearchCircleOutline, IoSearchCircleSharp } from "react-icons/io5";
 
-const SignalsDashboard = ({ currentUser }) => {
+const SignalsDashboard = ({ currentUser, setDashboardTitle }) => {
     const [signals, setSignals] = useState([]);
     const [filteredSignals, setFilteredSignals] = useState([]);
     const [selectedSignal, setSelectedSignal] = useState(null);
@@ -27,12 +27,11 @@ const SignalsDashboard = ({ currentUser }) => {
     const [isDropdownVisible, setIsDropdownVisible] = useState(false);
     const [activeDropdown, setActiveDropdown] = useState(null);
     const [error, setError] = useState(null);
-    const [syslogSignals, setSyslogSignals] = useState([]);
-    const [trapSignals, setTrapSignals] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [selectedSignalId, setSelectedSignalId] = useState(null);
-    const [message, setMessage] = useState([]);
     const [dataSource, setDataSource] = useState('syslogs');
+    const [showSearchInput, setShowSearchInput] = useState(false);
+    const searchInputRef = useRef(null);
     const [filters, setFilters] = useState({
         syslogs: {
             signals: [],
@@ -215,13 +214,25 @@ const SignalsDashboard = ({ currentUser }) => {
         setShowComponents(false); // Hide the right column components
     };
 
+    useEffect(() => {
+        setDashboardTitle("Signals Dashboard");
+        return () => setDashboardTitle(''); // Clean up when navigating away
+    }, [setDashboardTitle]);
+
+    const handleSearchClick = () => {
+        setShowSearchInput(prev => !prev);
+    };
+
+    useEffect(() => {
+        if (showSearchInput && searchInputRef.current) {
+            searchInputRef.current.focus();
+        }
+    }, [showSearchInput]);
+
     return (
         <div className="signals-container" style={{ width: selectedSignal ? '80%' : '50%' }}>
             <div className="left-column" style={{ width: selectedSignal ? '40%' : '100%', height: '100vh' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <h2 style={{ marginTop: '-5px', paddingLeft: '20px', fontSize: '23px', color: 'var(--text-color)' }}>
-                        {dataSource === 'syslogs' ? 'Syslog Signals' : 'Trap Signals'}
-                    </h2>
                     {!selectedSignal && (
                         <>
                             <div style={{ display: 'flex' }}>
@@ -241,27 +252,39 @@ const SignalsDashboard = ({ currentUser }) => {
                         </>
                     )}
                     <div style={{ marginRight: '10px', display: 'flex', alignItems: 'center' }}>
-                        <input
-                            type="text"
-                            style={{
-                                background: 'var(--background1)',
-                                border: 'none',
-                                outline: 'none',
-                                height: '30px',
-                                width: '250px',
-                                paddingLeft: '15px',
-                                color: 'white',
-                                fontSize: '15px',
-                                borderRadius: '10px',
-                                marginRight: '10px',
-                            }}
-                            placeholder={`Search ${dataSource === 'syslogs' ? 'Syslog Signal' : 'Trap Signal'}...`}
-                        />
+                        {showSearchInput && (
+                            <input
+                                type="text"
+                                style={{
+                                    background: 'var(--background1)',
+                                    border: 'none',
+                                    outline: 'none',
+                                    height: '30px',
+                                    width: '250px',
+                                    paddingLeft: '15px',
+                                    color: 'white',
+                                    fontSize: '15px',
+                                    borderRadius: '10px',
+                                    marginRight: '10px',
+                                }}
+                                placeholder={`Search ${dataSource === 'syslogs' ? 'Syslog Signal' : 'Trap Signal'}...`}
+                            />
+                        )}
                         {!selectedSignal && (
                             <>
-                                <button className="iconButton" onClick={handleDeleteAllSignals}>
-                                    <MdOutlineDeleteForever className="defaultIcon" />
-                                    <MdDeleteForever className="hoverIcon" />
+                                <button
+                                    className="iconButton"
+                                    onClick={handleSearchClick}
+                                >
+                                    <IoSearchCircleOutline className="defaultIcon" />
+                                    <IoSearchCircleSharp className="hoverIcon" />
+                                </button>
+                                <button
+                                    className={`iconButton ${activeDropdown === 'search' ? 'active' : ''}`}
+                                    onClick={() => toggleDropdown('search')}
+                                >
+                                    <RiFilterLine className="defaultIcon" />
+                                    <RiFilterFill className="hoverIcon" />
                                 </button>
                                 <button
                                     className={`iconButton ${activeDropdown === 'time' ? 'active' : ''}`}
@@ -270,6 +293,7 @@ const SignalsDashboard = ({ currentUser }) => {
                                     <FaRegClock className="defaultIcon hasFilters" />
                                     <FaClock className="hoverIcon" />
                                 </button>
+
                                 {dataSource === 'syslogs' && (
                                     <button
                                         className={`iconButton ${activeDropdown === 'syslogConfig' ? 'active' : ''}`}
@@ -288,13 +312,7 @@ const SignalsDashboard = ({ currentUser }) => {
                                         <IoSettingsSharp className="hoverIcon" />
                                     </button>
                                 )}
-                                <button
-                                    className={`iconButton ${activeDropdown === 'search' ? 'active' : ''}`}
-                                    onClick={() => toggleDropdown('search')}
-                                >
-                                    <RiFilterLine className="defaultIcon" />
-                                    <RiFilterFill className="hoverIcon" />
-                                </button>
+
                             </>
                         )}
                     </div>
@@ -304,15 +322,10 @@ const SignalsDashboard = ({ currentUser }) => {
                         {activeDropdown === 'syslogConfig' && <SyslogSignalsConfig />}
                         {activeDropdown === 'trapConfig' && <StatefulTraps />}
                         {activeDropdown === 'time' && (
-                            <div
-                                style={{width: '500px', position: 'absolute', top: '50px', right: '10px'}}
-                                className="dropdownMenu dropdownVisible"
-                            >
-                                <SearchTime
-                                    onTimeRangeSelect={handleTimeRangeSelect}
-                                    onTimeRangeChange={handleTimeRangeChange}
-                                />
-                            </div>
+                            <SearchTime
+                                onTimeRangeSelect={handleTimeRangeSelect}
+                                onTimeRangeChange={handleTimeRangeChange}
+                            />
                         )}
                         {activeDropdown === 'search' && dataSource === 'syslogs' && <SyslogSignalFilters onSearch={(f) => handleSearchFilters(f)} />}
                         {activeDropdown === 'search' && dataSource === 'traps' && <TrapSignalFilters onSearch={(f) => handleSearchFilters(f)} />}
