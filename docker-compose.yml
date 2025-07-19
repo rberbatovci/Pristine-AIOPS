@@ -174,11 +174,11 @@ services:
     networks:
       - kafka-net
 
-  syslog-consume:
-    container_name: SyslogConsume
+  syslog-consumer:
+    container_name: SyslogConsumer
     build:
-      context: ./syslogs/consume
-      dockerfile: Dockerfile.consume
+      context: ./syslogs/consumer
+      dockerfile: Dockerfile.consumer
     environment:
       KAFKA_BROKER: kafka:9092
       KAFKA_TOPIC: syslog-topic
@@ -207,26 +207,32 @@ services:
   syslog-signals:
     container_name: SyslogSignals
     build:
-      context: ./signals
-      dockerfile: Dockerfile.syslogSignals
-    command: python /app/signals/syslog-signals.py
+      context: ./syslogs/signals
+      dockerfile: Dockerfile.signals
+    environment:
+      KAFKA_BROKER: kafka:9092
+      KAFKA_TOPIC: syslog-signals
     depends_on:
-      kafka: 
+      kafka:
         condition: service_healthy
     networks:
       - kafka-net
+    restart: unless-stopped
 
-  #trap-signals:
-  #  container_name: TrapSignals
-  #  build:
-  #    context: ./signals
-  #    dockerfile: Dockerfile.trapSignals
-  #  command: python /app/signals/trap-signals.py
-  #  depends_on:
-  #    kafka: 
-  #      condition: service_healthy
-  #  networks:
-  #    - kafka-net
+  trap-signals:
+    container_name: TrapSignals
+    build:
+      context: ./traps/signals
+      dockerfile: Dockerfile.signals
+    environment:
+      KAFKA_BROKER: kafka:9092
+      KAFKA_TOPIC: trap-signals
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - kafka-net
+    restart: unless-stopped
 
   trap-producer:
     container_name: TrapProducer
@@ -244,11 +250,11 @@ services:
     networks:
       - kafka-net
 
-  trap-consume:
-    container_name: TrapConsume
+  trap-consumer:
+    container_name: TrapConsumer
     build:
-      context: ./traps/consume
-      dockerfile: Dockerfile.consume
+      context: ./traps/consumer
+      dockerfile: Dockerfile.consumer
     environment:
       KAFKA_BROKER: kafka:9092
       KAFKA_TOPIC: syslog-topic

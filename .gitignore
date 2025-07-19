@@ -1,2 +1,7 @@
 netconf/pyang-proto
 netconf/ydk-gen
+.gitignore
+.gitattributes
+netconf
+venv
+yang

@@ -1,0 +1,26 @@
+# Use an official Debian base image
+FROM debian:bookworm-slim
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    cmake \
+    build-essential \
+    librdkafka-dev \
+    libjansson-dev \
+    libpq-dev \
+    libcurl4-openssl-dev \
+    pkg-config \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory inside the container
+WORKDIR /app
+
+# Copy your CMakeLists and source files into the container
+COPY . .
+
+# Create build directory and build the project
+RUN cmake -Bbuild -H. && cmake --build build
+
+# Set the default command to run your compiled app
+CMD ["./build/syslog_signals"]

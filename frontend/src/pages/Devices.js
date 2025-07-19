@@ -25,7 +25,6 @@ function Devices({ currentUser, setDashboardTitle }) {
     const [devices, setDevices] = useState([]);
     const [showComponents, setShowComponents] = useState(false);
     const [selectedDevice, setSelectedDevice] = useState(null);
-    const [isDropdownVisible, setIsDropdownVisible] = useState(false);
     const [activeDropdown, setActiveDropdown] = useState(null);
 
     const [hostname, setHostname] = useState('');
@@ -100,10 +99,8 @@ function Devices({ currentUser, setDashboardTitle }) {
 
     const toggleDropdown = (type) => {
         if (activeDropdown === type) {
-            setIsDropdownVisible(false);
             setActiveDropdown(null);
         } else {
-            setIsDropdownVisible(true);
             setActiveDropdown(type);
         }
     };
@@ -112,107 +109,98 @@ function Devices({ currentUser, setDashboardTitle }) {
 
     };
 
+    useEffect(() => {
+        if (selectedDevice) {
+            const timeout = setTimeout(() => setShowComponents(true), 1000);
+            return () => clearTimeout(timeout);
+        } else {
+            const timeout = setTimeout(() => setShowComponents(false), 2000);
+            return () => clearTimeout(timeout);
+        }
+    }, [selectedDevice]);
+
     return (
-        <div className="signals-container" style={{ width: selectedDevice ? '80%' : '50%' }}>
-            <div className="left-column" style={{ width: selectedDevice ? '40%' : '100%', height: '100vh' }}>
+        <div className="signals-container" style={{ display: 'flex', width: showComponents ? '80%' : '40%', transition: 'width 1s ease' }}>
+            <div
+                style={{
+                    width: showComponents ? '40%' : '100%',
+                    transition: 'width 1s ease-in-out, opacity 1s ease-in-out',
+                    overflow: 'hidden',
+                    height: '100vh',
+                }}
+            >
+
+                {/* Buttons and dropdown */}
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <div style={{ marginRight: '10px', display: 'flex', alignItems: 'center' }}>
+                        <button
+                            className={`iconButton ${activeDropdown === 'addNew' ? 'active' : ''}`}
+                            onClick={() => toggleDropdown('addNew')}
+                        >
+                            <RiAddCircleLine className="defaultIcon" />
+                            <RiAddCircleFill className="hoverIcon" />
+                        </button>
+                    </div>
+                </div>
+                { activeDropdown === 'addNew' && (
+                    <div className="dropdownMenu dropdownVisible" style={{ width: '370px' }}>
+                        <AddNew onDeviceAdded={handleNewDevice} />
+                    </div>
+                )}
 
-                        {!selectedDevice && (
+                <div style={{
+                    margin: '10px',
+                    background: 'var(--backgroundColor3)',
+                    padding: '10px',
+                    borderRadius: '10px',
+                    height: 'calc(100vh - 185px)',
+                    overflowY: 'auto',
+                }}>
+                    <List devices={devices} onDeviceSelect={handleDeviceSelect} />
+                </div>
+            </div>
+            <div
+                className="right-column"
+                style={{
+                    width: showComponents ? '60%' : '0',
+                    transition: 'width 1s ease-in-out',
+                    overflow: 'auto',
+                }}
+            >
+                <div className="right-content-wrapper">
+                    <div className="right-content" style={{
+                        transition: 'transition 1s ease-in-out'
+                    }}>
+                        {showComponents && (
                             <>
-                                <button className="iconButton" disabled="true">
-                                    <MdOutlineDeleteForever className="defaultIcon" />
-                                    <MdDeleteForever className="hoverIcon" />
-                                </button>
-                                <button
-                                    className={`iconButton ${activeDropdown === 'addNew' ? 'active' : ''}`}
-                                    onClick={() => toggleDropdown('addNew')}
-                                >
-                                    <RiAddCircleLine className="defaultIcon" />
-                                    <RiAddCircleFill className="hoverIcon" />
-                                </button>
+                                <Info
+                                    currentUser={currentUser}
+                                    selectedDevice={selectedDevice}
+                                    onDeviceDeselect={handleDeviceDeselect}
+                                    onConfigClick={handleConfigClick}
+                                />
+                                {selectedDevice.features?.telemetry?.cpu_util && (
+                                    <CPUUtilsStats currentUser={currentUser} selectedDevice={selectedDevice.hostname} />
+                                )}
+                                {selectedDevice.features?.telemetry?.memory_stats && (
+                                    <MemoryStats currentUser={currentUser} selectedDevice={selectedDevice} />
+                                )}
+                                {selectedDevice.features?.telemetry?.interface_stats && (
+                                    <InterfaceStats currentUser={currentUser} selectedDevice={selectedDevice} />
+                                )}
+                                {selectedDevice.features?.telemetry?.bgp_connections && (
+                                    <BGPStats currentUser={currentUser} selectedDevice={selectedDevice} />
+                                )}
+                                {selectedDevice.features?.telemetry?.isis_stats && (
+                                    <ISISStats currentUser={currentUser} selectedDevice={selectedDevice} />
+                                )}
                             </>
                         )}
                     </div>
                 </div>
-                {isDropdownVisible && (
-                    <div className={`dropdownMenu ${isDropdownVisible ? 'dropdownVisible' : 'dropdownHidden'}`} style={{ width: '370px' }}>
-                        {activeDropdown === 'addNew' && <AddNew onDeviceAdded={handleNewDevice} />}
-                    </div>
-                )}
-                <div style={{ marginTop: '10px', marginLeft: '10px', marginRight: '10px', marginBottom: '5px', background: 'var(--backgroundColor3)', padding: '10px', borderRadius: '10px', height: 'calc(100vh - 185px)', overflowY: 'auto' }}>
-                    <List
-                        devices={devices}
-                        onDeviceSelect={handleDeviceSelect}
-                    />
-                </div>
             </div>
 
-            {/* Right Column */}
-            {selectedDevice && (
-                <div className="right-column">
-                    <div className="right-content-wrapper" style={{ transition: '0.5s' }}>
-                        <div className="right-content">
-                            {showComponents && (
-                                <>
-                                    <Info
-                                        currentUser={currentUser}
-                                        selectedDevice={selectedDevice}
-                                        onDeviceDeselect={handleDeviceDeselect}
-                                        onConfigClick={handleConfigClick}
-                                    />
-
-                                    {/* Dynamically render telemetry stats based on what's enabled */}
-                                    {selectedDevice.features?.telemetry?.cpu_util && (
-                                        <CPUUtilsStats currentUser={currentUser} selectedDevice={selectedDevice.hostname} />
-                                    )}
-                                    {selectedDevice.features?.telemetry?.memory_stats && (
-                                        <MemoryStats currentUser={currentUser} selectedDevice={selectedDevice} />
-                                    )}
-                                    {selectedDevice.features?.telemetry?.interface_stats && (
-                                        <InterfaceStats currentUser={currentUser} selectedDevice={selectedDevice} />
-                                    )}
-                                    {selectedDevice.features?.telemetry?.bgp_connections && (
-                                        <BGPStats currentUser={currentUser} selectedDevice={selectedDevice} />
-                                    )}
-                                    {selectedDevice.features?.telemetry?.isis_stats && (
-                                        <ISISStats currentUser={currentUser} selectedDevice={selectedDevice} />
-                                    )}
-                                </>
-                            )}
-                        </div>
-                        {activeConfig && (
-                            <div
-                                className="dropdownMenu dropdownVisible"
-                                style={{
-                                    width:
-                                        activeConfig === 'syslogs' ? '340px' :
-                                            activeConfig === 'netflow' ? '400px' :
-                                                activeConfig === 'telemetry' ? '250px' :
-                                                    '420px', // fallback
-                                    marginTop: '30px',
-                                    right: '30px',
-                                    position: 'absolute',
-                                }}
-                            >
-                                {activeConfig === 'syslogs' && (
-                                    <SyslogConfig hostname={selectedDevice.hostname} version={selectedDevice.version} />
-                                )}
-                                {activeConfig === 'snmpTraps' && (
-                                    <SnmpTrapConfig hostname={selectedDevice.hostname} version={selectedDevice.version} />
-                                )}
-                                {activeConfig === 'netflow' && (
-                                    <NetflowConfig hostname={selectedDevice.hostname} version={selectedDevice.version} />
-                                )}
-                                {activeConfig === 'telemetry' && (
-                                    <TelemetryConfig hostname={selectedDevice.hostname} version={selectedDevice.version} telemetryFeatures={selectedDevice.features?.telemetry || {}} />
-                                )}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
-        </div>
+        </div >
     );
 }
 

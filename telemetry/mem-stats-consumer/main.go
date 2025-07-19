@@ -162,7 +162,7 @@ func main() {
 			continue
 		}
 
-		printTelemetryFields(t.DataGpbkv, "")
+		//printTelemetryFields(t.DataGpbkv, "")
 
 		device := ""
 		if nodeID, ok := t.NodeId.(*telemetryBis.Telemetry_NodeIdStr); ok {

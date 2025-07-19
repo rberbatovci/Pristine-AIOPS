@@ -2,45 +2,55 @@ import React, { useState, useEffect } from 'react';
 import '../../css/SyslogTagsList.css';
 import apiClient from '../misc/AxiosConfig';
 
-const SyslogSignalsComponents = ({ selectedSyslogSignalsTags, setSelectedSyslogSignalsTags }) => {
+
+const SyslogComponents = ({ selSyslogEventsTags, setSelSyslogEventsTags }) => {
   const [searchValue, setSearchValue] = useState('');
   const [tags, setTags] = useState([]);
 
-  const defaultTags = ['device', 'rules', 'severity', 'status', 'mnemonic', 'Interface']; // includes custom non-API ones
+  const defaultTags = ['device', 'mnemonic', 'severity']; // includes custom non-API ones
+
+  const fetchSyslogTags = async () => {
+    try {
+      const response = await apiClient.get('/syslogs/tags/');
+      const apiTags = response.data.map(tag => tag.name);
+      const combinedTags = Array.from(new Set([...defaultTags, ...apiTags]));
+      setTags(combinedTags);
+
+      if (selSyslogEventsTags.length === 0) {
+        setSelSyslogEventsTags(defaultTags);
+      }
+    } catch (error) {
+      console.error('Error fetching syslog tag names:', error);
+    }
+  };
 
   useEffect(() => {
-    const fetchSyslogTags = async () => {
-      try {
-        const response = await apiClient.get('/syslogs/tags/');
-        const apiTags = response.data.map(tag => tag.name);
-        const combinedTags = Array.from(new Set([...defaultTags, ...apiTags]));
-        setTags(combinedTags);
-      } catch (error) {
-        console.error('Error fetching syslog tag names:', error);
-      }
-    };
-
     fetchSyslogTags();
-
-    // Set default tags only once when component mounts
-    if (selectedSyslogSignalsTags.length === 0) {
-      setSelectedSyslogSignalsTags(defaultTags);
-    }
   }, []);
 
   const filteredTags = tags.filter(tag =>
     typeof tag === 'string' && tag.toLowerCase().includes(searchValue.toLowerCase())
   );
 
+
   const handleTagCheckboxChange = (tag) => {
-    if (selectedSyslogSignalsTags.includes(tag)) {
-      setSelectedSyslogSignalsTags(selectedSyslogSignalsTags.filter(t => t !== tag));
-    } else {
-      setSelectedSyslogSignalsTags([...selectedSyslogSignalsTags, tag]);
+    if (selSyslogEventsTags.includes(tag)) {
+      // Do nothing if tag is already selected (to prevent going below 3)
+      return;
     }
+
+    let newTags = [...selSyslogEventsTags];
+
+    if (newTags.length >= 3) {
+      // Remove the first (oldest) selected tag
+      newTags.shift();
+    }
+
+    // Add the newly selected tag
+    newTags.push(tag);
+
+    setSelSyslogEventsTags(newTags);
   };
-
-
 
   return (
     <div className="signalTagContainer">
@@ -77,23 +87,13 @@ const SyslogSignalsComponents = ({ selectedSyslogSignalsTags, setSelectedSyslogS
           <div style={{ marginTop: '10px' }}>
             <ul>
               {filteredTags.map((tag, index) => {
-                const isSelected = selectedSyslogSignalsTags.includes(tag);
+                const isSelected = selSyslogEventsTags.includes(tag);
                 return (
                   <li
                     key={index}
                     onClick={() => handleTagCheckboxChange(tag)}
-                    style={{
-                      padding: '8px 12px',
-                      marginBottom: '6px',
-                      background: isSelected ? 'var(--highlightColor)' : 'var(--buttonBackground)',
-                      color: isSelected ? 'white' : 'inherit',
-                      borderRadius: '4px',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      opacity: isSelected ? 1 : 0.7,
-                      cursor: 'pointer',
-                    }}
+                    className={`signalTagItem ${isSelected ? 'selected' : ''}`}
+
                   >
                     <div style={{ display: 'flex', alignItems: 'center' }}>
                       <input
@@ -115,4 +115,4 @@ const SyslogSignalsComponents = ({ selectedSyslogSignalsTags, setSelectedSyslogS
   );
 };
 
-export default SyslogSignalsComponents;
+export default SyslogComponents;

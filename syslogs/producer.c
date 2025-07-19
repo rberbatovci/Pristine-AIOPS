@@ -168,7 +168,6 @@ int main() {
     printf("Listening for syslogs on UDP port %d...\n", UDP_PORT);
     fflush(stdout);
 
-    // Continuously read syslogs and send to Kafka
     while (1) {
         ssize_t recv_len = recvfrom(sockfd, buffer, MAX_BUFFER - 1, 0,
                                     (struct sockaddr *)&client_addr, &addr_len);
@@ -177,7 +176,7 @@ int main() {
             continue;
         }
 
-        buffer[recv_len] = '\0';  // Null-terminate the received message
+        buffer[recv_len] = '\0';
 
         SyslogMessage syslog;
         strncpy(syslog.device, inet_ntoa(client_addr.sin_addr), sizeof(syslog.device) - 1);
@@ -202,10 +201,9 @@ int main() {
             fprintf(stderr, "Failed to produce message: %s\n", rd_kafka_err2str(rd_kafka_last_error()));
         }
 
-        rd_kafka_poll(rk, 0);  // Serve delivery reports
+        rd_kafka_poll(rk, 0);  
     }
 
-    // Clean up (never reached in this example)
     rd_kafka_flush(rk, 10 * 1000);
     rd_kafka_topic_destroy(rkt);
     rd_kafka_destroy(rk);

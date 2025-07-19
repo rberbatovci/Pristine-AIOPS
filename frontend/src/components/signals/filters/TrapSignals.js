@@ -11,7 +11,7 @@ const TrapSignalFilters = ({ onSelectedSyslogFiltersChange, initialSelectedTags 
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
     const [loadingTags, setLoadingTags] = useState({
-        mnemonic: false,
+        snmpTrapOid: false,
         rule: false,
     });
 
@@ -42,10 +42,10 @@ const TrapSignalFilters = ({ onSelectedSyslogFiltersChange, initialSelectedTags 
         }
     };
 
-    const fetchMnemonicOptions = async () => {
+    const fetchSnmpTrapOids = async () => {
         setLoadingTags((prev) => ({ ...prev, mnemonic: true }));
         try {
-            const response = await apiClient.get('/syslogs/mnemonics/mnemonicList/');
+            const response = await apiClient.get('/traps/trapOids/');
             const mnemonicsArray = response.data || [];
 
             setTagOptions((prevOptions) => ({
@@ -116,7 +116,7 @@ const TrapSignalFilters = ({ onSelectedSyslogFiltersChange, initialSelectedTags 
 
     const handleFocus = (tagName) => {
         if (tagName === 'mnemonic' && !tagOptions['mnemonic']) {
-            fetchMnemonicOptions();
+            fetchSnmpTrapOids();
         } else if (tagName === 'rule' && !tagOptions['rule']) {
             fetchRuleOptions();
         } else {
@@ -125,42 +125,49 @@ const TrapSignalFilters = ({ onSelectedSyslogFiltersChange, initialSelectedTags 
     };
 
     return (
-        <div className="dropdownConfigContainer" style={{padding: '10px'}}>
+        <div className="dropdownConfigContainer" style={{  color: 'var(--textColor)', padding: '10px', width: '400px' }}>
             {isLoading ? (
-                <div className="signalConfigRuleMessage">Loading mnemonics. Please wait......</div>
+                <p className="signalConfigRuleMessage">Loading mnemonics. Please wait......</p>
             ) : error ? (
-                <div className="signalConfigRuleMessage">{error}</div>
+                <p className="signalConfigRuleMessage">{error}</p>
             ) : (
-                <div className="search-signals-container">
-                    <div className="search-signals-item">
-                        <p>Mnemonic:</p>
+                <>
+                <span >Filter Syslog Signals:</span>
+                <div className="searchSyslogsFilterEntries" style={{ marginTop: '8px', padding: '10px' }}>
+                    <div className="searchSyslogsFilterEntry">
+                        <span className="searchSignalFilterText">SNMP Trap OID:</span>
+                        <div style={{ marginTop: '6px' }}>
                         <Select
-                            options={tagOptions['mnemonic'] || []}
+                            options={tagOptions['snmpTrapOid'] || []}
                             isMulti
-                            value={selectedTags['mnemonic'] || []}
-                            onChange={(selectedValues) => handleChange(selectedValues, 'mnemonic')}
-                            name="mnemonic"
-                            styles={customStyles('300px')}
-                            onFocus={() => handleFocus('mnemonic')}
-                            isLoading={loadingTags.mnemonic}
+                            value={selectedTags['snmpTrapOid'] || []}
+                            onChange={(selectedValues) => handleChange(selectedValues, 'snmpTrapOid')}
+                            name="snmpTrapOid"
+                            styles={customStyles('370px')}
+                            onFocus={() => handleFocus('snmpTrapOid')}
+                            isLoading={loadingTags.snmpTrapOid}
                         />
+                        </div>
                     </div>
-                    <div className="search-signals-item">
-                        <p>Stateful Rule:</p>
+                    <div className="searchSyslogsFilterEntry">
+                        <span className="searchSignalFilterText">Stateful Rule:</span>
+                        <div style={{ marginTop: '6px' }}>
                         <Select
                             options={tagOptions['rule'] || []}
                             isMulti
                             value={selectedTags['rule'] || []} 
                             onChange={(selectedValues) => handleChange(selectedValues, 'rule')}
                             name="rule"
-                            styles={customStyles('300px')}
+                            styles={customStyles('370px')}
                             onFocus={() => handleFocus('rule')}
                             isLoading={loadingTags.rule}
                         />
+                        </div>
                     </div>
                     {tags.map((tag) => (
-                        <div key={tag.name} className="search-signals-item">
-                            <p>{tag.name}:</p>
+                        <div className="searchSyslogsFilterEntry">
+                            <span className="searchSignalFilterText">{tag.name}:</span>
+                            <div style={{ marginTop: '6px' }}>
                             <Select
                                 options={tagOptions[tag.name] || []}
                                 isMulti
@@ -168,12 +175,14 @@ const TrapSignalFilters = ({ onSelectedSyslogFiltersChange, initialSelectedTags 
                                 onChange={(selectedValues) => handleChange(selectedValues, tag.name)}
                                 onFocus={() => handleFocus(tag.name)}
                                 name={tag.name}
-                                styles={customStyles('300px')}
+                                styles={customStyles('370px')}
                                 isLoading={loadingTags[tag.name]}
                             />
+                            </div>
                         </div>
                     ))}
                 </div>
+                </>
             )}
         </div>
     );

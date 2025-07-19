@@ -10,23 +10,26 @@ find_package(PostgreSQL REQUIRED)
 # List your source files
 set(SOURCES
     main.c
-    config.c
+    rules.c
+    activeSignals.c
     process.c
-    bulk.c
-    regex.c
 )
 
 # Create executable
-add_executable(syslog_consumer ${SOURCES})
+add_executable(syslog_signals ${SOURCES})
 
 # Include PostgreSQL headers
-target_include_directories(syslog_consumer PRIVATE ${PostgreSQL_INCLUDE_DIRS})
+target_include_directories(syslog_signals PRIVATE ${PostgreSQL_INCLUDE_DIRS})
+
+# OPTIONAL: Include jansson headers explicitly if needed
+# target_include_directories(syslog_signals PRIVATE /usr/include)
 
 # Link against required libraries
-target_link_libraries(syslog_consumer
+target_link_libraries(syslog_signals
     rdkafka
     jansson
     ${PostgreSQL_LIBRARIES}
     pthread
     curl
+    hiredis
 )

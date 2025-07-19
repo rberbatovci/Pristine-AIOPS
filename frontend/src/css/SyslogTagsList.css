@@ -85,6 +85,20 @@
   border-radius: 8px;
 }
 
+.signalSearchItem {
+  border: none;
+  outline: none;
+  padding: 8px 10px;
+  border-radius: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--signalRightElementHeaderBackground);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--tagListCol);
+
+}
+
 .signalTagItem {
   cursor: pointer;
   padding: 8px 10px;
@@ -120,7 +134,7 @@
 
 .signalTagItem.selected {
   background-color: var(--tagListBackSel);
-  padding: 8px 10px;
+  padding: 10px 12px;
   margin-top: 12px;
   margin-bottom: 12px;
   box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);

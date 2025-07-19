@@ -68,7 +68,8 @@ const SyslogTags = ({ dataSource, selectedTags = [], onTagChange }) => {
             placeholder="Search tags..."
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
-            className="searchTagListElement"
+            className="signalSearchItem"
+            style={{ width: '220px', outline: 'none' }}
           />
           <ul>
             {filteredTags.map((tag, index) => (
@@ -86,18 +87,7 @@ const SyslogTags = ({ dataSource, selectedTags = [], onTagChange }) => {
                   />
                   <span style={{ paddingLeft: '8px' }}>{tag}</span>
                 </div>
-                {(dataSource === 'syslogs' && tag !== 'lsn') || dataSource === 'traps' ? (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      dataSource === 'syslogs'
-                        ? handleDeleteTag(tag)
-                        : alert('Delete for trap tags is not implemented.');
-                    }}
-                  >
-                    ×
-                  </button>
-                ) : null}
+                
               </li>
             ))}
           </ul>

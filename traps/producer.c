@@ -232,7 +232,7 @@ int main(int argc, char **argv) {
     // Initialize SNMP library
     setenv("MIBS", "ALL", 1);
     setenv("MIBDIRS", "/app/traps/mibs", 1);
-    init_snmp("consumer"); // Or whatever your application is called
+    init_snmp("consumer");
     snmp_enable_stderrlog();
     snmp_set_do_debugging(0);
 

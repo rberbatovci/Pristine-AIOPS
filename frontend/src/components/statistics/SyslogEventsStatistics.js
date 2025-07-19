@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     PieChart, Pie, Cell, Tooltip as RechartsTooltip,
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, Label
 } from 'recharts';
 import {
     Typography
@@ -10,23 +10,28 @@ import apiClient from '../misc/AxiosConfig.js';
 import '../../css/SyslogDatabase.css';
 import Select from 'react-select';
 import customStyles from '../misc/SelectStyles';
+import { IoBarChartOutline } from "react-icons/io5";
+import { AiOutlinePieChart } from "react-icons/ai";
 
-function SyslogStatistics({ selectedTrapTags }) {
+
+function SyslogEventsStatistics({ selSyslogEventsTags }) {
     const [chartDataMap, setChartDataMap] = useState({});
     const [loadingMap, setLoadingMap] = useState({});
     const [chartTypeMap, setChartTypeMap] = useState({});
+
     const colorPalette = ['#FF6347', '#32CD32', '#FFD700', '#87CEEB', '#8A2BE2', '#FF69B4', '#20B2AA'];
+
     const chartOptions = [
         { value: 'PieChart', label: 'Pie Chart' },
         { value: 'BarChart', label: 'Bar Chart' },
     ];
 
-    // Fetch data when selectedTrapTags change
+    // Fetch data when selSyslogEventsTags change
     useEffect(() => {
-        selectedTrapTags.forEach(dataType => {
+        selSyslogEventsTags.forEach(dataType => {
             if (!chartDataMap[dataType] && !loadingMap[dataType]) {
                 setLoadingMap(prev => ({ ...prev, [dataType]: true }));
-                const endpoint = `/traps/tags/statistics/${dataType}/`;
+                const endpoint = `/syslogs/tags/statistics/${dataType}/`;
                 apiClient.get(endpoint)
                     .then(response => {
                         let processedData = [];
@@ -56,7 +61,7 @@ function SyslogStatistics({ selectedTrapTags }) {
 
         // Clean up removed types
         Object.keys(chartDataMap).forEach(dataType => {
-            if (!selectedTrapTags.includes(dataType)) {
+            if (!selSyslogEventsTags.includes(dataType)) {
                 const newChartDataMap = { ...chartDataMap };
                 delete newChartDataMap[dataType];
                 setChartDataMap(newChartDataMap);
@@ -66,10 +71,15 @@ function SyslogStatistics({ selectedTrapTags }) {
                 setLoadingMap(newLoadingMap);
             }
         });
-    }, [selectedTrapTags]);
+    }, [selSyslogEventsTags]);
 
     const handleChartTypeChange = (dataType, type) => {
         setChartTypeMap(prev => ({ ...prev, [dataType]: type }));
+    };
+
+    const EmptyLabel = (props) => {
+        // console.log("Label props:", props); // You can uncomment this to see what props Recharts passes
+        return null;
     };
 
     const renderPieTooltip = ({ payload }) => {
@@ -88,25 +98,45 @@ function SyslogStatistics({ selectedTrapTags }) {
     return (
         <div>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-around' }}>
-                {selectedTrapTags.map(dataType => {
+                {selSyslogEventsTags.map(dataType => {
                     const chartType = chartTypeMap[dataType] || 'BarChart';
                     const chartData = chartDataMap[dataType] || [];
                     const isLoading = loadingMap[dataType];
 
                     return (
-                        <div key={dataType} className="signalRightElementContainer" style={{ width: '520px', height: '380px' }}>
+                        <div key={dataType} className="signalRightElementContainer" style={{ width: '470px', height: '380px' }}>
                             <div className="signalRightElementHeader" style={{ marginBottom: '20px' }}>
-                                <h2 className="signalRightElementHeaderTxt">
-                                    {dataType ? dataType.charAt(0).toUpperCase() + dataType.slice(1) : 'Unknown'} Statistics
-                                </h2>
-                                <div style={{ width: '200px', zIndex: '50' }}>
-                                    <Select
-                                        value={chartOptions.find(option => option.value === chartType)}
-                                        onChange={selectedOption => handleChartTypeChange(dataType, selectedOption.value)}
-                                        options={chartOptions}
-                                        placeholder="Select chart type"
-                                        styles={customStyles('190px')}
-                                    />
+                                <div style={{ display: 'flex', alignItems: 'center' }}>
+                                    <h2 style={{ fontSize: '15px', marginLeft: '20px', fontWeight: 'bold', color: 'var(--textColor)' }}>
+                                        {dataType ? dataType.charAt(0).toUpperCase() + dataType.slice(1) : 'Unknown'}
+                                    </h2>
+                                    <span style={{ fontSize: '14px', marginLeft: '5px', color: 'var(--textColor)' }}>- Event Statistics</span>
+                                </div>
+                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginRight: '10px' }}>
+                                    {chartType !== 'PieChart' && (
+                                        <AiOutlinePieChart
+                                            size={24}
+                                            onClick={() => handleChartTypeChange(dataType, 'PieChart')}
+                                            style={{
+                                                cursor: 'pointer',
+                                                color: '#999',
+                                                transition: 'color 0.3s ease',
+                                            }}
+                                            title="Pie Chart"
+                                        />
+                                    )}
+                                    {chartType !== 'BarChart' && (
+                                        <IoBarChartOutline
+                                            size={24}
+                                            onClick={() => handleChartTypeChange(dataType, 'BarChart')}
+                                            style={{
+                                                cursor: 'pointer',
+                                                color: '#999',
+                                                transition: 'color 0.3s ease',
+                                            }}
+                                            title="Bar Chart"
+                                        />
+                                    )}
                                 </div>
                             </div>
 
@@ -117,7 +147,7 @@ function SyslogStatistics({ selectedTrapTags }) {
                             )}
 
                             {!isLoading && chartData.length > 0 && chartType === 'PieChart' && (
-                                <PieChart width={480} height={300}>
+                                <PieChart left={-10} width={440} height={270}>
                                     <Pie
                                         data={chartData}
                                         dataKey="value"
@@ -126,26 +156,24 @@ function SyslogStatistics({ selectedTrapTags }) {
                                         cy="50%"
                                         innerRadius={60}
                                         outerRadius={80}
-                                        fill="#8884d8"
-                                        label
+                                        fill="#020027ff"
+                                        label={<EmptyLabel />} // Use the custom null label component
                                     >
                                         {chartData.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={colorPalette[index % colorPalette.length]} />
                                         ))}
                                     </Pie>
                                     <RechartsTooltip content={renderPieTooltip} />
-                                    <Legend />
                                 </PieChart>
                             )}
 
                             {!isLoading && chartData.length > 0 && chartType === 'BarChart' && (
-                                <BarChart width={480} height={300} data={chartData} top={20}>
+                                <BarChart left={-100} width={450} height={270} data={chartData} margin={{ top: 20 }}>
                                     <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="name" />
                                     <YAxis />
                                     <RechartsTooltip content={renderPieTooltip} />
-                                    <Legend />
-                                    <Bar dataKey="value" fill="#8884d8">
+                                    <Bar dataKey="value"  >
                                         {chartData.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={colorPalette[index % colorPalette.length]} />
                                         ))}
@@ -160,4 +188,4 @@ function SyslogStatistics({ selectedTrapTags }) {
     );
 }
 
-export default SyslogStatistics;
+export default SyslogEventsStatistics;

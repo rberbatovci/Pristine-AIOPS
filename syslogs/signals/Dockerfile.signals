@@ -1,0 +1,21 @@
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y \
+    cmake \
+    build-essential \
+    librdkafka-dev \
+    libjansson-dev \
+    libpq-dev \
+    libcurl4-openssl-dev \
+    libhiredis-dev \
+    pkg-config \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY . .
+
+RUN cmake -Bbuild -H. && cmake --build build
+
+CMD ["./build/syslog_signals"]

@@ -10,8 +10,10 @@ import apiClient from '../misc/AxiosConfig.js';
 import '../../css/SyslogDatabase.css';
 import Select from 'react-select';
 import customStyles from '../misc/SelectStyles';
+import { IoBarChartOutline } from "react-icons/io5";
+import { AiOutlinePieChart } from "react-icons/ai";
 
-function SyslogSignalsStatistics({ selectedSyslogSignalsTags }) {
+function SyslogSignalsStatistics({ selSyslogSignalsTags }) {
     const [chartDataMap, setChartDataMap] = useState({});
     const [loadingMap, setLoadingMap] = useState({});
     const [chartTypeMap, setChartTypeMap] = useState({});
@@ -21,9 +23,9 @@ function SyslogSignalsStatistics({ selectedSyslogSignalsTags }) {
         { value: 'BarChart', label: 'Bar Chart' },
     ];
 
-    // Fetch data when selectedSyslogSignalsTags change
+    // Fetch data when selSyslogSignalsTags change
     useEffect(() => {
-        selectedSyslogSignalsTags.forEach(dataType => {
+        selSyslogSignalsTags.forEach(dataType => {
             if (!chartDataMap[dataType] && !loadingMap[dataType]) {
                 setLoadingMap(prev => ({ ...prev, [dataType]: true }));
 
@@ -71,7 +73,7 @@ function SyslogSignalsStatistics({ selectedSyslogSignalsTags }) {
 
         // Clean up removed types
         Object.keys(chartDataMap).forEach(dataType => {
-            if (!selectedSyslogSignalsTags.includes(dataType)) {
+            if (!selSyslogSignalsTags.includes(dataType)) {
                 const newChartDataMap = { ...chartDataMap };
                 delete newChartDataMap[dataType];
                 setChartDataMap(newChartDataMap);
@@ -81,7 +83,7 @@ function SyslogSignalsStatistics({ selectedSyslogSignalsTags }) {
                 setLoadingMap(newLoadingMap);
             }
         });
-    }, [selectedSyslogSignalsTags]);
+    }, [selSyslogSignalsTags]);
 
     const handleChartTypeChange = (dataType, type) => {
         setChartTypeMap(prev => ({ ...prev, [dataType]: type }));
@@ -103,32 +105,62 @@ function SyslogSignalsStatistics({ selectedSyslogSignalsTags }) {
     return (
         <div>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-around' }}>
-                {selectedSyslogSignalsTags.map(dataType => {
+                {selSyslogSignalsTags.map(dataType => {
                     const chartType = chartTypeMap[dataType] || 'BarChart';
                     const chartData = chartDataMap[dataType] || [];
                     const isLoading = loadingMap[dataType];
 
                     return (
-                        <div key={dataType} className="signalRightElementContainer" style={{ width: '520px', height: '380px' }}>
+                        <div key={dataType} className="signalRightElementContainer" style={{ width: '470px', height: '380px' }}>
                             <div className="signalRightElementHeader" style={{ marginBottom: '20px' }}>
-                                <h2 className="signalRightElementHeaderTxt">
-                                    {dataType ? dataType.charAt(0).toUpperCase() + dataType.slice(1) : 'Unknown'} Statistics
-                                </h2>
-                                <div style={{ width: '200px', zIndex: '50' }}>
-                                    <Select
-                                        value={chartOptions.find(option => option.value === chartType)}
-                                        onChange={selectedOption => handleChartTypeChange(dataType, selectedOption.value)}
-                                        options={chartOptions}
-                                        placeholder="Select chart type"
-                                        styles={customStyles('190px')}
-                                    />
+                                <div style={{ display: 'flex', alignItems: 'center' }}>
+                                    <h2 style={{ fontSize: '15px', marginLeft: '20px', fontWeight: 'bold', color: 'var(--textColor)' }}>
+                                        {dataType ? dataType.charAt(0).toUpperCase() + dataType.slice(1) : 'Unknown'}
+                                    </h2>
+                                    <span style={{ fontSize: '14px', marginLeft: '5px', color: 'var(--textColor)' }}>- Signal Statistics</span>
+                                </div>
+                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginRight: '10px' }}>
+                                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                        {chartType !== 'PieChart' && (
+                                            <AiOutlinePieChart
+                                                size={24}
+                                                onClick={() => handleChartTypeChange(dataType, 'PieChart')}
+                                                style={{
+                                                    cursor: 'pointer',
+                                                    color: '#999',
+                                                    transition: 'color 0.3s ease',
+                                                }}
+                                                title="Pie Chart"
+                                            />
+                                        )}
+                                        {chartType !== 'BarChart' && (
+                                            <IoBarChartOutline
+                                                size={24}
+                                                onClick={() => handleChartTypeChange(dataType, 'BarChart')}
+                                                style={{
+                                                    cursor: 'pointer',
+                                                    color: '#999',
+                                                    transition: 'color 0.3s ease',
+                                                }}
+                                                title="Bar Chart"
+                                            />
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
-                            {isLoading && <Typography>Loading...</Typography>}
+                            {isLoading && (
+                                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                                    <Typography variant="body1">Loading...</Typography>
+                                </div>
+                            )}
 
                             {!isLoading && chartData.length === 0 && (
-                                <Typography>No data available for {dataType}</Typography>
+                                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                                    <Typography variant="body1" color="textSecondary">
+                                        No data available for {dataType}
+                                    </Typography>
+                                </div>
                             )}
 
                             {!isLoading && chartData.length > 0 && chartType === 'PieChart' && (
@@ -142,25 +174,23 @@ function SyslogSignalsStatistics({ selectedSyslogSignalsTags }) {
                                         innerRadius={60}
                                         outerRadius={80}
                                         fill="#8884d8"
-                                        label
+                                        label={false}
                                     >
                                         {chartData.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={colorPalette[index % colorPalette.length]} />
                                         ))}
                                     </Pie>
                                     <RechartsTooltip content={renderPieTooltip} />
-                                    <Legend />
                                 </PieChart>
                             )}
 
                             {!isLoading && chartData.length > 0 && chartType === 'BarChart' && (
-                                <BarChart width={480} height={300} data={chartData} top={20}>
+                                <BarChart width={480} height={300} data={chartData} top={20} >
                                     <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="name" />
                                     <YAxis />
                                     <RechartsTooltip content={renderPieTooltip} />
-                                    <Legend />
-                                    <Bar dataKey="value" fill="#8884d8">
+                                    <Bar dataKey="value" fill="#8884d8" label={false}>
                                         {chartData.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={colorPalette[index % colorPalette.length]} />
                                         ))}

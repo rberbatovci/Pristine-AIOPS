@@ -26,6 +26,9 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
     const [dataSource, setDataSource] = useState('syslogs');
     const [eventsData, setEventsData] = useState([]);
     const downloadRef = useRef(null);
+    const dropdownWrapperRef = useRef(null);
+    const dropdownMenuRef = useRef(null);
+    const buttonsContainerRef = useRef(null);
     const [dropdowns, setDropdowns] = useState({
         syslogTagsConfig: { visible: false, position: { x: 0, y: 0 } },
         regExConfig: { visible: false, position: { x: 0, y: 0 } },
@@ -216,20 +219,29 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
         }
     };
 
-    const fetchAgents = async () => {
-        try {
-            const response = await apiClient.get('/devices/brief/');
-            const devices = response.data.map((device) => ({
-                id: device.id,
-                hostname: device.hostname,
-                ip_address: device.ip_address,
-                label: device.hostname,
-            }));
-            setDevices(devices);
-        } catch (error) {
-            console.error('Error fetching agent data:', error);
-        }
-    };
+
+
+
+    useEffect(() => {
+        const fetchAgents = async () => {
+            try {
+                const response = await apiClient.get('/devices');
+                const devices = response.data.map((device) => ({
+                    id: device.id,
+                    hostname: device.hostname,
+                    ip_address: device.ip_address,
+                    label: device.hostname,
+                }));
+                setDevices(devices);
+            } catch (error) {
+                console.error('Error fetching agent data:', error);
+            }
+        };
+
+        fetchAgents();
+    }, []);
+
+
 
     const handleRowSelectChange = (newSelectedRows) => {
         console.log('Testing!!!');
@@ -288,6 +300,7 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
         loadData('syslogs', 1, 19, timeRange, null, null, filters);
     };
 
+
     useEffect(() => {
         loadData(dataSource, page, pageSize, timeRange);
 
@@ -329,8 +342,30 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
         console.log('Selected tags:', selectedTags)
     };
 
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownMenuRef.current && !dropdownMenuRef.current.contains(event.target)) {
+                // Click is outside the dropdown area, so close all dropdowns
+                setDropdowns((prev) => {
+                    const newDropdowns = Object.fromEntries(
+                        Object.entries(prev).map(([key, value]) => [
+                            key,
+                            { ...value, visible: false }
+                        ])
+                    );
+                    return newDropdowns;
+                });
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
     return (
-        <div className="mainContainer">
+        <div className="mainContainer" ref={dropdownWrapperRef}>
             <div className="mainContainerHeader">
                 <div className="headerTitles">
                     <h2
@@ -478,91 +513,92 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
                     <div style={{ paddingRight: '20px' }}><span>Total Entries: {totalEvents}</span></div>
                 </div>
             </div>
-            <div
-                className={`dropdownMenu ${dropdowns.searchSyslogs.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
-                style={{ width: '420px' }}
-            >
-                <FilterSyslogs
-                    source={dataSource}
-                    tags={tagNames}
-                    devices={devices}
-                    mnemonics={mnemonics}
-                    onSelectedTagsChange={handleSyslogTagsChange}
-                    onSelectedTagsSearch={handleSearchAndCloseDropdown}
-                />
-            </div>
-            <div
-                className={`dropdownMenu ${dropdowns.regExConfig.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
-                style={{ width: '650px' }}
-            >
-                <RegExConfig
-                    currentUser={currentUser}
-                    regExpressions={regExpressions}
-                    mnemonics={mnemonics}
-                    hostnames={devices}
-                    devices={devices}
-                    isLoading={loading}
-                />
-            </div>
-            <div
-                className={`dropdownMenu ${dropdowns.timerangeFilters.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
-                style={{ width: 'auto' }}
-            >
-                <SearchTime
-                    onTimeRangeSelect={handleTimeRangeSelect}
-                    onTimeRangeChange={handleTimeRangeChange}
-                />
-            </div>
-            <div
-                className={`dropdownMenu ${dropdowns.showSyslogTags.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
-                style={{ width: '280px' }}>
-                <SyslogTags
-                    dataSource={dataSource}
-                    selectedTags={selectedTags}
-                    onTagChange={(updated) => setSelectedTags(updated)}
-                />
-            </div>
-            <div
-                className={`dropdownMenu ${dropdowns.MIBFiles.visible ? 'dropdownVisible' : 'dropdownHidden'}`}>
-                <UploadMIB
-                    currentUser={currentUser}
-                />
-            </div>
-            <div
-                className={`dropdownMenu ${dropdowns.snmpTrapOids.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
-                style={{
-                    width: 'auto',
-                    maxHeight: '740px',
-                    overflow: 'hidden',
-                }}>
-                <SnmpTrapOid
-                    currentUser={currentUser}
-                />
-            </div>
-            <div
-                className={`dropdownMenu ${dropdowns.trapTags.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
-                style={{
-                    width: 'auto',
-                    maxHeight: '740px',
-                    overflow: 'hidden',
-                    marginRight: '70px',
-                }}>
-                <TrapTags
-                    currentUser={currentUser}
-                />
-            </div>
-            <div
-                className={`dropdownMenu ${dropdowns.mnemonics.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
-                style={{
-                    width: 'auto',
-                    maxHeight: '740px',
-                    overflow: 'hidden',
-                }}>
-                <Mnemonics
-                    currentUser={currentUser}
-                    mnemonics={mnemonics}
-                    entityOptions={regExpressions}
-                />
+            <div ref={dropdownMenuRef}>
+                <div
+                    className={`dropdownMenu ${dropdowns.searchSyslogs.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
+                    style={{ width: '420px' }}
+                >
+                    <FilterSyslogs
+                        source={dataSource}
+                        tags={tagNames}
+                        devices={devices}
+                        mnemonics={mnemonics}
+                        onSelectedTagsChange={handleSyslogTagsChange}
+                        onSelectedTagsSearch={handleSearchAndCloseDropdown}
+                    />
+                </div>
+                <div
+                    className={`dropdownMenu ${dropdowns.regExConfig.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
+                    style={{ width: '650px' }}
+                >
+                    <RegExConfig
+                        currentUser={currentUser}
+                        regExpressions={regExpressions}
+                        mnemonics={mnemonics}
+                        hostnames={devices}
+                        devices={devices}
+                        isLoading={loading}
+                    />
+                </div>
+                <div
+                    className={`dropdownMenu ${dropdowns.timerangeFilters.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
+                    style={{ width: 'auto' }}
+                >
+                    <SearchTime
+                        onTimeRangeSelect={handleTimeRangeSelect}
+                        onTimeRangeChange={handleTimeRangeChange}
+                    />
+                </div>
+                <div
+                    className={`dropdownMenu ${dropdowns.showSyslogTags.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
+                    style={{ width: '280px' }}>
+                    <SyslogTags
+                        dataSource={dataSource}
+                        selectedTags={selectedTags}
+                        onTagChange={(updated) => setSelectedTags(updated)}
+                    />
+                </div>
+                <div
+                    className={`dropdownMenu ${dropdowns.MIBFiles.visible ? 'dropdownVisible' : 'dropdownHidden'}`}>
+                    <UploadMIB
+                        currentUser={currentUser}
+                    />
+                </div>
+                <div
+                    className={`dropdownMenu ${dropdowns.snmpTrapOids.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
+                    style={{
+                        width: 'auto',
+                        maxHeight: '740px',
+                        overflow: 'hidden',
+                    }}>
+                    <SnmpTrapOid
+                        currentUser={currentUser}
+                    />
+                </div>
+                <div
+                    className={`dropdownMenu ${dropdowns.trapTags.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
+                    style={{
+                        width: 'auto',
+                        maxHeight: '740px',
+                        overflow: 'hidden',
+                    }}>
+                    <TrapTags
+                        currentUser={currentUser}
+                    />
+                </div>
+                <div
+                    className={`dropdownMenu ${dropdowns.mnemonics.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
+                    style={{
+                        width: 'auto',
+                        maxHeight: '740px',
+                        overflow: 'hidden',
+                    }}>
+                    <Mnemonics
+                        currentUser={currentUser}
+                        mnemonics={mnemonics}
+                        entityOptions={regExpressions}
+                    />
+                </div>
             </div>
         </div>
     );

@@ -50,7 +50,7 @@ const customStyles = ( width ) => ({
       padding: '4px',
       borderRadius: '5px',
       transition: '.5s',
-      boxShadow: '2px 3px 6px rgb(4, 58, 75)',
+      boxShadow: '1px 2px 3px rgba(0, 3, 3, .2)',
       fontSize: '12px',
       fontFamily: 'Arial, sans-serif',
       color: 'var(--textColor)',

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import '../../css/SyslogTagsList.css';
 import apiClient from '../misc/AxiosConfig';
 
-const TrapComponents = ({ selectedTrapTags, setSelectedTrapTags }) => {
+const TrapComponents = ({ selTrapEventsTags, setSelTrapEventsTags }) => {
   const [searchValue, setSearchValue] = useState('');
   const [tags, setTags] = useState([]);
 
@@ -22,8 +22,8 @@ const TrapComponents = ({ selectedTrapTags, setSelectedTrapTags }) => {
 
     fetchSyslogTags();
 
-    if (selectedTrapTags.length === 0) {
-      setSelectedTrapTags(defaultTags);
+    if (selTrapEventsTags.length === 0) {
+      setSelTrapEventsTags(defaultTags);
     }
   }, []);
 
@@ -31,15 +31,24 @@ const TrapComponents = ({ selectedTrapTags, setSelectedTrapTags }) => {
     typeof tag === 'string' && tag.toLowerCase().includes(searchValue.toLowerCase())
   );
 
-  const handleTagCheckboxChange = (tag) => {
-    if (selectedTrapTags.includes(tag)) {
-      setSelectedTrapTags(selectedTrapTags.filter(t => t !== tag));
-    } else {
-      setSelectedTrapTags([...selectedTrapTags, tag]);
-    }
-  };
+const handleTagCheckboxChange = (tag) => {
+  if (selTrapEventsTags.includes(tag)) {
+    // Do nothing if tag is already selected (to prevent going below 3)
+    return;
+  }
 
-  
+  let newTags = [...selTrapEventsTags];
+
+  if (newTags.length >= 3) {
+    // Remove the first (oldest) selected tag
+    newTags.shift();
+  }
+
+  // Add the newly selected tag
+  newTags.push(tag);
+
+  setSelTrapEventsTags(newTags);
+};
 
   return (
     <div className="signalTagContainer">
@@ -76,7 +85,7 @@ const TrapComponents = ({ selectedTrapTags, setSelectedTrapTags }) => {
           <div style={{ marginTop: '10px' }}>
             <ul>
               {filteredTags.map((tag, index) => {
-                const isSelected = selectedTrapTags.includes(tag);
+                const isSelected = selTrapEventsTags.includes(tag);
                 return (
                   <li
                     key={index}

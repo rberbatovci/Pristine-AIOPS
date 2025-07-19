@@ -26,8 +26,10 @@ const SearchTime = ({ onTimeRangeSelect, onTimeRangeChange }) => {
     };
 
     return (
-        <div className="dropdownConfigContainer" style={{ color: 'var(--textColor)', padding: '10px', width: 'auto', height: '30px' }}>
-            <div style={{backgroundColor: 'var(--backgroundColor3)', padding: '8px', borderRadius: '8px'}}>
+        <div className="dropdownConfigContainer" style={{ color: 'var(--textColor)', padding: '10px', width: 'auto', height: '150px' }}>
+            <>
+            <span >Select a timerange:</span>
+            <div style={{backgroundColor: 'var(--backgroundColor3)', marginTop: '8px', padding: '8px', borderRadius: '8px'}}>
                 <div className="button-group" >
                     {[
                         { label: '1 Hour', value: 'last_1_hour' },
@@ -62,7 +64,8 @@ const SearchTime = ({ onTimeRangeSelect, onTimeRangeChange }) => {
                         }}
                     />
                 </div>
-            </div>
+            </div></>
+            
         </div>
     );
 };

@@ -142,10 +142,7 @@ const App = () => {
           )}
           <div className="main-container">
             <div className="sidebar-container">
-              <div className="sidebar">
-                <Sidebar />
-              </div>
-              <div className="brand"></div>
+              <Sidebar />
             </div>
             <div className="content">
               <Routes>

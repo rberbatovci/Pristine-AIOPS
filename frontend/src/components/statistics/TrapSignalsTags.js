@@ -2,19 +2,23 @@ import React, { useState, useEffect } from 'react';
 import '../../css/SyslogTagsList.css';
 import apiClient from '../misc/AxiosConfig';
 
-const TrapSignalsComponents = ({ selectedTrapSignalsTags, setSelectedTrapSignalsTags }) => {
+
+const TrapSignalsTags = ({ selTrapSignalsTags, setSelTrapSignalsTags }) => {
   const [searchValue, setSearchValue] = useState('');
   const [tags, setTags] = useState([]);
 
+  const defaultTags = ['device', 'mnemonic', 'severity']; // includes custom non-API ones
+
   const fetchSyslogTags = async () => {
     try {
-      const response = await apiClient.get('/traps/tags/');
-      const tagsObject = response.data.map((tag) => ({
-        id: tag.id,
-        label: tag.name,
-        name: tag.name,
-      }));
-      setTags(tagsObject.map(tag => tag.name));
+      const response = await apiClient.get('/syslogs/tags/');
+      const apiTags = response.data.map(tag => tag.name);
+      const combinedTags = Array.from(new Set([...defaultTags, ...apiTags]));
+      setTags(combinedTags);
+
+      if (selTrapSignalsTags.length === 0) {
+        setSelTrapSignalsTags(defaultTags);
+      }
     } catch (error) {
       console.error('Error fetching syslog tag names:', error);
     }
@@ -28,15 +32,25 @@ const TrapSignalsComponents = ({ selectedTrapSignalsTags, setSelectedTrapSignals
     typeof tag === 'string' && tag.toLowerCase().includes(searchValue.toLowerCase())
   );
 
-  const handleTagCheckboxChange = (tag) => {
-    if (selectedTrapSignalsTags.includes(tag)) {
-      setSelectedTrapSignalsTags(selectedTrapSignalsTags.filter(t => t !== tag));
-    } else {
-      setSelectedTrapSignalsTags([...selectedTrapSignalsTags, tag]);
-    }
-  };
 
-  
+  const handleTagCheckboxChange = (tag) => {
+    if (selTrapSignalsTags.includes(tag)) {
+      // Do nothing if tag is already selected (to prevent going below 3)
+      return;
+    }
+
+    let newTags = [...selTrapSignalsTags];
+
+    if (newTags.length >= 3) {
+      // Remove the first (oldest) selected tag
+      newTags.shift();
+    }
+
+    // Add the newly selected tag
+    newTags.push(tag);
+
+    setSelTrapSignalsTags(newTags);
+  };
 
   return (
     <div className="signalTagContainer">
@@ -73,23 +87,13 @@ const TrapSignalsComponents = ({ selectedTrapSignalsTags, setSelectedTrapSignals
           <div style={{ marginTop: '10px' }}>
             <ul>
               {filteredTags.map((tag, index) => {
-                const isSelected = selectedTrapSignalsTags.includes(tag);
+                const isSelected = selTrapSignalsTags.includes(tag);
                 return (
                   <li
                     key={index}
                     onClick={() => handleTagCheckboxChange(tag)}
-                    style={{
-                      padding: '8px 12px',
-                      marginBottom: '6px',
-                      background: isSelected ? 'var(--highlightColor)' : 'var(--buttonBackground)',
-                      color: isSelected ? 'white' : 'inherit',
-                      borderRadius: '4px',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      opacity: isSelected ? 1 : 0.7,
-                      cursor: 'pointer',
-                    }}
+                    className={`signalTagItem ${isSelected ? 'selected' : ''}`}
+
                   >
                     <div style={{ display: 'flex', alignItems: 'center' }}>
                       <input
@@ -111,4 +115,4 @@ const TrapSignalsComponents = ({ selectedTrapSignalsTags, setSelectedTrapSignals
   );
 };
 
-export default TrapSignalsComponents;
+export default TrapSignalsTags;

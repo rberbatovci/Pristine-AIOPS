@@ -134,9 +134,9 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
 
   return (
     <div className="signalTagContainer">
-      <div style={{ marginTop: '2px' }}>Syslog Tag Configuration:</div>
+      <div style={{ marginTop: '2px' }}>Regular Expressions Configuration:</div>
       {isLoading ? (
-        <div className="signalConfigRuleMessage">Loading stateful syslog rules. Please wait...</div>
+        <div className="signalConfigRuleMessage">Loading Regular Expressions. Please wait...</div>
       ) : error ? (
         <div className="signalConfigRuleMessage">{error}</div>
       ) : (

@@ -7,7 +7,7 @@ import apiClient from '../misc/AxiosConfig';
 
 const Sidebar = ({ toggleTheme, isDarkTheme, currentUser, onLogout }) => {
   const [selectedTimezone, setSelectedTimezone] = useState(currentUser?.timezone || 'UCT');
-  
+
   // Get the list of all timezones
   const timezones = moment.tz.names();
   console.log('Selected Timezone from currentUser', currentUser);
@@ -33,15 +33,18 @@ const Sidebar = ({ toggleTheme, isDarkTheme, currentUser, onLogout }) => {
   };
 
   return (
-    <div className="sidebarContainer">
-      <ul className="sidebarMenu">
-        <li><NavLink to="/incidents" className={({ isActive }) => isActive ? 'selSidebarPage' : 'sidebarPage'}>Incidents Dashboard</NavLink></li>
-        <li><NavLink to="/signalsdashboard" className={({ isActive }) => isActive ? 'selSidebarPage' : 'sidebarPage'}>Signals Dashboard</NavLink></li>
-        <li><NavLink to="/events" className={({ isActive }) => isActive ? 'selSidebarPage' : 'sidebarPage'}>Events Database</NavLink></li>
-        <li><NavLink to="/statistics" className={({ isActive }) => isActive ? 'selSidebarPage' : 'sidebarPage'}>Signals Summary</NavLink></li>
-        <li><NavLink to="/devices" className={({ isActive }) => isActive ? 'selSidebarPage' : 'sidebarPage'}>Devices</NavLink></li>
-        <li><NavLink to="/geolocation" className={({ isActive }) => isActive ? 'selSidebarPage' : 'sidebarPage'}>Geolocation</NavLink></li>
-      </ul>
+    <div style={{display: 'flex'}}>
+      <div className="sidebarContainer">
+        <ul className="sidebarMenu">
+          <li><NavLink to="/incidents" className={({ isActive }) => isActive ? 'selSidebarPage' : 'sidebarPage'}>Incidents Dashboard</NavLink></li>
+          <li><NavLink to="/signalsdashboard" className={({ isActive }) => isActive ? 'selSidebarPage' : 'sidebarPage'}>Signals Dashboard</NavLink></li>
+          <li><NavLink to="/events" className={({ isActive }) => isActive ? 'selSidebarPage' : 'sidebarPage'}>Events Database</NavLink></li>
+          <li><NavLink to="/statistics" className={({ isActive }) => isActive ? 'selSidebarPage' : 'sidebarPage'}>Signals Summary</NavLink></li>
+          <li><NavLink to="/devices" className={({ isActive }) => isActive ? 'selSidebarPage' : 'sidebarPage'}>Devices</NavLink></li>
+          <li><NavLink to="/geolocation" className={({ isActive }) => isActive ? 'selSidebarPage' : 'sidebarPage'}>Geolocation</NavLink></li>
+        </ul>
+      </div>
+      <div className="brand"></div>
     </div>
   );
 };

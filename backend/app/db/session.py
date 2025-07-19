@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import declarative_base
 from opensearchpy import OpenSearch
+import redis
 
 Base = declarative_base()
 
@@ -13,6 +14,8 @@ engine = create_async_engine(DATABASE_URL)
 async_session_maker = sessionmaker(  # Renamed for clarity
     autocommit=False, autoflush=False, bind=engine, class_=AsyncSession
 )
+
+redis_client = redis.Redis(host="redis", port=6379, decode_responses=True)
 
 # Initialize OpenSearch client
 opensearch_client = OpenSearch(

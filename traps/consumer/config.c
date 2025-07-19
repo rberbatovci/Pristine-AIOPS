@@ -149,14 +149,6 @@ void load_trap_tags(PGconn *conn) {
             }
             free(oids_clean);
         }
-
-        printf("Tag %d:\n", i + 1);
-        printf("  Name: %s\n", trapTags[i].name);
-        printf("  OIDs: ");
-        for (int j = 0; j < trapTags[i].oid_count; j++) {
-            printf("%s%s", trapTags[i].oids[j], (j < trapTags[i].oid_count - 1) ? ", " : "");
-        }
-        printf("\n");
     }
 
     PQclear(res);

@@ -167,12 +167,12 @@ header {
 }
 
 .content {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: calc(100% - 10px);
-  position: relative;
-  left: 10px;
+  flex-grow: 1;
+  display: flex;                 /* Required for flexbox to work */
+  justify-content: center;      /* Center horizontally */
+  align-items: flex-start;      /* Keep at top vertically, or use center for full centering */
+  padding: 20px;                /* Optional spacing */
+  overflow-y: hidden;             /* Prevent overflow issues */
 }
 
 .header {

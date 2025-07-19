@@ -137,7 +137,7 @@ func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensea
 			return "N/A"
 		}(), t.CollectionId, len(t.DataGpbkv))
 
-	printTelemetryFields(t.DataGpbkv, "")
+	//printTelemetryFields(t.DataGpbkv, "")
 
 	device := ""
 	if nodeID, ok := t.NodeId.(*telemetryBis.Telemetry_NodeIdStr); ok {

@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "process.h": "c",
+        "time.h": "c",
+        "pthread.h": "c",
+        "stdlib.h": "c",
+        "activesignals.h": "c",
+        "rules.h": "c"
+    }
+}

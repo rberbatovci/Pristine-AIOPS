@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS mnemonics (
     name VARCHAR(50) UNIQUE NOT NULL,
     severity VARCHAR(15) DEFAULT NULL,
     level INTEGER DEFAULT NULL,
-    alert BOOLEAN DEFAULT FALSE;
+    alert BOOLEAN DEFAULT FALSE
 );
 
 -- Create association table mnemonic_regex for many-to-many relationship
@@ -56,13 +56,7 @@ CREATE TABLE IF NOT EXISTS mnemonic_regex (
     FOREIGN KEY (regex_id) REFERENCES regex(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS trap_oid_tags (
-    trap_oid_id; INTEGER NOT NULL,
-    tag_name VARCHAR NOT NULL,
-    PRIMARY KEY (trap_oid_id;, tag_name),
-    FOREIGN KEY (trap_oid_id;) REFERENCES snmp_trap_oids(id) ON DELETE CASCADE,
-    FOREIGN KEY (tag_name) REFERENCES "trapTags"(name) ON DELETE CASCADE
-);
+
 
 
 CREATE TABLE IF NOT EXISTS stateful_syslog_rules (
@@ -119,7 +113,7 @@ CREATE TABLE IF NOT EXISTS snmp_trap_oids (
     name VARCHAR(255),
     value VARCHAR(255) NOT NULL,
     tags TEXT[] DEFAULT '{}',
-    alert BOOLEAN DEFAULT FALSE;
+    alert BOOLEAN DEFAULT FALSE
 );
 
 -- Create table syslogTags
@@ -128,6 +122,13 @@ CREATE TABLE IF NOT EXISTS "trapTags" (
     oids TEXT[] DEFAULT '{}'
 );
 
+CREATE TABLE IF NOT EXISTS trap_oid_tags (
+    trap_oid_id INTEGER NOT NULL,
+    tag_name VARCHAR NOT NULL,
+    PRIMARY KEY (trap_oid_id, tag_name),
+    FOREIGN KEY (trap_oid_id) REFERENCES snmp_trap_oids(id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_name) REFERENCES "trapTags"(name) ON DELETE CASCADE
+);
 
 CREATE TABLE IF NOT EXISTS stateful_trap_rules (
     id SERIAL PRIMARY KEY,
@@ -147,7 +148,7 @@ CREATE TABLE IF NOT EXISTS stateful_trap_rules (
     -- Foreign key constraints
     CONSTRAINT fk_opensignaltrap
         FOREIGN KEY (opensignaltrap_id) REFERENCES snmp_trap_oids(id) ON DELETE SET NULL,
-    CONSTRAINT fk_opensignaltrap
+    CONSTRAINT fk_closesignaltrap
         FOREIGN KEY (closesignaltrap_id) REFERENCES snmp_trap_oids(id) ON DELETE SET NULL
 );
 
@@ -167,3 +168,59 @@ CREATE TABLE IF NOT EXISTS trap_rules (
     FOREIGN KEY (trap_id) REFERENCES snmp_trap_oids(id) ON DELETE CASCADE,
     FOREIGN KEY (rule_id) REFERENCES stateful_trap_rules(id) ON DELETE CASCADE
 );
+
+-- Create the function
+CREATE OR REPLACE FUNCTION update_mnemonics_alert()
+RETURNS trigger AS $$
+BEGIN
+    -- Update mnemonics.alert based on severity level and rules
+    UPDATE mnemonics m
+    SET alert = (
+        EXISTS (
+            SELECT 1
+            FROM syslogsignalseverity s
+            WHERE s.number <= COALESCE(m.level, 100000)
+        )
+        OR EXISTS (
+            SELECT 1
+            FROM stateful_syslog_rules r
+            WHERE r.opensignalmnemonic_id = m.id OR r.closesignalmnemonic_id = m.id
+        )
+    );
+
+    RETURN NULL;  -- Required for statement-level trigger
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION update_snmpTrapOid_alert()
+RETURNS trigger AS $$
+BEGIN
+    UPDATE snmp_trap_oids m
+    SET alert = (
+        EXISTS (
+            SELECT 1
+            FROM stateful_trap_rules r
+            WHERE r.opensignaltrap_id = m.id OR r.closesignaltrap_id = m.id
+        )
+    );
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create the triggers
+CREATE TRIGGER trg_update_snmpTrapOid_on_rules
+AFTER INSERT OR UPDATE OR DELETE ON stateful_trap_rules
+FOR EACH STATEMENT
+EXECUTE FUNCTION update_snmpTrapOid_alert();
+
+-- Create the triggers
+CREATE TRIGGER trg_update_mnemonic_on_severity
+AFTER INSERT OR UPDATE OR DELETE ON syslogsignalseverity
+FOR EACH STATEMENT
+EXECUTE FUNCTION update_mnemonics_alert();
+
+CREATE TRIGGER trg_update_alert_on_rules
+AFTER INSERT OR UPDATE OR DELETE ON stateful_syslog_rules
+FOR EACH STATEMENT
+EXECUTE FUNCTION update_mnemonics_alert();

@@ -93,10 +93,23 @@ const EventsTable = ({ currentUser, data, columns, signalSource, onDownload, onR
     };
   }, [isResizing]);
 
-  const getValue = (row, columnName) => {
+  const getValue = (row, columnName, signalSource) => {
     if (columnName === 'timestamp') {
       return row['@timestamp'] || row['timestamp'] || '';
     }
+
+    if (signalSource === 'syslogs') {
+      if (row.tags && columnName in row.tags) {
+        return row.tags[columnName];
+      }
+    }
+
+    if (signalSource === 'snmptraps') {
+      if (row.content && columnName in row.content) {
+        return row.content[columnName];
+      }
+    }
+
     return row?.[columnName] ?? '';
   };
 
@@ -275,9 +288,9 @@ const EventsTable = ({ currentUser, data, columns, signalSource, onDownload, onR
                     fontSize: '14px',
                   }}
                 >
-                  {column === 'content' && typeof getValue(row, column) === 'object'
+                  {column === 'content' && typeof getValue(row, column, signalSource) === 'object'
                     ? JSON.stringify(getValue(row, column))
-                    : getValue(row, column)}
+                    : getValue(row, column, signalSource)}
                 </td>
               ))}
             </tr>

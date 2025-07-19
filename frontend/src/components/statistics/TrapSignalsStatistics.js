@@ -10,8 +10,10 @@ import apiClient from '../misc/AxiosConfig.js';
 import '../../css/SyslogDatabase.css';
 import Select from 'react-select';
 import customStyles from '../misc/SelectStyles';
+import { IoBarChartOutline } from "react-icons/io5";
+import { AiOutlinePieChart } from "react-icons/ai";
 
-function TrapSignalsStatistics({ selectedTrapSignalsTags }) {
+function TrapSignalsStatistics({ selTrapSignalsTags }) {
     const [chartDataMap, setChartDataMap] = useState({});
     const [loadingMap, setLoadingMap] = useState({});
     const [chartTypeMap, setChartTypeMap] = useState({});
@@ -21,9 +23,9 @@ function TrapSignalsStatistics({ selectedTrapSignalsTags }) {
         { value: 'BarChart', label: 'Bar Chart' },
     ];
 
-    // Fetch data when selectedTrapSignalsTags change
+    // Fetch data when selTrapSignalsTags change
     useEffect(() => {
-        selectedTrapSignalsTags.forEach(dataType => {
+        selTrapSignalsTags.forEach(dataType => {
             if (!chartDataMap[dataType] && !loadingMap[dataType]) {
                 setLoadingMap(prev => ({ ...prev, [dataType]: true }));
 
@@ -71,7 +73,7 @@ function TrapSignalsStatistics({ selectedTrapSignalsTags }) {
 
         // Clean up removed types
         Object.keys(chartDataMap).forEach(dataType => {
-            if (!selectedTrapSignalsTags.includes(dataType)) {
+            if (!selTrapSignalsTags.includes(dataType)) {
                 const newChartDataMap = { ...chartDataMap };
                 delete newChartDataMap[dataType];
                 setChartDataMap(newChartDataMap);
@@ -81,7 +83,7 @@ function TrapSignalsStatistics({ selectedTrapSignalsTags }) {
                 setLoadingMap(newLoadingMap);
             }
         });
-    }, [selectedTrapSignalsTags]);
+    }, [selTrapSignalsTags]);
 
     const handleChartTypeChange = (dataType, type) => {
         setChartTypeMap(prev => ({ ...prev, [dataType]: type }));
@@ -103,7 +105,7 @@ function TrapSignalsStatistics({ selectedTrapSignalsTags }) {
     return (
         <div>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-around' }}>
-                {selectedTrapSignalsTags.map(dataType => {
+                {selTrapSignalsTags.map(dataType => {
                     const chartType = chartTypeMap[dataType] || 'BarChart';
                     const chartData = chartDataMap[dataType] || [];
                     const isLoading = loadingMap[dataType];
@@ -111,17 +113,37 @@ function TrapSignalsStatistics({ selectedTrapSignalsTags }) {
                     return (
                         <div key={dataType} className="signalRightElementContainer" style={{ width: '520px', height: '380px' }}>
                             <div className="signalRightElementHeader" style={{ marginBottom: '20px' }}>
-                                <h2 className="signalRightElementHeaderTxt">
-                                    {dataType ? dataType.charAt(0).toUpperCase() + dataType.slice(1) : 'Unknown'} Statistics
-                                </h2>
-                                <div style={{ width: '200px', zIndex: '50' }}>
-                                    <Select
-                                        value={chartOptions.find(option => option.value === chartType)}
-                                        onChange={selectedOption => handleChartTypeChange(dataType, selectedOption.value)}
-                                        options={chartOptions}
-                                        placeholder="Select chart type"
-                                        styles={customStyles('190px')}
-                                    />
+                                <div style={{ display: 'flex', alignItems: 'center' }}>
+                                    <h2 style={{ fontSize: '15px', marginLeft: '20px', fontWeight: 'bold', color: 'var(--textColor)' }}>
+                                        {dataType ? dataType.charAt(0).toUpperCase() + dataType.slice(1) : 'Unknown'}
+                                    </h2>
+                                    <span style={{ fontSize: '14px', marginLeft: '5px', color: 'var(--textColor)' }}>- Signal Statistics</span>
+                                </div>
+                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginRight: '10px' }}>
+                                    {chartType !== 'PieChart' && (
+                                        <AiOutlinePieChart
+                                            size={24}
+                                            onClick={() => handleChartTypeChange(dataType, 'PieChart')}
+                                            style={{
+                                                cursor: 'pointer',
+                                                color: '#999',
+                                                transition: 'color 0.3s ease',
+                                            }}
+                                            title="Pie Chart"
+                                        />
+                                    )}
+                                    {chartType !== 'BarChart' && (
+                                        <IoBarChartOutline
+                                            size={24}
+                                            onClick={() => handleChartTypeChange(dataType, 'BarChart')}
+                                            style={{
+                                                cursor: 'pointer',
+                                                color: '#999',
+                                                transition: 'color 0.3s ease',
+                                            }}
+                                            title="Bar Chart"
+                                        />
+                                    )}
                                 </div>
                             </div>
 

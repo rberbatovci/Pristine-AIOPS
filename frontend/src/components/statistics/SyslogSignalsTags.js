@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import '../../css/SyslogTagsList.css';
 import apiClient from '../misc/AxiosConfig';
 
-const SyslogComponents = ({ selectedSyslogTags, setSelectedSyslogTags }) => {
+
+const SyslogSignalsTags = ({ selSyslogSignalsTags, setSelSyslogSignalsTags }) => {
   const [searchValue, setSearchValue] = useState('');
   const [tags, setTags] = useState([]);
 
-  const defaultTags = ['device', 'mnemonic', 'severity', 'Interface', 'State']; // includes custom non-API ones
+  const defaultTags = ['device', 'mnemonic', 'severity']; // includes custom non-API ones
 
   const fetchSyslogTags = async () => {
     try {
@@ -15,8 +16,8 @@ const SyslogComponents = ({ selectedSyslogTags, setSelectedSyslogTags }) => {
       const combinedTags = Array.from(new Set([...defaultTags, ...apiTags]));
       setTags(combinedTags);
 
-      if (selectedSyslogTags.length === 0) {
-        setSelectedSyslogTags(defaultTags);
+      if (selSyslogSignalsTags.length === 0) {
+        setSelSyslogSignalsTags(defaultTags);
       }
     } catch (error) {
       console.error('Error fetching syslog tag names:', error);
@@ -31,12 +32,24 @@ const SyslogComponents = ({ selectedSyslogTags, setSelectedSyslogTags }) => {
     typeof tag === 'string' && tag.toLowerCase().includes(searchValue.toLowerCase())
   );
 
+
   const handleTagCheckboxChange = (tag) => {
-    if (selectedSyslogTags.includes(tag)) {
-      setSelectedSyslogTags(selectedSyslogTags.filter(t => t !== tag));
-    } else {
-      setSelectedSyslogTags([...selectedSyslogTags, tag]);
+    if (selSyslogSignalsTags.includes(tag)) {
+      // Do nothing if tag is already selected (to prevent going below 3)
+      return;
     }
+
+    let newTags = [...selSyslogSignalsTags];
+
+    if (newTags.length >= 3) {
+      // Remove the first (oldest) selected tag
+      newTags.shift();
+    }
+
+    // Add the newly selected tag
+    newTags.push(tag);
+
+    setSelSyslogSignalsTags(newTags);
   };
 
   return (
@@ -74,23 +87,13 @@ const SyslogComponents = ({ selectedSyslogTags, setSelectedSyslogTags }) => {
           <div style={{ marginTop: '10px' }}>
             <ul>
               {filteredTags.map((tag, index) => {
-                const isSelected = selectedSyslogTags.includes(tag);
+                const isSelected = selSyslogSignalsTags.includes(tag);
                 return (
                   <li
                     key={index}
                     onClick={() => handleTagCheckboxChange(tag)}
-                    style={{
-                      padding: '8px 12px',
-                      marginBottom: '6px',
-                      background: isSelected ? 'var(--highlightColor)' : 'var(--buttonBackground)',
-                      color: isSelected ? 'white' : 'inherit',
-                      borderRadius: '4px',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      opacity: isSelected ? 1 : 0.7,
-                      cursor: 'pointer',
-                    }}
+                    className={`signalTagItem ${isSelected ? 'selected' : ''}`}
+
                   >
                     <div style={{ display: 'flex', alignItems: 'center' }}>
                       <input
@@ -112,4 +115,4 @@ const SyslogComponents = ({ selectedSyslogTags, setSelectedSyslogTags }) => {
   );
 };
 
-export default SyslogComponents;
+export default SyslogSignalsTags;

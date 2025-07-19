@@ -3,10 +3,11 @@ from sqlalchemy import select
 from app.signals.models import SyslogSignalSeverity
 from app.signals.schemas import SyslogSignalSeverityBase
 from app.syslogs.models import Mnemonic
-from app.db.session import get_db, opensearch_client
+from app.db.session import get_db, opensearch_client, redis_client
 from .services import save_syslog_severity_to_redis, updateMnemonicSettings
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
+import json
 
 router = APIRouter()
 
@@ -28,6 +29,17 @@ async def get_all_syslog_signals():
         "results": hits,
         "total": total
     }
+
+@router.get("/signals/syslogsignals/{signal_id}")
+def get_signal(signal_id: int):
+    key = f"sig:sys:{signal_id}"
+    val = redis_client.get(key)
+    if val is None:
+        raise HTTPException(status_code=404, detail="Signal not found")
+    
+    # val is a JSON string, decode to dict before returning
+    signal = json.loads(val)
+    return signal
 
 @router.get("/signals/trapsignals/")
 async def get_all_trap_signals():

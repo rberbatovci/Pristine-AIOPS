@@ -31,6 +31,14 @@ function Mnemonics({ currentUser, mnemonics, entityOptions }) {
             .finally(() => setLoading(false));
     };
 
+    useEffect(() => {
+        if (mnemonics && mnemonics.length > 0 && !selectedMnemonic) {
+            const randomIndex = Math.floor(Math.random() * mnemonics.length);
+            const randomMnemonic = mnemonics[randomIndex];
+            handleMnemonicSelection(randomMnemonic);
+        }
+    }, [mnemonics]);
+
     const handleSave = async () => {
         try {
             const { name } = selectedMnemonic;
@@ -52,16 +60,6 @@ function Mnemonics({ currentUser, mnemonics, entityOptions }) {
         } catch (error) {
             console.error('Error delete mnemonic:', error);
             setAlert("Failed to delete mnemonic. Please try again.");
-        }
-    };
-
-    const handleSyncToRedis = async () => {
-        try {
-            await apiClient.post(`/syslogs/mnemonics/handleSyncToRedis/`);
-            setAlert("Mnemonic rules synchronized successfully!");
-        } catch (error) {
-            console.error('Error syncing mnemonics rules:', error);
-            setAlert("Failed to sync mnemonics rules. Please try again.");
         }
     };
 
@@ -91,7 +89,8 @@ function Mnemonics({ currentUser, mnemonics, entityOptions }) {
                                 placeholder="Search Mnemonics..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="searchTagListElement"
+                                className="signalSearchItem"
+                                style={{ width: '220px', outline: 'none' }}
                             />
                             <ul style={{ padding: 0, listStyle: 'none', margin: 0, marginBottom: '10px' }}>
                                 {filteredMnemonics.map((mnemonic) => (
@@ -173,12 +172,9 @@ function Mnemonics({ currentUser, mnemonics, entityOptions }) {
                     <button onClick={handleSave} style={{ marginRight: '10px' }} className="buttonStyles saveRuleButton">
                         Save
                     </button>
-                    <button onClick={handleDelete} style={{ marginRight: '10px' }} className="buttonStyles saveRuleButton">
+                    {/*<button onClick={handleDelete} style={{ marginRight: '10px' }} className="buttonStyles saveRuleButton">
                         Delete
-                    </button>
-                    <button onClick={handleSyncToRedis} className="addRuleButton">
-                        Sync to Redis
-                    </button>
+                    </button> */}
                 </div>
             )}
         </div>
