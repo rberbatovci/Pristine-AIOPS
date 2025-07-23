@@ -99,6 +99,17 @@ void loadSignalRules(PGconn *conn)
     printf("[INFO] Loaded %d signal rules\n", signal_rule_count);
 }
 
+
+StatefulRule *findRuleByName(const char *name) {
+    for (int i = 0; i < signal_rule_count; i++) {
+        if (strcmp(signal_rules[i].name, name) == 0) {
+            return &signal_rules[i];
+        }
+    }
+    return NULL;
+}
+
+
 RuleMatch *findSignalRule(const char *mnemonic, json_t *tags, int *match_count)
 {
     RuleMatch *matches = malloc(sizeof(RuleMatch) * signal_rule_count);

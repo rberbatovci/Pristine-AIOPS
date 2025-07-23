@@ -46,6 +46,19 @@ rd_kafka_t* setup_kafka_consumer(const char* brokers, const char* group_id, cons
 int main() {
     setbuf(stdout, NULL);
 
+    activeSignalMonitor();
+
+    PGconn *conn = PQconnectdb("host=postgresql dbname=fpristine user=PristineAdmin password=PristinePassword");
+    if (PQstatus(conn) != CONNECTION_OK) {
+        fprintf(stderr, "[ERROR] Connection to DB failed: %s\n", PQerrorMessage(conn));
+        PQfinish(conn);
+        return EXIT_FAILURE;
+    }
+
+    loadSignalRules(conn);
+    PQfinish(conn);
+
+
     // Start thread to reload rules and states periodically
     ReloadArgs* args = malloc(sizeof(ReloadArgs));
     if (!args) {

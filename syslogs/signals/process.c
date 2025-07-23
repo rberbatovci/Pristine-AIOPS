@@ -105,22 +105,46 @@ void process_message(rd_kafka_t *rk)
 
                 if (type == MATCH_OPEN)
                 {
+                    ActiveSignal *matched_signal = NULL;
+
+                    for (int j = 0; j < active_signal_count; j++)
+                    {
+                        if (findActiveSignals(&active_signals[j], device, rule->name, tags))
+                        {
+                            matched_signal = &active_signals[j];
+                            break;
+                        }
+                    }
                     if (matched_signal)
                     {
                         printf("[INFO] Signal already exists. No action taken for MATCH_OPEN.\n");
+                        printSignal(matched_signal);
                     }
                     else
                     {
-                        printf("[ACTION] Creating new signal from rule ID %d\n", rule->id);
                         createSignal(rule, device, mnemonic, tags, eventIdStr);
                     }
                 }
                 else if (type == MATCH_CLOSE)
                 {
+
+                    ActiveSignal *matched_signal = NULL;
+
+                    for (int j = 0; j < active_signal_count; j++)
+                    {
+                        if (findActiveSignals(&active_signals[j], device, rule->name, tags))
+                        {
+                            matched_signal = &active_signals[j];
+                            break;
+                        }
+                    }
+
                     if (matched_signal)
                     {
-                        printf("[ACTION] Closing existing signal ID %d for rule ID %d\n", matched_signal->id, rule->id);
-                        closeSignal(matched_signal);
+                        printf("[ACTION] Closing existing signal ID %s for rule ID %d\n", matched_signal->signalId, rule->id);
+                        printSignal(matched_signal);
+                        closeSignal(matched_signal->signalId, eventIdStr);
+
                     }
                     else
                     {

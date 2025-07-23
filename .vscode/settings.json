@@ -5,6 +5,10 @@
         "pthread.h": "c",
         "stdlib.h": "c",
         "activesignals.h": "c",
-        "rules.h": "c"
+        "rules.h": "c",
+        "sstream": "c",
+        "stdio.h": "c",
+        "bulk.h": "c",
+        "stdbool.h": "c"
     }
 }

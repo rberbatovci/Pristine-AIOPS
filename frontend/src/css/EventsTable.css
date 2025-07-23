@@ -1,38 +1,14 @@
 
 :root {
-    --tableHeader: rgba(247, 4, 4, 0.01);
     --hoveredRowColor: rgb(226, 239, 250);
     --selectedRowColor: rgb(48, 113, 151);
-    --tabledataRowEvenBackground: rgba(255, 255, 255, 0.2);
-    --tabledataRowOddBackground: rgba(255, 255, 255, 0.3);
-    --tableDataRowEvenColor: rgba(0,0,0, .70);
-    --tableDataRowOddColor: rgba(0,0,0, .55);
-    --tableDataRowSelectedBackground:  rgba(255, 255, 255, 0.5);
-    --tableDataRowSelectedColor: rgb(13, 89, 112);
-    --tableHeaderRowRightBorderColor: rgba(110, 110, 110, .2);
-    --tableDataRowRightBorderColor: rgba(172, 172, 172, 0.10);
-    --tableDataHeaderBackground: rgba(196, 196, 196, 0.1);
-    --tableContainerBackground: rgba(255, 255, 255, 0.1);
-    --tableHeaderColor: rgb(214, 214, 214);
-    --tableDataHeaderColor: rgba(99, 99, 99, 0.8);  
+  
   }
   
   [data-theme='dark'] {
-    --tableHeader: rgb(1,1,1);
     --selectedRowColor: rgb(48, 84, 109);
     --selectedRowColor: rgb(48, 113, 151);
-    --tabledataRowEvenBackground: rgba(0, 57, 77, 0.5);
-    --tabledataRowOddBackground: rgba(0, 57, 77, 0.7);
-    --tableDataRowEvenColor: rgba(184, 184, 184, 0.7);
-    --tableDataRowOddColor: rgba(184, 184, 184, .55);
-    --tableDataRowSelectedBackground: rgba(0, 81, 110, 0.6);
-    --tableHeaderRowRightBorderColor: rgba(0, 28, 39, 0.3);
-    --tableDataRowSelectedColor: rgba(253, 253, 253, 0.8);
-    --tableDataRowSelectedTopBorder: 1px solid rgba(255, 255, 255, 0.2);
-    --tableDataRowRightBorderColor: rgba(172, 172, 172, 0.10);
-    --tableDataHeaderBackground: rgba(43, 101, 131, 0.1);
-    --tableContainerBackground: rgba(0, 18, 46, 0.2);
-    --tableDataHeaderColor: rgba(255, 255, 255, .5);
+
   }
   
   .tableContainer {
@@ -141,18 +117,18 @@
     }
     
     .tableBody tr:nth-child(even) {
-      background-color: var(--tabledataRowEvenBackground);
-      color: var(--tableDataRowEvenColor);
+      background-color: var(--rowEvenBackground);
+      color: var(--rowEvenColor);
     }
     
     .tableBody tr:nth-child(odd) {
-      background-color: var(--tabledataRowOddBackground);
-      color: var(--tableDataRowOddColor);
+      background-color: var(--rowOddBackground);
+      color: var(--rowOddColor);
     }
     
     .tableBody tr:hover {
-      background-color: var(--tableDataRowSelectedBackground);
-      color: var(--tableDataRowSelectedColor);
+      background-color: var(--rowSelectedBackground);
+      color: var(--rowSelectedColor);
       cursor: pointer;
     }
   
@@ -164,7 +140,7 @@
     
     /* Selected row styling */
     .selectedRow {
-      background-color: var(--tableDataRowSelectedBackground);
+      background-color: var(--rowSelectedBackground);
       border-color: 1px solid black;
       color: green;
   

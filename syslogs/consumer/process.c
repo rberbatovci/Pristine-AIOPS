@@ -7,10 +7,38 @@
 #include "config.h"
 #include "bulk.h"
 #include <uuid/uuid.h>
+#include "process.h"
+
+json_t *serialize_events(const SyslogEvent *event)
+{
+    if (!event)
+        return NULL;
+
+    json_t *j = json_object();
+    if (!j)
+        return NULL;
+
+    json_object_set_new(j, "eventId", json_string(event->eventId));
+    json_object_set_new(j, "device", json_string(event->device));
+    json_object_set_new(j, "lsn", json_integer(event->lsn));
+    json_object_set_new(j, "severity", json_string(event->severity));
+    json_object_set_new(j, "mnemonic", json_string(event->mnemonic));
+    json_object_set_new(j, "timestamp", json_string(event->timestamp));
+    json_object_set_new(j, "message", json_string(event->message));
+
+    if (event->tags && json_object_size(event->tags) > 0)
+    {
+        json_t *tags_copy = json_deep_copy(event->tags);
+        json_object_set_new(j, "tags", tags_copy);
+    }
+
+    return j;
+}
 
 void process_message(rd_kafka_t *rk)
 {
     rd_kafka_message_t *rkmessage;
+    static time_t last_flush_time = 0;
 
     while (1)
     {
@@ -25,16 +53,13 @@ void process_message(rd_kafka_t *rk)
             continue;
         }
 
-        char *payload = malloc(rkmessage->len + 1);
+        char *payload = strndup(rkmessage->payload, rkmessage->len);
         if (!payload)
         {
             fprintf(stderr, "[ERROR] Memory allocation failed\n");
             rd_kafka_message_destroy(rkmessage);
             continue;
         }
-
-        memcpy(payload, rkmessage->payload, rkmessage->len);
-        payload[rkmessage->len] = '\0';
 
         json_error_t error;
         json_t *root = json_loads(payload, 0, &error);
@@ -46,118 +71,100 @@ void process_message(rd_kafka_t *rk)
             continue;
         }
 
-        json_t *message_field = json_object_get(root, "message");
-        if (json_is_string(message_field))
+        json_t *msg_field = json_object_get(root, "message");
+        if (!json_is_string(msg_field))
         {
-            const char *msg_str = json_string_value(message_field);
-            char mnemonic[64];
+            json_decref(root);
+            free(payload);
+            rd_kafka_message_destroy(rkmessage);
+            continue;
+        }
 
-            if (extract_mnemonic(msg_str, mnemonic, sizeof(mnemonic)))
+        const char *msg_str = json_string_value(msg_field);
+
+        SyslogEvent event = {0};
+        uuid_t uuid;
+        uuid_generate(uuid);
+        uuid_unparse_lower(uuid, event.eventId);
+
+        json_t *device_field = json_object_get(root, "device");
+        if (json_is_string(device_field))
+        {
+            snprintf(event.device, sizeof(event.device), "%s", json_string_value(device_field));
+        }
+
+        snprintf(event.message, sizeof(event.message), "%s", msg_str);
+        event.lsn = extract_lsn(msg_str);
+        extract_timestamp(msg_str, event.timestamp, sizeof(event.timestamp));
+
+        char mnemonic[64];
+        if (extract_mnemonic(msg_str, mnemonic, sizeof(mnemonic)))
+        {
+            snprintf(event.mnemonic, sizeof(event.mnemonic), "%s", mnemonic);
+            MnemonicInfo *info = findMnemonic(mnemonic);
+
+            if (info)
             {
-                json_object_set_new(root, "mnemonic", json_string(mnemonic));
+                snprintf(event.severity, sizeof(event.severity), "%s", info->severity);
 
-                MnemonicInfo *mnemonic_found = findMnemonic(mnemonic);
-                if (!mnemonic_found)
+                event.tags = json_object();
+                for (int i = 0; i < info->regex_count; i++)
                 {
-                    fprintf(stderr, "[ERROR] findMnemonic failed for '%s'\n", mnemonic);
+                    Regex *r = get_mnemonic_regexes(info->regexes[i]);
+                    if (!r)
+                        continue;
+                    char *val = extract_tags(r, msg_str);
+                    if (r->tag && val)
+                    {
+                        json_object_set_new(event.tags, r->tag, json_string(val));
+                    }
+                    free(val);
+                }
+
+                // ✅ ONE serializer call for both Kafka and OpenSearch
+                json_t *event_json = serialize_events(&event);
+                if (!event_json)
+                {
+                    fprintf(stderr, "[ERROR] Failed to serialize event\n");
                 }
                 else
                 {
-                    json_object_set_new(root, "severity", json_string(mnemonic_found->severity));
+                    char *dump = json_dumps(event_json, JSON_INDENT(2));
+                    printf("Serialized event JSON:\n%s\n", dump);
+                    free(dump);
 
-                    // Tag extraction via regex
-                    json_t *tags_object = json_object();
-                    for (int i = 0; i < mnemonic_found->regex_count; i++)
+                    if (info->alert)
                     {
-                        const char *regex_name = mnemonic_found->regexes[i];
-                        Regex *r = get_mnemonic_regexes(regex_name);
-                        if (!r)
-                        {
-                            printf("[WARN] Regex not found: %s\n", regex_name);
-                            continue;
-                        }
-
-                        char *extracted = extract_tags(r, msg_str);
-                        if (r->tag && extracted)
-                        {
-                            json_object_set_new(tags_object, r->tag, json_string(extracted));
-                        }
-                        free(extracted);
+                        add_alert_to_kafka_bulk(event_json); // uses json_incref()
                     }
 
-                    if (json_object_size(tags_object) > 0)
+                    // OpenSearch buffer logic
+                    if (opensearch_count < DATA_FLUSH_SIZE)
                     {
-                        json_object_set_new(root, "tags", tags_object);
+                        opensearch_buffer[opensearch_count++] = json_incref(event_json);
                     }
                     else
                     {
-                        json_decref(tags_object);
-                    }
-
-                    // Add LSN and timestamp
-                    int lsn = extract_lsn(msg_str);
-                    if (lsn != -1)
-                    {
-                        json_object_set_new(root, "lsn", json_integer(lsn));
-                    }
-
-                    char timestamp[64];
-                    extract_timestamp(msg_str, timestamp, sizeof(timestamp));
-                    if (timestamp[0] != '\0')
-                    {
-                        json_object_set_new(root, "timestamp", json_string(timestamp));
-                    }
-
-                    uuid_t uuid;
-                    char uuid_str[37];
-                    uuid_generate(uuid);
-                    uuid_unparse_lower(uuid, uuid_str);
-                    json_object_set_new(root, "eventId", json_string(uuid_str));
-
-                    // Dump to string
-                    char *final_json = json_dumps(root, JSON_COMPACT);
-                    if (!final_json)
-                    {
-                        fprintf(stderr, "[ERROR] Failed to dump enriched JSON\n");
-                    }
-                    else
-                    {
-                        printf("[DEBUG] Final JSON:\n%s\n", final_json);
-
-                        // Send to Kafka if alert
-                        if (mnemonic_found->alert)
+                        send_bulk_to_opensearch(opensearch_buffer, opensearch_count);
+                        for (int i = 0; i < opensearch_count; i++)
                         {
-                            printf("Sending to both kafka222 and opensearch\n");
-                            add_alert_to_kafka_bulk(root); // send as string
+                            json_decref(opensearch_buffer[i]);
                         }
-                        else
-                        {
-                            printf("Sending only to opensearch\n");
-                        }
-
-                        free(final_json);
+                        opensearch_count = 0;
+                        opensearch_buffer[opensearch_count++] = json_incref(event_json);
                     }
+
+                    json_decref(event_json); // decrement your reference after use
                 }
             }
             else
             {
-                printf("[WARN] No mnemonic found in message: %s\n", msg_str);
+                fprintf(stderr, "[ERROR] No mnemonic info found for: %s\n", mnemonic);
             }
         }
 
-        // Buffer to OpenSearch
-        opensearch_buffer[opensearch_count++] = json_deep_copy(root);
-
-        if (opensearch_count >= BULK_LIMIT)
-        {
-            send_bulk_to_opensearch(opensearch_buffer, opensearch_count);
-            for (int i = 0; i < opensearch_count; i++)
-            {
-                json_decref(opensearch_buffer[i]);
-            }
-            opensearch_count = 0;
-        }
-
+        if (event.tags)
+            json_decref(event.tags);
         json_decref(root);
         free(payload);
         rd_kafka_message_destroy(rkmessage);

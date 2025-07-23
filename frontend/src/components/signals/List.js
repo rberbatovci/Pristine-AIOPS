@@ -38,6 +38,11 @@ function List({ onSignalSelect, signals }) {
     }
   };
 
+  const formatShortId = (id) => {
+    if (!id) return '';
+    return id.split('-')[0];  // return only the first segment
+  };
+
   return (
     <div className="signals-list-container">
       <ul className="signals-list" style={{ paddingLeft: '0', listStyle: 'none' }}>
@@ -62,29 +67,29 @@ function List({ onSignalSelect, signals }) {
               </div>
 
               {/* Signal ID and State */}
-              <div  style={{ padding: '10px', alignContent: 'center', textAlign: 'center' }}>
-                <div><strong className="strongText">ID: </strong><span className="spanText">#{signal.id}</span></div>
-                <div><span className="spanText">{signal.status}</span></div>
-                <div><span className="spanText">{signal.signalSource}</span></div>
+              <div style={{ padding: '10px', alignContent: 'center', textAlign: 'center' }}>
+                <div><strong className="strongText">ID: </strong><span className="strongText">#{formatShortId(signal.id)}</span></div>
+                <div><span className="strongText">{signal.status}</span></div>
+                <div><span className="strongText">{signal.signalSource}</span></div>
               </div>
 
               {/* Signal Details */}
               <div className="signalDetails" style={{ paddingLeft: '10px' }}>
-                <div><strong className="strongText">Hostname:</strong> <span className="spanText">{signal.device}</span></div>
+                <div><strong className="strongText">Hostname:</strong> <span className="strongText">{signal.device}</span></div>
                 <div style={{ marginTop: '5px', fontSize: '12px' }}>
-                  <strong className="strongText">Source:</strong> <span className="spanText">{signal.mnemonics}</span>
-                  <strong className="strongText" style={{ marginLeft: '10px' }}>Rule:</strong> <span className="spanText">{signal.rule}</span>
+                  <strong className="strongText">Source:</strong> <span className="strongText">{signal.mnemonics}</span>
+                  <strong className="strongText" style={{ marginLeft: '10px' }}>Rule:</strong> <span className="strongText">{signal.rule}</span>
                 </div>
                 <div style={{ marginTop: '5px', fontSize: '12px', display: 'flex' }}>
                   {signal.affectedEntities && Object.keys(signal.affectedEntities).length > 0 ? (
                     Object.keys(signal.affectedEntities).map((key) => (
                       <div key={key} style={{ marginRight: '10px' }}>
-                        <strong className="strongText">{key}:</strong> <span className="spanText">{signal.affectedEntities[key]}</span>
+                        <strong className="strongText">{key}:</strong> <span className="strongText">{signal.affectedEntities[key]}</span>
                       </div>
                     ))
                   ) : (
                     <div style={{ fontSize: '12px', marginTop: '5px' }}>
-                      <strong className="strongText">Affected Entities:</strong> <span className="spanText">No Affected Entities</span>
+                      <strong className="strongText">Affected Entities:</strong> <span className="strongText">No Affected Entities</span>
                     </div>
                   )}
                 </div>
@@ -98,6 +103,32 @@ function List({ onSignalSelect, signals }) {
                 ) : (
                   <span className="signalTime-item"><strong>Duration:</strong> {getDuration(signal.startTime)}</span>
                 )}
+              </div>
+              <div
+                style={{
+                  marginTop: '5px',
+                  fontSize: '12px',
+                  position: 'absolute',
+                  right: '10px',
+                  bottom: '10px',
+                }}
+              >
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '50%',
+                    backgroundColor: 'var(--textColor)', // red background
+                    color: 'white',
+                    opacity: '0.6',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  {signal.events?.length || 0}
+                </span>
               </div>
             </div>
           </li>

@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y \
     librdkafka-dev \
     libjansson-dev \
     libpq-dev \
+    uuid-dev \
     libcurl4-openssl-dev \
     libhiredis-dev \
     pkg-config \

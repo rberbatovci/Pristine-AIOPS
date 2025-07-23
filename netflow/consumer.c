@@ -9,7 +9,9 @@
 #include <unistd.h>
 
 #define OPENSEARCH_URL "http://OpenSearch:9200/netflow/_doc/"
-#define TOPIC_NAME "netflow-topic"
+#define TOPIC_NAME "netflow-events"
+#define BULK_BATCH_SIZE 100
+#define BULK_TIMEOUT_SEC 5
 
 volatile sig_atomic_t keep_running = 1;
 
@@ -94,7 +96,6 @@ void send_to_opensearch(const char *json_data) {
     free(response.ptr);
 }
 
-// Function to convert a timestamp (in nanoseconds?) to ISO 8601 format
 char* timestamp_to_iso(json_t *ts_item) {
     if (ts_item && json_is_integer(ts_item)) {
         json_int_t ts_ns = json_integer_value(ts_item);

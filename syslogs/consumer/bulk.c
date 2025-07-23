@@ -9,6 +9,9 @@
 #define OPENSEARCH_URL "http://OpenSearch:9200/syslogs/_bulk"
 #define KAFKA_TOPIC "syslog-signals"
 
+int DATA_FLUSH_SIZE = 100;
+int DATA_FLUSH_INTERVAL = 1;
+
 // Declare buffers and counters
 json_t *opensearch_buffer[BULK_LIMIT];
 int opensearch_count = 0;
@@ -18,19 +21,20 @@ int kafka_alert_count = 0;
 
 rd_kafka_t *kafka_producer = NULL;
 
-void send_bulk_to_kafka(void);
-
-rd_kafka_t *init_kafka_alert_producer(const char *brokers) {
+rd_kafka_t *init_kafka_alert_producer(const char *brokers)
+{
     char errstr[512];
     rd_kafka_conf_t *conf = rd_kafka_conf_new();
 
-    if (rd_kafka_conf_set(conf, "bootstrap.servers", brokers, errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK) {
+    if (rd_kafka_conf_set(conf, "bootstrap.servers", brokers, errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK)
+    {
         fprintf(stderr, "[ERROR] Kafka conf set failed: %s\n", errstr);
         return NULL;
     }
 
     rd_kafka_t *rk = rd_kafka_new(RD_KAFKA_PRODUCER, conf, errstr, sizeof(errstr));
-    if (!rk) {
+    if (!rk)
+    {
         fprintf(stderr, "[ERROR] Failed to create Kafka producer: %s\n", errstr);
         return NULL;
     }
@@ -39,122 +43,165 @@ rd_kafka_t *init_kafka_alert_producer(const char *brokers) {
     return rk;
 }
 
-void send_bulk_to_kafka(void) {
-    if (!kafka_producer || kafka_alert_count == 0) return;
+void load_env_config()
+{
+    const char *flush_size = getenv("DATA_FLUSH_SIZE");
+    const char *flush_interval = getenv("DATA_FLUSH_INTERVAL");
 
-    printf("[INFO] Sending %d alerts to Kafka topic '%s'\n", kafka_alert_count, KAFKA_TOPIC);
+    if (flush_size)
+    {
+        DATA_FLUSH_SIZE = atoi(flush_size);
+    }
 
-    for (int i = 0; i < kafka_alert_count; i++) {
-        char *json_str = json_dumps(kafka_alert_buffer[i], JSON_COMPACT);
-        if (!json_str) {
-            fprintf(stderr, "[ERROR] Failed to serialize JSON for bulk send (index %d)\n", i);
-            json_decref(kafka_alert_buffer[i]);
+    if (flush_interval)
+    {
+        DATA_FLUSH_INTERVAL = atoi(flush_interval);
+    }
+}
+
+void send_bulk_to_kafka()
+{
+    if (kafka_alert_count == 0)
+        return;
+
+    // rd_kafka_t *rk = init_kafka_alert_producer();  // WRONG: missing argument, recreate producer every time!
+    // Use the global producer:
+    if (!kafka_producer)
+    {
+        fprintf(stderr, "[ERROR] Kafka producer not initialized\n");
+        return;
+    }
+
+    rd_kafka_topic_t *rkt = rd_kafka_topic_new(kafka_producer, KAFKA_TOPIC, NULL);
+
+    if (!rkt)
+    {
+        fprintf(stderr, "[ERROR] Failed to create Kafka topic handle\n");
+        return;
+    }
+
+    for (int i = 0; i < kafka_alert_count; i++)
+    {
+        if (!json_is_object(kafka_alert_buffer[i]))
+        {
             continue;
         }
 
-        rd_kafka_resp_err_t err = rd_kafka_producev(
-            kafka_producer,
-            RD_KAFKA_V_TOPIC(KAFKA_TOPIC),
-            RD_KAFKA_V_VALUE(json_str, strlen(json_str)),
-            RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_COPY),
-            RD_KAFKA_V_END
-        );
+        char *json_str = json_dumps(kafka_alert_buffer[i], JSON_COMPACT);
+        if (!json_str)
+        {
+            fprintf(stderr, "[WARN] Failed to convert JSON to string\n");
+            continue;
+        }
 
-        if (err) {
-            fprintf(stderr, "[ERROR] Kafka alert send failed (index %d): %s\n", i, rd_kafka_err2str(err));
-        } else {
+        if (rd_kafka_produce(
+                rkt,
+                RD_KAFKA_PARTITION_UA,
+                RD_KAFKA_MSG_F_COPY,
+                json_str, strlen(json_str),
+                NULL, 0,
+                NULL) == -1)
+        {
+            fprintf(stderr, "[ERROR] Kafka produce failed: %s\n", rd_kafka_err2str(rd_kafka_last_error()));
         }
 
         free(json_str);
-        json_decref(kafka_alert_buffer[i]);
+        json_decref(kafka_alert_buffer[i]); // ✅ Important
     }
-
-    int remaining_timeout = 1000; 
-    while (rd_kafka_outq_len(kafka_producer) > 0 && remaining_timeout > 0) {
-        int polled = rd_kafka_poll(kafka_producer, 100); 
-        remaining_timeout -= 100;
-        if (polled == 0 && remaining_timeout > 0) { 
-        }
-    }
-    if (rd_kafka_outq_len(kafka_producer) > 0) {
-        fprintf(stderr, "[WARN] %d messages still in Kafka producer queue after flush timeout.\n", rd_kafka_outq_len(kafka_producer));
-    }
-
 
     kafka_alert_count = 0;
+
+    rd_kafka_flush(kafka_producer, 1000);
+    rd_kafka_topic_destroy(rkt);
 }
 
-void add_alert_to_kafka_bulk(json_t *alert_json) {
-    if (!kafka_producer || !alert_json) {
-        json_decref(alert_json); 
+void add_alert_to_kafka_bulk(json_t *alert_json)
+{
+    if (!kafka_producer)
+    {
+        fprintf(stderr, "[ERROR] Invalid Kafka producer\n");
         return;
     }
 
-    json_t *copied_alert = json_deep_copy(alert_json);
-    if (!copied_alert) {
-        fprintf(stderr, "[ERROR] Failed to deep copy JSON for Kafka bulk buffer.\n");
-        json_decref(alert_json);
+    if (!json_is_object(alert_json))
+    {
+        fprintf(stderr, "[ERROR] Attempted to buffer a non-object JSON alert\n");
         return;
     }
 
-    kafka_alert_buffer[kafka_alert_count++] = copied_alert;
-    printf("[INFO] Added alert to Kafka buffer. Current count: %d\n", kafka_alert_count);
-
-    if (kafka_alert_count >= BULK_LIMIT) {
-        printf("[INFO] Kafka alert buffer full. Sending bulk...\n");
+    if (kafka_alert_count < DATA_FLUSH_SIZE)
+    {
+        kafka_alert_buffer[kafka_alert_count++] = json_incref(alert_json);
+    }
+    else
+    {
+        printf("[INFO] Kafka buffer full. Sending bulk...\n");
         send_bulk_to_kafka();
+        kafka_alert_buffer[kafka_alert_count++] = json_incref(alert_json);
     }
 }
 
-void send_bulk_to_opensearch(json_t **docs, int doc_count) {
-    CURL *curl;
-    CURLcode res;
-    curl_global_init(CURL_GLOBAL_ALL);
-    curl = curl_easy_init();
-
-    if (!curl) {
-        fprintf(stderr, "[ERROR] Failed to initialize CURL\n");
+void send_bulk_to_opensearch(json_t **buffer, int count)
+{
+    CURL *curl = curl_easy_init();
+    if (!curl)
+    {
+        fprintf(stderr, "[ERROR] Failed to init CURL\n");
         return;
-    }
-
-    // Construct bulk body
-    char *bulk_data = NULL;
-    size_t total_len = 0;
-
-    for (int i = 0; i < doc_count; i++) {
-        const char *meta = "{\"index\":{}}\n";
-        char *json_str = json_dumps(docs[i], JSON_COMPACT);
-
-        size_t meta_len = strlen(meta);
-        size_t json_len = strlen(json_str);
-        size_t line_len = meta_len + json_len + 2;
-
-        bulk_data = realloc(bulk_data, total_len + line_len + 1);
-        if (!bulk_data) {
-            fprintf(stderr, "[ERROR] Memory allocation failed\n");
-            free(json_str);
-            return;
-        }
-
-        snprintf(bulk_data + total_len, line_len + 1, "%s%s\n", meta, json_str);
-        total_len += line_len;
-
-        free(json_str);
     }
 
     struct curl_slist *headers = NULL;
     headers = curl_slist_append(headers, "Content-Type: application/x-ndjson");
 
-    curl_easy_setopt(curl, CURLOPT_URL, OPENSEARCH_URL);
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, bulk_data);
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    // Build bulk payload
+    size_t bulk_size = 1;                      // For null terminator
+    char *bulk_payload = calloc(1, bulk_size); // Start with empty string
 
-    res = curl_easy_perform(curl);
-    if (res != CURLE_OK) {
-        fprintf(stderr, "[ERROR] OpenSearch request failed: %s\n", curl_easy_strerror(res));
+    for (int i = 0; i < count; i++)
+    {
+        const char *event_id = json_string_value(json_object_get(buffer[i], "eventId"));
+        if (!event_id)
+        {
+            fprintf(stderr, "[WARN] Missing eventId in buffer[%d]\n", i);
+            continue;
+        }
+
+        char *json_str = json_dumps(buffer[i], JSON_COMPACT);
+        if (!json_str)
+            continue;
+
+        char action_line[512];
+        snprintf(action_line, sizeof(action_line),
+                 "{ \"index\": { \"_index\": \"syslogs\", \"_id\": \"%s\" } }\n", event_id);
+
+        size_t additional_size = strlen(action_line) + strlen(json_str) + 2;
+        bulk_payload = realloc(bulk_payload, bulk_size + additional_size);
+        if (!bulk_payload)
+        {
+            fprintf(stderr, "[ERROR] Failed to realloc payload\n");
+            free(json_str);
+            break;
+        }
+
+        strcat(bulk_payload, action_line);
+        strcat(bulk_payload, json_str);
+        strcat(bulk_payload, "\n");
+
+        bulk_size += additional_size;
+        free(json_str);
     }
 
+    curl_easy_setopt(curl, CURLOPT_URL, OPENSEARCH_URL);
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, bulk_payload);
+
+    CURLcode res = curl_easy_perform(curl);
+    if (res != CURLE_OK)
+    {
+        fprintf(stderr, "[ERROR] Failed to send to OpenSearch: %s\n", curl_easy_strerror(res));
+    }
+
+    free(bulk_payload);
+    curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
-    curl_global_cleanup();
-    free(bulk_data);
 }

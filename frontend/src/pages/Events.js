@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import '../css/SyslogDatabase.css';
 import EventsTable from '../components/misc/EventsTable.js';
+import TelemetryContent from '../components/misc/TelemetryContent.js';
 import apiClient from '../components/misc/AxiosConfig.js';
 import { MdBookmarkBorder, MdBookmark } from "react-icons/md";
 import { RiAddCircleLine, RiAddCircleFill } from "react-icons/ri";
@@ -13,6 +14,7 @@ import { HiOutlineViewColumns, HiViewColumns } from "react-icons/hi2";
 import SearchTime from '../components/misc/SearchTime.js';
 import FilterSyslogs from '../components/syslogs/FilterSyslogs.js';
 import RegExConfig from '../components/syslogs/RegExConfig.js';
+import TelemetryStats from '../components/telemetry/TelemetryStats.js';
 import UploadMIB from '../components/snmptraps/UploadMIB.js';
 import { PiUploadBold, PiUploadFill } from "react-icons/pi";
 import SnmpTrapOid from '../components/snmptraps/SnmpTrapOid.js';
@@ -40,6 +42,7 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
         MIBFiles: { visible: false, position: { x: 0, y: 0 } },
         snmpTrapOids: { visible: false, position: { x: 0, y: 0 } },
         trapTags: { visible: false, position: { x: 0, y: 0 } },
+        TelemetryStats: { visible: false, position: { x: 0, y: 0 } },
     });
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(20);
@@ -62,6 +65,7 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
         ],
     };
 
+    const [selectedDevice, setSelectedDevice] = useState(null);
     const [columnConfigs, setColumnConfigs] = useState(baseColumns);
 
     useEffect(() => {
@@ -69,7 +73,8 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
             ...prev,
             [dataSource]: [...(baseColumns[dataSource] || []), ...selectedTags],
         }));
-    }, [selectedTags, dataSource]);
+    }, [selectedTags]);
+
     const [mnemonics, setMnemonics] = useState([]);
     const [regExpressions, setRegExpressions] = useState([]);
     const [snmpTrapOids, setSnmpTrapOids] = useState([]);
@@ -106,6 +111,13 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
         endTime = null,
         filters = {}  // Renamed from selectedTags to filters
     ) => {
+
+        if (dataSource === 'telemetry') {
+            setEventsData([]);  // Optional: set empty data
+            setTotalEvents(0);
+            return;
+        }
+
         setEventsData(null);
         setLoading(true);
 
@@ -131,8 +143,8 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
         // Build URLSearchParams from filters
         const query = new URLSearchParams();
 
-        if (filters.agent?.length) {
-            filters.agent.forEach(agent => query.append('agent', agent));
+        if (filters.device?.length) {
+            filters.device.forEach(device => query.append('device', device));
         }
 
         if (filters.mnemonic?.length) {
@@ -199,7 +211,7 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
             }));
             setSnmpTrapOids(trapOids);
         } catch (error) {
-            console.error('Error fetching agent data:', error);
+            console.error('Error fetching SNMP Trap Oid data:', error);
         }
     };
 
@@ -223,7 +235,7 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
 
 
     useEffect(() => {
-        const fetchAgents = async () => {
+        const fetchDevices = async () => {
             try {
                 const response = await apiClient.get('/devices');
                 const devices = response.data.map((device) => ({
@@ -238,7 +250,7 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
             }
         };
 
-        fetchAgents();
+        fetchDevices();
     }, []);
 
 
@@ -251,6 +263,7 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
         setDataSource(source);
         setPage(1); // Reset to first page when changing source
         loadData(source, 1, pageSize); // Load page 1 with correct size
+        setColumnConfigs(baseColumns); // Reset selected tags based on new source
 
         // Fetch specific data depending on selected source
         if (source === 'syslogs') {
@@ -297,7 +310,7 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
         }));
 
         // Trigger data loading
-        loadData('syslogs', 1, 19, timeRange, null, null, filters);
+        loadData(dataSource, 1, 19, timeRange, null, null, filters);
     };
 
 
@@ -386,6 +399,12 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
                     >
                         Netflow
                     </h2>
+                    <h2
+                        className={`eventsTitleHeader ${dataSource === 'telemetry' ? 'eventsTitleHeaderActive' : ''}`}
+                        onClick={() => handleHeaderClick('telemetry')}
+                    >
+                        Telemetry
+                    </h2>
                 </div>
                 <div className="mainContainerButtons">
                     {dataSource === 'syslogs' && (
@@ -434,16 +453,37 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
                             </button>
                         </>
                     )}
-                    <button
-                        className={`iconButton ${dropdowns.showSyslogTags.visible ? 'active' : ''}`}
-                        onClick={(event) => handleButtonClick(event, 'showSyslogTags')}
+                    {dataSource !== 'netflow' ? (
+                        <button
+                            className={`iconButton ${dropdowns.showSyslogTags.visible ? 'active' : ''}`}
+                            onClick={(event) => handleButtonClick(event, 'showSyslogTags')}
+                        >
+                            <HiOutlineViewColumns
+                                className={`defaultIcon ${selectedTags.length > 0 ? 'hasFilters' : 'noFilters'}`}
+                            />
+                            <HiViewColumns className="hoverIcon" />
+                        </button>
+                    ) : (
+                        <button
+                            className={`iconButton ${dropdowns.searchSyslogs.visible ? 'active' : ''}`}
+                            onClick={(event) => handleButtonClick(event, 'searchSyslogs')}
+                        >
+                            <RiFilterLine className="defaultIcon" />
+                            <RiFilterFill className="hoverIcon" />
+                        </button>
+                    )}
+                    {dataSource === 'telemetry' ? (
+                        <button
+                        className={`iconButton ${dropdowns.searchSyslogs.visible ? 'active' : ''}`}
+                        onClick={(event) => handleButtonClick(event, 'TelemetryStats')}
                     >
-                        <HiOutlineViewColumns
-                            className={`defaultIcon ${selectedTags.length > 0 ? 'hasFilters' : 'noFilters'}`}
+                        <RiFilterLine className="defaultIcon" />
+                        <RiFilterFill
+                            className="hoverIcon"
                         />
-                        <HiViewColumns className="hoverIcon" />
                     </button>
-                    <button
+                    ) : (
+                        <button
                         className={`iconButton ${dropdowns.searchSyslogs.visible ? 'active' : ''}`}
                         onClick={(event) => handleButtonClick(event, 'searchSyslogs')}
                     >
@@ -452,6 +492,8 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
                             className="hoverIcon"
                         />
                     </button>
+                    )}
+                    
                     <button
                         className="iconButton"
                         onClick={(event) => handleButtonClick(event, 'timerangeFilters')}
@@ -472,46 +514,70 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
                 {loading && <div className="loadingMessage">Loading...</div>}
                 {error && <div className="errorMessage">{error}</div>}
                 {!loading && !error && (
-                    <div className="syslogsTableContainer">
-                        <EventsTable
-                            currentUser={currentUser}
-                            data={eventsData}
-                            columns={columnConfigs[dataSource]} // Pass correct columns based on data source
-                            signalSource={dataSource} // Pass current source to EventsTable
-                            onDownload={(downloadFn) => (downloadRef.current = downloadFn)}
-                            onRowSelectChange={handleRowSelectChange}
-                        />
-                    </div>
+                    dataSource === 'telemetry' ? (
+                        <TelemetryContent currentUser={currentUser} selectedDevice={selectedDevice} />
+                    ) : (
+                        <div>
+                            <div className="syslogsTableContainer">
+                                <EventsTable
+                                    currentUser={currentUser}
+                                    data={eventsData}
+                                    columns={columnConfigs[dataSource]} // Pass correct columns based on data source
+                                    signalSource={dataSource}
+                                    onDownload={(downloadFn) => (downloadRef.current = downloadFn)}
+                                    onRowSelectChange={handleRowSelectChange}
+                                />
+                            </div>
+                            <div className="paginationContainer">
+                                <div style={{ paddingLeft: '20px' }}>
+                                    <span>Events Per Page: </span>
+                                    <input
+                                        type="number"
+                                        id="syslogsPerPage"
+                                        value={pageSize}
+                                        min="1"
+                                        onChange={handlePageSizeChange}
+                                        style={{
+                                            width: '30px',
+                                            background: 'none',
+                                            marginRight: '6px',
+                                            border: 'none',
+                                            outline: 'none',
+                                            paddingLeft: '10px',
+                                            padding: '5px',
+                                            borderRadius: '5px',
+                                            color: 'var(--textColor)'
+                                        }}
+                                    />
+                                </div>
+                                <div style={{
+                                    display: 'flex',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    gap: '20px',
+                                    marginTop: '10px'
+                                }}>
+                                    <Pagination
+                                        count={totalPages}
+                                        page={page}
+                                        onChange={(event, value) => setPage(value)}
+                                        shape="rounded"
+                                        color="primary"
+                                        sx={{
+                                            '& .MuiPaginationItem-root': {
+                                                color: 'var(--textColor)',
+                                            }
+                                        }}
+                                    />
+                                </div>
+                                <div style={{ paddingRight: '20px' }}>
+                                    <span>Total Entries: {totalEvents}</span>
+                                </div>
+                            </div>
+                        </div>
+                    )
                 )}
-                <div className="paginationContainer" >
 
-                    <div style={{ paddingLeft: '20px' }}>
-                        <span>Events Per Page: </span>
-                        <input
-                            type="number"
-                            id="syslogsPerPage"
-                            value={pageSize}
-                            min="1"
-                            onChange={handlePageSizeChange}
-                            style={{ width: '30px', background: 'none', marginRight: '6px', border: 'none', outline: 'none', paddingLeft: '10px', padding: '5px', borderRadius: '5px', color: 'var(--textColor)' }}
-                        />
-
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', marginTop: '10px' }}>
-                        <Pagination
-                            count={totalPages}
-                            page={page}
-                            onChange={(event, value) => setPage(value)}
-                            shape="rounded"
-                            color="primary" // optional: change to "secondary", or customize with sx
-                            sx={{
-                                '& .MuiPaginationItem-root': {
-                                    color: 'var(--textColor)', // your custom theme color
-                                }
-                            }}
-                        /></div>
-                    <div style={{ paddingRight: '20px' }}><span>Total Entries: {totalEvents}</span></div>
-                </div>
             </div>
             <div ref={dropdownMenuRef}>
                 <div
@@ -573,6 +639,18 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
                     }}>
                     <SnmpTrapOid
                         currentUser={currentUser}
+                    />
+                </div>
+                <div
+                    className={`dropdownMenu ${dropdowns.TelemetryStats.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
+                    style={{
+                        width: '420px',
+                        height: '110px'
+                    }}>
+                    <TelemetryStats
+                        currentUser={currentUser}
+                        devices={devices}
+                        onDeviceSelect={setSelectedDevice}
                     />
                 </div>
                 <div

@@ -3,11 +3,12 @@ import Select from 'react-select';
 import customStyles from '../misc/SelectStyles';
 import apiClient from '../misc/AxiosConfig';
 import { TailSpin } from 'react-loader-spinner';
+import { IoPushOutline, IoPushSharp } from "react-icons/io5";
 
-function SyslogConfig({ hostname, version, onSuccess }) {
-    const [severity, setSeverity] = useState({ value: 'informational', label: '6 - Informational' });
+function SyslogConfig({ selectedDevice, onSuccess }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [showData, setShowData] = useState(false);
 
     const severityOptions = [
         { value: 'emergencies', label: '0 - Emergency' },
@@ -20,27 +21,27 @@ function SyslogConfig({ hostname, version, onSuccess }) {
         { value: 'debugging', label: '7 - Debugging' },
     ];
 
+    console.log('Selected Device:', selectedDevice);
+
     // Determine correct endpoint
     const getSyslogEndpoint = () => {
-        if (!version) {
+        if (!selectedDevice.version) {
             throw new Error('Device version not provided');
         }
-        if (version === 'ios-xe') {
-            return `/devices/${hostname}/syslogs-xe-config/`;
+        if (selectedDevice.version === 'ios-xe') {
+            return `/devices/${selectedDevice.hostname}/syslogs-xe-config/`;
         }
-        if (version === 'ios-xr') {
-            return `/devices/${hostname}/syslogs-xr-config/`;
+        if (selectedDevice.version === 'ios-xr') {
+            return `/devices/${selectedDevice.hostname}/syslogs-xr-config/`;
         }
-        throw new Error(`Unsupported device version: ${version}`);
+        throw new Error(`Unsupported device version: ${selectedDevice.version}`);
     };
 
     const sendConfig = async () => {
         setLoading(true);
         setError('');
         try {
-            const response = await apiClient.post(getSyslogEndpoint(), {
-                severity: severity.value,
-            });
+            const response = await apiClient.post(getSyslogEndpoint(), {           });
 
             if (onSuccess) onSuccess(response.data);
         } catch (error) {
@@ -60,50 +61,59 @@ function SyslogConfig({ hostname, version, onSuccess }) {
     };
 
     return (
-        <div className="searchSyslogsContainer" style={{color: 'var(--spanTextColor)'}}>
-            <span className="searchSignalFilterText">Configure syslogs</span>
-            <div className="searchSyslogsFilterEntries" style={{ marginTop: '5px' }}>
-                <div className="searchSyslogsFilterEntry">
-                    <span className="searchSignalFilterText">Minimum Severity:</span>
-                    <div style={{ marginTop: '6px', marginBottom: '6px' }}>
-                        <Select
-                            placeholder="Minimal Severity"
-                            options={severityOptions}
-                            value={severity}
-                            onChange={setSeverity}
-                            styles={customStyles('300px')}
-                            menuPortalTarget={document.body}
-                            menuPosition="absolute"
-                            menuShouldBlockScroll={true}
-                        />
-                    </div>
-                </div>
-            </div>
+        <div className={`signalRightElementContainer ${showData ? 'syslogConfig' : 'collapsed'}`} style={{ maxHeight: '215px' }}>
+            <div className="signalRightElementHeader">
+                <h2 className="signalRightElementHeaderTxt" onClick={() => setShowData(!showData)}>
+                    {showData ? '\u25CF' : '\u25CB'} Syslogs
+                </h2>
+                {!selectedDevice?.features?.syslogs && (
+                    <div className="zoom-buttons-container">
+                        <div className="headerButtons">
 
-            {error && (
-                <div style={{ color: 'red', marginTop: '10px' }}>
-                    {typeof error === 'string' ? error : JSON.stringify(error)}
+                            {loading ? (
+                                <button  disabled={loading} >
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <TailSpin
+                                            height="20"
+                                            width="20"
+                                            color="#ffffff"
+                                            ariaLabel="loading"
+                                        />
+                                        <span>Configuring...</span>
+                                    </div>
+                                </button>
+                            ) : (
+                                <button className="iconButton" onClick={sendConfig}>
+                                    <IoPushOutline className="defaultIcon" />
+                                    <IoPushSharp className="hoverIcon" />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+            {showData && (
+                <div style={{ padding: '8px', marginLeft: '15px' }}>
+                    {/* Status message */}
+                    {selectedDevice?.features?.syslogs ? (
+                        <div style={{ color: 'var(--spanTextColor)' }}>
+                            Syslogs are already configured on this device.
+                        </div>
+                    ) : (
+                        <div style={{ color: 'var(--spanTextColor)' }}>
+                            Please configure syslogs on the device.
+                        </div>
+                    )}
+
+                    {/* Error message */}
+                    {error && (
+                        <div style={{ color: 'red', marginTop: '10px' }}>
+                            {typeof error === 'string' ? error : JSON.stringify(error)}
+                        </div>
+                    )}
                 </div>
             )}
 
-            <div style={{ marginTop: '1rem', right: '10px' }}>
-
-                <button onClick={sendConfig} disabled={loading} className="buttonStyles addRuleButton">
-                    {loading ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <TailSpin
-                                height="20"
-                                width="20"
-                                color="#ffffff"
-                                ariaLabel="loading"
-                            />
-                            <span>Configuring...</span>
-                        </div>
-                    ) : (
-                        'Configure Netflow'
-                    )}
-                </button>
-            </div>
         </div>
     );
 }

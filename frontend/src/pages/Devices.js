@@ -7,14 +7,6 @@ import SnmpTrapConfig from '../components/devices/SnmpTrapConfig';
 import NetflowConfig from '../components/devices/NetflowConfig';
 import TelemetryConfig from '../components/devices/TelemetryConfig';
 import Info from '../components/devices/Info';
-import CPUUtilsStats from '../components/devices/CPUUtilsStats';
-import MemoryStats from '../components/devices/MemoryStats';
-import InterfaceStats from '../components/devices/InterfaceStats';
-import BGPStats from '../components/devices/BGPStats';
-import ISISStats from '../components/devices/ISISStats';
-import Dashboard from '../components/devices/Dashboard';
-import { IoSettingsOutline, IoSettingsSharp } from "react-icons/io5";
-import { IoMdRefresh, IoMdRefreshCircle } from "react-icons/io";
 import { MdDeleteForever, MdOutlineDeleteForever } from "react-icons/md";
 import apiClient from '../components/misc/AxiosConfig';
 import { RiAddCircleLine, RiAddCircleFill } from "react-icons/ri";
@@ -67,7 +59,6 @@ function Devices({ currentUser, setDashboardTitle }) {
 
     const handleDeviceSelect = async (device) => {
         console.log('Selected device:', device);
-        setSelectedDevice(device);
         try {
             const response = await apiClient.get(`/devices/${device.hostname}/`);
             setSelectedDevice(response.data);
@@ -94,8 +85,7 @@ function Devices({ currentUser, setDashboardTitle }) {
 
     const handleDeviceDeselect = () => {
         setSelectedDevice(null);
-        setShowComponents(false);
-    }
+    };
 
     const toggleDropdown = (type) => {
         if (activeDropdown === type) {
@@ -110,13 +100,14 @@ function Devices({ currentUser, setDashboardTitle }) {
     };
 
     useEffect(() => {
+        let timeout;
         if (selectedDevice) {
-            const timeout = setTimeout(() => setShowComponents(true), 1000);
-            return () => clearTimeout(timeout);
+            timeout = setTimeout(() => setShowComponents(true), 1000);
         } else {
-            const timeout = setTimeout(() => setShowComponents(false), 2000);
-            return () => clearTimeout(timeout);
+            timeout = setTimeout(() => setShowComponents(false), 200);
         }
+
+        return () => clearTimeout(timeout);
     }, [selectedDevice]);
 
     return (
@@ -142,7 +133,7 @@ function Devices({ currentUser, setDashboardTitle }) {
                         </button>
                     </div>
                 </div>
-                { activeDropdown === 'addNew' && (
+                {activeDropdown === 'addNew' && (
                     <div className="dropdownMenu dropdownVisible" style={{ width: '370px' }}>
                         <AddNew onDeviceAdded={handleNewDevice} />
                     </div>
@@ -171,7 +162,7 @@ function Devices({ currentUser, setDashboardTitle }) {
                     <div className="right-content" style={{
                         transition: 'transition 1s ease-in-out'
                     }}>
-                        {showComponents && (
+                        {showComponents && selectedDevice && (
                             <>
                                 <Info
                                     currentUser={currentUser}
@@ -179,23 +170,13 @@ function Devices({ currentUser, setDashboardTitle }) {
                                     onDeviceDeselect={handleDeviceDeselect}
                                     onConfigClick={handleConfigClick}
                                 />
-                                {selectedDevice.features?.telemetry?.cpu_util && (
-                                    <CPUUtilsStats currentUser={currentUser} selectedDevice={selectedDevice.hostname} />
-                                )}
-                                {selectedDevice.features?.telemetry?.memory_stats && (
-                                    <MemoryStats currentUser={currentUser} selectedDevice={selectedDevice} />
-                                )}
-                                {selectedDevice.features?.telemetry?.interface_stats && (
-                                    <InterfaceStats currentUser={currentUser} selectedDevice={selectedDevice} />
-                                )}
-                                {selectedDevice.features?.telemetry?.bgp_connections && (
-                                    <BGPStats currentUser={currentUser} selectedDevice={selectedDevice} />
-                                )}
-                                {selectedDevice.features?.telemetry?.isis_stats && (
-                                    <ISISStats currentUser={currentUser} selectedDevice={selectedDevice} />
-                                )}
+                                <SyslogConfig selectedDevice={selectedDevice}/>
+                                <SnmpTrapConfig selectedDevice={selectedDevice}/>
+                                <NetflowConfig selectedDevice={selectedDevice}/>
+                                <TelemetryConfig />
                             </>
                         )}
+
                     </div>
                 </div>
             </div>

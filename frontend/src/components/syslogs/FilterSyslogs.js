@@ -12,10 +12,21 @@ const FilterSyslogs = ({ source, devices, trapOids, onSelectedTagsChange, onSele
     const [mnemonics, setMnemonics] = useState([]);
     console.log('Agent devices:', devices);
 
+    const netflowTags = [
+        { label: 'Source IP', value: 'source_ip' },
+        { label: 'Destination IP', value: 'destination_ip' },
+        { label: 'Protocol', value: 'protocol' },
+        { label: 'Source Port', value: 'source_port' },
+        { label: 'Destination Port', value: 'destination_port' }
+    ];
+
+    console.log('Devices in FilterSyslogs:', devices);
+
     // Convert devices into Select options
-    const agentHostnameOptions = devices.map(device => ({
-        value: device.id,
-        label: device.hostname
+    const deviceOptions = devices.map(device => ({
+        value: device.ip_address,
+        label: device.hostname,
+        ip_address: device.ip_address
     }));
 
     const fetchMnemonics = async () => {
@@ -110,6 +121,8 @@ const FilterSyslogs = ({ source, devices, trapOids, onSelectedTagsChange, onSele
             fetchSyslogTags();
         } else if (source === "snmptraps") {
             fetchTrapTags();
+        } else if (source === "netflow") {
+            setTags(netflowTags);
         }
     }, [source]);
 
@@ -135,7 +148,16 @@ const FilterSyslogs = ({ source, devices, trapOids, onSelectedTagsChange, onSele
     const handleAgentChange = (selectedValues) => {
         const updatedSelectedTags = {
             ...selectedTags,
-            agentHostnames: selectedValues,
+            device: selectedValues,
+        };
+        setSelectedTags(updatedSelectedTags);
+        onSelectedTagsChange(updatedSelectedTags);
+    };
+
+    const handleSeverityChange = (selectedValues) => {
+        const updatedSelectedTags = {
+            ...selectedTags,
+            severity: selectedValues,
         };
         setSelectedTags(updatedSelectedTags);
         onSelectedTagsChange(updatedSelectedTags);
@@ -144,11 +166,12 @@ const FilterSyslogs = ({ source, devices, trapOids, onSelectedTagsChange, onSele
 
     const handleSearchClick = () => {
         const filters = {
-            agent: selectedTags.agentHostnames ? selectedTags.agentHostnames.map((opt) => opt.value) : [],
+            device: selectedTags.device ? selectedTags.device.map((opt) => opt.value) : [],
+            severity: selectedTags.severity ? selectedTags.severity.map((opt) => opt.value) : [],
             mnemonic: selectedTags.mnemonic ? selectedTags.mnemonic.map((opt) => opt.value) : [],
             snmpTrapOid: selectedTags.snmpTrapOid ? selectedTags.snmpTrapOid.map((opt) => opt.value) : [],
             tags: Object.keys(selectedTags).reduce((acc, key) => {
-                if (key !== 'agentHostnames' && key !== 'mnemonic' && key !== 'snmpTrapOid') {
+                if (key !== 'device' && key !== 'mnemonic' && key !== 'snmpTrapOid') {
                     acc[key] = selectedTags[key] ? selectedTags[key].map((opt) => opt.value) : [];
                 }
                 return acc;
@@ -156,6 +179,17 @@ const FilterSyslogs = ({ source, devices, trapOids, onSelectedTagsChange, onSele
         };
         onSelectedTagsSearch(filters);
     };
+
+    const severityOptions = [
+        { value: 'Emergency', label: 'Emergency' },
+        { value: 'Alert', label: 'Alert' },
+        { value: 'Critical', label: 'Critical' },
+        { value: 'Error', label: 'Error' },
+        { value: 'Warning', label: 'Warning' },
+        { value: 'Notice', label: 'Notice' },
+        { value: 'Informational', label: 'Informational' },
+        { value: 'Debug', label: 'Debug' }
+    ];
 
     return (
         <div className="searchSyslogsContainer">
@@ -167,21 +201,22 @@ const FilterSyslogs = ({ source, devices, trapOids, onSelectedTagsChange, onSele
                 <div className="searchSyslogsFilterEntries">
                     {/* Agent Hostnames Field */}
                     <div className="searchSyslogsFilterEntry">
-                        <span className="searchSignalFilterText">Agent Hostnames:</span>
+                        <span className="searchSignalFilterText">Device:</span>
                         <div style={{ marginTop: '6px' }}>
                             <Select
-                                options={agentHostnameOptions}
+                                options={deviceOptions}
                                 isMulti
-                                value={selectedTags.agentHostnames}
-                                onChange={handleAgentChange}
+                                value={selectedTags.device}
+                                onChange={(selectedValues) => handleAgentChange(selectedValues)}
                                 styles={customStyles('380px')}
-                                placeholder="Select agent hostnames"
+                                placeholder="Select devices"
                             />
                         </div>
                     </div>
 
                     {/* Mnemonic Field for Syslogs */}
                     {source === "syslogs" && (
+
                         <div className="searchSyslogsFilterEntry">
                             <span className="searchSignalFilterText">Mnemonic:</span>
                             <div style={{ marginTop: '6px' }}>
@@ -194,6 +229,24 @@ const FilterSyslogs = ({ source, devices, trapOids, onSelectedTagsChange, onSele
                                     onFocus={() => handleFocus("mnemonics")}
                                     styles={customStyles('380px')}
                                     placeholder="Select mnemonics"
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {source === "syslogs" && (
+
+                        <div className="searchSyslogsFilterEntry">
+                            <span className="searchSignalFilterText">Severity:</span>
+                            <div style={{ marginTop: '6px' }}>
+                                <Select
+                                    options={severityOptions}
+                                    isMulti
+                                    value={selectedTags.severity || []}
+                                    onChange={(selectedValues) => handleSeverityChange(selectedValues)}
+                                    name="severity"
+                                    styles={customStyles('380px')}
+                                    placeholder="Select severity"
                                 />
                             </div>
                         </div>

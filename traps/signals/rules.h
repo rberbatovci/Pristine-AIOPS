@@ -46,6 +46,7 @@ void load_signal_rules(PGconn *conn);
 void free_signal_rules(void);
 
 // Rule lookup
+StatefulRule *findRuleByName(const char *name);
 void printRule(StatefulRule *rule);
 RuleMatch *findSignalRule(const char *snmpTrapOid, json_t *tags, int *match_count);
 

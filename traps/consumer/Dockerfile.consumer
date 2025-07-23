@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     librdkafka-dev \
     libjansson-dev \
     libpthread-stubs0-dev \
+    uuid-dev \
     pkg-config \
     ca-certificates \
     libcurl4-openssl-dev \

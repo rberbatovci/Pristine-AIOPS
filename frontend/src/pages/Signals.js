@@ -96,7 +96,7 @@ const SignalsDashboard = ({ currentUser, setDashboardTitle }) => {
                 const extractedSignals = response.data.results.map((item) => {
                     const source = item._source;
                     return {
-                        id: source.signal_id || item.id, // Use item.id for traps? Adjust based on API response
+                        id: item._id, // Use item.id for traps? Adjust based on API response
                         startTime: source['@startTime'] || item.startTime, // Adjust based on API response
                         endTime: source['@endTime'] || item.endTime, // Adjust based on API response
                         ...source,
@@ -233,24 +233,20 @@ const SignalsDashboard = ({ currentUser, setDashboardTitle }) => {
         <div className="signals-container" style={{ width: selectedSignal ? '80%' : '50%' }}>
             <div className="left-column" style={{ width: selectedSignal ? '40%' : '100%', height: '100vh' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    {!selectedSignal && (
-                        <>
-                            <div style={{ display: 'flex' }}>
-                                <h2
-                                    className={`eventsTitleHeader ${dataSource === 'syslogs' ? 'eventsTitleHeaderActive' : ''}`}
-                                    onClick={() => handleHeaderClick('syslogs')}
-                                >
-                                    Syslogs
-                                </h2>
-                                <h2
-                                    className={`eventsTitleHeader ${dataSource === 'traps' ? 'eventsTitleHeaderActive' : ''}`}
-                                    onClick={() => handleHeaderClick('traps')}
-                                >
-                                    Traps
-                                </h2>
-                            </div>
-                        </>
-                    )}
+                    <div style={{ display: 'flex' }}>
+                        <h2
+                            className={`eventsTitleHeader ${dataSource === 'syslogs' ? 'eventsTitleHeaderActive' : ''}`}
+                            onClick={() => handleHeaderClick('syslogs')}
+                        >
+                            Syslogs
+                        </h2>
+                        <h2
+                            className={`eventsTitleHeader ${dataSource === 'traps' ? 'eventsTitleHeaderActive' : ''}`}
+                            onClick={() => handleHeaderClick('traps')}
+                        >
+                            Traps
+                        </h2>
+                    </div>
                     <div style={{ marginRight: '10px', display: 'flex', alignItems: 'center' }}>
                         {showSearchInput && (
                             <input

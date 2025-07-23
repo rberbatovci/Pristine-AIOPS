@@ -43,6 +43,8 @@ rd_kafka_t* setup_kafka_consumer(const char* brokers, const char* group_id, cons
 int main() {
     setbuf(stdout, NULL);
 
+    activeSignalMonitor();
+
     ReloadArgs* args = malloc(sizeof(ReloadArgs));
     if (!args) {
         fprintf(stderr, "[ERROR] Failed to allocate memory for reload args\n");

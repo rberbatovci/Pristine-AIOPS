@@ -10,9 +10,56 @@
 
 #define BUFFER_SIZE 65535
 #define PORT 1162
-#define DEBUG 1  // Set to 1 for debug output, 0 to disable
+#define DEBUG 1
 
-// NetFlow v9 Header Structure
+#define MAX_BATCH_SIZE 1000
+#define FLUSH_INTERVAL_SEC 5
+
+rd_kafka_t *rk = NULL;
+rd_kafka_topic_t *rkt = NULL;
+rd_kafka_conf_t *conf = NULL;
+
+char *json_buffer[MAX_BATCH_SIZE];
+size_t json_buffer_count = 0;
+time_t last_flush_time = 0;
+
+void flush_kafka_bulk() {
+    if (json_buffer_count == 0) return;
+
+    char message[65535] = "[";
+    size_t pos = 1;
+
+    for (size_t i = 0; i < json_buffer_count; i++) {
+        if (i > 0) message[pos++] = ',';
+        size_t len = strlen(json_buffer[i]);
+        if (pos + len >= sizeof(message) - 2) break;
+        memcpy(&message[pos], json_buffer[i], len);
+        pos += len;
+        free(json_buffer[i]);
+    }
+
+    message[pos++] = ']';
+    message[pos] = '\0';
+
+    rd_kafka_resp_err_t err = rd_kafka_producev(
+        rk,
+        RD_KAFKA_V_TOPIC("netflow-events"),
+        RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_COPY),
+        RD_KAFKA_V_VALUE((void *)message, strlen(message)),
+        RD_KAFKA_V_END
+    );
+
+    if (err) {
+        fprintf(stderr, "%% Failed to produce message: %s\n", rd_kafka_err2str(err));
+    } else if (DEBUG) {
+        printf("DEBUG: Flushed %zu records to Kafka\n", json_buffer_count);
+    }
+
+    rd_kafka_poll(rk, 0);
+    json_buffer_count = 0;
+    last_flush_time = time(NULL);
+}
+
 typedef struct {
     uint16_t version;        // 9 for NetFlow v9
     uint16_t count;          // Number of records in this packet
@@ -23,7 +70,6 @@ typedef struct {
     uint32_t source_id;      // Exporter identifier
 } NetFlowV9Header;
 
-// IPFIX (v10) Header Structure
 typedef struct {
     uint16_t version;
     uint16_t length;
@@ -32,7 +78,6 @@ typedef struct {
     uint32_t observation_id;
 } IPFIXHeader;
 
-// Common Flow Record Structure
 typedef struct {
     uint32_t source_addr;
     uint32_t dest_addr;
@@ -252,7 +297,25 @@ int main() {
     socklen_t len;
     unsigned char buffer[BUFFER_SIZE];
 
-    // Create UDP socket
+    // Kafka producer setup
+    char errstr[512];
+    conf = rd_kafka_conf_new();
+    rd_kafka_conf_set(conf, "bootstrap.servers", "Kafka:9092", errstr, sizeof(errstr));
+    rk = rd_kafka_new(RD_KAFKA_PRODUCER, conf, errstr, sizeof(errstr));
+    if (!rk) {
+        fprintf(stderr, "%% Failed to create producer: %s\n", errstr);
+        exit(EXIT_FAILURE);
+    }
+
+    rkt = rd_kafka_topic_new(rk, "netflow-topic", NULL);
+    if (!rkt) {
+        fprintf(stderr, "%% Failed to create topic object\n");
+        exit(EXIT_FAILURE);
+    }
+
+    last_flush_time = time(NULL);
+
+    // UDP socket setup
     if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         perror("socket creation failed");
         exit(EXIT_FAILURE);
@@ -260,12 +323,10 @@ int main() {
 
     memset(&servaddr, 0, sizeof(servaddr));
     memset(&cliaddr, 0, sizeof(cliaddr));
-
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = INADDR_ANY;
     servaddr.sin_port = htons(PORT);
 
-    // Bind the socket
     if (bind(sockfd, (const struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) {
         perror("bind failed");
         close(sockfd);
@@ -287,7 +348,7 @@ int main() {
         inet_ntop(AF_INET, &cliaddr.sin_addr, sender_ip_str, sizeof(sender_ip_str));
 
         if (DEBUG) printf("\nDEBUG: Received %zd bytes from %s:%d\n",
-                        n, sender_ip_str, ntohs(cliaddr.sin_port));
+                          n, sender_ip_str, ntohs(cliaddr.sin_port));
 
         NetFlowPacket packet = {0};
         uint16_t version;
@@ -302,42 +363,18 @@ int main() {
         int result = process_netflow_v9(buffer, n, &packet);
 
         if (result == 0) {
-            char json_array[65535] = "["; // Opening bracket
-            size_t current_length = 1;
-            size_t valid_count = 0;
-
             for (size_t i = 0; i < packet.record_count; i++) {
                 char *record_json = flow_record_to_json(&packet.records[i], sender_ip_str);
-
                 if (record_json != NULL) {
-                    size_t record_length = strlen(record_json);
-
-                    if (current_length + record_length + 2 >= sizeof(json_array)) {
-                        fprintf(stderr, "Error: JSON array buffer overflow\n");
-                        break;
+                    if (json_buffer_count < MAX_BATCH_SIZE) {
+                        json_buffer[json_buffer_count++] = strdup(record_json);
                     }
-
-                    if (valid_count > 0) {
-                        strcat(json_array, ",");
-                        current_length++;
-                    }
-
-                    strcat(json_array, record_json);
-                    current_length += record_length;
-                    valid_count++;
                 }
             }
 
-            if (valid_count > 0) {
-                if (current_length + 2 < sizeof(json_array)) {
-                    strcat(json_array, "]");
-                    send_to_kafka("netflow-topic", json_array);
-                } else {
-                    fprintf(stderr, "Error: JSON array buffer overflow (closing bracket)\n");
-                }
-            } else {
-                // No valid records, do not send anything
-                if (DEBUG) printf("DEBUG: No valid JSON records to send\n");
+            time_t now = time(NULL);
+            if (json_buffer_count >= MAX_BATCH_SIZE || (now - last_flush_time) >= FLUSH_INTERVAL_SEC) {
+                flush_kafka_bulk();
             }
         } else {
             if (DEBUG) printf("DEBUG: Failed to process packet\n");
@@ -348,6 +385,12 @@ int main() {
         }
     }
 
+    // Cleanup
     close(sockfd);
+    flush_kafka_bulk();
+    rd_kafka_flush(rk, 1000);
+    rd_kafka_topic_destroy(rkt);
+    rd_kafka_destroy(rk);
+
     return 0;
 }

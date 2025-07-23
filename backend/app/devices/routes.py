@@ -9,6 +9,7 @@ from app.devices import models, schemas
 from app.devices.services import configureDevice, syslogXEPlaybook, trapsXEPlaybook, netflowXEPlaybook, cpuUtilXEPlaybook, configureSyslogsXR, memStatsXEPlaybook, interfaceStatsXEPlaybook, BGPConnectionsXEPlaybook
 import asyncio
 router = APIRouter()
+import os
 
 @router.get("/devices/", response_model=List[dict])
 async def get_device_ids_names(db: AsyncSession = Depends(get_db)):
@@ -96,16 +97,41 @@ async def configure_syslogs(
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
 
+    syslog_host = os.getenv("RECEIVING_ADDRESS")
+    syslog_port = os.getenv("SYSLOG_PORT")
+    ssh_username = os.getenv("SSH_USERNAME")
+    ssh_password = os.getenv("SSH_PASSWORD")
+    syslog_severity = os.getenv("SYSLOG_SEVERITY", "notifications")
+
+    # Validate all required variables
+    missing_vars = []
+    if not syslog_host:
+        missing_vars.append("RECEIVING_ADDRESS")
+    if not syslog_port:
+        missing_vars.append("SYSLOG_PORT")
+    if not ssh_username:
+        missing_vars.append("SSH_USERNAME")
+    if not ssh_password:
+        missing_vars.append("SSH_PASSWORD")
+    if not syslog_severity:
+        missing_vars.append("SYSLOG_SEVERITY")
+
+    if missing_vars:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Missing required environment variables: {', '.join(missing_vars)}"
+        )
+
     ansible_result = await configureDevice(
         router_ip=device.ip_address,
         playbook=syslogXEPlaybook,
         extra_vars={
             "router_ip": device.ip_address,
-            "username": "admin",
-            "password": "cisco123",
-            "syslog_host": "192.168.1.201",
-            "syslog_port": "1160",
-            "syslog_severity": config.severity
+            "username": ssh_username,
+            "password": ssh_password,
+            "syslog_host": syslog_host,
+            "syslog_port": syslog_port,
+            "syslog_severity": syslog_severity
         }
     )
 
@@ -148,16 +174,38 @@ async def configure_telemetry_feature(
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
 
+    receiver_host = os.getenv("RECEIVING_ADDRESS")
+    receiver_port = os.getenv("TELEMETRY_PORT")
+    ssh_username = os.getenv("SSH_USERNAME")
+    ssh_password = os.getenv("SSH_PASSWORD")
+
+    # Validate all required variables
+    missing_vars = []
+    if not receiver_host:
+        missing_vars.append("RECEIVING_ADDRESS")
+    if not receiver_port:
+        missing_vars.append("TELEMETRY_PORT")
+    if not ssh_username:
+        missing_vars.append("SSH_USERNAME")
+    if not ssh_password:
+        missing_vars.append("SSH_PASSWORD")
+
+    if missing_vars:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Missing required environment variables: {', '.join(missing_vars)}"
+        )
+
     # Run Ansible playbook
     ansible_result = await configureDevice(
         router_ip=device.ip_address,
         playbook=playbook,
         extra_vars={
             "router_ip": device.ip_address,
-            "username": "admin",
-            "password": "cisco123",
-            "telemetry_receiver_ip": "192.168.1.201",
-            "telemetry_receiver_port": "1163"
+            "username": ssh_username,
+            "password": syslog_port,
+            "receiver_host": receiver_host,
+            "receiver_port": receiver_port
         }
     )
 
@@ -194,19 +242,54 @@ async def configure_snmp_traps(
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
 
+    receiver_host = os.getenv("RECEIVING_ADDRESS")
+    receiver_port = os.getenv("SNMP_TRAP_PORT")
+    ssh_username = os.getenv("SSH_USERNAME")
+    ssh_password = os.getenv("SSH_PASSWORD")
+    snmpv3_username = os.getenv("SNMP_USERNAME")
+    snmpv3_engineId = os.getenv("SNMP_ENGINE_ID")
+    snmpv3_priv_password = os.getenv("SNMP_PRIV_PASS")
+    snmpv3_auth_password = os.getenv("SNMP_AUTH_PASS")
+
+    # Validate all required variables
+    missing_vars = []
+    if not receiver_host:
+        missing_vars.append("RECEIVING_ADDRESS")
+    if not receiver_port:
+        missing_vars.append("TELEMETRY_PORT")
+    if not ssh_username:
+        missing_vars.append("SSH_USERNAME")
+    if not ssh_password:
+        missing_vars.append("SSH_PASSWORD")
+    if not snmpv3_username:
+        missing_vars.append("SNMP_USERNAME")
+    if not snmpv3_engineId:
+        missing_vars.append("SNMP_ENGINE_ID")
+    if not snmpv3_priv_password:
+        missing_vars.append("SNMP_PRIV_PASS")
+    if not snmpv3_auth_password:
+        missing_vars.append("SNMP_AUTH_PASS")
+
+    if missing_vars:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Missing required environment variables: {', '.join(missing_vars)}"
+        )
+
+
     ansible_result = await configureDevice(
         router_ip=device.ip_address,
         playbook=trapsXEPlaybook,
         extra_vars={
             "router_ip": device.ip_address,
-            "username": "admin",
-            "password": "cisco123",
-            "snmp_trap_host": "192.168.1.201",
-            "snmp_trap_port": 1161,
-            "snmp_user": "SNMPv3",
-            "snmp_auth_pass": "AuTH_P@55w0rd123!",
-            "snmp_priv_pass": "PrIV@TE_P@55w0rd456!",
-            "snmp_engine_id": "800000090300500000030000"
+            "username": ssh_username,
+            "password": ssh_password,
+            "snmp_trap_host": receiver_host,
+            "snmp_trap_port": receiver_port,
+            "snmp_user": snmpv3_username,
+            "snmp_auth_pass": snmpv3_auth_password,
+            "snmp_priv_pass": snmpv3_priv_password,
+            "snmp_engine_id": snmpv3_engineId
         }
     )
 
@@ -240,14 +323,46 @@ async def configure_netflow(
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
 
+
+    receiver_host = os.getenv("RECEIVING_ADDRESS")
+    receiver_port = os.getenv("NETFLOW_PORT")
+    ssh_username = os.getenv("SSH_USERNAME")
+    ssh_password = os.getenv("SSH_PASSWORD")
+
+    # Validate all required variables
+    missing_vars = []
+    if not receiver_host:
+        missing_vars.append("RECEIVING_ADDRESS")
+    if not receiver_port:
+        missing_vars.append("TELEMETRY_PORT")
+    if not ssh_username:
+        missing_vars.append("SSH_USERNAME")
+    if not ssh_password:
+        missing_vars.append("SSH_PASSWORD")
+
+
+    if missing_vars:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Missing required environment variables: {', '.join(missing_vars)}"
+        )
+
+
     ansible_result = await configureDevice(
         router_ip=device.ip_address,
         playbook=netflowXEPlaybook,
         extra_vars={
             "router_ip": device.ip_address,
-            "username": "admin",
-            "password": "cisco123",
-            "netflow_interfaces": config.interfaces
+            "receiver_host": receiver_host,
+            "receiver_port": receiver_port,
+            "username": ssh_username,
+            "password": ssh_password,
+            "netflow_interfaces": [
+                "GigabitEthernet1",
+                "GigabitEthernet2",
+                "GigabitEthernet3",
+                "Loopback0"
+            ]
         }
     )
 

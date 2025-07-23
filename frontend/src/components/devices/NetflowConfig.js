@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import Select from 'react-select';
 import apiClient from '../misc/AxiosConfig';
 import customStyles from '../misc/SelectStyles';
+import { TailSpin } from 'react-loader-spinner';
+import { IoPushOutline, IoPushSharp } from "react-icons/io5";
 
 const IOS_XE_INTERFACES = [
     'GigabitEthernet1', 'GigabitEthernet2', 'Loopback0', 'Loopback1', 'Vlan1'
@@ -11,12 +13,13 @@ const IOS_XR_INTERFACES = [
     'GigabitEthernet0/0/0/0', 'GigabitEthernet0/0/0/1', 'Loopback0', 'MgmtEth0/RP0/CPU0/0'
 ];
 
-function NetflowConfig({ hostname, version, onSuccess }) {
+function NetflowConfig({ selectedDevice, version, onSuccess }) {
     const [enabled, setEnabled] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [interfaces, setInterfaces] = useState([]);
     const [interfaceOptions, setInterfaceOptions] = useState([]);
+    const [showData, setShowData] = useState(false);
 
     useEffect(() => {
         if (version === 'ios-xe') {
@@ -36,7 +39,7 @@ function NetflowConfig({ hostname, version, onSuccess }) {
         setLoading(true);
         setError('');
         try {
-            const response = await apiClient.post(`/devices/${hostname}/netflow-xe-config/`, {
+            const response = await apiClient.post(`/devices/${selectedDevice.hostname}/netflow-xe-config/`, {
                 enabled,
                 interfaces: interfaces.map((opt) => opt.value),
             });
@@ -54,39 +57,58 @@ function NetflowConfig({ hostname, version, onSuccess }) {
     const handleSkip = () => onSuccess?.(null);
 
     return (
-        <div className="searchSyslogsContainer">
-            <span className="searchSignalFilterText">Configure Netflow</span>
-            <div className="searchSyslogsFilterEntries" style={{ marginTop: '5px' }}>
-                <div className="searchSyslogsFilterEntry">
-                    <span className="searchSignalFilterText">Interfaces:</span>
-                    <div style={{ marginTop: '6px' }}>
-                        <Select
-                            isMulti
-                            name="interfaces"
-                            value={interfaces}
-                            onChange={handleChange}
-                            styles={customStyles('300px')}
-                            options={interfaceOptions}
-                            placeholder="Select interfaces"
-                            isSearchable
-                            menuPortalTarget={document.body}
-                            menuPosition="absolute"
-                            menuShouldBlockScroll={true}
-                        />
-                    </div>
+        <div className={`signalRightElementContainer ${showData ? 'netflowConfig' : 'collapsed'}`}>
+            <div className="signalRightElementHeader">
+                <h2 className="signalRightElementHeaderTxt" onClick={() => setShowData(!showData)}>
+                    {showData ? '\u25CF' : '\u25CB'} Netflow
+                </h2>
+                {!selectedDevice?.features?.netflow && (
+                                    <div className="zoom-buttons-container">
+                                        <div className="headerButtons">
+                
+                                            {loading ? (
+                                                <button disabled={loading} >
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <TailSpin
+                                                            height="20"
+                                                            width="20"
+                                                            color="#ffffff"
+                                                            ariaLabel="loading"
+                                                        />
+                                                        <span>Configuring...</span>
+                                                    </div>
+                                                </button>
+                                            ) : (
+                                                <button onClick={sendConfig} className="iconButton">
+                                                    <IoPushOutline className="defaultIcon" />
+                                                    <IoPushSharp className="hoverIcon" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+            </div>
+            {showData && (
+                <div style={{ padding: '8px', marginLeft: '15px' }}>
+                    {/* Status message */}
+                    {selectedDevice?.features?.netflow ? (
+                        <div style={{ color: 'var(--spanTextColor)' }}>
+                            Netflow is already configured on this device.
+                        </div>
+                    ) : (
+                        <div style={{ color: 'var(--spanTextColor)' }}>
+                            Please configure netflow on the device.
+                        </div>
+                    )}
+
+                    {/* Error message */}
+                    {error && (
+                        <div style={{ color: 'red', marginTop: '10px' }}>
+                            {typeof error === 'string' ? error : JSON.stringify(error)}
+                        </div>
+                    )}
                 </div>
-            </div>
-
-            {error && <div style={{ color: 'red', marginTop: '1rem' }}>{error}</div>}
-
-            <div style={{ marginTop: '1rem' }}>
-                <button onClick={handleSkip} style={{ marginLeft: '1rem' }}>
-                    Skip
-                </button>
-                <button onClick={handleSubmit} disabled={loading}>
-                    {loading ? 'Configuring...' : 'Configure Netflow'}
-                </button>
-            </div>
+            )}
         </div>
     );
 }

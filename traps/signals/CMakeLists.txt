@@ -25,4 +25,5 @@ target_link_libraries(trap_signals
     pthread
     curl
     hiredis
+    uuid
 )

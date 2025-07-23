@@ -33,6 +33,8 @@ extern int trapTagCount;
 
 extern pthread_mutex_t config_mutex;
 
+SNMPTrapOID *findSnmpTrapOid(const char *oid);
+
 void* reload_data_thread(void* args);
 void load_trap_oids(PGconn *conn);
 void load_trap_tags(PGconn *conn);

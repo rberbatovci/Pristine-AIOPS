@@ -13,7 +13,8 @@ const telemetryOptions = [
 
 function TelemetryConfig({ hostname, version, telemetryFeatures, onSuccess }) {
     const [loadingState, setLoadingState] = useState({});
-
+    const [showData, setShowData] = useState(false);
+    
     const sendTelemetryConfig = async (type) => {
         setLoadingState(prev => ({ ...prev, [type]: true }));
         try {
@@ -30,8 +31,13 @@ function TelemetryConfig({ hostname, version, telemetryFeatures, onSuccess }) {
     };
 
     return (
-        <div className="signalTagContainer">
-            <span className="searchSignalFilterText">Configure telemetry</span>
+        <div className={`signalRightElementContainer ${showData ? 'telemetryConfig' : 'collapsed'}`}>
+            <div className="signalRightElementHeader">
+                <h2 className="signalRightElementHeaderTxt" onClick={() => setShowData(!showData)}>
+                    {showData ? '\u25CF' : '\u25CB'} Model-Driven Telemetry
+                </h2>
+            </div>
+            <div>
             <ul className="signalTagList">
                 {telemetryOptions.map(({ key, label, apiType }) => (
                     <li key={key} className="signalTagItem">
@@ -66,6 +72,7 @@ function TelemetryConfig({ hostname, version, telemetryFeatures, onSuccess }) {
                     </li>
                 ))}
             </ul>
+            </div>
         </div>
     );
 }

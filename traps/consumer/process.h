@@ -3,8 +3,6 @@
 
 #include <librdkafka/rdkafka.h>
 
-void process_kafka_message_loop(rd_kafka_t *rk);
-
-extern pthread_mutex_t severity_mutex;
+void process_message(rd_kafka_t *rk, rd_kafka_t *signal_producer);
 
 #endif

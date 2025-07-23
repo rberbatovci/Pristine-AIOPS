@@ -28,4 +28,5 @@ target_link_libraries(trap_consumer
     ${PostgreSQL_LIBRARIES}
     pthread
     curl
+    uuid
 )

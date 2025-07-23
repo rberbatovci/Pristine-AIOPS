@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     libjansson-dev \
     libpq-dev \
     libcurl4-openssl-dev \
+    uuid-dev \
     libhiredis-dev \
     pkg-config \
     git \

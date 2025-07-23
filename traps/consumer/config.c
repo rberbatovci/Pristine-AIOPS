@@ -92,19 +92,6 @@ void load_trap_oids(PGconn *conn) {
     }
 
     PQclear(res);
-
-    printf("=== Loaded SNMP Trap OIDs (%d entries) ===\n", trapOidCount);
-    for (int i = 0; i < trapOidCount; i++) {
-        printf("OID %d:\n", i + 1);
-        printf("  Name: %s\n", trapOids[i].name);
-        printf("  Value: %s\n", trapOids[i].value);
-        printf("  Alert: %s\n", trapOids[i].alert ? "true" : "false");
-        printf("  Tags: ");
-        for (int j = 0; j < trapOids[i].tag_count; j++) {
-            printf("%s%s", trapOids[i].tags[j], (j < trapOids[i].tag_count - 1) ? ", " : "");
-        }
-        printf("\n");
-    }
 }
 
 void load_trap_tags(PGconn *conn) {
@@ -112,7 +99,6 @@ void load_trap_tags(PGconn *conn) {
     PGresult *res = PQexec(conn, query);
 
     if (PQresultStatus(res) != PGRES_TUPLES_OK) {
-        fprintf(stderr, "[ERROR] Failed to fetch trap tags: %s\n", PQerrorMessage(conn));
         PQclear(res);
         return;
     }
@@ -128,8 +114,6 @@ void load_trap_tags(PGconn *conn) {
 
     trapTagCount = PQntuples(res);
     trapTags = malloc(sizeof(SNMPTrapTag) * trapTagCount);
-
-    printf("=== Loaded SNMP Trap Tags (%d entries) ===\n", trapTagCount);
 
     for (int i = 0; i < trapTagCount; i++) {
         trapTags[i].name = strdup(PQgetvalue(res, i, 0));

@@ -85,6 +85,22 @@
   height: 240px;
 }
 
+.signalRightElementContainer.syslogConfig {
+  height: 90px;
+}
+
+.signalRightElementContainer.snmpTrapConfig {
+  height: 90px;
+}
+
+.signalRightElementContainer.telemetryConfig {
+  height: 400px;
+}
+
+.signalRightElementContainer.netflowConfig {
+  height: 90px;
+}
+
 .signalRightElementContainer.memoryStatistics {
   height: 350px;
 }

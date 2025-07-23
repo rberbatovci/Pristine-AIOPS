@@ -32,4 +32,5 @@ target_link_libraries(syslog_signals
     pthread
     curl
     hiredis
+    uuid
 )

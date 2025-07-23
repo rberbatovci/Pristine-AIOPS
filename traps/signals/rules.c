@@ -35,7 +35,7 @@ void free_signal_rules(void)
 
 void loadSignalRules(PGconn *conn)
 {
-    free_signal_rules();  // clear existing rules
+    free_signal_rules(); // clear existing rules
 
     const char *query =
         "SELECT r.id, r.name, "
@@ -99,7 +99,16 @@ void loadSignalRules(PGconn *conn)
     printf("[INFO] Loaded %d SNMP trap signal rules\n", signal_rule_count);
 }
 
-RuleMatch *findSignalRule(const char *snmpTrapOid, json_t *tags, int *match_count)
+StatefulRule *findRuleByName(const char *name) {
+    for (int i = 0; i < signal_rule_count; i++) {
+        if (strcmp(signal_rules[i].name, name) == 0) {
+            return &signal_rules[i];
+        }
+    }
+    return NULL;
+}
+
+RuleMatch *findSignalRule(const char *snmpTrapOid, json_t *content, int *match_count)
 {
     RuleMatch *matches = malloc(sizeof(RuleMatch) * signal_rule_count);
     *match_count = 0;
@@ -112,16 +121,26 @@ RuleMatch *findSignalRule(const char *snmpTrapOid, json_t *tags, int *match_coun
             const char *key = signal_rules[i].openTag;
             const char *expected_value = signal_rules[i].openValue;
 
-            json_t *value_json = json_object_get(tags, key);
-            if (json_is_string(value_json))
+            if (key && strlen(key) > 0 && expected_value && strlen(expected_value) > 0)
             {
-                const char *actual_value = json_string_value(value_json);
-                if (strcmp(actual_value, expected_value) == 0)
+                json_t *value_json = json_object_get(content, key);
+                if (json_is_string(value_json))
                 {
-                    matches[*match_count].rule = &signal_rules[i];
-                    matches[*match_count].match_type = MATCH_OPEN;
-                    (*match_count)++;
+                    const char *actual_value = json_string_value(value_json);
+                    if (strcmp(actual_value, expected_value) == 0)
+                    {
+                        matches[*match_count].rule = &signal_rules[i];
+                        matches[*match_count].match_type = MATCH_OPEN;
+                        (*match_count)++;
+                    }
                 }
+            }
+            else
+            {
+                // If no tag is specified, just match on OID
+                matches[*match_count].rule = &signal_rules[i];
+                matches[*match_count].match_type = MATCH_OPEN;
+                (*match_count)++;
             }
         }
 
@@ -131,16 +150,26 @@ RuleMatch *findSignalRule(const char *snmpTrapOid, json_t *tags, int *match_coun
             const char *key = signal_rules[i].closeTag;
             const char *expected_value = signal_rules[i].closeValue;
 
-            json_t *value_json = json_object_get(tags, key);
-            if (json_is_string(value_json))
+            if (key && strlen(key) > 0 && expected_value && strlen(expected_value) > 0)
             {
-                const char *actual_value = json_string_value(value_json);
-                if (strcmp(actual_value, expected_value) == 0)
+                json_t *value_json = json_object_get(content, key);
+                if (json_is_string(value_json))
                 {
-                    matches[*match_count].rule = &signal_rules[i];
-                    matches[*match_count].match_type = MATCH_CLOSE;
-                    (*match_count)++;
+                    const char *actual_value = json_string_value(value_json);
+                    if (strcmp(actual_value, expected_value) == 0)
+                    {
+                        matches[*match_count].rule = &signal_rules[i];
+                        matches[*match_count].match_type = MATCH_CLOSE;
+                        (*match_count)++;
+                    }
                 }
+            }
+            else
+            {
+                // If no tag is specified, just match on OID
+                matches[*match_count].rule = &signal_rules[i];
+                matches[*match_count].match_type = MATCH_CLOSE;
+                (*match_count)++;
             }
         }
     }
@@ -148,8 +177,10 @@ RuleMatch *findSignalRule(const char *snmpTrapOid, json_t *tags, int *match_coun
     return matches;
 }
 
-void printRule(StatefulRule *rule) {
-    if (!rule) {
+void printRule(StatefulRule *rule)
+{
+    if (!rule)
+    {
         printf("[WARN] Rule is NULL.\n");
         return;
     }

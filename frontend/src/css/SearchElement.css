@@ -257,8 +257,8 @@
   .searchSyslogsContainer {
     display: flex;
     flex-wrap: wrap;
-    margin-top: 15px;
-    padding-left: 20px;
+    margin-top: 10px;
+    padding-left: 10px;
   }
   
   .syslogTagsTable {

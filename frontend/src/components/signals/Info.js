@@ -44,6 +44,8 @@ const Info = ({ currentUser, selectedSignal, correlatedSyslogs, onSignalDeselect
   console.log('currentUser in signalInfo:', currentUser);
   console.log('Selected Signal startTime and endTime in SignalInfo: ', selectedSignal.startTime, selectedSignal.endTime);
 
+  const shortId = selectedSignal.id.split('-').slice(0, 2).join('-');
+
   return (
     <div className={`signalRightElementContainer ${showData ? 'expanded' : 'collapsed'}`} style={{ maxHeight: '180px' }}>
       <div className="signalRightElementHeader">
@@ -71,12 +73,14 @@ const Info = ({ currentUser, selectedSignal, correlatedSyslogs, onSignalDeselect
       </div>
 
       {showData && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '10px', color: 'var(--spanTextColor)', opacity: '0.8'}}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '10px', color: 'var(--spanTextColor)', opacity: '0.8' }}>
           {/* Left Column */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', fontSize: '13px', marginTop: '4px' }}>
               <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>Signal ID:</p>
-              <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>#{selectedSignal.id} - {selectedSignal.status}</p>
+              <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>
+                #{selectedSignal.id.split('-').slice(0, 2).join('-')} - {selectedSignal.status}
+              </p>
             </div>
             <div style={{ display: 'flex', fontSize: '13px', marginTop: '4px' }}>
               <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>Start Time:</p>

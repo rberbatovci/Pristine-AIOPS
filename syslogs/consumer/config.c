@@ -22,6 +22,34 @@ void perform_reload() {
     printf("[INFO] [Config Data] Reloading config at %s", ctime(&now));
 }
 
+void print_loaded_regexes() {
+    printf("\n[DEBUG] Loaded Regexes (%d):\n", regex_count);
+    for (int i = 0; i < regex_count; i++) {
+        printf("  --- Regex %d ---\n", i + 1);
+        printf("    Name         : %s\n", regexes[i].name);
+        printf("    Pattern      : %s\n", regexes[i].pattern);
+        printf("    MatchFunc    : %s\n", regexes[i].matchfunction);
+        printf("    MatchNumber  : %d\n", regexes[i].matchnumber);
+        printf("    GroupNumber  : %d\n", regexes[i].groupnumber);
+        printf("    NoMatch      : %s\n", regexes[i].nomatch);
+        printf("    Tag          : %s\n", regexes[i].tag);
+    }
+}
+
+void print_loaded_mnemonics() {
+    printf("\n[DEBUG] Loaded Mnemonics (%d):\n", cache_size);
+    for (int i = 0; i < cache_size; i++) {
+        printf("  --- Mnemonic %d ---\n", i + 1);
+        printf("    Name         : %s\n", cache[i].mnemonic);
+        printf("    Severity     : %s\n", cache[i].info.severity);
+        printf("    Level        : %d\n", cache[i].info.level);
+        printf("    Alert        : %s\n", cache[i].info.alert ? "true" : "false");
+        printf("    Regexes (%d) :\n", cache[i].info.regex_count);
+        for (int j = 0; j < cache[i].info.regex_count; j++) {
+            printf("      - %s\n", cache[i].info.regexes[j]);
+        }
+    }
+}
 
 void free_mnemonic_cache(void) {
     for (int i = 0; i < cache_size; i++) {
@@ -173,7 +201,9 @@ void* reload_data_thread(void* args) {
         pthread_mutex_lock(&config_mutex);
 
         load_mnemonics(conn);
+        //print_loaded_mnemonics();       // Print loaded mnemonics
         load_regexes(conn);
+        print_loaded_regexes();         // Print loaded regexes  
         load_severity(conn);
 
         pthread_mutex_unlock(&config_mutex);

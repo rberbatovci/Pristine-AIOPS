@@ -68,44 +68,19 @@ const Info = ({ currentUser, selectedDevice, onDeviceDeselect, onConfigClick }) 
         <h2 className="signalRightElementHeaderTxt" onClick={() => setShowData(!showData)}>
           {showData ? '\u25CF' : '\u25CB'} Device Info
         </h2>
-        {showData && (
-          <div className="zoom-buttons-container">
+        <div className="zoom-buttons-container">
             <div className="headerButtons">
-              <button
-                className={`iconButton ${dropdowns.syslogs.visible ? 'active' : ''}`}
-                onClick={(event) => handleButtonClick(event, 'syslogs')}>
-                <PiTerminalDuotone className="defaultIcon" />
-                <PiTerminalFill className="hoverIcon" />
-              </button>
-              <button
-                className={`iconButton ${dropdowns.snmpTraps.visible ? 'active' : ''}`}
-                onClick={(event) => handleButtonClick(event, 'snmpTraps')}>
-                <RiStackshareLine className="defaultIcon" />
-                <RiStackshareFill className="hoverIcon" />
-              </button>
-              <button
-                className={`iconButton ${dropdowns.netflow.visible ? 'active' : ''}`}
-                onClick={(event) => handleButtonClick(event, 'netflow')}>
-                <PiSwapFill className="defaultIcon" />
-                <PiSwapDuotone className="hoverIcon" />
-              </button>
-              <button
-                className={`iconButton ${dropdowns.telemetry.visible ? 'active' : ''}`}
-                onClick={(event) => handleButtonClick(event, 'telemetry')}>
-                <IoAnalyticsOutline className="defaultIcon" />
-                <IoMdAnalytics className="hoverIcon" />
+              
+              <button className="iconButton" onClick={deleteDevice}>
+                <RiDeleteBin2Line className="defaultIcon" />
+                <RiDeleteBin2Fill className="hoverIcon" />
               </button>
               <button className="iconButton" onClick={deselectDevice}>
                 <RiCloseCircleLine className="defaultIcon" />
                 <RiCloseCircleFill className="hoverIcon" />
               </button>
-              <button className="iconButton" onClick={deleteDevice}>
-                <RiDeleteBin2Line className="defaultIcon" />
-                <RiDeleteBin2Fill className="hoverIcon" />
-              </button>
             </div>
           </div>
-        )}
       </div>
 
       {showData && (
@@ -113,59 +88,34 @@ const Info = ({ currentUser, selectedDevice, onDeviceDeselect, onConfigClick }) 
           {/* Left Column */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', fontSize: '13px', marginTop: '4px' }}>
-              <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>Device IP:</p>
-              <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>{selectedDevice.ip_address}</p>
-            </div>
-            <div style={{ display: 'flex', fontSize: '13px', marginTop: '4px' }}>
-              <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>Hostname:</p>
-              <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>{selectedDevice.hostname}</p>
+              <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>Health:</p>
+              <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}># Device Health</p>
             </div>
             <div style={{ display: 'flex', fontSize: '13px', marginTop: '4px' }}>
               <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>Vendor:</p>
               <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>{selectedDevice.vendor}</p>
             </div>
-            <div style={{ display: 'flex', fontSize: '13px', marginTop: '4px' }}>
-              <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>Version:</p>
-              <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>{selectedDevice.version}</p>
-            </div>
+
           </div>
           {/* Center Column */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', fontSize: '13px', marginTop: '4px' }}>
-              <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>Syslogs:</p>
-              <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>{selectedDevice.features?.syslogs ? 'Enabled' : 'Disabled'}</p>
+              <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>IP Address:</p>
+              <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>{selectedDevice.ip_address}</p>
             </div>
             <div style={{ display: 'flex', fontSize: '13px', marginTop: '4px' }}>
-              <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>SNMP Traps:</p>
-              <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>{selectedDevice.features?.snmp_traps ? 'Enabled' : 'Disabled'}</p>
+              <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>Version:</p>
+              <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>{selectedDevice.version}</p>
             </div>
-            <div style={{ display: 'flex', fontSize: '13px', marginTop: '4px' }}>
-              <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}> Netflow:</p>
-              <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>{selectedDevice.features?.netflow ? 'Enabled' : 'Disabled'}</p>
-            </div>
+
           </div>
           {/* Right Column */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', fontSize: '13px', marginTop: '4px' }}>
-              <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>CPU Util:</p>
-              <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>{selectedDevice.features?.telemetry?.cpu_util ? 'Enabled' : 'Disabled'}</p>
+              <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>Hostname:</p>
+              <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>{selectedDevice.hostname}</p>
             </div>
-            <div style={{ display: 'flex', fontSize: '13px', marginTop: '4px' }}>
-              <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>Memory Stats:</p>
-              <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>{selectedDevice.features?.telemetry?.memory_stats ? 'Enabled' : 'Disabled'}</p>
-            </div>
-            <div style={{ display: 'flex', fontSize: '13px', marginTop: '4px' }}>
-              <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>Interface Stats:</p>
-              <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>{selectedDevice.features?.telemetry?.interface_stats ? 'Enabled' : 'Disabled'}</p>
-            </div>
-            <div style={{ display: 'flex', fontSize: '13px', marginTop: '4px' }}>
-              <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>BGP Connections:</p>
-              <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>{selectedDevice.features?.telemetry?.bgp_connections ? 'Enabled' : 'Disabled'}</p>
-            </div>
-            <div style={{ display: 'flex', fontSize: '13px', marginTop: '4px' }}>
-              <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>ISIS Stats:</p>
-              <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>{selectedDevice.features?.telemetry?.isis_stats ? 'Enabled' : 'Disabled'}</p>
-            </div>
+
           </div>
         </div>
 
