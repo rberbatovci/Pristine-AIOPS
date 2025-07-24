@@ -22,24 +22,7 @@
   .signalTagContainer {
     padding: 10px;
   }
- 
 
-  
-  .update-button {
-    padding: 10px 20px;
-    background-color: var(--buttonBackground);
-    color: #fff;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    margin-left: 10px;
-    margin-top: 10px;
-  }
-
-  .update-button:hover {
-    background-color: var(--buttonHoverBackground);
-    color: var(--activeTextColor);
-  }
   
   .delete-button {
     padding: 10px 20px;

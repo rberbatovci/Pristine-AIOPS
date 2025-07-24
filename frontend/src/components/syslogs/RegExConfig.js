@@ -142,7 +142,7 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
       ) : (
         <>
           <div style={{ display: 'flex', gap: '10px' }}>
-            <div style={{ width: '240px', padding: '8px', background: 'var(--backgroundColor3)', borderRadius: '8px' }}>
+            <div style={{ width: '240px', padding: '8px', background: 'var(--backgroundColor3)', height: '280px', borderRadius: '8px', overflowY: 'auto'}}>
               <ul style={{ padding: 0, listStyle: 'none', margin: 0, marginBottom: '10px' }}>
                 <li
                   className={`signalTagItem ${isAddNewRegEx ? 'selected' : ''}`}
@@ -173,7 +173,7 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
                 ))}
               </ul>
             </div>
-            <div style={{ padding: '14px', background: 'var(--backgroundColor3)', color: 'var(--textColor)', borderRadius: '8px', height: '280px', overflowY: 'auto' }}>
+            <div style={{ padding: '8px', background: 'var(--backgroundColor3)', color: 'var(--textColor)', borderRadius: '8px', height: '280px', overflowY: 'auto', width: '400px' }}>
               <div style={{ marginBottom: '5px' }}>
                 <span>Name:</span>
                 <input
@@ -181,7 +181,7 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
                   name="name"
                   value={newRegEx.name}
                   className="inputText"
-                  style={{ width: '325px' }}
+                  style={{ width: '375px' }}
                   onChange={(e) => setNewRegEx({ ...newRegEx, name: e.target.value })}
                 />
               </div>
@@ -192,7 +192,7 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
                   name="tag"
                   value={newRegEx.tag}
                   className="inputText"
-                  style={{ width: '325px' }}
+                  style={{ width: '375px' }}
                   onChange={(e) => setNewRegEx({ ...newRegEx, tag: e.target.value })}
                 />
               </div>
@@ -203,7 +203,7 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
                   name="name"
                   value={newRegEx.pattern}
                   className="inputText"
-                  style={{ width: '325px' }}
+                  style={{ width: '375px' }}
                   onChange={(e) =>
                     setNewRegEx({ ...newRegEx, pattern: e.target.value })
                   }
@@ -217,7 +217,7 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
                   options={functionOptions}
                   onChange={(selectedOption) =>
                     setNewRegEx({ ...newRegEx, matchfunction: selectedOption.value })}
-                  styles={customStyles('330px')}
+                  styles={customStyles('375px')}
                   isMulti={false}
                 />
               </div>
@@ -229,7 +229,7 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
                     name="matchnumber"
                     value={newRegEx.matchnumber}
                     className="inputText"
-                    style={{ width: '150px' }}
+                    style={{ width: '170px' }}
                     onChange={(e) =>
                       setNewRegEx({ ...newRegEx, matchnumber: e.target.value })
                     }
@@ -242,7 +242,7 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
                     name="groupnumber"
                     value={newRegEx.groupnumber}
                     className="inputText"
-                    style={{ width: '150px' }}
+                    style={{ width: '170px' }}
                     onChange={(e) =>
                       setNewRegEx({ ...newRegEx, groupnumber: e.target.value })
                     }
@@ -256,7 +256,7 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
                   name="nomatch"
                   value={newRegEx.nomatch}
                   className="inputText"
-                  style={{ width: '325px' }}
+                  style={{ width: '375px' }}
                   onChange={(e) =>
                     setNewRegEx({ ...newRegEx, nomatch: e.target.value })
                   }
@@ -272,10 +272,7 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
           <div className="signalConfigButtonContainer">
             {isAddNewRegEx ? (
               <>
-                <button onClick={handleSyncToRedis} className="addRuleButton">
-                  Sync to Redis
-                </button>
-                <button onClick={handleAddRule} className="addRuleButton">
+                <button onClick={handleAddRule} className="button">
                   Add Rule
                 </button>
                 <button onClick={() => setIsAddNewRegEx(false)}>Cancel</button>

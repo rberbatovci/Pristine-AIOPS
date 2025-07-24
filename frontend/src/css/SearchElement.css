@@ -259,6 +259,7 @@
     flex-wrap: wrap;
     margin-top: 10px;
     padding-left: 10px;
+    color: var(--textColor)
   }
   
   .syslogTagsTable {

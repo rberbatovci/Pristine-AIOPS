@@ -595,7 +595,7 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
                 </div>
                 <div
                     className={`dropdownMenu ${dropdowns.regExConfig.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
-                    style={{ width: '650px' }}
+                    style={{ width: '700px' }}
                 >
                     <RegExConfig
                         currentUser={currentUser}

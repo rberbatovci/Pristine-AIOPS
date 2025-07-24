@@ -13,6 +13,8 @@ COPY cpu-util-consumer/. .
 
 RUN go mod download
 
+RUN go get github.com/joho/godotenv
+
 # Build your binary
 RUN go build -o consumer main.go
 

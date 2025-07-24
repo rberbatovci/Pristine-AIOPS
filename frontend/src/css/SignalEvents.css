@@ -80,6 +80,7 @@
   
   /* Add necessary styles for the table or content below it */
   .signal-events-content {
+    color: var(--textColor);
     position: relative;
     z-index: 1; /* Ensure the table content is below the dropdown */
   }

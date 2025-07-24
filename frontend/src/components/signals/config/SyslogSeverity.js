@@ -126,14 +126,14 @@ const SyslogSeverity = () => {
             <div style={{ marginBottom: '10px', display: 'flex', flexDirection: 'column' }}>
               <span style={{ marginBottom: '5px' }}>Description:</span>
               <div style={{ display: 'flex', alignItems: 'center' }}>
-                <div style={{ marginTop: '5px', flexGrow: 1 }}>
+                <div style={{ marginTop: '10px', flexGrow: 1 }}>
                   <input
                     type="text"
                     placeholder="Enter description..."
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     style={{
-                      width: 'calc(100% - 100px)', /* Adjust width to accommodate the button */
+                      width: 'calc(100% - 20px)', /* Adjust width to accommodate the button */
                       padding: '10px',
                       borderRadius: '5px',
                       border: '1px solid var(--borderColor)',
@@ -142,7 +142,7 @@ const SyslogSeverity = () => {
                   />
                 </div>
                 <div className="signalConfigButtonContainer" style={{ marginLeft: '10px' }}>
-                  <button onClick={handleUpdate} className="update-button">
+                  <button onClick={handleUpdate} className="addRuleButton" style={{ width: '100%' }}>
                     Update
                   </button>
                 </div>

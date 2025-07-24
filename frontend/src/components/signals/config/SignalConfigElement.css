@@ -56,7 +56,7 @@
   
     .update-button:hover {
       background-color: var(--buttonHoverBackground);
-      color: var(--activeTextColor);
+      color: var(--textColor2);
     }
     
     .delete-button {

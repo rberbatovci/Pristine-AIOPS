@@ -11,13 +11,15 @@ import (
     "strconv"
     "sync"
     "time"
+    "os"
 
 	telemetryBis "telemetry/protobuf/telemetry"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/opensearch-project/opensearch-go"
-	"github.com/opensearch-project/opensearch-go/opensearchapi"
+    "github.com/opensearch-project/opensearch-go/opensearchapi"
 	"github.com/segmentio/kafka-go"
+    "github.com/joho/godotenv"
 )
 
 
@@ -27,6 +29,14 @@ const (
 	opensearchURL   = "http://opensearch:9200"
 	opensearchIndex = "cpu-utilization"
 	kafkaGroupID    = "cpu-utilization-group"
+)
+
+var (
+	bulkSize        int
+	bulkBuffer      []map[string]interface{}
+	bulkBufferLock  sync.Mutex
+	deviceAlertState = make(map[string]bool)
+	stateLock       sync.Mutex
 )
 
 var kafkaWriter *kafka.Writer
@@ -86,6 +96,74 @@ func getValue(field *telemetryBis.TelemetryField) interface{} {
 	}
 }
 
+func flushBulkToOpenSearch(ctx context.Context, osClient *opensearch.Client, index string) error {
+    bulkBufferLock.Lock()
+    defer bulkBufferLock.Unlock()
+
+    if len(bulkBuffer) == 0 {
+        return nil // nothing to do
+    }
+
+    var bulkBody bytes.Buffer
+    for _, doc := range bulkBuffer {
+        // Add metadata line for bulk API
+        meta := fmt.Sprintf(`{ "index": { "_index": "%s" } }%s`, index, "\n")
+        bulkBody.WriteString(meta)
+
+        // Add document JSON line
+        data, err := json.Marshal(doc)
+        if err != nil {
+            // skip bad docs but log error
+            log.Printf("❌ Failed to marshal doc for bulk indexing: %v", err)
+            continue
+        }
+        bulkBody.Write(data)
+        bulkBody.WriteString("\n")
+    }
+
+    // Clear buffer since we copied data to bulkBody
+    bulkBuffer = nil
+
+    req := opensearchapi.BulkRequest{
+        Body:    bytes.NewReader(bulkBody.Bytes()),
+        Refresh: "true", // optional, can remove for performance
+    }
+
+    res, err := req.Do(ctx, osClient)
+    if err != nil {
+        return fmt.Errorf("bulk request failed: %w", err)
+    }
+    defer res.Body.Close()
+
+    if res.IsError() {
+        errorBody, _ := io.ReadAll(res.Body)
+        return fmt.Errorf("bulk request error: %s - %s", res.String(), string(errorBody))
+    }
+
+    log.Printf("✅ Bulk indexed %d documents to OpenSearch", len(bulkBody.Bytes()))
+    return nil
+}
+
+func startPeriodicFlush(ctx context.Context, osClient *opensearch.Client, interval time.Duration) {
+    ticker := time.NewTicker(interval)
+    go func() {
+        for {
+            select {
+            case <-ticker.C:
+                log.Printf("⏰ Periodic flush triggered (interval: %v)...", interval)
+                if err := flushBulkToOpenSearch(ctx, osClient, opensearchIndex); err != nil {
+                    log.Printf("❌ Periodic bulk flush failed: %v", err)
+                } else {
+                    log.Printf("✅ Flushed buffer due to periodic trigger.")
+                }
+            case <-ctx.Done():
+                ticker.Stop()
+                return
+            }
+        }
+    }()
+}
+
 func setupOpenSearchClient() (*opensearch.Client, error) {
 	client, err := opensearch.NewClient(opensearch.Config{
 		Addresses: []string{opensearchURL},
@@ -125,11 +203,6 @@ func setupOpenSearchClient() (*opensearch.Client, error) {
 	log.Printf("✅ Connected to OpenSearch version: %s", version)
 	return client, nil
 }
-
-var (
-    deviceAlertState = make(map[string]bool)
-    stateLock        sync.Mutex
-)
 
 func isHighCPU(stats map[string]interface{}) bool {
     if stats == nil {
@@ -238,6 +311,19 @@ func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensea
         return
     }
 
+    // Buffer doc into bulk buffer
+    bulkBufferLock.Lock()
+    bulkBuffer = append(bulkBuffer, doc)
+    currentSize := len(bulkBuffer)
+    bulkBufferLock.Unlock()
+
+    if currentSize >= bulkSize {
+        log.Printf("📦 Bulk size limit reached (%d >= %d), flushing buffer...", currentSize, bulkSize)
+        if err := flushBulkToOpenSearch(ctx, osClient, opensearchIndex); err != nil {
+            log.Printf("❌ Error flushing bulk buffer: %v", err)
+        }
+    }
+
     // Determine current CPU status
     highCPU := isHighCPU(statsMap)
 
@@ -258,30 +344,29 @@ func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensea
     }
     stateLock.Unlock()
 
-    // Index to OpenSearch
-    req := opensearchapi.IndexRequest{
-        Index:   opensearchIndex,
-        Body:    bytes.NewReader(data),
-        Refresh: "true",
-    }
-
-    res, err := req.Do(ctx, osClient)
-    if err != nil {
-        log.Printf("❌ Failed to index document to OpenSearch (Offset: %d): %v", m.Offset, err)
-        return
-    }
-    defer res.Body.Close()
-
-    if res.IsError() {
-        errorBody, _ := io.ReadAll(res.Body)
-        log.Printf("❌ OpenSearch indexing error for Offset %d: %s - %s", m.Offset, res.String(), string(errorBody))
-    } else {
-        log.Printf("✅ CPU Utilization statistics for device [%s] indexed successfully", device)
-    }
 }
 
 func main() {
-	
+	// Load .env file (optional, safe to ignore errors in production)
+	_ = godotenv.Load()
+
+	// Get bulk size and flush interval from env
+	bulkSizeEnv := os.Getenv("BULK_SIZE")
+	flushIntervalEnv := os.Getenv("FLUSH_INTERVAL_SECONDS")
+
+	var err error
+	bulkSize, err = strconv.Atoi(bulkSizeEnv)
+	if err != nil || bulkSize <= 0 {
+		bulkSize = 10 // default
+	}
+
+	flushIntervalSec, err := strconv.Atoi(flushIntervalEnv)
+	if err != nil || flushIntervalSec <= 0 {
+		flushIntervalSec = 5 // default
+	}
+	flushInterval := time.Duration(flushIntervalSec) * time.Second
+
+	// Init Kafka Writer and Reader
 	initKafkaWriter()
 
 	reader := kafka.NewReader(kafka.ReaderConfig{
@@ -290,18 +375,18 @@ func main() {
 		GroupID:     kafkaGroupID,
 		StartOffset: kafka.FirstOffset,
 	})
-	defer func() {
-		if err := reader.Close(); err != nil {
-			log.Printf("❌ Error closing Kafka reader: %v", err)
-		} else {
-			log.Println("✅ Kafka reader closed successfully.")
-		}
-	}()
+	defer reader.Close()
 
 	osClient, err := setupOpenSearchClient()
 	if err != nil {
 		log.Fatalf("❌ Application startup failed: %v", err)
 	}
+
+    ctx, cancel := context.WithCancel(context.Background())
+    defer cancel()
+
+    // Start periodic flush every, say, 5 seconds
+    startPeriodicFlush(ctx, osClient, flushInterval)
 
 	log.Println("🚀 Kafka consumer started. Waiting for telemetry messages...")
 

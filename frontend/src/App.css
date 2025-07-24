@@ -28,7 +28,7 @@
   --listElementBack: rgb(87, 133, 155);
   --listElementBackHover: rgba(70, 160, 202, 0.7);
   --tableHeaderBorder: rgba(1, 1, 1, .2);
-  --buttonBackground: rgba(255, 255, 255, 0.4);
+  --buttonBackground: rgba(255, 255, 255, 0.3);
   --buttonHoverBackground: rgba(73, 165, 231, 0.5);
   --activeTextColor: rgb(255, 255, 255);
   --inactiveTextColor: rgb(163, 163, 163);
@@ -45,7 +45,10 @@
   --tagListCol: rgba(0, 0, 0, 0.6);
   --tagListColHov: rgba(32, 105, 153, .5);
 
-
+  --rowSelectedColor: rgb(22, 35, 48);
+  --rowSelectedBackground: rgba(255, 255, 255, 0.2);
+  --rowOddBackground: rgba(211, 211, 211, 0.1);
+  --rowEvenBackground: rgba(211, 211, 211, 0.25);
   --dropdownTopBorder: rgba(245, 245, 245, 0.5);
   --dropdownBottomBorder: rgba(139, 139, 139, 0.3);
   --headerTextShadow: 0 0 8px rgb(1, 64, 100), 0 0 10px rgb(54, 106, 155);
@@ -108,6 +111,11 @@
   --tagListColHov: rgba(122, 187, 231, 0.5);
   --headerTextShadow: 0 0 5px var(--textColor2), 0 0 10px var(--textColor2);
   --dropdownBottomBorder: rgba(1, 44, 78, 0.5);
+
+  --rowSelectedColor: rgb(255, 255, 255);
+  --rowSelectedBackground: rgba(11, 78, 102, 0.3);
+  --rowOddBackground: rgba(55, 125, 172, 0.1);
+  --rowEvenBackground: rgba(55, 125, 172, 0.15);
 }
 
 #tsparticles {

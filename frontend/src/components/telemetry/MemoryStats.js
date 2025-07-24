@@ -31,7 +31,7 @@ const MemoryStats = ({ currentUser, selectedDevice }) => {
   // Fetch memory statistics when device or selected memory changes
   useEffect(() => {
     const fetchMemoryStatistics = async () => {
-      if (!selectedDevice?.hostname || !selectedMemory) return;
+      if (!selectedDevice || !selectedMemory) return;
 
       setLoading(true); // Add this
       setError(null);   // Add this
@@ -39,7 +39,7 @@ const MemoryStats = ({ currentUser, selectedDevice }) => {
       try {
         const res = await apiClient.get(`/telemetry/memory-statistics/`, {
           params: {
-            device: selectedDevice.hostname,
+            device: selectedDevice,
             memory: selectedMemory.value,
           }
         });
@@ -88,7 +88,7 @@ const MemoryStats = ({ currentUser, selectedDevice }) => {
     <div className={`signalRightElementContainer ${showData ? 'expanded' : 'collapsed'}`}>
       <div className="signalRightElementHeader">
         <h2 className="signalRightElementHeaderTxt" onClick={() => setShowData(!showData)}>
-          {showData ? '\u25CF' : '\u25CB'} Memory Statistics
+          {showData ? '\u25CF' : '\u25CB'} {selectedDevice || 'No device selected'} Memory Statistics
         </h2>
         {showData && (
           <div className="zoom-buttons-container">

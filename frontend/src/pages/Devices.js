@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import '../css/Devices.css';
 import AddNew from '../components/devices/AddNew';
 import List from '../components/devices/List';
@@ -18,7 +18,7 @@ function Devices({ currentUser, setDashboardTitle }) {
     const [showComponents, setShowComponents] = useState(false);
     const [selectedDevice, setSelectedDevice] = useState(null);
     const [activeDropdown, setActiveDropdown] = useState(null);
-
+    const addNewButtonRef = useRef(null);
     const [hostname, setHostname] = useState('');
     const [version, setVersion] = useState('');
     const [activeConfig, setActiveConfig] = useState(null);
@@ -110,6 +110,9 @@ function Devices({ currentUser, setDashboardTitle }) {
         return () => clearTimeout(timeout);
     }, [selectedDevice]);
 
+
+
+
     return (
         <div className="signals-container" style={{ display: 'flex', width: showComponents ? '80%' : '40%', transition: 'width 1s ease' }}>
             <div
@@ -123,8 +126,10 @@ function Devices({ currentUser, setDashboardTitle }) {
 
                 {/* Buttons and dropdown */}
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <div style={{ marginRight: '10px', display: 'flex', alignItems: 'center' }}>
+                    <div></div>
+                    <div style={{ right: '10px', paddingRight: '10px', paddingTop: '10px', display: 'flex', alignItems: 'center'}}>
                         <button
+                            ref={addNewButtonRef}
                             className={`iconButton ${activeDropdown === 'addNew' ? 'active' : ''}`}
                             onClick={() => toggleDropdown('addNew')}
                         >
@@ -134,7 +139,7 @@ function Devices({ currentUser, setDashboardTitle }) {
                     </div>
                 </div>
                 {activeDropdown === 'addNew' && (
-                    <div className="dropdownMenu dropdownVisible" style={{ width: '370px' }}>
+                    <div className="dropdownMenu dropdownVisible" style={{ width: '370px', height: '410px'}}>
                         <AddNew onDeviceAdded={handleNewDevice} />
                     </div>
                 )}
@@ -170,10 +175,10 @@ function Devices({ currentUser, setDashboardTitle }) {
                                     onDeviceDeselect={handleDeviceDeselect}
                                     onConfigClick={handleConfigClick}
                                 />
-                                <SyslogConfig selectedDevice={selectedDevice}/>
-                                <SnmpTrapConfig selectedDevice={selectedDevice}/>
-                                <NetflowConfig selectedDevice={selectedDevice}/>
-                                <TelemetryConfig />
+                                <SyslogConfig selectedDevice={selectedDevice} />
+                                <SnmpTrapConfig selectedDevice={selectedDevice} />
+                                <NetflowConfig selectedDevice={selectedDevice} />
+                                <TelemetryConfig selectedDevice={selectedDevice}/>
                             </>
                         )}
 

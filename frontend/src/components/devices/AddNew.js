@@ -72,7 +72,7 @@ function AddNewDevice({ onDeviceAdded }) {
   return (
     <div className="searchSyslogsContainer">
       <span className="searchSignalFilterText">Add a new device</span>
-      <div className="searchSyslogsFilterEntries" style={{ marginTop: '5px' }}>
+      <div className="searchSyslogsFilterEntries" style={{ marginTop: '-10px' }}>
         <div className="searchSyslogsFilterEntry">
           <span className="searchSignalFilterText">Agent IP address:</span>
           <div style={{ marginTop: '6px', width: '300px' }}>
@@ -132,7 +132,7 @@ function AddNewDevice({ onDeviceAdded }) {
       {success && <div style={{ color: 'green', marginTop: '10px' }}>Device added successfully!</div>}
 
       <div className="searchButtonContainer">
-        <button onClick={handleSubmit} className="searchButton">
+        <button onClick={handleSubmit} className="addRuleButton"  style={{ width: '100%' }}>
           Add Device
         </button>
       </div>

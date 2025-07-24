@@ -123,7 +123,20 @@ function Mnemonics({ currentUser, mnemonics, entityOptions }) {
                                         onChange={(e) => setSelectedMnemonic({ ...selectedMnemonic, name: e.target.value })}
                                     />
                                 </div>
-
+                                <div style={{ marginTop: '10px', marginBottom: '10px' }}>
+                                    <span style={{ marginRight: '10px' }}>Alerting:</span>
+                                    <input
+                                        type="checkbox"
+                                        checked={!!selectedMnemonic.alerting}
+                                        onChange={(e) => setSelectedMnemonic({
+                                            ...selectedMnemonic,
+                                            alerting: e.target.checked
+                                        })}
+                                    />
+                                    <span style={{ marginLeft: '8px' }}>
+                                        {selectedMnemonic.alerting ? 'True' : 'False'}
+                                    </span>
+                                </div>
                                 <div style={{ marginBottom: '5px' }}>
                                     <span>Severity:</span>
                                     <input

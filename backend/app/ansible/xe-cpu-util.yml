@@ -19,5 +19,5 @@
           -  encoding encode-kvgpb
           -  filter xpath /process-cpu-ios-xe-oper:cpu-usage/cpu-utilization
           -  stream yang-push
-          -  update-policy periodic 3000
-          -  receiver ip address {{ telemetry_receiver_ip }} {{ telemetry_receiver_port }} protocol grpc-tcp
+          -  update-policy periodic {{ telemetry_period_seconds }}
+          -  receiver ip address {{ receiver_ip }} {{ receiver_port }} protocol grpc-tcp

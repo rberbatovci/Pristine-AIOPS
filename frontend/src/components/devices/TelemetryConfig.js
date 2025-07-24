@@ -11,14 +11,14 @@ const telemetryOptions = [
     { key: 'isis', label: 'ISIS Statistics', apiType: 'isis' }
 ];
 
-function TelemetryConfig({ hostname, version, telemetryFeatures, onSuccess }) {
+function TelemetryConfig({ selectedDevice, version, telemetryFeatures, onSuccess }) {
     const [loadingState, setLoadingState] = useState({});
     const [showData, setShowData] = useState(false);
     
     const sendTelemetryConfig = async (type) => {
         setLoadingState(prev => ({ ...prev, [type]: true }));
         try {
-            const res = await apiClient.post(`/devices/${hostname}/xe/configure/${type}/`, {
+            const res = await apiClient.post(`/devices/${selectedDevice.hostname}/xe/configure/${type}/`, {
                 receiver_ip: '10.0.0.1',   // ← You can dynamically update this if needed
                 receiver_port: 57500
             });

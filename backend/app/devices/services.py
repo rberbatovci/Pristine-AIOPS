@@ -18,6 +18,8 @@ cpuUtilXEPlaybook = os.path.join(BASE_DIR, '..', 'ansible', 'xe-cpu-util.yml')
 memStatsXEPlaybook = os.path.join(BASE_DIR, '..', 'ansible', 'xe-memory-stats.yml')
 interfaceStatsXEPlaybook = os.path.join(BASE_DIR, '..', 'ansible', 'xe-interface-stats.yml')
 BGPConnectionsXEPlaybook = os.path.join(BASE_DIR, '..', 'ansible', 'xe-bgp-connections.yml')
+ribTablePlaybook = os.path.join(BASE_DIR, '..', 'ansible', 'rib-table.yml')
+fibEntryPlaybook = os.path.join(BASE_DIR, '..', 'ansible', 'fib-entry.yml')
 ISISStatsXEPlaybook = os.path.join(BASE_DIR, '..', 'ansible', 'xe-isis-statistics.yml')
 
 async def create_device_minimal(db: AsyncSession, device: DeviceCreate) -> Device:

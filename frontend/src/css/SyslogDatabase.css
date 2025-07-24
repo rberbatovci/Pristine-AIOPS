@@ -186,6 +186,7 @@
 .iconButton:hover .defaultIcon {
     transition: color .5s ease-in-out;
     display: none;
+    color: green;
 }
 
 .iconButton:hover .hoverIcon {
@@ -214,7 +215,7 @@
 }
 
 .defaultIcon {
-    color: gray;
+    color: var(--textColor);
 }
 
 ul {

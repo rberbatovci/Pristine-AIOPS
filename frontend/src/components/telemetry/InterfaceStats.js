@@ -33,7 +33,7 @@ const InterfaceStats = ({ currentUser, selectedDevice }) => {
   // Fetch interface statistics when device or selected interface changes
   useEffect(() => {
     const fetchInterfaceStatistics = async () => {
-      if (!selectedDevice?.hostname || !selectedInterface) {
+      if (!selectedDevice || !selectedInterface) {
         setInterfaceStatistics([]); // Clear data if no device or interface selected
         return;
       }
@@ -41,7 +41,7 @@ const InterfaceStats = ({ currentUser, selectedDevice }) => {
       try {
         const res = await apiClient.get(`/telemetry/interface-statistics/`, {
           params: {
-            device: selectedDevice.hostname,
+            device: selectedDevice,
             interface: selectedInterface.value,
           }
         });
@@ -88,7 +88,7 @@ const InterfaceStats = ({ currentUser, selectedDevice }) => {
 
   useEffect(() => {
     const fetchInterfaces = async () => {
-      if (!selectedDevice?.hostname) {
+      if (!selectedDevice) {
         setAvailableInterfaces([]);
         setSelectedInterface(null);
         return;
@@ -97,7 +97,7 @@ const InterfaceStats = ({ currentUser, selectedDevice }) => {
       try {
         // Assume your backend route supports a 'device' param to filter interfaces
         const res = await apiClient.get('/telemetry/interface-statistics/interfaces/', {
-          params: { device: selectedDevice.hostname }
+          params: { device: selectedDevice }
         });
 
         // res.data.interfaces expected to be an array of interface names (strings)

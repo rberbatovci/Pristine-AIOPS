@@ -1,5 +1,5 @@
 ---
-- name: Configure Interface Statistics Monitoring on Cisco IOS XE device
+- name: Configure Forward Information Base on Cisco IOS device
   hosts: all
   gather_facts: no
   connection: network_cli
@@ -12,12 +12,12 @@
     ansible_host: "{{ router_ip }}"
 
   tasks:
-    - name: Configure telemetry subscription 103 (interfaces statistics)
+    - name: Configure telemetry subscription 106 (Forward Information Base)
       ios_config:
         lines:
-          - telemetry ietf subscription 103
+          - telemetry ietf subscription 106
           -  encoding encode-kvgpb
-          -  filter xpath /interfaces/interface/statistics
+          -  filter xpath /fib-ios-xe-oper:fib-oper-data/fib-ni-entry
           -  stream yang-push
           -  update-policy periodic {{ telemetry_period_seconds }}
           -  receiver ip address {{ receiver_ip }} {{ receiver_port }} protocol grpc-tcp

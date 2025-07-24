@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.devices import models, schemas
-from app.devices.services import configureDevice, syslogXEPlaybook, trapsXEPlaybook, netflowXEPlaybook, cpuUtilXEPlaybook, configureSyslogsXR, memStatsXEPlaybook, interfaceStatsXEPlaybook, BGPConnectionsXEPlaybook
+from app.devices.services import configureDevice, syslogXEPlaybook, trapsXEPlaybook, netflowXEPlaybook, cpuUtilXEPlaybook, configureSyslogsXR, memStatsXEPlaybook, interfaceStatsXEPlaybook, BGPConnectionsXEPlaybook, ribTablePlaybook, fibEntryPlaybook
 import asyncio
 router = APIRouter()
 import os
@@ -55,7 +55,9 @@ telemetry_playbook_map = {
     "cpu_util": cpuUtilXEPlaybook,
     "memory_stats": memStatsXEPlaybook,
     "interface_stats": interfaceStatsXEPlaybook,
-    "bgp_connections": BGPConnectionsXEPlaybook
+    "bgp_connections": BGPConnectionsXEPlaybook,
+    "rib_table": ribTablePlaybook,
+    "fib_entry": fibEntryPlaybook
 }
 
 @router.post("/devices/", response_model=schemas.DeviceResponse, status_code=201)
@@ -178,6 +180,7 @@ async def configure_telemetry_feature(
     receiver_port = os.getenv("TELEMETRY_PORT")
     ssh_username = os.getenv("SSH_USERNAME")
     ssh_password = os.getenv("SSH_PASSWORD")
+    telemetry_period_seconds = os.getenv("TELEMETRY_PERIOD_SECONDS", "3000")  # Default to 3000 seconds if not set
 
     # Validate all required variables
     missing_vars = []
@@ -189,6 +192,8 @@ async def configure_telemetry_feature(
         missing_vars.append("SSH_USERNAME")
     if not ssh_password:
         missing_vars.append("SSH_PASSWORD")
+    if not telemetry_period_seconds:
+        missing_vars.append("TELEMETRY_PERIOD_SECONDS")
 
     if missing_vars:
         raise HTTPException(
@@ -203,9 +208,10 @@ async def configure_telemetry_feature(
         extra_vars={
             "router_ip": device.ip_address,
             "username": ssh_username,
-            "password": syslog_port,
-            "receiver_host": receiver_host,
-            "receiver_port": receiver_port
+            "password": ssh_password,
+            "receiver_ip": receiver_host,
+            "receiver_port": receiver_port,
+            "telemetry_period_seconds": telemetry_period_seconds,
         }
     )
 

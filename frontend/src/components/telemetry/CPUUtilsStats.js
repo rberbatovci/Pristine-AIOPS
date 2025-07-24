@@ -24,7 +24,7 @@ const CpuUtilsStats = ({ selectedDevice }) => {
       setError(null);
       try {
         const res = await apiClient.get("/telemetry/cpu-utilization", {
-          params: { selectedDevice },
+          params: { device: selectedDevice },
         });
 
         const formatted = res.data.results.map((item) => ({
@@ -52,8 +52,8 @@ const CpuUtilsStats = ({ selectedDevice }) => {
     <div className={`signalRightElementContainer ${showData ? "expanded" : "collapsed"}`}>
       <div className="signalRightElementHeader">
         <h2 className="signalRightElementHeaderTxt" onClick={() => setShowData(!showData)}>
-  {showData ? "\u25CF" : "\u25CB"} {selectedDevice?.hostname || 'No device selected'} CPU Utilization Statistics
-</h2>
+          {showData ? "\u25CF" : "\u25CB"} {selectedDevice || 'No device selected'} CPU Utilization Statistics
+        </h2>
       </div>
 
       {showData && (
