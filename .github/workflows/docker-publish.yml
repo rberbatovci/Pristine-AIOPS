@@ -26,4 +26,4 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile.backend
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/backend:latest
+          tags: ghcr.io/rberbatovci/backend:latest
