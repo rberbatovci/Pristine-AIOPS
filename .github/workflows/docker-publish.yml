@@ -25,15 +25,7 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile.backend
           push: true
-          tags: ghcr.io/rberbatovci/pristine-aiops:latest
-
-      - name: Build and push frontend image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./frontend
-          file: Dockerfile.backend
-          push: true
-          tags: ghcr.io/rberbatovci/pristine-aiops:latest
+          tags: ghcr.io/rberbatovci/pristine-aiops-backend:latest
 
       - name: Build the Docker image
         run: docker build -t ghcr.io/${{ github.repository_owner }}/pristine-aiops:latest .
