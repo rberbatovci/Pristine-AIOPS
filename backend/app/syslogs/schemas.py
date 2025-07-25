@@ -114,7 +114,8 @@ class MnemonicsBrief(BaseModel):
         
 class MnemonicCreate(BaseModel):
     name: str
-    level: int # Changed type here
+    level: int
+    alert: Optional[bool] = False
     severity: Optional[str] = None
     rules: Optional[List[str]] = None
     regexes: Optional[List[str]] = None
@@ -129,9 +130,11 @@ class RuleInfo(BaseModel):
 class MnemonicSyslog(BaseModel):
     id: int
     name: str
+    alert: Optional[bool] = False
     severity: Optional[str] = None
     regexes: Optional[List[str]] = None
     rules: Optional[List[RuleInfo]] = None
+
 
     model_config = {
         "from_attributes": True

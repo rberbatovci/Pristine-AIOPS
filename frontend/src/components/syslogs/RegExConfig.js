@@ -3,6 +3,7 @@ import Select from 'react-select';
 import customStyles from '../misc/SelectStyles';
 import '../../css/SyslogTagsList.css';
 import apiClient from '../misc/AxiosConfig';
+import { TailSpin } from 'react-loader-spinner';
 
 function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onSave }) {
   const [selectedRegEx, setSelectedRegEx] = useState(null);
@@ -23,6 +24,7 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
   const [error, setError] = useState('');
   const [alert, setAlert] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingState, setLoadingState] = useState(null);
 
   const handleOptionChange = (regEx) => {
     setSelectedRegEx(regEx);
@@ -45,7 +47,7 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
   ];
 
   const handleAddRule = async () => {
-    setLoading(true);
+    setLoadingState('adding');
     setAlert('');
     setError('');
 
@@ -59,10 +61,12 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
         nomatch: newRegEx.nomatch,
         tag: newRegEx.tag,
       };
+
       const response = await apiClient.post('/syslogs/regex/', payload);
+      const addedRegEx = response.data;
+
       setAlert('Tag added successfully');
-      console.log('Tag added successfully:', response.data);
-      setRegExData((prevTags) => [...prevTags, response.data]);
+      setRegExData((prev) => [...prev, addedRegEx]);
       setNewRegEx({
         name: '',
         pattern: '',
@@ -72,27 +76,41 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
         nomatch: null,
         tag: '',
       });
-
       setIsAddNewRegEx(true);
-      setTimeout(() => {
-        setAlert('');
-      }, 3000);
+
+      if (onAdd) onAdd(addedRegEx); // ✅ call parent callback
+
+      setTimeout(() => setAlert(''), 3000);
     } catch (error) {
       setError('Error adding tag. Please try again.');
       console.error('Error adding tag:', error);
-      setTimeout(() => {
-        setError('');
-      }, 3000);
+      setNewRegEx({
+        name: '',
+        pattern: '',
+        matchfunction: '',
+        matchnumber: '',
+        groupnumber: '',
+        nomatch: null,
+        tag: '',
+      });
+      setTimeout(() => setError(''), 3000);
     } finally {
-      setLoading(false);
+      setLoadingState(null);
     }
   };
 
+
   const handleSave = async () => {
+    setLoadingState('saving');
+    setAlert('');
+    setError('');
+
     try {
       const { name } = newRegEx;
       const response = await apiClient.put(`/syslogs/regex/${name}/`, newRegEx);
-      setSelectedRegEx(response.data);
+      const updatedRegEx = response.data;
+
+      setSelectedRegEx(updatedRegEx);
       setAlert("Tag updated successfully!");
       setNewRegEx({
         name: '',
@@ -104,21 +122,42 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
         tag: '',
       });
       setIsAddNewRegEx(true);
+
+      if (onEdit) onEdit(updatedRegEx); // ✅ call parent callback
     } catch (error) {
       console.error('Error updating tag:', error);
       setAlert("Failed to update tag. Please try again.");
+    } finally {
+      setLoadingState(null);
     }
   };
 
   const handleDelete = async () => {
+    setLoadingState('deleting');
     try {
       await apiClient.delete(`/syslogs/regex/${editedData.name}/`);
-      setRegExData(syslogTags.filter(tag => tag.id !== editedData.id));
+
+      const updatedList = syslogTags.filter(tag => tag.id !== editedData.id);
+      setRegExData(updatedList);
       setSelectedRegEx(null);
+      setIsAddNewRegEx(true);
+      setNewRegEx({
+        name: '',
+        pattern: '',
+        matchfunction: '',
+        matchnumber: '',
+        groupnumber: '',
+        nomatch: null,
+        tag: '',
+      });
       setAlert("Tag deleted successfully!");
+
+      if (onDelete) onDelete(editedData); // ✅ call parent callback
     } catch (error) {
       console.error('Error deleting tag:', error);
       setAlert("Failed to delete tag. Please try again.");
+    } finally {
+      setLoadingState(null);
     }
   };
 
@@ -133,16 +172,16 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
   };
 
   return (
-    <div className="signalTagContainer">
+    <div className="signalTagContainer" >
       <div style={{ marginTop: '2px' }}>Regular Expressions Configuration:</div>
       {isLoading ? (
-        <div className="signalConfigRuleMessage">Loading Regular Expressions. Please wait...</div>
+        <div className="signalConfigRuleMessage" style={{background: 'var(--backgroundColor3)', padding: '10px', marginTop: '10px', borderRadius: '8px'}}>Loading Regular Expressions. Please wait...</div>
       ) : error ? (
-        <div className="signalConfigRuleMessage">{error}</div>
+        <div className="signalConfigRuleMessage" style={{background: 'var(--backgroundColor3)', padding: '10px', marginTop: '10px', borderRadius: '8px'}}>{error}</div>
       ) : (
         <>
           <div style={{ display: 'flex', gap: '10px' }}>
-            <div style={{ width: '240px', padding: '8px', background: 'var(--backgroundColor3)', height: '280px', borderRadius: '8px', overflowY: 'auto'}}>
+            <div style={{ width: '240px', padding: '8px', background: 'var(--backgroundColor3)', height: '280px', borderRadius: '8px', overflowY: 'auto' }}>
               <ul style={{ padding: 0, listStyle: 'none', margin: 0, marginBottom: '10px' }}>
                 <li
                   className={`signalTagItem ${isAddNewRegEx ? 'selected' : ''}`}
@@ -217,7 +256,11 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
                   options={functionOptions}
                   onChange={(selectedOption) =>
                     setNewRegEx({ ...newRegEx, matchfunction: selectedOption.value })}
-                  styles={customStyles('375px')}
+                  styles={{
+                    ...customStyles('375px'),
+                    menuPortal: base => ({ ...base, zIndex: 9999 })
+                  }}
+                  menuPortalTarget={document.body}
                   isMulti={false}
                 />
               </div>
@@ -269,29 +312,25 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
       }
       {
         !isLoading && !error && (
-          <div className="signalConfigButtonContainer">
+          <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-end' }}>
             {isAddNewRegEx ? (
               <>
-                <button onClick={handleAddRule} className="button">
-                  Add Rule
+
+                <button onClick={() => setIsAddNewRegEx(false)} className="button cancel-button">Cancel</button>
+
+                <button onClick={handleAddRule} disabled={loadingState === 'adding'} className="button add-button">
+                  {loadingState === 'adding' ? <TailSpin height={16} width={16} color="#fff" /> : 'Add Rule'}
                 </button>
-                <button onClick={() => setIsAddNewRegEx(false)}>Cancel</button>
               </>
             ) : (
               selectedRegEx && (
                 <>
-                  <button onClick={handleSave} style={{ marginRight: '10px' }} className="saveRuleButton">
-                    Save
+
+                  <button onClick={handleDelete} disabled={loadingState === 'removing'} className="button delete-button">
+                    {loadingState === 'removing' ? <TailSpin height={16} width={16} color="#fff" /> : 'Delete'}
                   </button>
-                  <button
-                    onClick={handleDelete}
-                    style={{ backgroundColor: 'red', color: 'white' }}
-                    className="deleteRuleButton"
-                  >
-                    Delete
-                  </button>
-                  <button onClick={handleSyncToRedis} className="addRuleButton">
-                    Sync to Redis
+                  <button onClick={handleSave} disabled={loadingState === 'editing'} className="button save-button">
+                    {loadingState === 'editing' ? <TailSpin height={16} width={16} color="#fff" /> : 'Save'}
                   </button>
                 </>
               )

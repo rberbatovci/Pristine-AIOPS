@@ -32,6 +32,7 @@ const SignalsDashboard = ({ currentUser, setDashboardTitle }) => {
     const [dataSource, setDataSource] = useState('syslogs');
     const [showSearchInput, setShowSearchInput] = useState(false);
     const searchInputRef = useRef(null);
+    const dropdownRef = useRef(null);
     const [filters, setFilters] = useState({
         syslogs: {
             signals: [],
@@ -132,6 +133,25 @@ const SignalsDashboard = ({ currentUser, setDashboardTitle }) => {
     const formatDateForUrl = (date) => {
         return new Date(date).toISOString();
     };
+
+    useEffect(() => {
+    const handleClickOutside = (event) => {
+        if (
+            dropdownRef.current &&
+            !dropdownRef.current.contains(event.target)
+        ) {
+            // Close dropdown if clicked outside
+            setIsDropdownVisible(false);
+            setActiveDropdown(null);
+        }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+
+    return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+    };
+}, []);
 
     const handleDeleteAllSignals = async () => {
         try {
@@ -314,14 +334,16 @@ const SignalsDashboard = ({ currentUser, setDashboardTitle }) => {
                     </div>
                 </div>
                 {isDropdownVisible && (
-                    <div>
+                    <div ref={dropdownRef}>
                         {activeDropdown === 'syslogConfig' && <SyslogSignalsConfig />}
                         {activeDropdown === 'trapConfig' && <StatefulTraps />}
                         {activeDropdown === 'time' && (
+                            <div className="dropdownMenu dropdownVisible" style={{ width: 'auto', height: 'auto', color: 'var(--textColor)' }}>
                             <SearchTime
                                 onTimeRangeSelect={handleTimeRangeSelect}
                                 onTimeRangeChange={handleTimeRangeChange}
                             />
+                            </div>
                         )}
                         {activeDropdown === 'search' && dataSource === 'syslogs' && <SyslogSignalFilters onSearch={(f) => handleSearchFilters(f)} />}
                         {activeDropdown === 'search' && dataSource === 'traps' && <TrapSignalFilters onSearch={(f) => handleSearchFilters(f)} />}

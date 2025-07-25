@@ -18,7 +18,7 @@ function Devices({ currentUser, setDashboardTitle }) {
     const [showComponents, setShowComponents] = useState(false);
     const [selectedDevice, setSelectedDevice] = useState(null);
     const [activeDropdown, setActiveDropdown] = useState(null);
-    const addNewButtonRef = useRef(null);
+    const dropdownRef = useRef(null);
     const [hostname, setHostname] = useState('');
     const [version, setVersion] = useState('');
     const [activeConfig, setActiveConfig] = useState(null);
@@ -32,24 +32,24 @@ function Devices({ currentUser, setDashboardTitle }) {
         setActiveConfig(prev => prev === type ? null : type);
     };
 
-    useEffect(() => {
-        const fetchDevices = async () => {
-            try {
-                const response = await apiClient.get('/devices/');
-                const devices = response.data.map((device) => ({
-                    id: device.id,
-                    hostname: device.hostname,
-                    ip_address: device.ip_address,
-                    version: device.version,
-                    vendor: device.vendor,
-                    label: device.hostname,
-                }));
-                setDevices(devices);
-            } catch (error) {
-                console.error('Error fetching agent data:', error);
-            }
-        };
+    const fetchDevices = async () => {
+        try {
+            const response = await apiClient.get('/devices/');
+            const devices = response.data.map((device) => ({
+                id: device.id,
+                hostname: device.hostname,
+                ip_address: device.ip_address,
+                version: device.version,
+                vendor: device.vendor,
+                label: device.hostname,
+            }));
+            setDevices(devices);
+        } catch (error) {
+            console.error('Error fetching agent data:', error);
+        }
+    };
 
+    useEffect(() => {
         fetchDevices()
     }, []);
 
@@ -95,8 +95,9 @@ function Devices({ currentUser, setDashboardTitle }) {
         }
     };
 
-    const handleNewDevice = {
-
+    const handleNewDevice = () => {
+        fetchDevices();
+        setActiveDropdown(null);
     };
 
     useEffect(() => {
@@ -110,8 +111,21 @@ function Devices({ currentUser, setDashboardTitle }) {
         return () => clearTimeout(timeout);
     }, [selectedDevice]);
 
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (
+                dropdownRef.current &&
+                !dropdownRef.current.contains(event.target)
+            ) {
+                setActiveDropdown(null);
+            }
+        };
 
-
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     return (
         <div className="signals-container" style={{ display: 'flex', width: showComponents ? '80%' : '40%', transition: 'width 1s ease' }}>
@@ -127,9 +141,8 @@ function Devices({ currentUser, setDashboardTitle }) {
                 {/* Buttons and dropdown */}
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <div></div>
-                    <div style={{ right: '10px', paddingRight: '10px', paddingTop: '10px', display: 'flex', alignItems: 'center'}}>
+                    <div style={{ right: '10px', paddingRight: '10px', paddingTop: '10px', display: 'flex', alignItems: 'center' }}>
                         <button
-                            ref={addNewButtonRef}
                             className={`iconButton ${activeDropdown === 'addNew' ? 'active' : ''}`}
                             onClick={() => toggleDropdown('addNew')}
                         >
@@ -139,7 +152,7 @@ function Devices({ currentUser, setDashboardTitle }) {
                     </div>
                 </div>
                 {activeDropdown === 'addNew' && (
-                    <div className="dropdownMenu dropdownVisible" style={{ width: '370px', height: '410px'}}>
+                    <div ref={dropdownRef} className="dropdownMenu dropdownVisible" style={{ width: '370px', height: '410px' }}>
                         <AddNew onDeviceAdded={handleNewDevice} />
                     </div>
                 )}
@@ -174,11 +187,12 @@ function Devices({ currentUser, setDashboardTitle }) {
                                     selectedDevice={selectedDevice}
                                     onDeviceDeselect={handleDeviceDeselect}
                                     onConfigClick={handleConfigClick}
+                                    onDeviceDelete={handleDeviceDelete}
                                 />
-                                <SyslogConfig selectedDevice={selectedDevice} />
-                                <SnmpTrapConfig selectedDevice={selectedDevice} />
-                                <NetflowConfig selectedDevice={selectedDevice} />
-                                <TelemetryConfig selectedDevice={selectedDevice}/>
+                                <SyslogConfig selectedDevice={selectedDevice} onSuccess={fetchDevices} />
+                                <SnmpTrapConfig selectedDevice={selectedDevice} onSuccess={fetchDevices} />
+                                <NetflowConfig selectedDevice={selectedDevice} onSuccess={fetchDevices} />
+                                <TelemetryConfig selectedDevice={selectedDevice} onSuccess={fetchDevices} />
                             </>
                         )}
 

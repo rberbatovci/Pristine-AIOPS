@@ -56,9 +56,6 @@ CREATE TABLE IF NOT EXISTS mnemonic_regex (
     FOREIGN KEY (regex_id) REFERENCES regex(id) ON DELETE CASCADE
 );
 
-
-
-
 CREATE TABLE IF NOT EXISTS stateful_syslog_rules (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,

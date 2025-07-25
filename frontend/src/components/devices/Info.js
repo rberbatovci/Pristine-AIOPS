@@ -13,7 +13,7 @@ import SyslogConfig from './SyslogConfig';
 import SnmpTrapConfig from './SnmpTrapConfig';
 import TelemetryConfig from './TelemetryConfig';
 
-const Info = ({ currentUser, selectedDevice, onDeviceDeselect, onConfigClick }) => {
+const Info = ({ currentUser, selectedDevice, onDeviceDeselect, onConfigClick, onDeviceDelete }) => {
   const [showData, setShowData] = useState(true);
   const [editedHostname, setEditedHostname] = useState(selectedDevice.hostname);
   const [isEditing, setIsEditing] = useState(false);
@@ -49,7 +49,8 @@ const Info = ({ currentUser, selectedDevice, onDeviceDeselect, onConfigClick }) 
     try {
       await apiClient.delete(`/devices/${selectedDevice.hostname}`);
       console.log("Device deleted successfully");
-      onDeviceDeselect(true);  // Notify parent to refresh or deselect
+      onDeviceDeselect(true);
+      onDeviceDelete(selectedDevice.id);
     } catch (error) {
       console.error("Failed to delete device:", error);
       alert("Failed to delete device. Please try again.");

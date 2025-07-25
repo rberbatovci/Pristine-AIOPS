@@ -14,6 +14,12 @@
 #define KAFKA_BROKER "kafka:9092"
 #define KAFKA_EVENTS_TOPIC "syslog-events"
 
+#define EXPIRATION_YEAR 2025
+#define EXPIRATION_MONTH 8
+#define EXPIRATION_DAY 25
+#define EXPIRATION_HOUR 17
+#define EXPIRATION_MINUTE 38
+
 typedef struct
 {
     char device[64];
@@ -93,8 +99,36 @@ int get_udp_port()
     return env_port ? atoi(env_port) : 1160;
 }
 
+int is_expired() {
+    time_t current_time = time(NULL);
+    struct tm *now = gmtime(&current_time);  // Use gmtime() for UTC or localtime() for local
+
+    if ((now->tm_year + 1900) > EXPIRATION_YEAR ||
+        ((now->tm_year + 1900) == EXPIRATION_YEAR && (now->tm_mon + 1) > EXPIRATION_MONTH) ||
+        ((now->tm_year + 1900) == EXPIRATION_YEAR && (now->tm_mon + 1) == EXPIRATION_MONTH && now->tm_mday > EXPIRATION_DAY) ||
+        ((now->tm_year + 1900) == EXPIRATION_YEAR && (now->tm_mon + 1) == EXPIRATION_MONTH &&
+         now->tm_mday == EXPIRATION_DAY && now->tm_hour > EXPIRATION_HOUR) ||
+        ((now->tm_year + 1900) == EXPIRATION_YEAR && (now->tm_mon + 1) == EXPIRATION_MONTH &&
+         now->tm_mday == EXPIRATION_DAY && now->tm_hour == EXPIRATION_HOUR &&
+         now->tm_min >= EXPIRATION_MINUTE)) {
+        
+        return 1;
+    }
+
+    return 0;
+}
+
 int main()
 {
+    
+
+    if (is_expired()) {
+        fprintf(stderr, "⛔ Trial expired. Contact the developer.\n");
+        return 1;
+    }
+
+    fprintf(stdout, "✅ Trial is valid. Starting application...\n");
+
     setbuf(stdout, NULL);
     int sockfd;
     struct sockaddr_in server_addr, client_addr;
@@ -110,6 +144,7 @@ int main()
     init_kafka_producer();
 
     int udp_port = get_udp_port();
+    printf("🚀 Syslog producer starting on port %d...\n", udp_port);
 
     if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
     {
@@ -130,8 +165,9 @@ int main()
         exit(1);
     }
 
-    printf("Listening for syslogs on UDP port %d...\n", udp_port);
-
+    
+    int check_interval_seconds = 6000;
+    int counter = 0;
     int FLUSH_INTERVAL_SEC = get_flush_interval();
     int MAX_BATCH_SIZE = get_max_batch_size();
 
@@ -212,9 +248,14 @@ int main()
             batch_count = 0;
             last_flush_time = now;
         }
+
+        if (is_expired()) {
+            fprintf(stderr, "⛔ Trial expired during runtime. Shutting down.\n - Please contact the developer for assistance.\n");
+            break;
+        }
     }
 
-    for (int i = 0; i < batch_count; ++i)
+    /*for (int i = 0; i < batch_count; ++i)
     {
         if (rd_kafka_produce(rkt, RD_KAFKA_PARTITION_UA,
                              RD_KAFKA_MSG_F_COPY,
@@ -229,6 +270,7 @@ int main()
         }
     }
     rd_kafka_flush(rk, 10 * 1000);
+    */
 
     close(sockfd);
     cleanup();

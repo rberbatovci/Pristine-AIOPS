@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Select from 'react-select';
 import apiClient from '../misc/AxiosConfig';
 import customStyles from '../misc/SelectStyles';
+import { TailSpin } from 'react-loader-spinner';
 
 const vendorOptions = [
   { value: 'cisco', label: 'Cisco' },
@@ -24,6 +25,7 @@ function AddNewDevice({ onDeviceAdded }) {
   const [version, setVersion] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [loading, SetLoading] = useState(false);
 
   const handleClear = () => {
     setIpAddress('');
@@ -40,6 +42,7 @@ function AddNewDevice({ onDeviceAdded }) {
   }, []);
 
   const handleSubmit = async () => {
+    SetLoading(true);
     setError('');
     setSuccess(false);
 
@@ -66,6 +69,8 @@ function AddNewDevice({ onDeviceAdded }) {
       handleClear(); // Optionally clear form after submit
     } catch (err) {
       setError('Failed to add device. Make sure the hostname is unique.');
+    } finally {
+      SetLoading(false);
     }
   };
 
@@ -128,12 +133,28 @@ function AddNewDevice({ onDeviceAdded }) {
         </div>
       </div>
 
-      {error && <div style={{ color: 'red', marginTop: '10px' }}>{error}</div>}
-      {success && <div style={{ color: 'green', marginTop: '10px' }}>Device added successfully!</div>}
-
       <div className="searchButtonContainer">
-        <button onClick={handleSubmit} className="addRuleButton"  style={{ width: '100%' }}>
-          Add Device
+        <button
+          onClick={handleSubmit}
+          className="addRuleButton"
+          style={{
+            width: '100%',
+            backgroundColor: success
+              ? 'green'
+              : error
+                ? 'red'
+                : '', // default color from CSS class
+          }}
+        >
+          {loading ? (
+            <TailSpin height={16} width={16} color="#fff" />
+          ) : success ? (
+            'Added!'
+          ) : error ? (
+            'Error'
+          ) : (
+            'Save'
+          )}
         </button>
       </div>
     </div>

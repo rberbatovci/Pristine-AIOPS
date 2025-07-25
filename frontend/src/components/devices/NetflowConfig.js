@@ -67,7 +67,6 @@ function NetflowConfig({ selectedDevice, version, onSuccess }) {
                                         <div className="headerButtons">
                 
                                             {loading ? (
-                                                <button disabled={loading} >
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                         <TailSpin
                                                             height="20"
@@ -75,9 +74,7 @@ function NetflowConfig({ selectedDevice, version, onSuccess }) {
                                                             color="#ffffff"
                                                             ariaLabel="loading"
                                                         />
-                                                        <span>Configuring...</span>
                                                     </div>
-                                                </button>
                                             ) : (
                                                 <button onClick={sendConfig} className="iconButton">
                                                     <IoPushOutline className="defaultIcon" />
@@ -89,15 +86,18 @@ function NetflowConfig({ selectedDevice, version, onSuccess }) {
                                 )}
             </div>
             {showData && (
-                <div style={{ padding: '8px', marginLeft: '15px' }}>
-                    {/* Status message */}
-                    {selectedDevice?.features?.netflow ? (
+                <div style={{ padding: '8px', marginLeft: '15px', fontSize: '14px', color: 'var(--textColor)', opacity: '0.8' }}>
+                    {loading ? (
                         <div style={{ color: 'var(--spanTextColor)' }}>
-                            Netflow is already configured on this device.
+                            Configuring Netflow<span className="dot-flash">...</span>
+                        </div>
+                    ) : selectedDevice?.features?.netflow ? (
+                        <div style={{ color: 'var(--spanTextColor)' }}>
+                            Netflow are already configured on this device.
                         </div>
                     ) : (
                         <div style={{ color: 'var(--spanTextColor)' }}>
-                            Please configure netflow on the device.
+                            Please configure Netflow on the device.
                         </div>
                     )}
 

@@ -35,7 +35,7 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
         syslogTagsConfig: { visible: false, position: { x: 0, y: 0 } },
         regExConfig: { visible: false, position: { x: 0, y: 0 } },
         searchSyslogs: { visible: false, position: { x: 0, y: 0 } },
-        timerangeFilters: { visible: false, position: { x: 0, y: 0 } },
+        searchTime: { visible: false, position: { x: 0, y: 0 } },
         showSyslogTags: { visible: false, position: { x: 0, y: 0 } },
         injectSyslog: { visible: false, position: { x: 0, y: 0 } },
         mnemonics: { visible: false, position: { x: 0, y: 0 } },
@@ -82,6 +82,7 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
     const [devices, setDevices] = useState([]);
     const [timeRange, setTimeRange] = useState('last_4_hour');
     const totalPages = Math.ceil(totalEvents / pageSize);
+    
     const handleButtonClick = (event, dropdownKey) => {
         const updatedDropdowns = Object.keys(dropdowns).reduce((acc, key) => {
             acc[key] = { ...dropdowns[key], visible: false };
@@ -313,6 +314,14 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
         loadData(dataSource, 1, 19, timeRange, null, null, filters);
     };
 
+    const handleTagsEditing = () => {
+        fetchRegEx();
+        setDropdowns(prev => ({
+            ...prev,
+            regExConfig: { ...prev.regExConfig, visible: false }
+        }));
+    }
+
 
     useEffect(() => {
         loadData(dataSource, page, pageSize, timeRange);
@@ -474,29 +483,29 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
                     )}
                     {dataSource === 'telemetry' ? (
                         <button
-                        className={`iconButton ${dropdowns.searchSyslogs.visible ? 'active' : ''}`}
-                        onClick={(event) => handleButtonClick(event, 'TelemetryStats')}
-                    >
-                        <RiFilterLine className="defaultIcon" />
-                        <RiFilterFill
-                            className="hoverIcon"
-                        />
-                    </button>
+                            className={`iconButton ${dropdowns.searchSyslogs.visible ? 'active' : ''}`}
+                            onClick={(event) => handleButtonClick(event, 'TelemetryStats')}
+                        >
+                            <RiFilterLine className="defaultIcon" />
+                            <RiFilterFill
+                                className="hoverIcon"
+                            />
+                        </button>
                     ) : (
                         <button
-                        className={`iconButton ${dropdowns.searchSyslogs.visible ? 'active' : ''}`}
-                        onClick={(event) => handleButtonClick(event, 'searchSyslogs')}
-                    >
-                        <RiFilterLine className="defaultIcon" />
-                        <RiFilterFill
-                            className="hoverIcon"
-                        />
-                    </button>
+                            className={`iconButton ${dropdowns.searchSyslogs.visible ? 'active' : ''}`}
+                            onClick={(event) => handleButtonClick(event, 'searchSyslogs')}
+                        >
+                            <RiFilterLine className="defaultIcon" />
+                            <RiFilterFill
+                                className="hoverIcon"
+                            />
+                        </button>
                     )}
-                    
+
                     <button
                         className="iconButton"
-                        onClick={(event) => handleButtonClick(event, 'timerangeFilters')}
+                        onClick={(event) => handleButtonClick(event, 'searchTime')}
                     >
                         <FaRegClock className="defaultIcon hasFilters" />
                         <FaClock className="hoverIcon" />
@@ -600,14 +609,13 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
                     <RegExConfig
                         currentUser={currentUser}
                         regExpressions={regExpressions}
-                        mnemonics={mnemonics}
-                        hostnames={devices}
-                        devices={devices}
-                        isLoading={loading}
+                        onAdd={handleTagsEditing}
+                        onUpdate={handleTagsEditing}
+                        onDelete={handleTagsEditing}
                     />
                 </div>
                 <div
-                    className={`dropdownMenu ${dropdowns.timerangeFilters.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
+                    className={`dropdownMenu ${dropdowns.searchTime.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
                     style={{ width: 'auto' }}
                 >
                     <SearchTime

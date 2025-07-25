@@ -318,6 +318,12 @@ MnemonicInfo *create_mnemonic_and_cache(const char *mnemonic) {
         printf("[INFO] [Config Data] Using default severity and level for '%s'\n", mnemonic);
     }
 
+    // Determine alert flag based on extracted_level vs signal_severity
+    bool alert = false;
+    if (extracted_level <= signal_severity) {
+        alert = true;
+    }
+
     // Connect to DB
     const char *conninfo = "host=postgresql dbname=fpristine user=PristineAdmin password=PristinePassword";
     PGconn *conn = PQconnectdb(conninfo);
@@ -328,11 +334,15 @@ MnemonicInfo *create_mnemonic_and_cache(const char *mnemonic) {
         return NULL;
     }
 
+    // Convert extracted_level and alert to strings for SQL params
     char level_str[12];
+    char alert_str[6];
     snprintf(level_str, sizeof(level_str), "%d", extracted_level);
-    const char *paramValues[4] = { mnemonic, extracted_severity, level_str, "false" };  // set alert default to false on insert
+    snprintf(alert_str, sizeof(alert_str), "%s", alert ? "true" : "false");
 
-    // Insert mnemonic with alert field set to false by default
+    const char *paramValues[4] = { mnemonic, extracted_severity, level_str, alert_str };
+
+    // Insert mnemonic with alert field set accordingly
     PGresult *res = PQexecParams(conn,
         "INSERT INTO mnemonics (name, severity, level, alert) VALUES ($1, $2, $3, $4) RETURNING id",
         4, NULL, paramValues, NULL, NULL, 0);
@@ -354,11 +364,12 @@ MnemonicInfo *create_mnemonic_and_cache(const char *mnemonic) {
     cache[i].mnemonic = strdup(mnemonic);
     cache[i].info.severity = strdup(extracted_severity);
     cache[i].info.level = extracted_level;
-    cache[i].info.alert = false;  // alert is boolean now
+    cache[i].info.alert = alert;
     cache[i].info.regexes = NULL;
     cache[i].info.regex_count = 0;
 
-    printf("[INFO] [Config Data] Created new mnemonic '%s' with severity '%s' (level %d) and cached\n", mnemonic, extracted_severity, extracted_level);
+    printf("[INFO] [Config Data] Created new mnemonic '%s' with severity '%s' (level %d), alert=%s and cached\n",
+           mnemonic, extracted_severity, extracted_level, alert ? "true" : "false");
 
     return &cache[i].info;
 }

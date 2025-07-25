@@ -23,17 +23,6 @@
     padding: 10px;
   }
 
-  
-  .delete-button {
-    padding: 10px 20px;
-    background-color: red;
-    color: #fff;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    margin-left: 10px;
-  }
-
   .syslogConfigContent {
     display: flex;
     background: var(--backgroundColor3);
@@ -105,7 +94,7 @@
 }
 
 .signalTagItem:hover {
-  padding: 8px 10px;
+  padding: 10px 12px;
   background-color: var(--tagListBackHover);
   transform: scale(1.01);
   box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);

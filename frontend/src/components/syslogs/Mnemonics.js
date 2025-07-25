@@ -3,18 +3,20 @@ import Select from 'react-select';
 import customStyles from '../misc/SelectStyles';
 import '../../css/SyslogTagsList.css';
 import apiClient from '../misc/AxiosConfig';
+import { TailSpin } from 'react-loader-spinner';
 
 function Mnemonics({ currentUser, mnemonics, entityOptions }) {
     const [selectedMnemonic, setSelectedMnemonic] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
-    const [loading, setLoading] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState('');
     const [alert, setAlert] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [filteredMnemonics, setFilteredMnemonics] = useState(mnemonics || []);
+    const [onSuccesss, setOnSuccesss] = useState(false);
 
     const handleMnemonicSelection = (mnemonic) => {
-        setLoading(true);
+        setIsLoading(true);
         setError('');
         setAlert('');
         apiClient.get(`/syslogs/mnemonics/${mnemonic.name}/`)
@@ -28,7 +30,7 @@ function Mnemonics({ currentUser, mnemonics, entityOptions }) {
             .catch((error) => {
                 console.error('Error fetching syslog tag details:', error);
             })
-            .finally(() => setLoading(false));
+            .finally(() => setIsLoading(false));
     };
 
     useEffect(() => {
@@ -40,14 +42,31 @@ function Mnemonics({ currentUser, mnemonics, entityOptions }) {
     }, [mnemonics]);
 
     const handleSave = async () => {
+        setIsSaving(true);
+        setError('');
+        setAlert('');
+        setOnSuccesss(false);
+
+        // Auto-clear saving after 30s in case of a stuck state
+        setTimeout(() => {
+            setIsSaving(false);
+            console.log("⏱️ isSaving turned off after 30s");
+        }, 30000);
+
         try {
             const { name } = selectedMnemonic;
             const response = await apiClient.put(`/syslogs/update/mnemonics/${name}/`, selectedMnemonic);
             setSelectedMnemonic(response.data);
-            setAlert("Tag updated successfully!");
+
+            // ✅ Show success and auto-hide after 5s
+            setOnSuccesss(true);
+            setTimeout(() => {
+                setOnSuccesss(false);
+            }, 5000);
         } catch (error) {
             console.error('Error updating mnemonic:', error);
-            setAlert("Failed to update mnemonic. Please try again.");
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -78,8 +97,6 @@ function Mnemonics({ currentUser, mnemonics, entityOptions }) {
                 <div className="signalConfigRuleMessage">Loading stateful syslog rules. Please wait...</div>
             ) : error ? (
                 <div className="signalConfigRuleMessage">{error}</div>
-            ) : alert ? (
-                <div className="signalConfigRuleMessage">{alert}</div>
             ) : (
                 <>
                     <div style={{ display: 'flex', gap: '10px' }}>
@@ -127,14 +144,14 @@ function Mnemonics({ currentUser, mnemonics, entityOptions }) {
                                     <span style={{ marginRight: '10px' }}>Alerting:</span>
                                     <input
                                         type="checkbox"
-                                        checked={!!selectedMnemonic.alerting}
+                                        checked={!!selectedMnemonic.alert}
                                         onChange={(e) => setSelectedMnemonic({
                                             ...selectedMnemonic,
-                                            alerting: e.target.checked
+                                            alert: e.target.checked
                                         })}
                                     />
                                     <span style={{ marginLeft: '8px' }}>
-                                        {selectedMnemonic.alerting ? 'True' : 'False'}
+                                        {selectedMnemonic.alert ? 'True' : 'False'}
                                     </span>
                                 </div>
                                 <div style={{ marginBottom: '5px' }}>
@@ -181,13 +198,11 @@ function Mnemonics({ currentUser, mnemonics, entityOptions }) {
                 </>
             )}
             {!isLoading && !error && selectedMnemonic && (
-                <div className="signalConfigButtonContainer">
-                    <button onClick={handleSave} style={{ marginRight: '10px' }} className="buttonStyles saveRuleButton">
-                        Save
-                    </button>
-                    {/*<button onClick={handleDelete} style={{ marginRight: '10px' }} className="buttonStyles saveRuleButton">
-                        Delete
-                    </button> */}
+                <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-end' }}>
+                    {onSuccesss ? (<div style={{ padding: '12px', borderRadius: '6px', width: '100%', background: 'var(--backgroundColor3)'}}> Mnemnic has been updated successfully</div>) : (<div><button onClick={handleSave} disabled={isSaving} style={{ marginRight: '10px' }} className="button save-button">
+                        {isSaving ? <TailSpin height={16} width={16} color="#fff" /> : 'Save'}
+                    </button> </div>)}
+
                 </div>
             )}
         </div>

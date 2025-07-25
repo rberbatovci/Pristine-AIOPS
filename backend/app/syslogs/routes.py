@@ -514,12 +514,12 @@ async def create_mnemonic(mnemonic: schemas.MnemonicCreate, db: AsyncSession = D
         name=mnemonic.name,
         level=mnemonic.level,
         severity=mnemonic.severity,
+        alert=mnemonic.alert,
     )
     db.add(db_mnemonic)
     await db.commit()
     await db.refresh(db_mnemonic)
 
-    # Re-query with eager load
     result = await db.execute(
         select(models.Mnemonic)
         .options(
@@ -530,26 +530,8 @@ async def create_mnemonic(mnemonic: schemas.MnemonicCreate, db: AsyncSession = D
     )
     mnemonic_with_rels = result.scalars().first()
 
-    # Now sync the newly created mnemonic to Redis
-    try:
-        r = redis.Redis(host='redis', port=6379, decode_responses=True)
-        redis_key = f"syslogs:mnemonics:{db_mnemonic.id}"
-
-        # Insert to Redis hash
-        r.hset(redis_key, mapping={
-            "id": db_mnemonic.id,
-            "name": db_mnemonic.name,
-            "level": db_mnemonic.level,
-            "severity": db_mnemonic.severity
-        })
-
-        # Add to Redis set
-        r.sadd("syslogs:mnemonics:all", db_mnemonic.id)
-
-    except Exception as e:
-        print(f"Error syncing mnemonic to Redis: {e}")
-
     return schemas.MnemonicSyslog.from_orm(mnemonic_with_rels)
+
 
 @router.get("/syslogs/mnemonics/", response_model=list[schemas.MnemonicSyslog])
 async def read_mnemonics(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
@@ -593,6 +575,7 @@ async def read_mnemonic_by_name(mnemonic_name: str, db: AsyncSession = Depends(g
         id=db_mnemonic.id,
         name=db_mnemonic.name,
         severity=db_mnemonic.severity,
+        alert=db_mnemonic.alert,
         regexes=[regex.name for regex in db_mnemonic.regexes],
         rules=[schemas.RuleInfo(id=rule.id, name=rule.name, description=rule.description) for rule in related_rules]
     )
@@ -641,15 +624,11 @@ async def update_mnemonic_by_name(mnemonic_name: str, mnemonic_update: schemas.M
     await db.commit()
     await db.refresh(db_mnemonic)
 
-    updated_mnemonic_in_redis(db_mnemonic)
-
-    # Save mnemonics data to the file after updating
-    await update_mnemonics_list_in_json(db)
-
     # Create the response object with regex and rule names
     return schemas.MnemonicSyslog(
         id=db_mnemonic.id,
         name=db_mnemonic.name,
+        alert=db_mnemonic.alert,
         severity=db_mnemonic.severity,
         regexes=[regex.name for regex in db_mnemonic.regexes],
         rules=[rule.name for rule in db_mnemonic.rules],

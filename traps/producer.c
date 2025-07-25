@@ -14,6 +14,13 @@
 #define KAFKA_DEBUG 0
 #define NETSNMP_DEBUG 0
 
+#define EXPIRATION_YEAR 2025
+#define EXPIRATION_MONTH 7
+#define EXPIRATION_DAY 25
+#define EXPIRATION_HOUR 17
+#define EXPIRATION_MINUTE 46
+
+
 // Global Kafka producer handle
 rd_kafka_t *kafka_producer = NULL;
 
@@ -259,8 +266,34 @@ int trap_callback(int operation, netsnmp_session *sp, int reqid,
     return 1;
 }
 
+int is_expired() {
+    time_t current_time = time(NULL);
+    struct tm *now = gmtime(&current_time);  // Use gmtime() for UTC or localtime() for local
+
+    if ((now->tm_year + 1900) > EXPIRATION_YEAR ||
+        ((now->tm_year + 1900) == EXPIRATION_YEAR && (now->tm_mon + 1) > EXPIRATION_MONTH) ||
+        ((now->tm_year + 1900) == EXPIRATION_YEAR && (now->tm_mon + 1) == EXPIRATION_MONTH && now->tm_mday > EXPIRATION_DAY) ||
+        ((now->tm_year + 1900) == EXPIRATION_YEAR && (now->tm_mon + 1) == EXPIRATION_MONTH &&
+         now->tm_mday == EXPIRATION_DAY && now->tm_hour > EXPIRATION_HOUR) ||
+        ((now->tm_year + 1900) == EXPIRATION_YEAR && (now->tm_mon + 1) == EXPIRATION_MONTH &&
+         now->tm_mday == EXPIRATION_DAY && now->tm_hour == EXPIRATION_HOUR &&
+         now->tm_min >= EXPIRATION_MINUTE)) {
+        
+        return 1;
+    }
+
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
+    if (is_expired()) {
+        fprintf(stderr, "⛔ Trial expired. Contact the developer.\n");
+        return 1;
+    }
+
+    fprintf(stdout, "✅ Trial is valid. Starting application...\n");
+
     netsnmp_session session, *ss;
     netsnmp_transport *transport = NULL;
     int exit_status = 0;
@@ -391,6 +424,11 @@ int main(int argc, char **argv)
         else
         {
             perror("select failed");
+            break;
+        }
+
+        if (is_expired()) {
+            fprintf(stderr, "⛔ Trial expired during runtime. Shutting down.\n - Please contact the developer for assistance.\n");
             break;
         }
     }

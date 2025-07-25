@@ -208,7 +208,11 @@ const FilterSyslogs = ({ source, devices, trapOids, onSelectedTagsChange, onSele
                                 isMulti
                                 value={selectedTags.device}
                                 onChange={(selectedValues) => handleAgentChange(selectedValues)}
-                                styles={customStyles('380px')}
+                                styles={{
+                                    ...customStyles('375px'),
+                                    menuPortal: base => ({ ...base, zIndex: 9999 })
+                                }}
+                                menuPortalTarget={document.body}
                                 placeholder="Select devices"
                             />
                         </div>
@@ -227,7 +231,11 @@ const FilterSyslogs = ({ source, devices, trapOids, onSelectedTagsChange, onSele
                                     onChange={(selectedValues) => handleChange(selectedValues, 'mnemonic')}
                                     name="mnemonics"
                                     onFocus={() => handleFocus("mnemonics")}
-                                    styles={customStyles('380px')}
+                                    styles={{
+                                        ...customStyles('375px'),
+                                        menuPortal: base => ({ ...base, zIndex: 9999 })
+                                    }}
+                                    menuPortalTarget={document.body}
                                     placeholder="Select mnemonics"
                                 />
                             </div>
@@ -245,7 +253,11 @@ const FilterSyslogs = ({ source, devices, trapOids, onSelectedTagsChange, onSele
                                     value={selectedTags.severity || []}
                                     onChange={(selectedValues) => handleSeverityChange(selectedValues)}
                                     name="severity"
-                                    styles={customStyles('380px')}
+                                    styles={{
+                                        ...customStyles('375px'),
+                                        menuPortal: base => ({ ...base, zIndex: 9999 })
+                                    }}
+                                    menuPortalTarget={document.body}
                                     placeholder="Select severity"
                                 />
                             </div>
@@ -264,7 +276,11 @@ const FilterSyslogs = ({ source, devices, trapOids, onSelectedTagsChange, onSele
                                     onChange={(selectedValues) => handleChange(selectedValues, 'snmpTrapOid')}
                                     name="snmpTrapOid"
                                     onFocus={() => handleFocus('snmpTrapOid')}
-                                    styles={customStyles('380px')}
+                                    styles={{
+                                        ...customStyles('375px'),
+                                        menuPortal: base => ({ ...base, zIndex: 9999 })
+                                    }}
+                                    menuPortalTarget={document.body}
                                     placeholder="Select SNMP Trap OIDs"
                                 />
                             </div>
@@ -283,7 +299,11 @@ const FilterSyslogs = ({ source, devices, trapOids, onSelectedTagsChange, onSele
                                     onChange={(selectedValues) => handleChange(selectedValues, tag.label)}
                                     name={tag.label}
                                     onFocus={() => handleFocus(tag.label)}
-                                    styles={customStyles('380px')}
+                                    styles={{
+                                        ...customStyles('375px'),
+                                        menuPortal: base => ({ ...base, zIndex: 9999 })
+                                    }}
+                                    menuPortalTarget={document.body}
                                     placeholder={`Select ${tag.label}`}
                                 />
                             </div>
@@ -291,8 +311,8 @@ const FilterSyslogs = ({ source, devices, trapOids, onSelectedTagsChange, onSele
                     ))}
                 </div>
             )}
-            <div className="searchButtonContainer">
-                <button onClick={handleSearchClick} className="searchButton">
+            <div style={{ display: 'flex', width: '100%', justifyContent: 'center', margin: '10px' }}>
+                <button onClick={handleSearchClick} className="button save-button">
                     Search
                 </button>
             </div>

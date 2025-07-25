@@ -41,7 +41,7 @@ function SyslogConfig({ selectedDevice, onSuccess }) {
         setLoading(true);
         setError('');
         try {
-            const response = await apiClient.post(getSyslogEndpoint(), {           });
+            const response = await apiClient.post(getSyslogEndpoint(), {});
 
             if (onSuccess) onSuccess(response.data);
         } catch (error) {
@@ -71,7 +71,6 @@ function SyslogConfig({ selectedDevice, onSuccess }) {
                         <div className="headerButtons">
 
                             {loading ? (
-                                <button  disabled={loading} >
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                         <TailSpin
                                             height="20"
@@ -79,9 +78,7 @@ function SyslogConfig({ selectedDevice, onSuccess }) {
                                             color="#ffffff"
                                             ariaLabel="loading"
                                         />
-                                        <span>Configuring...</span>
                                     </div>
-                                </button>
                             ) : (
                                 <button className="iconButton" onClick={sendConfig}>
                                     <IoPushOutline className="defaultIcon" />
@@ -93,9 +90,12 @@ function SyslogConfig({ selectedDevice, onSuccess }) {
                 )}
             </div>
             {showData && (
-                <div style={{ padding: '8px', marginLeft: '15px' }}>
-                    {/* Status message */}
-                    {selectedDevice?.features?.syslogs ? (
+                <div style={{ padding: '8px', marginLeft: '15px', fontSize: '14px', color: 'var(--textColor)', opacity: '0.8' }}>
+                    {loading ? (
+                        <div style={{ color: 'var(--spanTextColor)' }}>
+                            Configuring syslogs<span className="dot-flash">...</span>
+                        </div>
+                    ) : selectedDevice?.features?.syslogs ? (
                         <div style={{ color: 'var(--spanTextColor)' }}>
                             Syslogs are already configured on this device.
                         </div>

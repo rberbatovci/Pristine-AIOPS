@@ -1,67 +1,135 @@
-.timeButtonsContainer {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+/* 1. Styling the Month Heading (e.g., "July 2025") */
+/*
+   The Heading component from react-aria-components typically renders an
+   H2 or similar tag. It might also have a data-attribute like data-rac-text.
+   The most robust way is to target it within the RangeCalendar.
+*/
+.react-aria-RangeCalendar .react-aria-Calendar-heading {
+    /* If Heading renders an h2, you can use: */
+    /* .react-aria-RangeCalendar h2 { */
+    color: var(--calendarHeaderTextColor);
+    font-size: 1.2em; /* Adjust font size as needed, you already have inline style but CSS can override/enhance */
+    font-weight: 600; /* Make it a bit bolder */
+    text-align: center; /* Center the month text */
+    padding: 10px 0; /* Add some vertical padding */
+    margin: 0; /* Remove default margin */
 }
 
-.button-group {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+/* 2. Styling the Previous and Next Month Buttons */
+/*
+   The Button component with slot="previous" or slot="next" will render
+   a <button> element with data-slot="previous" or data-slot="next".
+*/
+.react-aria-Button[data-slot="previous"],
+.react-aria-Button[data-slot="next"] {
+    background-color: var(--calendarButtonBackground);
+    color: var(--calendarButtonColor);
+    border: none;
+    border-radius: 4px; /* Slightly rounded corners */
+    padding: 8px; /* Padding inside the button */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    flex-shrink: 0; /* Prevent buttons from shrinking */
 }
 
-.listEle {
-  padding: 8px 16px;
-  border: 1px solid #ddd;
-  background: white;
-  cursor: pointer;
-  transition: all 0.2s;
+.react-aria-Button[data-slot="previous"]:hover,
+.react-aria-Button[data-slot="next"]:hover {
+    background-color: var(--calendarButtonHoverBackground);
+    transform: translateY(-1px); /* Subtle lift effect on hover */
 }
 
-.listEle:hover {
-  background: #f0f0f0;
+.react-aria-Button[data-slot="previous"]:active,
+.react-aria-Button[data-slot="next"]:active {
+    background-color: var(--calendarButtonActiveBackground);
+    transform: translateY(0); /* Press down effect */
 }
 
-.selectedTagConfig {
-  background: #007bff;
-  color: white;
+/* Ensure consistent icon sizing if not already handled by Chevron components */
+.react-aria-Button[data-slot="previous"] svg,
+.react-aria-Button[data-slot="next"] svg {
+    display: block; /* Remove extra space around SVG */
 }
 
-.date-picker-container {
-  margin-top: 10px;
+/* Adjust layout of RangeCalendar header if needed */
+.react-aria-RangeCalendar .react-aria-Calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px; /* Space between header and grid */
 }
 
-.rs-picker,
-.rs-picker-toggle {
-  background-color: red;
-  color: var(--textColor);
-  border: 1px solid var(--borderColor);
-  border-radius: 8px;
+
+
+/* Styling for CalendarCell on hover */
+/* This targets any CalendarCell when the mouse is over it */
+.react-aria-CalendarCell[data-selected="false"]:hover,
+.react-aria-CalendarCell[data-unavailable="false"]:hover,
+.react-aria-CalendarCell[data-outside-month="false"]:hover {
+    background-color: var(--hoverBackgroundColor, #e0e0e0); /* A slightly lighter background on hover */
+    color: var(--hoverTextColor, var(--textColor));
+    /* You can add other effects like a subtle box-shadow or transform */
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* Dropdown popup menu */
-.rs-picker-menu {
-  background-color: green;
-  color: var(--textColor);
-  border: 1px solid var(--borderColor);
-  border-radius: 8px;
-  z-index: 9999;
+/* Styling for active/selected dates */
+/* This targets CalendarCells that are part of the selected date range */
+.react-aria-CalendarCell[data-selected="true"] {
+    background-color: var(--selectedBackgroundColor, var(--primaryColor, #007bff)); /* Your primary color or a distinct color */
+    color: var(--selectedTextColor, white); /* White text for selected dates */
+    font-weight: bold;
 }
 
-/* Calendar day cells */
-.rs-calendar-table-cell-content {
-  background: transparent;
-  color: var(--textColor);
+/* Styling for the start and end of the selected range */
+.react-aria-CalendarCell[data-selection-start="true"] {
+    border-top-left-radius: 8px;
+    border-bottom-left-radius: 8px;
 }
 
-.rs-calendar-table-cell-selected .rs-calendar-table-cell-content {
-  background-color: var(--primaryColor);
-  color: #fff;
-  border-radius: 6px;
+.react-aria-CalendarCell[data-selection-end="true"] {
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
 }
 
-/* Calendar hover effect */
-.rs-calendar-table-cell-content:hover {
-  background-color: var(--hoverColor);
-  color: var(--textColor);
+/* Styling for dates that are currently focused (e.g., by keyboard navigation) */
+.react-aria-CalendarCell[data-focused="true"] {
+    outline: 2px solid var(--focusOutlineColor, var(--dropdownBackground, #007bff)); /* A clear outline for accessibility */
+    outline-offset: -2px; /* Ensure outline stays within the cell */
+}
+
+/* Styling for today's date (if your component library adds a specific attribute for it) */
+.react-aria-CalendarCell[data-today="true"]:not([data-selected="true"]) {
+    border: 2px solid var(--dropdownBackground, var(--dropdownBackground, #007bff)); /* Highlight today's date */
+    background-color: var(--dropdownBackground, transparent);
+    color: var(--todayTextColor, var(--textColor));
+}
+
+/* Optional: Adjust padding/margin for better visual effect on hover/active */
+.react-aria-CalendarCell {
+    transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease; /* Smooth transitions for effects */
+}
+
+/* Specific styling for when a cell is pressed (e.g., during a click/tap) */
+.react-aria-CalendarCell[data-pressed="true"] {
+    background-color: var(--dropdownBackground, #c0c0c0); /* Darker shade when pressed */
+    transform: translateY(0); /* Reset transform */
+    box-shadow: none; /* Remove shadow */
+}
+
+/* Ensure the CalendarCell's base styles are set up for proper alignment and appearance */
+/* (These might already be in your existing CSS or come from the component library) */
+.react-aria-CalendarCell {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* Other base styles from your original code: */
+    border-radius: 6px;
+    padding: 8px;
+    margin: 4px;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s ease;
 }

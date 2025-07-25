@@ -9,7 +9,7 @@
   --background1: rgba(255, 255, 255, 0.3);
   --sidebarBck: rgba(255, 255, 255, 0.05);
   --textColor: rgb(83, 83, 83);
-  --textColor2: rgb(1, 84, 139);
+  --textColor2: rgb(1, 32, 53);
   --textColor3: rgba(0, 0, 0, .4);
   --iconHoverColor: rgb(25, 111, 161);
   --borderLight: 1px solid rgba(0, 112, 204, .1);
@@ -86,7 +86,7 @@
   --listElementBack: rgb(2, 44, 68);
   --listElementBackHover: rgba(2, 44, 68, .7);
   --tableHeaderBorder: rgba(3, 153, 212, 0.2);
-  --buttonBackground: rgba(145, 211, 255, 0.1);
+  --buttonBackground: rgba(62, 136, 185, 0.1);
   --buttonHoverBackground: rgba(7, 163, 235, 0.2);
   --buttonActiveBackground: rgba(7, 163, 235, 0.4);
   --activeTextColor: rgb(255, 255, 255);
@@ -430,14 +430,55 @@ header {
 
 
 .button {
-  padding: 10px 20px;
+  margin-right: 10px;
+  padding: 8px 20px;
   border: none;
+  border-radius: 5px;
   cursor: pointer;
   background-color: var(--buttonBackground);
-  color: var(--inactiveTextColor);
+  color: white;
   transition: background-color 0.3s, color 0.3s;
-  border-top: var(--inactiveButtonTopBorder);
-  border-bottom: var(--inactiveButtonBottomBorder);
+}
+
+.cancel-button {
+  background-color: var(--buttonBackground);
+  opacity: .7;
+  transition: opacity 0.3s ease;
+  color: var(--textColor)
+}
+
+.cancel-button:hover {
+  opacity: 1;
+}
+
+.add-button {
+  background-color: #0ec93a; 
+  opacity: .7;
+  transition: opacity 0.3s ease;
+}
+
+.add-button:hover {
+  opacity: 1;
+}
+
+
+.delete-button {
+  background-color: #dc3545; 
+  opacity: .7;
+  transition: opacity 0.3s ease;
+}
+
+.delete-button:hover {
+  opacity: 1;
+}
+
+.save-button {
+  background-color: var(--tagListBackSel);
+  padding: 8px 60px;
+}
+
+.save-button:hover {
+  opacity: 1;
 }
 
 .button-active {
@@ -462,6 +503,36 @@ header {
   max-height: 850px;
   backdrop-filter: blur(20px);
   overflow-y: auto;
+  transition: max-height 0.3s ease;
+}
+
+
+.searchTimeContainer {
+  position: relative;
+  top: 60px;
+  right: 10px;
+  background-color: var(--dropdownBackground);
+  border-top: var(--dropdownTopBorder);
+  border-bottom: var(--dropdownBottomBorder);
+  border-radius: 8px;
+  z-index: 10;
+  box-shadow: 2px 8px 10px rgba(0, 0, 0, 0.2);
+  width: auto;
+  padding: 10px;
+  height: auto;
+  min-height: 140px;
+  max-height: 850px;
+  overflow: hidden;
+  transition: max-height 0.4s ease;
+  color: var(--textColor);
+}
+
+.searchTimeContainer.expanded {
+  max-height: 1000px; /* Adjust based on expected expanded height */
+}
+
+.searchTimeContainer.collapsed {
+  max-height: 200px; /* Enough for collapsed content */
 }
 
 .configMainList {
@@ -639,13 +710,12 @@ header {
 }
 
 .signalTagItemX {
-  background-color: var(--signalRightElementHeaderBackground);
+  background-color: var(--buttonBackground);
   transform: scale(1.01);
-  padding: 10px 12px;
+  padding: 10px 21px;
+  border-radius: 5px;
   outline: none;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
-
-  /* ✨ Add transitions here */
   transition:
     background-color 0.3s ease,
     padding 0.3s ease,
@@ -716,4 +786,35 @@ header {
   text-align: center;
   border: none;
   color: white;
+}
+
+.dot-flash::after {
+  content: '';
+  display: inline-block;
+  animation: dots 1.2s steps(3, end) infinite;
+}
+
+@keyframes dots {
+  0% {
+    content: '';
+  }
+  33% {
+    content: '.';
+  }
+  66% {
+    content: '..';
+  }
+  100% {
+    content: '...';
+  }
+}
+
+
+.button-group {
+    display: flex;
+    flex-wrap: wrap; /* Allows wrapping if too long */
+    gap: 12px; /* Horizontal and vertical gap */
+    justify-content: flex-start; /* Left aligned */
+    align-items: center;
+    width: auto;
 }

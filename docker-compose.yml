@@ -7,6 +7,7 @@ networks:
 services:
   backend:
     container_name: FastAPI
+    image: ghcr.io/rberbato/backend:latest
     build:
       context: ./backend
       dockerfile: Dockerfile.backend
@@ -38,6 +39,7 @@ services:
   postgresql:
     image: postgres:15
     container_name: PostgreSQL
+    image: ghcr.io/rberbato/postgresql:latest
     ports:
       - "5432:5432"
     environment:
@@ -130,6 +132,7 @@ services:
       - kafka-net
 
   opensearch-init:
+    image: ghcr.io/rberbato/opensearch-init:latest
     build:
       context: ./opensearch
       dockerfile: Dockerfile.OpenSearch
@@ -141,6 +144,7 @@ services:
 
   redis:
     container_name: Redis
+    image: ghcr.io/rberbato/redis:latest
     image: redis:latest
     ports:
       - "6380:6379"
@@ -150,6 +154,7 @@ services:
 
   celery-worker:
     container_name: CeleryWorker
+    image: ghcr.io/rberbato/celery:latest
     build:
       context: ./signals
       dockerfile: Dockerfile.syslogSignals
@@ -162,6 +167,7 @@ services:
 
   syslog-producer:
     container_name: SyslogProducer
+    image: ghcr.io/rberbato/syslog-producer:latest
     build:
       context: ./syslogs
       dockerfile: Dockerfile.producer
@@ -181,6 +187,7 @@ services:
 
   syslog-consumer:
     container_name: SyslogConsumer
+    image: ghcr.io/rberbato/syslog-consumer:latest
     build:
       context: ./syslogs/consumer
       dockerfile: Dockerfile.consumer
@@ -199,6 +206,7 @@ services:
 
   syslog-signals:
     container_name: SyslogSignals
+    image: ghcr.io/rberbato/syslog-signals:latest
     build:
       context: ./syslogs/signals
       dockerfile: Dockerfile.signals
@@ -216,6 +224,7 @@ services:
 
   trap-signals:
     container_name: TrapSignals
+    image: ghcr.io/rberbato/trap-signals:latest
     build:
       context: ./traps/signals
       dockerfile: Dockerfile.signals
@@ -233,6 +242,7 @@ services:
 
   trap-producer:
     container_name: TrapProducer
+    image: ghcr.io/rberbato/trap-producer:latest
     build:
       context: ./traps
       dockerfile: Dockerfile.producer
@@ -257,6 +267,7 @@ services:
 
   trap-consumer:
     container_name: TrapConsumer
+    image: ghcr.io/rberbato/trap-consumer:latest
     build:
       context: ./traps/consumer
       dockerfile: Dockerfile.consumer
@@ -275,6 +286,7 @@ services:
 
   #netflow-producer:
   #  container_name: NetflowProducer
+  #  image: ghcr.io/rberbato/netflow-producer:latest
   #  build:
   #    context: ./netflow
   #    dockerfile: Dockerfile.producer
@@ -288,6 +300,7 @@ services:
 
   #netflow-consumer:
   #  container_name: NetflowConsumer
+  #  image: ghcr.io/rberbato/netflow-consumer:latest
   #  build:
   #    context: ./netflow
   #    dockerfile: Dockerfile.consumer
@@ -302,6 +315,7 @@ services:
 
   telemetry-xe-producer:
     container_name: TelemetryXEProducer
+    image: ghcr.io/rberbato/telemetry-producer:latest
     build:
       context: ./telemetry
       dockerfile: producer/Dockerfile.producer
@@ -341,6 +355,7 @@ services:
 
   cpu-statistics:
     container_name: CpuStatistics
+    image: ghcr.io/rberbato/cpu-statistics:latest
     build:
       context: ./telemetry
       dockerfile: cpu-util-consumer/Dockerfile.consumer
@@ -355,6 +370,7 @@ services:
 
   memory-statistics:
     container_name: MemoryStatistics
+    image: ghcr.io/rberbato/memory-statistics:latest
     build:
       context: ./telemetry
       dockerfile: mem-stats-consumer/Dockerfile.consumer
@@ -369,6 +385,7 @@ services:
       
   interface-statistics:
     container_name: InterfaceStatistics
+    image: ghcr.io/rberbato/interface-statistics:latest
     build:
       context: ./telemetry
       dockerfile: interface-stats-consumer/Dockerfile.consumer

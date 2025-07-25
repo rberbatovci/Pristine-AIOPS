@@ -47,7 +47,6 @@ function SnmpTrapConfig({ selectedDevice, onSuccess }) {
                         <div className="headerButtons">
 
                             {loading ? (
-                                <button disabled={loading} >
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                         <TailSpin
                                             height="20"
@@ -55,9 +54,7 @@ function SnmpTrapConfig({ selectedDevice, onSuccess }) {
                                             color="#ffffff"
                                             ariaLabel="loading"
                                         />
-                                        <span>Configuring...</span>
                                     </div>
-                                </button>
                             ) : (
                                 <button onClick={sendConfig} className="iconButton">
                                     <IoPushOutline className="defaultIcon" />
@@ -69,9 +66,12 @@ function SnmpTrapConfig({ selectedDevice, onSuccess }) {
                 )}
             </div>
             {showData && (
-                <div style={{ padding: '8px', marginLeft: '15px' }}>
-                    {/* Status message */}
-                    {selectedDevice?.features?.snmp_traps ? (
+                <div style={{ padding: '8px', marginLeft: '15px', fontSize: '14px', color: 'var(--textColor)', opacity: '0.8' }}>
+                    {loading ? (
+                        <div style={{ color: 'var(--spanTextColor)' }}>
+                            Configuring SNMP Traps<span className="dot-flash">...</span>
+                        </div>
+                    ) : selectedDevice?.features?.snmp_traps ? (
                         <div style={{ color: 'var(--spanTextColor)' }}>
                             SNMP Traps are already configured on this device.
                         </div>
