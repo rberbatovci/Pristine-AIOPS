@@ -19,6 +19,22 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: ghcr.io/rberbatovci/pristine-aiops:latest
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: ghcr.io/rberbatovci/pristine-aiops:latest
+
       - name: Build the Docker image
         run: docker build -t ghcr.io/${{ github.repository_owner }}/pristine-aiops:latest .
 
