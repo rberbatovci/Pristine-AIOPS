@@ -25,7 +25,7 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile.backend
           push: true
-          tags: ghcr.io/rberbatovci/pristine-aiops-backend:latest
+          tags: ghcr.io/rberbatovci/backend:latest
 
       - name: Build the Docker image
         run: docker build -t ghcr.io/${{ github.repository_owner }}/pristine-aiops:latest .
