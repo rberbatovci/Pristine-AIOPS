@@ -23,7 +23,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./backend
-          file: Dockerfile.backend
+          file: ./backend/Dockerfile.backend
           push: true
           tags: ghcr.io/rberbatovci/pristine-aiops:latest
 
