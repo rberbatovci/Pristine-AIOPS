@@ -7,9 +7,7 @@
         librdkafka-dev \
         && rm -rf /var/lib/apt/lists/*
 
-    WORKDIR /app/traps
-
-    COPY producer.c ./producer/
+    COPY traps/producer/ /app/traps/producer/
 
     WORKDIR /app/traps/producer
 
@@ -34,10 +32,10 @@
     COPY --from=builder /app/traps/producer .
 
     # Create MIBs directory
-    RUN mkdir mibs
+    #RUN mkdir mibs
 
     # Copy your custom MIBs
-    COPY mibs /app/traps/producer/mibs
+    #COPY mibs /app/traps/producer/mibs
 
     # Copy downloaded standard MIBs (usually goes to /usr/share/snmp/mibs)
     RUN cp /usr/share/snmp/mibs/* /app/traps/producer/mibs/

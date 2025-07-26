@@ -23,7 +23,7 @@ WORKDIR /app
 COPY . ./syslogs/consumer/
 
 # Create build directory
-WORKDIR /app/syslogs/consumer/build
+WORKDIR /app/syslogs/consumer/
 
 # Run CMake from 'build' directory, pointing to parent (which has CMakeLists.txt)
 RUN cmake .. && make

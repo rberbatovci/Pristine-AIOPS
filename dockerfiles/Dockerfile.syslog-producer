@@ -3,11 +3,7 @@ FROM gcc:13 AS builder
 
 RUN apt-get update && apt-get install -y librdkafka-dev && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
-WORKDIR /app/syslogs
-
-# Copy producer source code
-COPY producer.c ./producer/
+COPY syslogs/producer/ /app/syslogs/producer/
 
 WORKDIR /app/syslogs/producer
 RUN gcc -o producer producer.c -lrdkafka

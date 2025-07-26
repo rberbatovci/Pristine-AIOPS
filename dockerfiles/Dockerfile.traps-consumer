@@ -24,7 +24,7 @@ WORKDIR /app
 COPY . ./traps/consumer/
 
 # Create build directory
-WORKDIR /app/traps/consumer/build
+WORKDIR /app/traps/consumer/
 
 # Create build directory and compile using CMake
 RUN cmake .. && make

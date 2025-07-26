@@ -49,21 +49,21 @@ jobs:
       #    push: true
       #    tags: ghcr.io/rberbatovci/syslog-consumer:latest
 
-      - name: Build and push syslog signals image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./syslogs/signals
-          file: ./dockerfiles/Dockerfile.syslog-signals
-          push: true
-          tags: ghcr.io/rberbatovci/syslog-signals:latest
+      #- name: Build and push syslog signals image
+      #  uses: docker/build-push-action@v5
+      #  with:
+      #    context: ./syslogs/signals
+      #    file: ./dockerfiles/Dockerfile.syslog-signals
+      #    push: true
+      #    tags: ghcr.io/rberbatovci/syslog-signals:latest
 
-      - name: Build and push traps producer image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./traps/producer
-          file: ./dockerfiles/Dockerfile.traps-producer
-          push: true
-          tags: ghcr.io/rberbatovci/traps-producer:latest
+      #- name: Build and push traps producer image
+      #  uses: docker/build-push-action@v5
+      #  with:
+      #    context: ./traps/producer
+      #    file: ./dockerfiles/Dockerfile.traps-producer
+      #    push: true
+      #    tags: ghcr.io/rberbatovci/traps-producer:latest
 
       #- name: Build and push traps consumer image
       #  uses: docker/build-push-action@v5
@@ -80,3 +80,19 @@ jobs:
       #    file: ./dockerfiles/Dockerfile.traps-signals
       #    push: true
       #    tags: ghcr.io/rberbatovci/traps-signals:latest
+
+      - name: Build and push netflow producer image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./netflow/producer
+          file: ./dockerfiles/Dockerfile.netflow-producer
+          push: true
+          tags: ghcr.io/rberbatovci/traps-signals:latest
+
+      - name: Build and push netflow consumer image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./netflow/consumer
+          file: ./dockerfiles/Dockerfile.netflow-consumer
+          push: true
+          tags: ghcr.io/rberbatovci/netflow-consumer:latest

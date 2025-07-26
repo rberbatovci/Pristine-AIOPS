@@ -15,10 +15,7 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-COPY . ./traps/signals/
-
-RUN mkdir -p /app/traps/signals/build
-WORKDIR /app/traps/signals/build
+WORKDIR /app/traps/signals/
 
 RUN cmake .. && make
 

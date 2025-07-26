@@ -39,7 +39,6 @@ services:
   postgresql:
     image: postgres:15
     container_name: PostgreSQL
-    image: ghcr.io/rberbato/postgresql:latest
     ports:
       - "5432:5432"
     environment:
@@ -144,7 +143,6 @@ services:
 
   redis:
     container_name: Redis
-    image: ghcr.io/rberbato/redis:latest
     image: redis:latest
     ports:
       - "6380:6379"
@@ -169,8 +167,8 @@ services:
     container_name: SyslogProducer
     image: ghcr.io/rberbato/syslog-producer:latest
     build:
-      context: ./syslogs
-      dockerfile: Dockerfile.producer
+      context: ./
+      dockerfile: ./dockerfiles/Dockerfile.syslog-producer
     environment:
       SYSLOG_PORT: ${SYSLOG_PORT:-1160}
       DATA_FLUSH_INTERVAL: ${DATA_FLUSH_INTERVAL:-1}
@@ -187,8 +185,8 @@ services:
     container_name: SyslogConsumer
     image: ghcr.io/rberbato/syslog-consumer:latest
     build:
-      context: ./syslogs/consumer
-      dockerfile: Dockerfile.consumer
+      context: ./
+      dockerfile: ./dockerfiles/Dockerfile.syslog-consumer
     environment:
       KAFKA_BROKER: kafka:9092
       KAFKA_EVENTS_TOPIC: syslog-events
@@ -206,8 +204,8 @@ services:
     container_name: SyslogSignals
     image: ghcr.io/rberbato/syslog-signals:latest
     build:
-      context: ./syslogs/signals
-      dockerfile: Dockerfile.signals
+      context: ./
+      dockerfile: ./dockerfiles/Dockerfile.syslog-signals
     environment:
       KAFKA_BROKER: kafka:9092
       KAFKA_SIGNALS_TOPIC: syslog-signals
@@ -224,8 +222,8 @@ services:
     container_name: TrapSignals
     image: ghcr.io/rberbato/trap-signals:latest
     build:
-      context: ./traps/signals
-      dockerfile: Dockerfile.signals
+      context: ./
+      dockerfile: ./dockerfiles/Dockerfile.traps-signals
     environment:
       KAFKA_BROKER: kafka:9092
       KAFKA_SIGNALS_TOPIC: trap-signals
@@ -242,8 +240,8 @@ services:
     container_name: TrapProducer
     image: ghcr.io/rberbato/trap-producer:latest
     build:
-      context: ./traps
-      dockerfile: Dockerfile.producer
+      context: ./
+      dockerfile: ./dockerfiles/Dockerfile.traps-producer
     environment:
       KAFKA_BROKER: kafka:9092
       KAFKA_EVENTS_TOPIC: trap-events
@@ -267,8 +265,8 @@ services:
     container_name: TrapConsumer
     image: ghcr.io/rberbato/trap-consumer:latest
     build:
-      context: ./traps/consumer
-      dockerfile: Dockerfile.consumer
+      context: ./
+      dockerfile: ./dockerfiles/Dockerfile.traps-consumer
     environment:
       KAFKA_BROKER: kafka:9092
       KAFKA_EVENTS_TOPIC: trap-events
@@ -282,34 +280,34 @@ services:
       - kafka-net
     restart: unless-stopped
 
-  #netflow-producer:
-  #  container_name: NetflowProducer
-  #  image: ghcr.io/rberbato/netflow-producer:latest
-  #  build:
-  #    context: ./netflow
-  #    dockerfile: Dockerfile.producer
-  #  ports:
-  #    - "1162:1162/udp"
-  #  depends_on:
-  #    kafka:
-  #      condition: service_healthy
-  #  networks:
-  #    - kafka-net
+  netflow-producer:
+    container_name: NetflowProducer
+    image: ghcr.io/rberbato/netflow-producer:latest
+    build:
+      context: ./
+      dockerfile: ./dockerfiles/Dockerfile.netflow-producer
+    ports:
+      - "1162:1162/udp"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - kafka-net
 
-  #netflow-consumer:
-  #  container_name: NetflowConsumer
-  #  image: ghcr.io/rberbato/netflow-consumer:latest
-  #  build:
-  #    context: ./netflow
-  #    dockerfile: Dockerfile.consumer
-  #  depends_on:
-  #    kafka:
-  #      condition: service_healthy
-  #    opensearch:
-  #      condition: service_healthy
-  #  restart: unless-stopped
-  #  networks:
-  #    - kafka-net
+  netflow-consumer:
+    container_name: NetflowConsumer
+    image: ghcr.io/rberbato/netflow-consumer:latest
+    build:
+      context: ./
+      dockerfile: ./dockerfiles/Dockerfile.netflow-consumer
+    depends_on:
+      kafka:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - kafka-net
 
   telemetry-xe-producer:
     container_name: TelemetryXEProducer

@@ -17,8 +17,7 @@ WORKDIR /app
 
 COPY . ./syslogs/signals/
 
-RUN mkdir -p /app/syslogs/signals/build
-WORKDIR /app/syslogs/signals/build
+WORKDIR /app/syslogs/signals/
 
 RUN cmake .. && make
 

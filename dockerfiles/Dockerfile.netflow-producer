@@ -1,0 +1,19 @@
+FROM ubuntu:latest
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpcap-dev \
+    librdkafka-dev \
+    iputils-ping
+
+COPY netflow/producer/ /app/netflow/producer/
+
+# Compile the listener
+WORKDIR /app/netflow/producer
+RUN gcc -o producer producer.c -lrdkafka -lpcap
+
+# Expose the NetFlow port
+EXPOSE 1162/udp
+
+# Run the NetFlow listener
+CMD ["./producer"]
