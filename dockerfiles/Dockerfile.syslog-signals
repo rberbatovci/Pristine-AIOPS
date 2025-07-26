@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-COPY . ./syslogs/signals/
+COPY syslogs/signals/ /app/syslogs/signals/
 
 WORKDIR /app/syslogs/signals/
 
