@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y librdkafka-dev && rm -rf /var/lib/apt/l
 WORKDIR /app/syslogs
 
 # Copy producer source code
-COPY syslogs/producer.c ./syslogs/producer/
+COPY ./syslogs/producer.c ./syslogs/producer/
 
 WORKDIR /app/syslogs/producer
 RUN gcc -o producer producer.c -lrdkafka
