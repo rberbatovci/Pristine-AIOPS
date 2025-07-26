@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copy only the consumer directory
-COPY consumer/ ./syslogs/consumer/
+COPY . ./syslogs/consumer/
 
 # Create build directory and compile using CMake
 WORKDIR /app/syslogs/consumer
