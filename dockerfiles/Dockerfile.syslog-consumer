@@ -22,10 +22,11 @@ WORKDIR /app
 # Copy only the consumer directory
 COPY . ./syslogs/consumer/
 
-# Create build directory and compile using CMake
-WORKDIR /app/syslogs/consumer
+# Create build directory
+WORKDIR /app/syslogs/consumer/build
 
+# Run CMake from 'build' directory, pointing to parent (which has CMakeLists.txt)
 RUN cmake .. && make
 
-# Set the default command
+# Set default command
 CMD ["./syslog_consumer"]
