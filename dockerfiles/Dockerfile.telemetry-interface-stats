@@ -6,7 +6,7 @@ COPY telemetry/interface-stats/go.mod telemetry/interface-stats/go.sum ./
 
 COPY telemetry/protobuf /app/telemetry/protobuf
 
-COPY telemetry/interface-stats/ .
+COPY telemetry/interface-stats/. .
 
 RUN go mod download
 

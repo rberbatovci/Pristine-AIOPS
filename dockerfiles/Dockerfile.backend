@@ -1,0 +1,34 @@
+# dockerfiles/Dockerfile.backend
+FROM python:3.11
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        libffi-dev \
+        libssl-dev \
+        python3-dev \
+        cargo \
+        netcat-traditional \
+        ansible \
+        sshpass \
+        libssh-4 && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install
+COPY backend/requirements.txt .
+RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
+
+# Copy the rest of the backend code
+COPY backend/ .
+
+# Set entrypoint
+COPY backend/entrypoint.sh .
+RUN chmod +x entrypoint.sh
+ENTRYPOINT ["./entrypoint.sh"]
+
+# Expose FastAPI port
+EXPOSE 8000
