@@ -6,8 +6,8 @@ RUN apt-get update && apt-get install -y \
     librdkafka-dev \
     libjansson-dev \
     libpq-dev \
-    libcurl4-openssl-dev \
     uuid-dev \
+    libcurl4-openssl-dev \
     libhiredis-dev \
     pkg-config \
     git \
@@ -15,12 +15,11 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-COPY . ./syslogs/signals/
+COPY . ./traps/signals/
 
-RUN mkdir -p /app/syslogs/signals/build
-WORKDIR /app/syslogs/signals/build
+RUN mkdir -p /app/traps/signals/build
+WORKDIR /app/traps/signals/build
 
 RUN cmake .. && make
 
-# Run the built binary
-CMD ["./syslog_signals"]
+CMD ["./trap_signals"]
