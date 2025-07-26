@@ -16,14 +16,15 @@ RUN apt-get update && apt-get install -y \
 # Set root working directory
 WORKDIR /app
 
-# Copy source to /app/syslogs/signals/
+# Copy the source code
 COPY . ./syslogs/signals/
 
-# Move into the source directory
-WORKDIR /app/syslogs/signals/build
+# Create build directory
+RUN mkdir -p /app/syslogs/signals/build
 
-# Build in-place
-RUN cmake . && make
+# Change to build directory and compile
+WORKDIR /app/syslogs/signals/build
+RUN cmake .. && make
 
 # Run the built binary
 CMD ["./syslog_signals"]

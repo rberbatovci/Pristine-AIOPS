@@ -25,13 +25,29 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push syslog consumer image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./syslogs/consumer
-          file: ./dockerfiles/Dockerfile.syslog-consumer
-          push: true
-          tags: ghcr.io/rberbatovci/syslog-consumer:latest
+      #- name: Build and push backend image
+      #  uses: docker/build-push-action@v5
+      #  with:
+      #    context: ./backend
+      #    file: ./backend/Dockerfile.backend
+      #    push: true
+      #    tags: ghcr.io/rberbatovci/backend:latest
+
+      #- name: Build and push syslog producer image
+      #  uses: docker/build-push-action@v5
+      #  with:
+      #    context: ./syslogs
+      #    file: ./dockerfiles/Dockerfile.syslog-producer
+      #    push: true
+      #    tags: ghcr.io/rberbatovci/syslog-producer:latest
+
+      #- name: Build and push syslog consumer image
+      #  uses: docker/build-push-action@v5
+      #  with:
+      #    context: ./syslogs/consumer
+      #    file: ./dockerfiles/Dockerfile.syslog-consumer
+      #    push: true
+      #    tags: ghcr.io/rberbatovci/syslog-consumer:latest
 
       - name: Build and push syslog signals image
         uses: docker/build-push-action@v5
