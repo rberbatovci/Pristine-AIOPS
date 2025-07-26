@@ -26,7 +26,7 @@ COPY . ./syslogs/consumer/
 WORKDIR /app/syslogs/consumer/
 
 # Run CMake from 'build' directory, pointing to parent (which has CMakeLists.txt)
-RUN cmake .. && make
+RUN cmake . && make
 
 # Set default command
 CMD ["./syslog_consumer"]

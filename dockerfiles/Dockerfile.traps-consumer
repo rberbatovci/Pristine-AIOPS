@@ -27,7 +27,7 @@ COPY . ./traps/consumer/
 WORKDIR /app/traps/consumer/
 
 # Create build directory and compile using CMake
-RUN cmake .. && make
+RUN cmake . && make
 
 # Set the default command
 CMD ["./trap_consumer"]

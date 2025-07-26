@@ -19,7 +19,7 @@ COPY . ./syslogs/signals/
 
 WORKDIR /app/syslogs/signals/
 
-RUN cmake .. && make
+RUN cmake . && make
 
 # Run the built binary
 CMD ["./syslog_signals"]
