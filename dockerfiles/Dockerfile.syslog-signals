@@ -20,7 +20,7 @@ WORKDIR /app
 COPY . ./syslogs/signals/
 
 # Move into the source directory
-WORKDIR /app/syslogs/signals/build
+WORKDIR /app/syslogs/signals
 
 # Build in-place
 RUN cmake . && make
