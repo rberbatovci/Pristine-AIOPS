@@ -87,7 +87,7 @@ jobs:
           context: .
           file: ./dockerfiles/Dockerfile.netflow-producer
           push: true
-          tags: ghcr.io/rberbatovci/traps-signals:latest
+          tags: ghcr.io/rberbatovci/netflow-producer:latest
 
       - name: Build and push netflow consumer image
         uses: docker/build-push-action@v5
