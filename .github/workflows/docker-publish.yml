@@ -44,7 +44,7 @@ jobs:
       - name: Build and push syslog producer image
         uses: docker/build-push-action@v5
         with:
-          context: ./syslogs
+          context: .
           file: ./dockerfiles/Dockerfile.syslog-producer
           push: true
           tags: ghcr.io/rberbatovci/syslog-producer:latest
