@@ -172,8 +172,6 @@ services:
       context: ./syslogs
       dockerfile: Dockerfile.producer
     environment:
-      KAFKA_BROKER: kafka:9092
-      KAFKA_EVENTS_TOPIC: syslog-events
       SYSLOG_PORT: ${SYSLOG_PORT:-1160}
       DATA_FLUSH_INTERVAL: ${DATA_FLUSH_INTERVAL:-1}
       DATA_FLUSH_SIZE: ${DATA_FLUSH_SIZE:-100}

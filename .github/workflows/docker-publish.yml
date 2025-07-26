@@ -32,3 +32,27 @@ jobs:
           file: ./backend/Dockerfile.backend
           push: true
           tags: ghcr.io/rberbatovci/backend:latest
+
+      - name: Build and push syslog producer image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./syslogs/consumer
+          file: ./syslogs/consumer/Dockerfile.backend
+          push: true
+          tags: ghcr.io/rberbatovci/syslog-producer:latest
+
+      - name: Build and push syslog consumer image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./syslogs/consumer
+          file: ./syslogs/consumer/Dockerfile.backend
+          push: true
+          tags: ghcr.io/rberbatovci/syslog-consumer:latest
+
+      - name: Build and push syslog signals image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./syslogs/signals
+          file: ./syslogs/signals/Dockerfile.backend
+          push: true
+          tags: ghcr.io/rberbatovci/syslog-signals:latest
