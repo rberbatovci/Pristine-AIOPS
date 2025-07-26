@@ -44,7 +44,7 @@ jobs:
       - name: Build and push syslog consumer image
         uses: docker/build-push-action@v5
         with:
-          context: ./
+          context: .
           file: ./dockerfiles/Dockerfile.syslog-consumer
           push: true
           tags: ghcr.io/rberbatovci/syslog-consumer:latest
@@ -52,7 +52,7 @@ jobs:
       - name: Build and push syslog signals image
         uses: docker/build-push-action@v5
         with:
-          context: ./syslogs/signals
+          context: .
           file: ./dockerfiles/Dockerfile.syslog-signals
           push: true
           tags: ghcr.io/rberbatovci/syslog-signals:latest
@@ -60,7 +60,7 @@ jobs:
       - name: Build and push traps producer image
         uses: docker/build-push-action@v5
         with:
-          context: ./traps/producer
+          context: .
           file: ./dockerfiles/Dockerfile.traps-producer
           push: true
           tags: ghcr.io/rberbatovci/traps-producer:latest
@@ -68,7 +68,7 @@ jobs:
       - name: Build and push traps consumer image
         uses: docker/build-push-action@v5
         with:
-          context: ./
+          context: .
           file: ./dockerfiles/Dockerfile.traps-consumer
           push: true
           tags: ghcr.io/rberbatovci/traps-consumer:latest
@@ -76,7 +76,7 @@ jobs:
       - name: Build and push traps signals image
         uses: docker/build-push-action@v5
         with:
-          context: ./
+          context: .
           file: ./dockerfiles/Dockerfile.traps-signals
           push: true
           tags: ghcr.io/rberbatovci/traps-signals:latest
