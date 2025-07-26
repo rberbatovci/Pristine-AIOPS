@@ -23,7 +23,7 @@ WORKDIR /app
 COPY . ./syslogs/consumer/
 
 # Create build directory and compile using CMake
-WORKDIR /app/syslogs/consumer
+WORKDIR /app/syslogs/consumer/build
 
 RUN cd build && cmake .. && make
 
