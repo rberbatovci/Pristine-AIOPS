@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copy everything into the image
-COPY . ./traps/consumer/
+COPY traps/consumer/ /app/traps/consumer/
 
 # Create build directory
 WORKDIR /app/traps/consumer/

@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copy only the consumer directory
-COPY . ./syslogs/consumer/
+COPY syslogs/consumer/ /app/syslogs/consumer/
 
 # Create build directory
 WORKDIR /app/syslogs/consumer/
