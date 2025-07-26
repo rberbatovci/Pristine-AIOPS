@@ -37,7 +37,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./syslogs/consumer
-          file: ./syslogs/consumer/Dockerfile.backend
+          file: ./dockerfiles/syslogs.producer
           push: true
           tags: ghcr.io/rberbatovci/syslog-producer:latest
 
@@ -45,7 +45,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./syslogs/consumer
-          file: ./syslogs/consumer/Dockerfile.backend
+          file: ./dockerfiles/syslogs.consumer
           push: true
           tags: ghcr.io/rberbatovci/syslog-consumer:latest
 
@@ -53,6 +53,6 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./syslogs/signals
-          file: ./syslogs/signals/Dockerfile.backend
+          file: ./dockerfiles/syslogs.signals
           push: true
           tags: ghcr.io/rberbatovci/syslog-signals:latest
