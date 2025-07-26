@@ -7,10 +7,10 @@ networks:
 services:
   backend:
     container_name: FastAPI
-    image: ghcr.io/rberbato/backend:latest
+    #image: ghcr.io/rberbato/backend:latest
     build:
-      context: ./backend
-      dockerfile: Dockerfile.backend
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.backend
     ports:
       - "8000:8000"
     depends_on:
@@ -22,19 +22,20 @@ services:
       - kafka-net
     entrypoint: ["/app/backend/entrypoint.sh"]
 
-  #frontend:
-  #  container_name: ReactJS
-  #  build:
-  #    context: ./frontend
-  #    dockerfile: Docker.frontend
-  #  ports:
-  #    - "3000:3000"
-  #  volumes:
-  #    - ./frontend:/app
-  #  environment:
-  #    - CHOKIDAR_USEPOLLING=true
-  #  networks:
-  #    - kafka-net
+  frontend:
+    container_name: ReactJS
+    #image: ghcr.io/rberbato/frontend:latest
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    networks:
+      - kafka-net
 
   postgresql:
     image: postgres:15
@@ -165,10 +166,10 @@ services:
 
   syslog-producer:
     container_name: SyslogProducer
-    image: ghcr.io/rberbato/syslog-producer:latest
-    #build:
-    #  context: .
-    #  dockerfile: ./dockerfiles/Dockerfile.syslog-producer
+    #image: ghcr.io/rberbato/syslog-producer:latest
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.syslog-producer
     environment:
       SYSLOG_PORT: ${SYSLOG_PORT:-1160}
       DATA_FLUSH_INTERVAL: ${DATA_FLUSH_INTERVAL:-1}
@@ -183,10 +184,10 @@ services:
 
   syslog-consumer:
     container_name: SyslogConsumer
-    image: ghcr.io/rberbato/syslog-consumer:latest
-    #build:
-    #  context: .
-    #  dockerfile: ./dockerfiles/Dockerfile.syslog-consumer
+    #image: ghcr.io/rberbato/syslog-consumer:latest
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.syslog-consumer
     environment:
       KAFKA_BROKER: kafka:9092
       KAFKA_EVENTS_TOPIC: syslog-events
@@ -202,10 +203,10 @@ services:
 
   syslog-signals:
     container_name: SyslogSignals
-    image: ghcr.io/rberbato/syslog-signals:latest
-    #build:
-    #  context: .
-    #  dockerfile: ./dockerfiles/Dockerfile.syslog-signals
+    #image: ghcr.io/rberbato/syslog-signals:latest
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.syslog-signals
     environment:
       KAFKA_BROKER: kafka:9092
       KAFKA_SIGNALS_TOPIC: syslog-signals
@@ -220,10 +221,10 @@ services:
 
   trap-signals:
     container_name: TrapSignals
-    image: ghcr.io/rberbato/trap-signals:latest
-    #build:
-    #  context: .
-    #  dockerfile: ./dockerfiles/Dockerfile.traps-signals
+    #image: ghcr.io/rberbato/trap-signals:latest
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.traps-signals
     environment:
       KAFKA_BROKER: kafka:9092
       KAFKA_SIGNALS_TOPIC: trap-signals
@@ -238,10 +239,10 @@ services:
 
   trap-producer:
     container_name: TrapProducer
-    image: ghcr.io/rberbato/trap-producer:latest
-    #build:
-    #  context: .
-    #  dockerfile: ./dockerfiles/Dockerfile.traps-producer
+    #image: ghcr.io/rberbato/trap-producer:latest
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.traps-producer
     environment:
       KAFKA_BROKER: kafka:9092
       KAFKA_EVENTS_TOPIC: trap-events
@@ -263,10 +264,10 @@ services:
 
   trap-consumer:
     container_name: TrapConsumer
-    image: ghcr.io/rberbato/trap-consumer:latest
-    #build:
-    #  context: .
-    #  dockerfile: ./dockerfiles/Dockerfile.traps-consumer
+    #image: ghcr.io/rberbato/trap-consumer:latest
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.traps-consumer
     environment:
       KAFKA_BROKER: kafka:9092
       KAFKA_EVENTS_TOPIC: trap-events
@@ -282,10 +283,10 @@ services:
 
   netflow-producer:
     container_name: NetflowProducer
-    image: ghcr.io/rberbato/netflow-producer:latest
-    #build:
-    #  context: .
-    #  dockerfile: ./dockerfiles/Dockerfile.netflow-producer
+    #image: ghcr.io/rberbato/netflow-producer:latest
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.netflow-producer
     ports:
       - "1162:1162/udp"
     depends_on:
@@ -296,10 +297,10 @@ services:
 
   netflow-consumer:
     container_name: NetflowConsumer
-    image: ghcr.io/rberbato/netflow-consumer:latest
-    #build:
-    #  context: .
-    #  dockerfile: ./dockerfiles/Dockerfile.netflow-consumer
+    #image: ghcr.io/rberbato/netflow-consumer:latest
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.netflow-consumer
     depends_on:
       kafka:
         condition: service_healthy
@@ -330,28 +331,9 @@ services:
     networks:
       - kafka-net
 
-  #telemetry-xr-producer:
-  #  container_name: TelemetryXRProducer
-  #  build:
-  #    context: ./telemetry
-  #    dockerfile: producer-xr/Dockerfile.producer
-  #  environment:
-  #    - KAFKA_BROKER=kafka:9092
-  #    - KAFKA_TOPIC=telemetry-topic
-  #  ports:
-  #    - "1164:1164"
-  #  depends_on:
-  #    kafka:
-  #      condition: service_healthy
-  #    zookeeper:
-  #      condition: service_healthy
-  #  networks:
-  #    - kafka-net
-
-
   cpu-util-stats:
     container_name: CPUUtilStatistics
-    #image: ghcr.io/rberbato/cpu-util-stats:latest
+    #image: ghcr.io/rberbato/telemetry-cpu-util-stats:latest
     build:
       context: .
       dockerfile: ./dockerfiles/Dockerfile.telemetry-cpu-util-stats
@@ -366,7 +348,7 @@ services:
 
   memory-statistics:
     container_name: MemoryStatistics
-    #image: ghcr.io/rberbato/memory-stats:latest
+    #image: ghcr.io/rberbato/telemetry-memory-stats:latest
     build:
       context: .
       dockerfile: ./dockerfiles/Dockerfile.telemetry-memory-stats
@@ -381,7 +363,7 @@ services:
       
   interface-statistics:
     container_name: InterfaceStatistics
-    #image: ghcr.io/rberbato/interface-stats:latest
+    #image: ghcr.io/rberbato/telemetry-interface-stats:latest
     build:
       context: .
       dockerfile: ./dockerfiles/Dockerfile.telemetry-interface-stats
@@ -394,20 +376,6 @@ services:
     networks:
       - kafka-net
   
-  #bgp-conections-statistics:
-  #  container_name: BGPConnectionsStatistics
-  #  build:
-  #    context: ./telemetry
-  #    dockerfile: bgp-connections-consumer/Dockerfile.consumer
-  #  depends_on:
-  #    kafka:
-  #      condition: service_healthy
-  #    opensearch:
-  #      condition: service_healthy
-  #  restart: unless-stopped
-  #  networks:
-  #    - kafka-net
-    
 volumes:
   postgres_data:
   opensearch-data1:
