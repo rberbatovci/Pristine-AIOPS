@@ -1,0 +1,23 @@
+FROM golang:1.23-alpine AS builder
+
+WORKDIR /app/telemetry/cpu-util-stats
+
+# Copy go.mod and go.sum for cpu-util-consumer
+COPY telemetry/cpu-util-stats/ .
+
+RUN go mod download
+
+RUN go get github.com/joho/godotenv
+
+# Build your binary
+RUN go build -o consumer main.go
+
+FROM alpine:3.18
+
+WORKDIR /app/telemetry/cpu-util-stats
+
+COPY --from=builder /app/telemetry/cpu-util-stats/consumer .
+
+RUN apk add --no-cache bash
+
+CMD ["./consumer"]

@@ -1,0 +1,20 @@
+FROM golang:1.23-alpine AS builder
+
+WORKDIR /app/telemetry/interface-stats
+
+COPY telemetry/interface-stats/ .
+
+RUN go mod download
+
+# Build your binary
+RUN go build -o consumer main.go
+
+FROM alpine:3.18
+
+WORKDIR /app/telemetry/interface-stats
+
+COPY --from=builder /app/telemetry/interface-stats/consumer .
+
+RUN apk add --no-cache bash
+
+CMD ["./consumer"]
