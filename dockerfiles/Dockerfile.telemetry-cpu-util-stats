@@ -2,7 +2,10 @@ FROM golang:1.23-alpine AS builder
 
 WORKDIR /app/telemetry/cpu-util-stats
 
-# Copy go.mod and go.sum for cpu-util-consumer
+COPY telemetry/cpu-util-stats/go.mod telemetry/cpu-util-stats/go.sum ./
+
+COPY telemetry/protobuf /app/telemetry/protobuf
+
 COPY telemetry/cpu-util-stats/ .
 
 RUN go mod download

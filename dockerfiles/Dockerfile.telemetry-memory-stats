@@ -2,6 +2,10 @@ FROM golang:1.23-alpine AS builder
 
 WORKDIR /app/telemetry/memory-stats
 
+COPY telemetry/memory-stats/go.mod telemetry/memory-stats/go.sum ./
+
+COPY telemetry/protobuf /app/telemetry/protobuf
+
 COPY telemetry/memory-stats/ .
 
 RUN go mod download
