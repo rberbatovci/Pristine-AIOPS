@@ -10,6 +10,7 @@ COPY netflow/producer/ /app/netflow/producer/
 
 # Compile the listener
 WORKDIR /app/netflow/producer
+
 RUN gcc -o producer producer.c -lrdkafka -lpcap
 
 # Expose the NetFlow port

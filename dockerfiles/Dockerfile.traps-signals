@@ -15,8 +15,10 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
+COPY traps/signals/ /app/traps/signals/
+
 WORKDIR /app/traps/signals/
 
-RUN cmake .. && make
+RUN cmake . && make
 
 CMD ["./trap_signals"]
