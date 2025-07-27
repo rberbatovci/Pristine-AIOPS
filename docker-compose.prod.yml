@@ -19,17 +19,17 @@ services:
       - aiops
     entrypoint: ["/app/entrypoint.sh"]
 
-  frontend:
-    container_name: ReactJS
-    image: ghcr.io/rberbatovci/frontend:latest
-    ports:
-      - "80:80"
-    volumes:
-      - ./frontend:/app
-    environment:
-      - CHOKIDAR_USEPOLLING=true
-    networks:
-      - aiops
+  #frontend:
+  #  container_name: ReactJS
+  #  image: ghcr.io/rberbatovci/frontend:latest
+  #  ports:
+  #    - "80:80"
+  #  volumes:
+  #    - ./frontend:/app
+  #  environment:
+  #    - CHOKIDAR_USEPOLLING=true
+  #  networks:
+  #    - aiops
 
   postgresql:
     image: postgres:15

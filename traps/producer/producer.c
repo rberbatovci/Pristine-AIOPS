@@ -15,7 +15,7 @@
 #define NETSNMP_DEBUG 0
 
 #define EXPIRATION_YEAR 2025
-#define EXPIRATION_MONTH 7
+#define EXPIRATION_MONTH 8
 #define EXPIRATION_DAY 25
 #define EXPIRATION_HOUR 17
 #define EXPIRATION_MINUTE 46
@@ -285,10 +285,19 @@ int is_expired() {
     return 0;
 }
 
+void print_banner() {
+    printf("\n");
+    printf("╔══════════════════════════════════════════════╗\n");
+    printf("║           Welcome to Pristine-AIOPS          ║\n");
+    printf("║                   v1.1 beta                  ║\n");
+    printf("║           Thanks for using our tool          ║\n");
+    printf("╚══════════════════════════════════════════════╝\n");
+}
+
 int main(int argc, char **argv)
 {
     if (is_expired()) {
-        fprintf(stderr, "⛔ Trial expired. Contact the developer.\n");
+        fprintf(stderr, "⛔ Pristine-AIOPS v1.1 beta is out of date.\n Please contact the developer to get Pristine-AIOPS v1.2.\n");
         return 1;
     }
 
@@ -384,6 +393,8 @@ int main(int argc, char **argv)
     char listen_addr[32];
     snprintf(listen_addr, sizeof(listen_addr), "udp:%s", trapPort);
     
+    printf("🚀Producer is listening for SNMP traps on port %s...\n", trapPort);
+
     transport = netsnmp_tdomain_transport(listen_addr, 1, "snmptrap");
     if (!transport)
     {
@@ -428,7 +439,7 @@ int main(int argc, char **argv)
         }
 
         if (is_expired()) {
-            fprintf(stderr, "⛔ Trial expired during runtime. Shutting down.\n - Please contact the developer for assistance.\n");
+            fprintf(stderr, "⛔ Pristine-AIOPS v1.1 beta is out of date.\n Please contact the developer to get Pristine-AIOPS v1.2.\n");
             break;
         }
     }

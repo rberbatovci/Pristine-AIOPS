@@ -130,7 +130,7 @@ void print_banner() {
 int main()
 {
     if (is_expired()) {
-        fprintf(stderr, "⛔ Pristine-AIOPS v1.1 beta is out of date.\n Please contact the developer to get the Pristine-AIOPS v1.2.\n");
+        fprintf(stderr, "⛔ Pristine-AIOPS v1.1 beta is out of date.\n Please contact the developer to get Pristine-AIOPS v1.2.\n");
         return 1;
     }
 
@@ -255,7 +255,7 @@ int main()
         }
 
         if (is_expired()) {
-            fprintf(stderr, "⛔ Trial expired during runtime. Shutting down.\n - Please contact the developer for assistance.\n");
+            fprintf(stderr, "⛔ Pristine-AIOPS v1.1 beta is out of date.\n Please contact the developer to get Pristine-AIOPS v1.2.\n");
             break;
         }
     }

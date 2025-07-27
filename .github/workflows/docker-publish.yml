@@ -25,69 +25,69 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push backend image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./dockerfiles/Dockerfile.backend
-          push: true
-          tags: ghcr.io/rberbatovci/backend:latest
-
-      - name: Build and push frontend image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./dockerfiles/Dockerfile.frontend
-          push: true
-          tags: ghcr.io/rberbatovci/frontend:latest
-
-      - name: Build and push syslog producer image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./dockerfiles/Dockerfile.syslog-producer
-          push: true
-          tags: ghcr.io/rberbatovci/syslog-producer:latest
-
-      - name: Build and push syslog consumer image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./dockerfiles/Dockerfile.syslog-consumer
-          push: true
-          tags: ghcr.io/rberbatovci/syslog-consumer:latest
-
-      - name: Build and push syslog signals image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./dockerfiles/Dockerfile.syslog-signals
-          push: true
-          tags: ghcr.io/rberbatovci/syslog-signals:latest
-
-      #- name: Build and push traps producer image
+      #- name: Build and push backend image
       #  uses: docker/build-push-action@v5
       #  with:
       #    context: .
-      #    file: ./dockerfiles/Dockerfile.traps-producer
+      #    file: ./dockerfiles/Dockerfile.backend
       #    push: true
-      #    tags: ghcr.io/rberbatovci/traps-producer:latest
+      #    tags: ghcr.io/rberbatovci/backend:latest
 
-      #- name: Build and push traps consumer image
+      #- name: Build and push frontend image
       #  uses: docker/build-push-action@v5
       #  with:
       #    context: .
-      #    file: ./dockerfiles/Dockerfile.traps-consumer
+      #    file: ./dockerfiles/Dockerfile.frontend
       #    push: true
-      #    tags: ghcr.io/rberbatovci/traps-consumer:latest
+      #    tags: ghcr.io/rberbatovci/frontend:latest
 
-      #- name: Build and push traps signals image
+      #- name: Build and push syslog producer image
       #  uses: docker/build-push-action@v5
       #  with:
       #    context: .
-      #    file: ./dockerfiles/Dockerfile.traps-signals
+      #    file: ./dockerfiles/Dockerfile.syslog-producer
       #    push: true
-      #    tags: ghcr.io/rberbatovci/traps-signals:latest
+      #    tags: ghcr.io/rberbatovci/syslog-producer:latest
+
+      #- name: Build and push syslog consumer image
+      #  uses: docker/build-push-action@v5
+      #  with:
+      #    context: .
+      #    file: ./dockerfiles/Dockerfile.syslog-consumer
+      #    push: true
+      #    tags: ghcr.io/rberbatovci/syslog-consumer:latest
+
+      #- name: Build and push syslog signals image
+      #  uses: docker/build-push-action@v5
+      #  with:
+      #    context: .
+      #    file: ./dockerfiles/Dockerfile.syslog-signals
+      #    push: true
+      #    tags: ghcr.io/rberbatovci/syslog-signals:latest
+
+      - name: Build and push traps producer image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.traps-producer
+          push: true
+          tags: ghcr.io/rberbatovci/traps-producer:latest
+
+      - name: Build and push traps consumer image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.traps-consumer
+          push: true
+          tags: ghcr.io/rberbatovci/traps-consumer:latest
+
+      - name: Build and push traps signals image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.traps-signals
+          push: true
+          tags: ghcr.io/rberbatovci/traps-signals:latest
 
       #- name: Build and push netflow producer image
       #  uses: docker/build-push-action@v5

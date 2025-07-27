@@ -86,7 +86,7 @@ int main()
 {
     print_banner();
     
-    printf("Consumer listening for syslogs...\n");
+    printf("🚀 Consumer listening for syslogs...\n");
 
     setbuf(stdout, NULL);
 
