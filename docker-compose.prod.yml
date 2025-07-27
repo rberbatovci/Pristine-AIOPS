@@ -1,16 +1,13 @@
 version: '3.8'
 
 networks:
-  kafka-net:
+  aiops:
     driver: bridge
 
 services:
   backend:
     container_name: FastAPI
-    #image: ghcr.io/rberbato/backend:latest
-    build:
-      context: .
-      dockerfile: ./dockerfiles/Dockerfile.backend
+    image: ghcr.io/rberbato/backend:latest
     ports:
       - "8000:8000"
     depends_on:
@@ -19,15 +16,12 @@ services:
     env_file:
       - .env
     networks:
-      - kafka-net
+      - aiops
     entrypoint: ["/app/entrypoint.sh"]
 
   frontend:
     container_name: ReactJS
-    #image: ghcr.io/rberbato/frontend:latest
-    build:
-      context: .
-      dockerfile: ./dockerfiles/Dockerfile.frontend
+    image: ghcr.io/rberbato/frontend:latest
     ports:
       - "3000:3000"
     volumes:
@@ -35,7 +29,7 @@ services:
     environment:
       - CHOKIDAR_USEPOLLING=true
     networks:
-      - kafka-net
+      - aiops
 
   postgresql:
     image: postgres:15
@@ -55,7 +49,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - kafka-net
+      - aiops
 
   kafka:
     container_name: Kafka
@@ -83,7 +77,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - kafka-net
+      - aiops
 
   zookeeper:
     container_name: Zookeeper
@@ -98,7 +92,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - kafka-net
+      - aiops
 
   opensearch:
     image: opensearchproject/opensearch:1.0.1
@@ -129,7 +123,7 @@ services:
       - 9200:9200
       - 9600:9600
     networks:
-      - kafka-net
+      - aiops
 
   opensearch-init:
     image: ghcr.io/rberbato/opensearch-init:latest
@@ -140,7 +134,7 @@ services:
       opensearch:
         condition: service_healthy
     networks:
-      - kafka-net
+      - aiops
 
   redis:
     container_name: Redis
@@ -149,7 +143,7 @@ services:
       - "6380:6379"
     command: ["redis-server", "--appendonly", "yes"]
     networks:
-      - kafka-net
+      - aiops
 
   celery-worker:
     container_name: CeleryWorker
@@ -162,14 +156,11 @@ services:
       - redis
       - kafka
     networks:
-      - kafka-net
+      - aiops
 
   syslog-producer:
     container_name: SyslogProducer
-    #image: ghcr.io/rberbato/syslog-producer:latest
-    build:
-      context: .
-      dockerfile: ./dockerfiles/Dockerfile.syslog-producer
+    image: ghcr.io/rberbato/syslog-producer:latest
     environment:
       SYSLOG_PORT: ${SYSLOG_PORT:-1160}
       DATA_FLUSH_INTERVAL: ${DATA_FLUSH_INTERVAL:-1}
@@ -180,14 +171,11 @@ services:
       kafka:
         condition: service_healthy
     networks:
-      - kafka-net
+      - aiops
 
   syslog-consumer:
     container_name: SyslogConsumer
-    #image: ghcr.io/rberbato/syslog-consumer:latest
-    build:
-      context: .
-      dockerfile: ./dockerfiles/Dockerfile.syslog-consumer
+    image: ghcr.io/rberbato/syslog-consumer:latest
     environment:
       KAFKA_BROKER: kafka:9092
       KAFKA_EVENTS_TOPIC: syslog-events
@@ -198,15 +186,12 @@ services:
       kafka:
         condition: service_healthy
     networks:
-      - kafka-net
+      - aiops
     restart: unless-stopped
 
   syslog-signals:
     container_name: SyslogSignals
-    #image: ghcr.io/rberbato/syslog-signals:latest
-    build:
-      context: .
-      dockerfile: ./dockerfiles/Dockerfile.syslog-signals
+    image: ghcr.io/rberbato/syslog-signals:latest
     environment:
       KAFKA_BROKER: kafka:9092
       KAFKA_SIGNALS_TOPIC: syslog-signals
@@ -216,15 +201,12 @@ services:
       kafka:
         condition: service_healthy
     networks:
-      - kafka-net
+      - aiops
     restart: unless-stopped
 
   trap-signals:
     container_name: TrapSignals
-    #image: ghcr.io/rberbato/trap-signals:latest
-    build:
-      context: .
-      dockerfile: ./dockerfiles/Dockerfile.traps-signals
+    image: ghcr.io/rberbato/trap-signals:latest
     environment:
       KAFKA_BROKER: kafka:9092
       KAFKA_SIGNALS_TOPIC: trap-signals
@@ -234,15 +216,12 @@ services:
       kafka:
         condition: service_healthy
     networks:
-      - kafka-net
+      - aiops
     restart: unless-stopped
 
   trap-producer:
     container_name: TrapProducer
-    #image: ghcr.io/rberbato/trap-producer:latest
-    build:
-      context: .
-      dockerfile: ./dockerfiles/Dockerfile.traps-producer
+    image: ghcr.io/rberbato/trap-producer:latest
     environment:
       KAFKA_BROKER: kafka:9092
       KAFKA_EVENTS_TOPIC: trap-events
@@ -260,14 +239,11 @@ services:
       kafka:
         condition: service_healthy
     networks:
-      - kafka-net
+      - aiops
 
   trap-consumer:
     container_name: TrapConsumer
-    #image: ghcr.io/rberbato/trap-consumer:latest
-    build:
-      context: .
-      dockerfile: ./dockerfiles/Dockerfile.traps-consumer
+    image: ghcr.io/rberbato/trap-consumer:latest
     environment:
       KAFKA_BROKER: kafka:9092
       KAFKA_EVENTS_TOPIC: trap-events
@@ -278,29 +254,23 @@ services:
       kafka:
         condition: service_healthy
     networks:
-      - kafka-net
+      - aiops
     restart: unless-stopped
 
   netflow-producer:
     container_name: NetflowProducer
-    #image: ghcr.io/rberbato/netflow-producer:latest
-    build:
-      context: .
-      dockerfile: ./dockerfiles/Dockerfile.netflow-producer
+    image: ghcr.io/rberbato/netflow-producer:latest
     ports:
       - "1162:1162/udp"
     depends_on:
       kafka:
         condition: service_healthy
     networks:
-      - kafka-net
+      - aiops
 
   netflow-consumer:
     container_name: NetflowConsumer
-    #image: ghcr.io/rberbato/netflow-consumer:latest
-    build:
-      context: .
-      dockerfile: ./dockerfiles/Dockerfile.netflow-consumer
+    image: ghcr.io/rberbato/netflow-consumer:latest
     depends_on:
       kafka:
         condition: service_healthy
@@ -308,14 +278,11 @@ services:
         condition: service_healthy
     restart: unless-stopped
     networks:
-      - kafka-net
+      - aiops
 
   telemetry-producer:
     container_name: TelemetryProducer
-    #image: ghcr.io/rberbato/telemetry-producer:latest
-    build:
-      context: .
-      dockerfile: ./dockerfiles/Dockerfile.telemetry-producer
+    image: ghcr.io/rberbato/telemetry-producer:latest
     environment:
       - KAFKA_BROKER=kafka:9092
       - KAFKA_TOPIC=telemetry-topic
@@ -329,14 +296,11 @@ services:
       zookeeper:
         condition: service_healthy
     networks:
-      - kafka-net
+      - aiops
 
   cpu-util-stats:
     container_name: CPUUtilStatistics
-    #image: ghcr.io/rberbato/telemetry-cpu-util-stats:latest
-    build:
-      context: .
-      dockerfile: ./dockerfiles/Dockerfile.telemetry-cpu-util-stats
+    image: ghcr.io/rberbato/telemetry-cpu-util-stats:latest
     depends_on:
       kafka:
         condition: service_healthy
@@ -344,14 +308,11 @@ services:
         condition: service_healthy
     restart: unless-stopped
     networks:
-      - kafka-net
+      - aiops
 
   memory-statistics:
     container_name: MemoryStatistics
-    #image: ghcr.io/rberbato/telemetry-memory-stats:latest
-    build:
-      context: .
-      dockerfile: ./dockerfiles/Dockerfile.telemetry-memory-stats
+    image: ghcr.io/rberbato/telemetry-memory-stats:latest
     depends_on:
       kafka:
         condition: service_healthy
@@ -359,14 +320,11 @@ services:
         condition: service_healthy
     restart: unless-stopped
     networks:
-      - kafka-net
+      - aiops
       
   interface-statistics:
     container_name: InterfaceStatistics
-    #image: ghcr.io/rberbato/telemetry-interface-stats:latest
-    build:
-      context: .
-      dockerfile: ./dockerfiles/Dockerfile.telemetry-interface-stats
+    image: ghcr.io/rberbato/telemetry-interface-stats:latest
     depends_on:
       kafka:
         condition: service_healthy
@@ -374,7 +332,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     networks:
-      - kafka-net
+      - aiops
   
 volumes:
   postgres_data:

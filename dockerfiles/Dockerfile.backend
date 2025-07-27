@@ -28,7 +28,7 @@ COPY backend/ .
 # Set entrypoint
 COPY backend/entrypoint.sh .
 RUN chmod +x entrypoint.sh
-ENTRYPOINT ["./entrypoint.sh"]
+ENTRYPOINT ["/app/entrypoint.sh"]
 
 # Expose FastAPI port
 EXPOSE 8000
