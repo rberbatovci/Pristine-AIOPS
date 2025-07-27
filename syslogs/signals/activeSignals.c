@@ -195,10 +195,6 @@ void flushOpensearchBulkData()
     {
         fprintf(stderr, "[ERROR] Failed to create bulk flush thread\n");
     }
-    else
-    {
-        printf("[INFO] Bulk flush thread started\n");
-    }
 }
 
 void create_and_queue_bulk(ActiveSignal *sig, char **bulk, const char *index_name)
@@ -426,23 +422,23 @@ int json_subset_match(json_t *subset, json_t *fullset)
 int findActiveSignals(ActiveSignal *signal, const char *target_device, const char *target_rule_name, json_t *target_entities)
 {
     if (strcmp(signal->device, target_device) != 0) {
-        printf("[DEBUG] Device mismatch: signal=%s, target=%s\n", signal->device, target_device);
+        //printf("[DEBUG] Device mismatch: signal=%s, target=%s\n", signal->device, target_device);
         return 0;
     }
 
     if (strcmp(signal->rule, target_rule_name) != 0) {
-        printf("[DEBUG] Rule mismatch: signal=%s, target=%s\n", signal->rule, target_rule_name);
+        //printf("[DEBUG] Rule mismatch: signal=%s, target=%s\n", signal->rule, target_rule_name);
         return 0;
     }
 
     if (!json_subset_match(signal->affectedEntities, target_entities)) {
-        printf("[DEBUG] Affected entities mismatch\n");
+        //printf("[DEBUG] Affected entities mismatch\n");
 
         char *expected_str = json_dumps(signal->affectedEntities, JSON_INDENT(2));
         char *actual_str = json_dumps(target_entities, JSON_INDENT(2));
         if (expected_str && actual_str) {
-            printf("[DEBUG] Signal Entities:\n%s\n", expected_str);
-            printf("[DEBUG] Incoming Content:\n%s\n", actual_str);
+            //printf("[DEBUG] Signal Entities:\n%s\n", expected_str);
+            //printf("[DEBUG] Incoming Content:\n%s\n", actual_str);
         }
         free(expected_str);
         free(actual_str);
@@ -594,5 +590,5 @@ void closeSignal(const char *signalId, const char *eventId)
         }
     }
 
-    fprintf(stderr, "[WARNING] Signal with signalId '%s' not found to close\n", signalId);
+    //fprintf(stderr, "[WARNING] Signal with signalId '%s' not found to close\n", signalId);
 }
