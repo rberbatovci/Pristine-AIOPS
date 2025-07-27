@@ -177,7 +177,7 @@ void *bulk_flush_thread(void *arg __attribute__((unused)))
         pthread_mutex_lock(&bulk_mutex);
         if (bulk_event_count >= MAX_OPENSEARCH_BULK_EVENTS || (bulk_payload && strlen(bulk_payload) > 0))
         {
-            printf("[INFO] Sending bulk with %zu events to OpenSearch\n", bulk_event_count);
+            //printf("[INFO] Sending bulk with %zu events to OpenSearch\n", bulk_event_count);
             send_bulk_to_opensearch(bulk_payload);
             free(bulk_payload);
             bulk_payload = calloc(1, 1);
@@ -459,13 +459,10 @@ void createSignal(StatefulRule *rule, const char *device, const char *mnemonic, 
         fprintf(stderr, "[ERROR] Rule is NULL\n");
         return;
     }
-    fprintf(stdout, "[DEBUG] Creating signal with rule: %s\n", rule ? rule->name : "NULL");
+    
+    //fprintf(stdout, "[DEBUG] Creating signal with rule: %s\n", rule ? rule->name : "NULL");
 
-    if (eventIdStr)
-    {
-        fprintf(stdout, "[DEBUG] eventId: %s\n", eventIdStr);
-    }
-    else
+    if (!eventIdStr)
     {
         fprintf(stdout, "[DEBUG] eventId: NULL\n");
     }
@@ -561,7 +558,7 @@ void createSignal(StatefulRule *rule, const char *device, const char *mnemonic, 
 
     active_signal_count++;
 
-    printSignal(signal);
+    //printSignal(signal);
 }
 
 void closeSignal(const char *signalId, const char *eventId)
