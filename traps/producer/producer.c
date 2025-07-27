@@ -297,7 +297,9 @@ void print_banner() {
 int main(int argc, char **argv)
 {
     print_banner();
-    
+
+    setbuf(stdout, NULL);
+
     if (is_expired()) {
         fprintf(stderr, "⛔ Pristine-AIOPS v1.1 beta is out of date.\n Please contact the developer to get Pristine-AIOPS v1.2.\n");
         return 1;
