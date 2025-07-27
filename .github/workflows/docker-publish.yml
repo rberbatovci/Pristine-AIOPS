@@ -57,13 +57,13 @@ jobs:
           push: true
           tags: ghcr.io/rberbatovci/syslog-consumer:latest
 
-      #- name: Build and push syslog signals image
-      #  uses: docker/build-push-action@v5
-      #  with:
-      #    context: .
-      #    file: ./dockerfiles/Dockerfile.syslog-signals
-      #    push: true
-      #    tags: ghcr.io/rberbatovci/syslog-signals:latest
+      - name: Build and push syslog signals image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.syslog-signals
+          push: true
+          tags: ghcr.io/rberbatovci/syslog-signals:latest
 
       #- name: Build and push traps producer image
       #  uses: docker/build-push-action@v5

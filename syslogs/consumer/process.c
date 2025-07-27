@@ -130,8 +130,8 @@ void process_message(rd_kafka_t *rk)
                 else
                 {
                     char *dump = json_dumps(event_json, JSON_INDENT(2));
-                    printf("Serialized event JSON:\n%s\n", dump);
-                    free(dump);
+                    //printf("Serialized event JSON:\n%s\n", dump);
+                    //free(dump);
 
                     if (info->alert)
                     {

@@ -219,7 +219,7 @@ int main()
             strncpy(syslog.message, buffer, sizeof(syslog.message) - 1);
             syslog.message[sizeof(syslog.message) - 1] = '\0';
 
-            printf("Received syslog from %s.\n", syslog.device);
+            //printf("Received syslog from %s.\n", syslog.device);
 
             char escaped[MAX_BUFFER * 2];
             escape_json_string(syslog.message, escaped, sizeof(escaped));
@@ -243,10 +243,10 @@ int main()
                 {
                     fprintf(stderr, "Failed to produce message (final flush): %s\n", rd_kafka_err2str(rd_kafka_last_error()));
                 }
-                else
-                {
-                    printf("Produced to Kafka (final flush): %s\n", message_batch[i]);
-                }
+                //else
+                //{
+                //    printf("Produced to Kafka (final flush): %s\n", message_batch[i]);
+                //}
             }
 
             rd_kafka_poll(rk, 0);

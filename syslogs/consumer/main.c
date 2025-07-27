@@ -25,7 +25,7 @@ void *flush_loop(void *arg)
 
         if (opensearch_count > 0)
         {
-            printf("[INFO] Sending %d documents to OpenSearch.\n", opensearch_count);
+            //printf("[INFO] Sending %d documents to OpenSearch.\n", opensearch_count);
             send_bulk_to_opensearch(opensearch_buffer, opensearch_count);
 
             for (int i = 0; i < opensearch_count; i++)
