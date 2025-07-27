@@ -43,10 +43,23 @@ rd_kafka_t* setup_kafka_consumer(const char* brokers, const char* group_id, cons
     return rk;
 }
 
+void print_banner() {
+    printf("\n");
+    printf("╔══════════════════════════════════════════════╗\n");
+    printf("║           Welcome to Pristine-AIOPS          ║\n");
+    printf("║                   v1.1 beta                  ║\n");
+    printf("║           Thanks for using our tool          ║\n");
+    printf("╚══════════════════════════════════════════════╝\n");
+}
+
 int main() {
     setbuf(stdout, NULL);
 
     activeSignalMonitor();
+
+    print_banner();
+
+    printf("🚀 Consumer listening for signals ...\n");
 
     PGconn *conn = PQconnectdb("host=postgresql dbname=fpristine user=PristineAdmin password=PristinePassword");
     if (PQstatus(conn) != CONNECTION_OK) {
@@ -85,7 +98,7 @@ int main() {
     rd_kafka_t *rk = setup_kafka_consumer(brokers, "syslog-consumer-group", topic, &topics);
     if (!rk) return EXIT_FAILURE;
 
-    printf("[INFO] Subscribed to topic: %s\n", topic);
+    //printf("[INFO] Subscribed to topic: %s\n", topic);
 
     // Main loop to consume and process messages
     process_message(rk);

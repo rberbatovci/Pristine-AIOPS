@@ -85,7 +85,7 @@ bool extract_mnemonic(const char *message, char *mnemonic_out, size_t mnemonic_s
         if (len >= mnemonic_size) len = mnemonic_size - 1;
         strncpy(mnemonic_out, message + matches[1].rm_so, len);
         mnemonic_out[len] = '\0';
-        printf("[DEBUG] Extracted mnemonic: %s\n", mnemonic_out);
+        //printf("[DEBUG] Extracted mnemonic: %s\n", mnemonic_out);
         found = true;
     } else {
         printf("[DEBUG] No mnemonic pattern found in message.\n");
@@ -116,10 +116,10 @@ void extract_timestamp(const char *message, char *timestamp_out, size_t timestam
         strncpy(timestamp_out, message + match[1].rm_so, len);
         timestamp_out[len] = '\0';
 
-        printf("[DEBUG] Extracted timestamp: %s\n", timestamp_out);
-    } else {
-        printf("[DEBUG] No timestamp found in message.\n");
-    }
+        //printf("[DEBUG] Extracted timestamp: %s\n", timestamp_out);
+    //} else {
+    //    printf("[DEBUG] No timestamp found in message.\n");
+    //}
 
     regfree(&regex_timestamp);
 }

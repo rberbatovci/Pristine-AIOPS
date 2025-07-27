@@ -56,18 +56,18 @@ void process_message(rd_kafka_t *rk)
 
         if (!json_is_string(mnemonic_field) || !json_is_string(device_field) || !json_string_value(event_id_field))
         {
-            fprintf(stderr, "[WARN] Missing or invalid 'mnemonic' or 'device' or 'evendId'. Skipping...\n");
+            //fprintf(stderr, "[WARN] Missing or invalid 'mnemonic' or 'device' or 'evendId'. Skipping...\n");
             json_decref(root);
             free(payload);
             rd_kafka_message_destroy(rkmessage);
             continue;
         }
 
-        if (timestamp)
-        {
-            printf("[INFO] Received a signal message from %s with mnemonic %s and timestamp %s\n",
-                   device, mnemonic, timestamp);
-        }
+        //if (timestamp)
+        //{
+        //    printf("[INFO] Received a signal message from %s with mnemonic %s and timestamp %s\n",
+        //           device, mnemonic, timestamp);
+        //}
 
         json_t *tags = json_object_get(root, "tags");
 
@@ -77,7 +77,7 @@ void process_message(rd_kafka_t *rk)
             tags = json_object();
         }
 
-        printf("[INFO] Processing mnemonic: %s for device: %s\n", mnemonic, device);
+        //printf("[INFO] Processing mnemonic: %s for device: %s\n", mnemonic, device);
 
         // Check if there is an active signal matching this input
         ActiveSignal *matched_signal = NULL;
@@ -101,7 +101,7 @@ void process_message(rd_kafka_t *rk)
                 StatefulRule *rule = matches[i].rule;
                 MatchType type = matches[i].match_type;
 
-                printRule(rule);
+                //printRule(rule);
 
                 if (type == MATCH_OPEN)
                 {
@@ -141,24 +141,24 @@ void process_message(rd_kafka_t *rk)
 
                     if (matched_signal)
                     {
-                        printf("[ACTION] Closing existing signal ID %s for rule ID %d\n", matched_signal->signalId, rule->id);
-                        printSignal(matched_signal);
+                        //printf("[ACTION] Closing existing signal ID %s for rule ID %d\n", matched_signal->signalId, rule->id);
+                        //printSignal(matched_signal);
                         closeSignal(matched_signal->signalId, eventIdStr);
 
                     }
                     else
                     {
-                        printf("[INFO] No active signal found for MATCH_CLOSE\n");
+                        //printf("[INFO] No active signal found for MATCH_CLOSE\n");
                     }
                 }
             }
 
             free(matches);
         }
-        else
-        {
-            printf("[INFO] No matching rule found for mnemonic %s\n", mnemonic);
-        }
+        //else
+        //{
+        //    printf("[INFO] No matching rule found for mnemonic %s\n", mnemonic);
+        //}
 
         json_decref(root);
         free(payload);
