@@ -118,16 +118,23 @@ int is_expired() {
     return 0;
 }
 
+void print_banner() {
+    printf("\n");
+    printf("╔══════════════════════════════════════════════╗\n");
+    printf("║           Welcome to Pristine-AIOPS          ║\n");
+    printf("║                   v1.1 beta                  ║\n");
+    printf("║           Thanks for using our tool          ║\n");
+    printf("╚══════════════════════════════════════════════╝\n");
+}
+
 int main()
 {
-    
-
     if (is_expired()) {
-        fprintf(stderr, "⛔ Trial expired. Contact the developer.\n");
+        fprintf(stderr, "⛔ Pristine-AIOPS v1.1 beta is out of date.\n Please contact the developer to get the Pristine-AIOPS v1.2.\n");
         return 1;
     }
 
-    fprintf(stdout, "✅ Trial is valid. Starting application...\n");
+    print_banner();
 
     setbuf(stdout, NULL);
     int sockfd;
@@ -144,8 +151,9 @@ int main()
     init_kafka_producer();
 
     int udp_port = get_udp_port();
-    printf("🚀 Syslog producer starting on port %d...\n", udp_port);
 
+    printf("🚀 Producer listening for syslogs on port %d...\n", udp_port);
+    
     if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
     {
         perror("Socket creation failed");
@@ -192,16 +200,13 @@ int main()
     int batch_count = 0;
     time_t last_flush_time = time(NULL);
 
-    printf("Using flush interval: %d sec\n", FLUSH_INTERVAL_SEC);
-    printf("Using max batch size: %d\n", MAX_BATCH_SIZE);
-
     while (running)
     {
         ssize_t recv_len = recvfrom(sockfd, buffer, MAX_BUFFER - 1, MSG_DONTWAIT,
                                     (struct sockaddr *)&client_addr, &addr_len);
         if (recv_len < 0)
         {
-            usleep(1000); // Avoid busy wait
+            usleep(100000); // 100ms
         }
         else
         {

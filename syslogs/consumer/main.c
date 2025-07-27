@@ -73,14 +73,24 @@ rd_kafka_t *setup_kafka_consumer(const char *brokers, const char *group_id, cons
     return rk;
 }
 
+void print_banner() {
+    printf("╔══════════════════════════════════════════════╗\n");
+    printf("║           Welcome to Pristine-AIOPS          ║\n");
+    printf("║                   v1.1 beta                  ║\n");
+    printf("║           Thanks for using our tool          ║\n");
+    printf("╚══════════════════════════════════════════════╝\n");
+    printf("\n");
+}
+
 int main()
 {
+    print_banner();
+    
+    printf("Consumer listening for syslogs...\n");
+
     setbuf(stdout, NULL);
 
     load_env_config();
-
-    printf("[CONFIG] DATA_FLUSH_SIZE = %d\n", DATA_FLUSH_SIZE);
-    printf("[CONFIG] DATA_FLUSH_INTERVAL = %d seconds\n", DATA_FLUSH_INTERVAL);
 
     pthread_t reload_thread;
     ReloadArgs reload_args = {.interval_seconds = 300};
@@ -120,16 +130,11 @@ int main()
         return 1;
     }
 
-    printf("[INFO] Subscribed to topic: %s\n", topic);
-
-    // This blocks and processes messages continuously
     process_message(rk);
 
-    // Cleanup on exit (if process_message ever returns)
     running = 0;
     pthread_join(flush_thread, NULL);
 
-    // Final flush to OpenSearch
     if (opensearch_count > 0)
     {
         printf("[INFO] Flushing %d remaining documents to OpenSearch before exit.\n", opensearch_count);
@@ -139,19 +144,17 @@ int main()
         opensearch_count = 0;
     }
 
-    // Final flush to Kafka
     if (kafka_alert_count > 0)
     {
         printf("[INFO] Flushing %d remaining alerts to Kafka before exit.\n", kafka_alert_count);
         send_bulk_to_kafka();
     }
 
-    // Kafka flush & cleanup
-    rd_kafka_flush(kafka_alert_producer, 3000); // Ensure all messages are delivered
+    rd_kafka_flush(kafka_alert_producer, 3000);
     rd_kafka_topic_partition_list_destroy(topics);
     rd_kafka_consumer_close(rk);
-    rd_kafka_destroy(rk);                   // Destroy Kafka consumer
-    rd_kafka_destroy(kafka_alert_producer); // Destroy Kafka producer
+    rd_kafka_destroy(rk);
+    rd_kafka_destroy(kafka_alert_producer);
 
     return 0;
 }

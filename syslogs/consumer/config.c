@@ -19,7 +19,7 @@ pthread_mutex_t severity_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void perform_reload() {
     time_t now = time(NULL);
-    printf("[INFO] [Config Data] Reloading config at %s", ctime(&now));
+    //printf("[INFO] [Config Data] Reloading config at %s", ctime(&now));
 }
 
 void print_loaded_regexes() {
@@ -131,7 +131,7 @@ void load_mnemonics(PGconn *conn) {
     }
 
     PQclear(res);
-    printf("[INFO] [Config Data] Loaded %d mnemonics from PostgreSQL into cache\n", cache_size);
+    //printf("[INFO] [Config Data] Loaded %d mnemonics from PostgreSQL into cache\n", cache_size);
 }
 
 void load_regexes(PGconn *conn) {
@@ -162,7 +162,7 @@ void load_regexes(PGconn *conn) {
     }
 
     PQclear(res);
-    printf("[INFO] [Config Data] Loaded %d regexes from PostgreSQL\n", regex_count);
+    //printf("[INFO] [Config Data] Loaded %d regexes from PostgreSQL\n", regex_count);
 }
 
 void load_severity(PGconn *conn) {
@@ -179,7 +179,7 @@ void load_severity(PGconn *conn) {
         int new_severity = atoi(PQgetvalue(res, 0, 0));
 
         signal_severity = new_severity;
-        printf("[INFO] [Config Data] Updated signal_severity to: %d\n", new_severity);
+        //printf("[INFO] [Config Data] Updated signal_severity to: %d\n", new_severity);
     }
 
     PQclear(res);
@@ -203,7 +203,7 @@ void* reload_data_thread(void* args) {
         load_mnemonics(conn);
         //print_loaded_mnemonics();       // Print loaded mnemonics
         load_regexes(conn);
-        print_loaded_regexes();         // Print loaded regexes  
+        //print_loaded_regexes();         // Print loaded regexes  
         load_severity(conn);
 
         pthread_mutex_unlock(&config_mutex);
@@ -272,8 +272,8 @@ MnemonicInfo *fetch_mnemonic_from_db(const char *mnemonic) {
     cache[i].info.regex_count = 0;
     cache[i].info.regexes = NULL;
 
-    printf("[DEBUG] [Config Data] Processing mnemonic: %s\n", PQgetvalue(res, 0, 0));
-    printf("[DEBUG] [Config Data] Regex array string: %s\n", regex_array);
+    //printf("[DEBUG] [Config Data] Processing mnemonic: %s\n", PQgetvalue(res, 0, 0));
+    //printf("[DEBUG] [Config Data] Regex array string: %s\n", regex_array);
 
     if (regex_array && regex_array[0] == '{') {
         char *copy = strdup(regex_array);
@@ -288,7 +288,7 @@ MnemonicInfo *fetch_mnemonic_from_db(const char *mnemonic) {
             char *tend = token + strlen(token) - 1;
             while (tend > token && (*tend == ' ' || *tend == '"')) *tend-- = '\0';
 
-            printf("[DEBUG] [Config Data] Parsed regex[%d]: %s\n", regex_index++, token);
+            //printf("[DEBUG] [Config Data] Parsed regex[%d]: %s\n", regex_index++, token);
 
             cache[i].info.regexes = realloc(cache[i].info.regexes, sizeof(char*) * (cache[i].info.regex_count + 1));
             cache[i].info.regexes[cache[i].info.regex_count++] = strdup(token);
@@ -368,28 +368,28 @@ MnemonicInfo *create_mnemonic_and_cache(const char *mnemonic) {
     cache[i].info.regexes = NULL;
     cache[i].info.regex_count = 0;
 
-    printf("[INFO] [Config Data] Created new mnemonic '%s' with severity '%s' (level %d), alert=%s and cached\n",
-           mnemonic, extracted_severity, extracted_level, alert ? "true" : "false");
+    //printf("[INFO] [Config Data] Created new mnemonic '%s' with severity '%s' (level %d), alert=%s and cached\n",
+           //mnemonic, extracted_severity, extracted_level, alert ? "true" : "false");
 
     return &cache[i].info;
 }
 
 MnemonicInfo *findMnemonic(const char *mnemonic) {
-    printf("[DEBUG] [Config Data] Checking cache for mnemonic: %s\n", mnemonic);
+    //printf("[DEBUG] [Config Data] Checking cache for mnemonic: %s\n", mnemonic);
     MnemonicInfo *info = get_mnemonic_from_cache(mnemonic);
     if (info) {
-        printf("[DEBUG] [Config Data] Found mnemonic in cache: %s\n", mnemonic);
+        //printf("[DEBUG] [Config Data] Found mnemonic in cache: %s\n", mnemonic);
         return info;
     }
 
-    printf("[DEBUG] [Config Data] Mnemonic not found in cache. Trying DB: %s\n", mnemonic);
+    //printf("[DEBUG] [Config Data] Mnemonic not found in cache. Trying DB: %s\n", mnemonic);
     info = fetch_mnemonic_from_db(mnemonic);
     if (info) {
-        printf("[DEBUG] Found mnemonic in database: %s\n", mnemonic);
+        //printf("[DEBUG] Found mnemonic in database: %s\n", mnemonic);
         return info;
     }
 
-    printf("[DEBUG] [Config Data] Mnemonic not found in DB. Creating new entry: %s\n", mnemonic);
+    //printf("[DEBUG] [Config Data] Mnemonic not found in DB. Creating new entry: %s\n", mnemonic);
     return create_mnemonic_and_cache(mnemonic);
 }
 

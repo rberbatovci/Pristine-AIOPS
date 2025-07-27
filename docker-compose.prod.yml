@@ -7,7 +7,7 @@ networks:
 services:
   backend:
     container_name: FastAPI
-    image: ghcr.io/rberbato/backend:latest
+    image: ghcr.io/rberbatovci/backend:latest
     ports:
       - "8000:8000"
     depends_on:
@@ -21,9 +21,9 @@ services:
 
   frontend:
     container_name: ReactJS
-    image: ghcr.io/rberbato/frontend:latest
+    image: ghcr.io/rberbatovci/frontend:latest
     ports:
-      - "3000:3000"
+      - "80:80"
     volumes:
       - ./frontend:/app
     environment:
@@ -126,7 +126,7 @@ services:
       - aiops
 
   opensearch-init:
-    image: ghcr.io/rberbato/opensearch-init:latest
+    #image: ghcr.io/rberbato/opensearch-init:latest
     build:
       context: ./opensearch
       dockerfile: Dockerfile.OpenSearch
@@ -136,31 +136,9 @@ services:
     networks:
       - aiops
 
-  redis:
-    container_name: Redis
-    image: redis:latest
-    ports:
-      - "6380:6379"
-    command: ["redis-server", "--appendonly", "yes"]
-    networks:
-      - aiops
-
-  celery-worker:
-    container_name: CeleryWorker
-    image: ghcr.io/rberbato/celery:latest
-    build:
-      context: ./signals
-      dockerfile: Dockerfile.syslogSignals
-    command: celery -A tasks worker --loglevel=info
-    depends_on:
-      - redis
-      - kafka
-    networks:
-      - aiops
-
   syslog-producer:
     container_name: SyslogProducer
-    image: ghcr.io/rberbato/syslog-producer:latest
+    image: ghcr.io/rberbatovci/syslog-producer:latest
     environment:
       SYSLOG_PORT: ${SYSLOG_PORT:-1160}
       DATA_FLUSH_INTERVAL: ${DATA_FLUSH_INTERVAL:-1}
@@ -175,7 +153,7 @@ services:
 
   syslog-consumer:
     container_name: SyslogConsumer
-    image: ghcr.io/rberbato/syslog-consumer:latest
+    image: ghcr.io/rberbatovci/syslog-consumer:latest
     environment:
       KAFKA_BROKER: kafka:9092
       KAFKA_EVENTS_TOPIC: syslog-events
@@ -191,7 +169,7 @@ services:
 
   syslog-signals:
     container_name: SyslogSignals
-    image: ghcr.io/rberbato/syslog-signals:latest
+    image: ghcr.io/rberbatovci/syslog-signals:latest
     environment:
       KAFKA_BROKER: kafka:9092
       KAFKA_SIGNALS_TOPIC: syslog-signals
@@ -206,7 +184,7 @@ services:
 
   trap-signals:
     container_name: TrapSignals
-    image: ghcr.io/rberbato/trap-signals:latest
+    image: ghcr.io/rberbatovci/traps-signals:latest
     environment:
       KAFKA_BROKER: kafka:9092
       KAFKA_SIGNALS_TOPIC: trap-signals
@@ -221,7 +199,7 @@ services:
 
   trap-producer:
     container_name: TrapProducer
-    image: ghcr.io/rberbato/trap-producer:latest
+    image: ghcr.io/rberbatovci/traps-producer:latest
     environment:
       KAFKA_BROKER: kafka:9092
       KAFKA_EVENTS_TOPIC: trap-events
@@ -243,7 +221,7 @@ services:
 
   trap-consumer:
     container_name: TrapConsumer
-    image: ghcr.io/rberbato/trap-consumer:latest
+    image: ghcr.io/rberbatovci/traps-consumer:latest
     environment:
       KAFKA_BROKER: kafka:9092
       KAFKA_EVENTS_TOPIC: trap-events
@@ -259,7 +237,7 @@ services:
 
   netflow-producer:
     container_name: NetflowProducer
-    image: ghcr.io/rberbato/netflow-producer:latest
+    image: ghcr.io/rberbatovci/netflow-producer:latest
     ports:
       - "1162:1162/udp"
     depends_on:
@@ -270,7 +248,7 @@ services:
 
   netflow-consumer:
     container_name: NetflowConsumer
-    image: ghcr.io/rberbato/netflow-consumer:latest
+    image: ghcr.io/rberbatovci/netflow-consumer:latest
     depends_on:
       kafka:
         condition: service_healthy
@@ -282,7 +260,7 @@ services:
 
   telemetry-producer:
     container_name: TelemetryProducer
-    image: ghcr.io/rberbato/telemetry-producer:latest
+    image: ghcr.io/rberbatovci/telemetry-producer:latest
     environment:
       - KAFKA_BROKER=kafka:9092
       - KAFKA_TOPIC=telemetry-topic
@@ -300,7 +278,7 @@ services:
 
   cpu-util-stats:
     container_name: CPUUtilStatistics
-    image: ghcr.io/rberbato/telemetry-cpu-util-stats:latest
+    image: ghcr.io/rberbatovci/telemetry-cpu-util-stats:latest
     depends_on:
       kafka:
         condition: service_healthy
@@ -312,7 +290,7 @@ services:
 
   memory-statistics:
     container_name: MemoryStatistics
-    image: ghcr.io/rberbato/telemetry-memory-stats:latest
+    image: ghcr.io/rberbatovci/telemetry-memory-stats:latest
     depends_on:
       kafka:
         condition: service_healthy
@@ -324,7 +302,7 @@ services:
       
   interface-statistics:
     container_name: InterfaceStatistics
-    image: ghcr.io/rberbato/telemetry-interface-stats:latest
+    image: ghcr.io/rberbatovci/telemetry-interface-stats:latest
     depends_on:
       kafka:
         condition: service_healthy
