@@ -59,10 +59,10 @@ bool extract_severity(const char *mnemonic, char *severity_name_out, size_t seve
         int sev = sev_char - '0';
         *severity_level_out = sev;
         snprintf(severity_name_out, severity_name_size, "%s", severity_levels[sev]);
-        printf("[DEBUG] Extracted severity: %s (%d)\n", severity_name_out, sev);
+        //printf("[DEBUG] Extracted severity: %s (%d)\n", severity_name_out, sev);
         found = true;
     } else {
-        printf("[DEBUG] Severity not found in mnemonic.\n");
+        ///printf("[DEBUG] Severity not found in mnemonic.\n");
     }
 
     regfree(&regex_severity);
@@ -117,9 +117,9 @@ void extract_timestamp(const char *message, char *timestamp_out, size_t timestam
         timestamp_out[len] = '\0';
 
         //printf("[DEBUG] Extracted timestamp: %s\n", timestamp_out);
-    //} else {
-    //    printf("[DEBUG] No timestamp found in message.\n");
-    //}
+    } else {
+        //printf("[DEBUG] No timestamp found in message.\n");
+    }
 
     regfree(&regex_timestamp);
 }
@@ -147,11 +147,11 @@ int extract_lsn(const char *original_message) {
             return atoi(lsn_str);
         }
     } else if (ret == REG_NOMATCH) {
-        printf("[WARN] No LSN match found\n");
+        //printf("[WARN] No LSN match found\n");
     } else {
         char errbuf[100];
         regerror(ret, &regex, errbuf, sizeof(errbuf));
-        fprintf(stderr, "[ERROR] Regex error: %s\n", errbuf);
+        //fprintf(stderr, "[ERROR] Regex error: %s\n", errbuf);
     }
 
     regfree(&regex);
@@ -168,7 +168,7 @@ char *extract_tags(const Regex *r, const char *message) {
     // Compile the regex
     reti = regcomp(&regex, r->pattern, REG_EXTENDED);
     if (reti) {
-        fprintf(stderr, "[ERROR] Failed to compile regex pattern: %s\n", r->pattern);
+        //fprintf(stderr, "[ERROR] Failed to compile regex pattern: %s\n", r->pattern);
         return NULL;
     }
 
