@@ -305,8 +305,6 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    fprintf(stdout, "✅ Trial is valid. Starting application...\n");
-
     netsnmp_session session, *ss;
     netsnmp_transport *transport = NULL;
     int exit_status = 0;
@@ -397,7 +395,7 @@ int main(int argc, char **argv)
     char listen_addr[32];
     snprintf(listen_addr, sizeof(listen_addr), "udp:%s", trapPort);
     
-    printf("🚀Producer is listening for SNMP traps on port %s...\n", trapPort);
+    printf("🚀Producer is listening for SNMPv3 traps on port %s...\n", trapPort);
 
     transport = netsnmp_tdomain_transport(listen_addr, 1, "snmptrap");
     if (!transport)
@@ -415,8 +413,6 @@ int main(int argc, char **argv)
         exit_status = 1;
         goto cleanup;
     }
-
-    printf("✅ Listening for SNMPv3 traps on %s...\n", listen_addr);
 
     while (1)
     {

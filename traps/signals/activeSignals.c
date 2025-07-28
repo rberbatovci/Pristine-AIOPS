@@ -78,13 +78,13 @@ void updateSignalStates() {
         bulk_payload = NULL;
     }
 
-    removeClosedSignals();  // safe to remove from memory now
+    removeClosedSignals();
 }
 
 static void *state_monitor_thread() {
     while (1) {
-        updateSignalStates();  // your promotion logic
-        sleep(1);  // check every second
+        updateSignalStates();
+        sleep(1);
     }
     return NULL;
 }
@@ -92,10 +92,8 @@ static void *state_monitor_thread() {
 void activeSignalMonitor() {
     pthread_t monitor_thread;
     if (pthread_create(&monitor_thread, NULL, state_monitor_thread, NULL) != 0) {
-        fprintf(stderr, "[ERROR] Failed to start signal monitor thread\n");
     } else {
-        pthread_detach(monitor_thread);  // optional: no need to join later
-        printf("[INFO] Signal monitor thread started\n");
+        pthread_detach(monitor_thread);
     }
 }
 
@@ -104,7 +102,7 @@ void generate_uuid(char *uuid_str, size_t size)
     uuid_t uuid;
     uuid_generate(uuid);
     uuid_unparse(uuid, uuid_str);
-    uuid_str[size - 1] = '\0'; // Ensure null-termination
+    uuid_str[size - 1] = '\0';
 }
 
 void send_bulk_to_opensearch(const char *bulk_payload)

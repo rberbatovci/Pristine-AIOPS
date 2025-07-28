@@ -118,7 +118,7 @@ void extract_timestamp(const char *message, char *timestamp_out, size_t timestam
 
         //printf("[DEBUG] Extracted timestamp: %s\n", timestamp_out);
     } else {
-        //printf("[DEBUG] No timestamp found in message.\n");
+        printf("[DEBUG] No timestamp found in message.\n");
     }
 
     regfree(&regex_timestamp);

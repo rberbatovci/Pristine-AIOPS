@@ -35,7 +35,7 @@ json_t *serialize_events(const SyslogEvent *event)
     return j;
 }
 
-void process_message(rd_kafka_t *rk)
+void process_message(rd_kafka_t *rk, rd_kafka_t *signal_producer)
 {
     rd_kafka_message_t *rkmessage;
     static time_t last_flush_time = 0;
@@ -130,31 +130,30 @@ void process_message(rd_kafka_t *rk)
                 else
                 {
                     char *dump = json_dumps(event_json, JSON_INDENT(2));
-                    //printf("Serialized event JSON:\n%s\n", dump);
+                    printf("Serialized event JSON:\n%s\n", dump);
                     //free(dump);
 
                     if (info->alert)
                     {
-                        add_alert_to_kafka_bulk(event_json); // uses json_incref()
+                        add_alert_to_kafka_bulk(event_json);
                     }
 
-                    // OpenSearch buffer logic
-                    if (opensearch_count < DATA_FLUSH_SIZE)
+                    if (opensearch_events_count < DATA_FLUSH_SIZE)
                     {
-                        opensearch_buffer[opensearch_count++] = json_incref(event_json);
+                        opensearch_events_buffer[opensearch_events_count++] = json_incref(event_json);
                     }
                     else
                     {
-                        send_bulk_to_opensearch(opensearch_buffer, opensearch_count);
-                        for (int i = 0; i < opensearch_count; i++)
+                        send_bulk_to_opensearch(opensearch_events_buffer, opensearch_events_count);
+                        for (int i = 0; i < opensearch_events_count; i++)
                         {
-                            json_decref(opensearch_buffer[i]);
+                            json_decref(opensearch_events_buffer[i]);
                         }
-                        opensearch_count = 0;
-                        opensearch_buffer[opensearch_count++] = json_incref(event_json);
+                        opensearch_events_count = 0;
+                        opensearch_events_buffer[opensearch_events_count++] = json_incref(event_json);
                     }
 
-                    json_decref(event_json); // decrement your reference after use
+                    json_decref(event_json);
                 }
             }
             else

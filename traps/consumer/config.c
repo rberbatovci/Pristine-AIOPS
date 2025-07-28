@@ -15,6 +15,33 @@ int trapTagCount = 0;
 
 pthread_mutex_t config_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+void print_trap_oids() {
+    printf("\n[DEBUG] Loaded SNMP Trap OIDs (%d):\n", trapOidCount);
+    for (int i = 0; i < trapOidCount; i++) {
+        printf("  --- OID %d ---\n", i + 1);
+        printf("    Name     : %s\n", trap_oids[i].name);
+        printf("    Value    : %s\n", trap_oids[i].value);
+        printf("    Alert    : %s\n", trap_oids[i].alert ? "true" : "false");
+        printf("    Tags (%d):\n", trap_oids[i].tag_count);
+        for (int j = 0; j < trap_oids[i].tag_count; j++) {
+            printf("      - %s\n", trap_oids[i].tags[j]);
+        }
+    }
+}
+
+void print_trap_tags() {
+    printf("\n[DEBUG] Loaded SNMP Trap Tags (%d):\n", trapTagCount);
+    for (int i = 0; i < trapTagCount; i++) {
+        printf("  --- Tag %d ---\n", i + 1);
+        printf("    Name     : %s\n", trap_tags[i].name);
+        printf("    OIDs (%d):\n", trap_tags[i].oid_count);
+        for (int j = 0; j < trap_tags[i].oid_count; j++) {
+            printf("      - %s\n", trap_tags[i].oids[j]);
+        }
+    }
+}
+
+
 void* reload_data_thread(void* args) {
     ReloadArgs* reload_args = (ReloadArgs*)args;
     const char *conninfo = "host=postgresql dbname=fpristine user=PristineAdmin password=PristinePassword";
@@ -29,7 +56,9 @@ void* reload_data_thread(void* args) {
     while (1) {
         pthread_mutex_lock(&config_mutex);
         load_trap_oids(conn);
+        print_trap_oids();
         load_trap_tags(conn);
+        print_trap_tags();
         pthread_mutex_unlock(&config_mutex);
         sleep(reload_args->interval_seconds);
     }

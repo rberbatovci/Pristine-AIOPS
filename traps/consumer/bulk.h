@@ -12,7 +12,7 @@ extern int opensearch_events_count;
 extern json_t *kafka_signals_buffer[BULK_LIMIT];
 extern int kafka_signals_count;
 
-rd_kafka_t *init_kafka_alert_producer(const char *brokers);
+rd_kafka_t *init_signal_producer(const char *brokers);
 
 void add_to_kafka_bulk(json_t *alert_json, rd_kafka_t *producer, const char *topic);
 void send_bulk_to_kafka(void);

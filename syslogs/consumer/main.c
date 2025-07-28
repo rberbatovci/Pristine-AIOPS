@@ -11,26 +11,32 @@
 #include "config.h"
 
 // Global Kafka producer
-rd_kafka_t *kafka_alert_producer;
+rd_kafka_t *signal_producer;
 
-// Running flag for flush thread
-volatile int running = 1;
+// run flag for flush thread
+volatile int run = 1;
+
+static void stop_program(int sig) {
+    run = 0;
+    fprintf(stderr, "[INFO] Received signal %d, initiating graceful shutdown...\n", sig);
+}
+
 
 // Flush thread function
 void *flush_loop(void *arg)
 {
-    while (running)
+    while (run)
     {
         sleep(DATA_FLUSH_INTERVAL);
 
-        if (opensearch_count > 0)
+        if (opensearch_events_count > 0)
         {
-            //printf("[INFO] Sending %d documents to OpenSearch.\n", opensearch_count);
-            send_bulk_to_opensearch(opensearch_buffer, opensearch_count);
+            //printf("[INFO] Sending %d documents to OpenSearch.\n", opensearch_events_count);
+            send_bulk_to_opensearch(opensearch_events_buffer, opensearch_events_count);
 
-            for (int i = 0; i < opensearch_count; i++)
-                json_decref(opensearch_buffer[i]);
-            opensearch_count = 0;
+            for (int i = 0; i < opensearch_events_count; i++)
+                json_decref(opensearch_events_buffer[i]);
+            opensearch_events_count = 0;
         }
 
         send_bulk_to_kafka();
@@ -92,6 +98,9 @@ int main()
 
     load_env_config();
 
+    signal(SIGINT, stop_program);
+    signal(SIGTERM, stop_program);
+
     pthread_t reload_thread;
     ReloadArgs reload_args = {.interval_seconds = 300};
 
@@ -101,7 +110,6 @@ int main()
         return 1;
     }
 
-    // Start the flush thread
     pthread_t flush_thread;
     if (pthread_create(&flush_thread, NULL, flush_loop, NULL) != 0)
     {
@@ -109,52 +117,51 @@ int main()
         return 1;
     }
 
-    const char *brokers = "Kafka:9092";
-    const char *topic = "syslog-events";
-
-    kafka_alert_producer = init_kafka_alert_producer(brokers);
-    if (!kafka_alert_producer)
-    {
-        fprintf(stderr, "[ERROR] Failed to initialize Kafka producer\n");
-        running = 0;
-        pthread_join(flush_thread, NULL);
+    signal_producer = init_signal_producer("kafka:9092");
+    if (!signal_producer) {
+        fprintf(stderr, "[ERROR] Failed to initialize Kafka alert producer. Exiting.\n");
+        pthread_cancel(reload_thread);
+        pthread_join(reload_thread, NULL);
+        //free(args);
         return 1;
     }
 
     rd_kafka_topic_partition_list_t *topics;
-    rd_kafka_t *rk = setup_kafka_consumer(brokers, "syslog-events", topic, &topics);
-    if (!rk)
-    {
-        running = 0;
-        pthread_join(flush_thread, NULL);
+    rd_kafka_t *rk = setup_kafka_consumer("kafka:9092", "trap-events-group", "trap-events", &topics);
+    if (!rk) {
+        fprintf(stderr, "[ERROR] Failed to set up Kafka consumer. Exiting.\n");
+        if (signal_producer)
+            rd_kafka_destroy(signal_producer);
+        run = 0;
+        pthread_join(reload_thread, NULL);
+        //free(args);
         return 1;
     }
+    process_message(rk, signal_producer);
 
-    process_message(rk);
-
-    running = 0;
+    run = 0;
     pthread_join(flush_thread, NULL);
 
-    if (opensearch_count > 0)
+    if (opensearch_events_count > 0)
     {
-        printf("[INFO] Flushing %d remaining documents to OpenSearch before exit.\n", opensearch_count);
-        send_bulk_to_opensearch(opensearch_buffer, opensearch_count);
-        for (int i = 0; i < opensearch_count; i++)
-            json_decref(opensearch_buffer[i]);
-        opensearch_count = 0;
+        printf("[INFO] Flushing %d remaining documents to OpenSearch before exit.\n", opensearch_events_count);
+        send_bulk_to_opensearch(opensearch_events_buffer, opensearch_events_count);
+        for (int i = 0; i < opensearch_events_count; i++)
+            json_decref(opensearch_events_buffer[i]);
+        opensearch_events_count = 0;
     }
 
-    if (kafka_alert_count > 0)
+    if (kafka_signals_count > 0)
     {
-        printf("[INFO] Flushing %d remaining alerts to Kafka before exit.\n", kafka_alert_count);
+        printf("[INFO] Flushing %d remaining alerts to Kafka before exit.\n", kafka_signals_count);
         send_bulk_to_kafka();
     }
 
-    rd_kafka_flush(kafka_alert_producer, 3000);
+    rd_kafka_flush(signal_producer, 3000);
     rd_kafka_topic_partition_list_destroy(topics);
     rd_kafka_consumer_close(rk);
     rd_kafka_destroy(rk);
-    rd_kafka_destroy(kafka_alert_producer);
+    rd_kafka_destroy(signal_producer);
 
     return 0;
 }

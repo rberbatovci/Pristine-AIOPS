@@ -20,24 +20,20 @@ int kafka_signals_count = 0;
 
 rd_kafka_t *kafka_producer = NULL;
 
-rd_kafka_t *init_kafka_alert_producer(const char *brokers)
-{
+rd_kafka_t* init_signal_producer(const char* brokers) {
     char errstr[512];
     rd_kafka_conf_t *conf = rd_kafka_conf_new();
-
-    if (rd_kafka_conf_set(conf, "bootstrap.servers", brokers, errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK)
-    {
-        fprintf(stderr, "[ERROR] Kafka conf set failed: %s\n", errstr);
+    if (rd_kafka_conf_set(conf, "bootstrap.servers", brokers, errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK) {
+        fprintf(stderr, "[ERROR] Kafka producer conf failed: %s\n", errstr);
+        rd_kafka_conf_destroy(conf);
         return NULL;
     }
 
     rd_kafka_t *rk = rd_kafka_new(RD_KAFKA_PRODUCER, conf, errstr, sizeof(errstr));
-    if (!rk)
-    {
+    if (!rk) {
         fprintf(stderr, "[ERROR] Failed to create Kafka producer: %s\n", errstr);
         return NULL;
     }
-
     return rk;
 }
 

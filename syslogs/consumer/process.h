@@ -15,7 +15,7 @@ typedef struct SyslogEvent {
     char message[2048];
 } SyslogEvent;
 
-void process_message(rd_kafka_t *rk);
+void process_message(rd_kafka_t *rk, rd_kafka_t *signal_producer);
 
 extern pthread_mutex_t severity_mutex;
 

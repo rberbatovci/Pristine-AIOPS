@@ -96,7 +96,7 @@ void loadSignalRules(PGconn *conn)
     }
 
     PQclear(res);
-    printf("[INFO] Loaded %d SNMP trap signal rules\n", signal_rule_count);
+    //printf("[INFO] Loaded %d SNMP trap signal rules\n", signal_rule_count);
 }
 
 StatefulRule *findRuleByName(const char *name) {

@@ -29,7 +29,7 @@ services:
       context: .
       dockerfile: ./dockerfiles/Dockerfile.frontend
     ports:
-      - "3000:3000"
+      - "80:80"
     volumes:
       - ./frontend:/app
     environment:
@@ -131,16 +131,16 @@ services:
     networks:
       - kafka-net
 
-  opensearch-init:
-    image: ghcr.io/rberbato/opensearch-init:latest
-    build:
-      context: ./opensearch
-      dockerfile: Dockerfile.OpenSearch
-    depends_on:
-      opensearch:
-        condition: service_healthy
-    networks:
-      - kafka-net
+  #opensearch-init:
+  #  image: ghcr.io/rberbato/opensearch-init:latest
+  #  build:
+  #    context: ./opensearch
+  #    dockerfile: Dockerfile.OpenSearch
+  #  depends_on:
+  #    opensearch:
+  #      condition: service_healthy
+  #  networks:
+  #    - kafka-net
 
   #redis:
   #  container_name: Redis
@@ -172,8 +172,8 @@ services:
       dockerfile: ./dockerfiles/Dockerfile.syslog-producer
     environment:
       SYSLOG_PORT: ${SYSLOG_PORT:-1160}
-      DATA_FLUSH_INTERVAL: ${DATA_FLUSH_INTERVAL:-1}
-      DATA_FLUSH_SIZE: ${DATA_FLUSH_SIZE:-100}
+    env_file:
+      - .env
     ports:
       - "1160:1160/udp"
     depends_on:
@@ -188,12 +188,6 @@ services:
     build:
        context: .
        dockerfile: ./dockerfiles/Dockerfile.syslog-consumer
-    environment:
-      KAFKA_BROKER: kafka:9092
-      KAFKA_EVENTS_TOPIC: syslog-events
-      KAFKA_SIGNALS_TOPIC: syslog-signals
-      DATA_FLUSH_INTERVAL: ${DATA_FLUSH_INTERVAL:-1}
-      DATA_FLUSH_SIZE: ${DATA_FLUSH_SIZE:-100}
     depends_on:
       kafka:
         condition: service_healthy
@@ -201,85 +195,66 @@ services:
       - kafka-net
     restart: unless-stopped
 
-  #syslog-signals:
-  #  container_name: SyslogSignals
-  #  #image: ghcr.io/rberbato/syslog-signals:latest
-  #  build:
-  #    context: .
-  #    dockerfile: ./dockerfiles/Dockerfile.syslog-signals
-  #  environment:
-  #    KAFKA_BROKER: kafka:9092
-  #    KAFKA_SIGNALS_TOPIC: syslog-signals
-  #    DATA_FLUSH_INTERVAL: ${DATA_FLUSH_INTERVAL:-1}
-  #    DATA_FLUSH_SIZE: ${DATA_FLUSH_SIZE:-100}
-  #  depends_on:
-  #    kafka:
-  #      condition: service_healthy
-  #  networks:
-  #    - kafka-net
-  #  restart: unless-stopped
+  syslog-signals:
+    container_name: SyslogSignals
+    #image: ghcr.io/rberbato/syslog-signals:latest
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.syslog-signals
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - kafka-net
+    restart: unless-stopped
 
-  #trap-signals:
-  #  container_name: TrapSignals
-  #  #image: ghcr.io/rberbato/trap-signals:latest
-  #  build:
-  #    context: .
-  #    dockerfile: ./dockerfiles/Dockerfile.traps-signals
-  #  environment:
-  #    KAFKA_BROKER: kafka:9092
-  #    KAFKA_SIGNALS_TOPIC: trap-signals
-  #    DATA_FLUSH_INTERVAL: ${DATA_FLUSH_INTERVAL:-1}
-  #    DATA_FLUSH_SIZE: ${DATA_FLUSH_SIZE:-100}
-  #  depends_on:
-  #    kafka:
-  #      condition: service_healthy
-  #  networks:
-  #    - kafka-net
-  #  restart: unless-stopped
+  trap-signals:
+    container_name: TrapSignals
+    #image: ghcr.io/rberbato/trap-signals:latest
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.traps-signals
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - kafka-net
+    restart: unless-stopped
 
-  #trap-producer:
-  #  container_name: TrapProducer
-  #  #image: ghcr.io/rberbato/trap-producer:latest
-  #  build:
-  #    context: .
-  #    dockerfile: ./dockerfiles/Dockerfile.traps-producer
-  #  environment:
-  #    KAFKA_BROKER: kafka:9092
-  #    KAFKA_EVENTS_TOPIC: trap-events
-  #    KAFKA_SIGNALS_TOPIC: trap-signals
-  #    SNMP_AUTH_PASS: ${SNMP_AUTH_PASS}
-  #    SNMP_PRIV_PASS: ${SNMP_PRIV_PASS}
-  #    SNMP_USERNAME: ${SNMP_USERNAME}
-  #    SNMP_ENGINE_ID: ${SNMP_ENGINE_ID}
-  #    SNMP_TRAP_PORT: ${SNMP_TRAP_PORT}
-  #    DATA_FLUSH_INTERVAL: ${DATA_FLUSH_INTERVAL:-1}
-  #    DATA_FLUSH_SIZE: ${DATA_FLUSH_SIZE:-100}
-  #  ports:
-  #    - "1161:1161/udp"
-  #  depends_on:
-  #    kafka:
-  #      condition: service_healthy
-  #  networks:
-  #    - kafka-net
+  trap-producer:
+    container_name: TrapProducer
+    #image: ghcr.io/rberbato/trap-producer:latest
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.traps-producer
+    environment:
+      SNMP_AUTH_PASS: ${SNMP_AUTH_PASS}
+      SNMP_PRIV_PASS: ${SNMP_PRIV_PASS}
+      SNMP_USERNAME: ${SNMP_USERNAME}
+      SNMP_ENGINE_ID: ${SNMP_ENGINE_ID}
+      SNMP_TRAP_PORT: ${SNMP_TRAP_PORT}
+    env_file:
+      - .env
+    ports:
+      - "1161:1161/udp"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - kafka-net
 
-  #trap-consumer:
-  #  container_name: TrapConsumer
+  trap-consumer:
+    container_name: TrapConsumer
     #image: ghcr.io/rberbato/trap-consumer:latest
-  #  build:
-  #    context: .
-  #    dockerfile: ./dockerfiles/Dockerfile.traps-consumer
-  #  environment:
-  #    KAFKA_BROKER: kafka:9092
-  #    KAFKA_EVENTS_TOPIC: trap-events
-  #    KAFKA_SIGNALS_TOPIC: trap-signals
-  #    DATA_FLUSH_INTERVAL: ${DATA_FLUSH_INTERVAL:-1}
-  #    DATA_FLUSH_SIZE: ${DATA_FLUSH_SIZE:-100}
-  #  depends_on:
-  #    kafka:
-  #      condition: service_healthy
-  #  networks:
-  #    - kafka-net
-  #  restart: unless-stopped
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.traps-consumer
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - kafka-net
+    restart: unless-stopped
 
   #netflow-producer:
   #  container_name: NetflowProducer

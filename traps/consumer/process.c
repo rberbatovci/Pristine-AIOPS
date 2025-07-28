@@ -125,7 +125,6 @@ void process_message(rd_kafka_t *rk, rd_kafka_t *signal_producer)
         uuid_unparse_lower(uuid, uuid_str);
         json_object_set_new(root, "eventId", json_string(uuid_str));
 
-        // Log processed message
         char *final_json = json_dumps(root, JSON_INDENT(2));
         printf("[DEBUG] Final JSON with metadata:\n%s\n", final_json);
         free(final_json);
@@ -133,12 +132,12 @@ void process_message(rd_kafka_t *rk, rd_kafka_t *signal_producer)
         if (trapOidInfo->alert)
         {
             printf("[INFO] Sending to Kafka 'trap-signals' topic.\n");
-            // Use a new function or modify existing to send to signal topic
             add_alert_to_kafka_bulk(root);
         }
 
         if (opensearch_events_count < DATA_FLUSH_SIZE)
         {
+            printf("[INFO] [PROCESS] New SNMPv3 trap added in the buffer...\n");
             opensearch_events_buffer[opensearch_events_count++] = json_deep_copy(root);
         }
         else

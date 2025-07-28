@@ -13,33 +13,28 @@ int DATA_FLUSH_SIZE = 100;
 int DATA_FLUSH_INTERVAL = 1;
 
 // Declare buffers and counters
-json_t *opensearch_buffer[BULK_LIMIT];
-int opensearch_count = 0;
+json_t *opensearch_events_buffer[BULK_LIMIT];
+int opensearch_events_count = 0;
 
-json_t *kafka_alert_buffer[BULK_LIMIT];
-int kafka_alert_count = 0;
+json_t *kafka_signals_buffer[BULK_LIMIT];
+int kafka_signals_count = 0;
 
 rd_kafka_t *kafka_producer = NULL;
 
-rd_kafka_t *init_kafka_alert_producer(const char *brokers)
-{
+rd_kafka_t* init_signal_producer(const char* brokers) {
     char errstr[512];
     rd_kafka_conf_t *conf = rd_kafka_conf_new();
-
-    if (rd_kafka_conf_set(conf, "bootstrap.servers", brokers, errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK)
-    {
-        fprintf(stderr, "[ERROR] Kafka conf set failed: %s\n", errstr);
+    if (rd_kafka_conf_set(conf, "bootstrap.servers", brokers, errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK) {
+        fprintf(stderr, "[ERROR] Kafka producer conf failed: %s\n", errstr);
+        rd_kafka_conf_destroy(conf);
         return NULL;
     }
 
     rd_kafka_t *rk = rd_kafka_new(RD_KAFKA_PRODUCER, conf, errstr, sizeof(errstr));
-    if (!rk)
-    {
+    if (!rk) {
         fprintf(stderr, "[ERROR] Failed to create Kafka producer: %s\n", errstr);
         return NULL;
     }
-
-    kafka_producer = rk;
     return rk;
 }
 
@@ -61,7 +56,7 @@ void load_env_config()
 
 void send_bulk_to_kafka()
 {
-    if (kafka_alert_count == 0)
+    if (kafka_signals_count == 0)
         return;
 
     // rd_kafka_t *rk = init_kafka_alert_producer();  // WRONG: missing argument, recreate producer every time!
@@ -80,14 +75,14 @@ void send_bulk_to_kafka()
         return;
     }
 
-    for (int i = 0; i < kafka_alert_count; i++)
+    for (int i = 0; i < kafka_signals_count; i++)
     {
-        if (!json_is_object(kafka_alert_buffer[i]))
+        if (!json_is_object(kafka_signals_buffer[i]))
         {
             continue;
         }
 
-        char *json_str = json_dumps(kafka_alert_buffer[i], JSON_COMPACT);
+        char *json_str = json_dumps(kafka_signals_buffer[i], JSON_COMPACT);
         if (!json_str)
         {
             fprintf(stderr, "[WARN] Failed to convert JSON to string\n");
@@ -106,10 +101,10 @@ void send_bulk_to_kafka()
         }
 
         free(json_str);
-        json_decref(kafka_alert_buffer[i]); // ✅ Important
+        json_decref(kafka_signals_buffer[i]); // ✅ Important
     }
 
-    kafka_alert_count = 0;
+    kafka_signals_count = 0;
 
     rd_kafka_flush(kafka_producer, 1000);
     rd_kafka_topic_destroy(rkt);
@@ -129,15 +124,15 @@ void add_alert_to_kafka_bulk(json_t *alert_json)
         return;
     }
 
-    if (kafka_alert_count < DATA_FLUSH_SIZE)
+    if (kafka_signals_count < DATA_FLUSH_SIZE)
     {
-        kafka_alert_buffer[kafka_alert_count++] = json_incref(alert_json);
+        kafka_signals_buffer[kafka_signals_count++] = json_incref(alert_json);
     }
     else
     {
         printf("[INFO] Kafka buffer full. Sending bulk...\n");
         send_bulk_to_kafka();
-        kafka_alert_buffer[kafka_alert_count++] = json_incref(alert_json);
+        kafka_signals_buffer[kafka_signals_count++] = json_incref(alert_json);
     }
 }
 
