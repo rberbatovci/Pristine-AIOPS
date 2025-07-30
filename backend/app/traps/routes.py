@@ -21,7 +21,7 @@ import redis
 
 router = APIRouter()
 
-MIBS_DIR = "/app/traps/mibs"
+MIBS_DIR = "/app/traps/producer/mibs"
 
 @router.post("/snmptraps/tags/syncToRedis/")
 def sync_snmpTrapTags():

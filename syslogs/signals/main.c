@@ -2,10 +2,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <librdkafka/rdkafka.h>
-
-#include "rules.h"
-#include "process.h"
-#include "activeSignals.h"
+#include "globals.h"
 
 rd_kafka_t* setup_kafka_consumer(const char* brokers, const char* group_id, const char* topic, rd_kafka_topic_partition_list_t **topics_out) {
     char errstr[512];
@@ -61,6 +58,8 @@ int main() {
 
     printf("🚀 Consumer listening for signals ...\n");
 
+    create_syslog_signals_index();
+
     PGconn *conn = PQconnectdb("host=postgresql dbname=fpristine user=PristineAdmin password=PristinePassword");
     if (PQstatus(conn) != CONNECTION_OK) {
         fprintf(stderr, "[ERROR] Connection to DB failed: %s\n", PQerrorMessage(conn));
@@ -88,17 +87,14 @@ int main() {
         return EXIT_FAILURE;
     }
 
-    // Setup Kafka consumer
-    const char *brokers = "Kafka:9092";
-    const char *topic = "syslog-signals";
     rd_kafka_topic_partition_list_t *topics;
 
     flushOpensearchBulkData();
 
-    rd_kafka_t *rk = setup_kafka_consumer(brokers, "syslog-consumer-group", topic, &topics);
+    rd_kafka_t *rk = setup_kafka_consumer("kafka:9092", "syslog-signals-group", "syslog-signals", &topics);
     if (!rk) return EXIT_FAILURE;
 
-    //printf("[INFO] Subscribed to topic: %s\n", topic);
+    printf("[INFO] Subscribed to kafka topic: \n");
 
     // Main loop to consume and process messages
     process_message(rk);

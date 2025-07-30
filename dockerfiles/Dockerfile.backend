@@ -13,8 +13,6 @@ RUN apt-get update && \
         python3-dev \
         cargo \
         netcat-traditional \
-        ansible \
-        sshpass \
         libssh-4 && \
     rm -rf /var/lib/apt/lists/*
 

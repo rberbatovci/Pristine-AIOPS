@@ -1,6 +1,4 @@
-#include "rules.h"
-#include "process.h"
-#include "activeSignals.h"
+#include "globals.h"
 #include <string.h>
 #include <stdio.h>
 #include <jansson.h>

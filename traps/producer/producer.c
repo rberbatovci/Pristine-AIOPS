@@ -229,15 +229,10 @@ int trap_callback(int operation, netsnmp_session *sp, int reqid,
 
     if (operation == NETSNMP_CALLBACK_OP_RECEIVED_MESSAGE)
     {
-        printf("\n📥 Received SNMP Trap:\n");
 
         if (pdu == NULL)
         {
             printf("❌ Received PDU is NULL!\n");
-        }
-        else
-        {
-            printf("✅ PDU received: %d variables\n", pdu->variables ? 1 : 0);
         }
 
         char device[INET6_ADDRSTRLEN] = "unknown";
@@ -257,7 +252,7 @@ int trap_callback(int operation, netsnmp_session *sp, int reqid,
             }
         }
 
-        printf("Source IP: %s\n", device);
+        printf("Received new SNMPv3 trap from: %s\n", device);
 
         // Send trap to Kafka
         send_trap_to_kafka(pdu, device);
@@ -317,10 +312,10 @@ int main(int argc, char **argv)
 
     // Initialize SNMP library
     setenv("MIBS", "ALL", 1);
-    setenv("MIBDIRS", "/app/traps/mibs", 1);
+    setenv("MIBDIRS", "/app/traps/producer/mibs", 1);
     init_snmp("consumer");
     snmp_enable_stderrlog();
-    snmp_set_do_debugging(0);
+    snmp_set_do_debugging(1);
 
     init_mib();
     read_all_mibs();

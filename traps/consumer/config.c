@@ -5,8 +5,7 @@
 #include <string.h>
 #include <libpq-fe.h>
 #include <pthread.h>
-#include "config.h"
-#include "regex.h"
+#include "globals.h"
 
 SNMPTrapOID *trapOids = NULL;
 int trapOidCount = 0;
@@ -19,12 +18,12 @@ void print_trap_oids() {
     printf("\n[DEBUG] Loaded SNMP Trap OIDs (%d):\n", trapOidCount);
     for (int i = 0; i < trapOidCount; i++) {
         printf("  --- OID %d ---\n", i + 1);
-        printf("    Name     : %s\n", trap_oids[i].name);
-        printf("    Value    : %s\n", trap_oids[i].value);
-        printf("    Alert    : %s\n", trap_oids[i].alert ? "true" : "false");
-        printf("    Tags (%d):\n", trap_oids[i].tag_count);
-        for (int j = 0; j < trap_oids[i].tag_count; j++) {
-            printf("      - %s\n", trap_oids[i].tags[j]);
+        printf("    Name     : %s\n", trapOids[i].name);
+        printf("    Value    : %s\n", trapOids[i].value);
+        printf("    Alert    : %s\n", trapOids[i].alert ? "true" : "false");
+        printf("    Tags (%d):\n", trapOids[i].tag_count);
+        for (int j = 0; j < trapOids[i].tag_count; j++) {
+            printf("      - %s\n", trapOids[i].tags[j]);
         }
     }
 }
@@ -33,10 +32,10 @@ void print_trap_tags() {
     printf("\n[DEBUG] Loaded SNMP Trap Tags (%d):\n", trapTagCount);
     for (int i = 0; i < trapTagCount; i++) {
         printf("  --- Tag %d ---\n", i + 1);
-        printf("    Name     : %s\n", trap_tags[i].name);
-        printf("    OIDs (%d):\n", trap_tags[i].oid_count);
-        for (int j = 0; j < trap_tags[i].oid_count; j++) {
-            printf("      - %s\n", trap_tags[i].oids[j]);
+        printf("    Name     : %s\n", trapTags[i].name);
+        printf("    OIDs (%d):\n", trapTags[i].oid_count);
+        for (int j = 0; j < trapTags[i].oid_count; j++) {
+            printf("      - %s\n", trapTags[i].oids[j]);
         }
     }
 }
@@ -56,9 +55,9 @@ void* reload_data_thread(void* args) {
     while (1) {
         pthread_mutex_lock(&config_mutex);
         load_trap_oids(conn);
-        print_trap_oids();
+        //print_trap_oids();
         load_trap_tags(conn);
-        print_trap_tags();
+        //print_trap_tags();
         pthread_mutex_unlock(&config_mutex);
         sleep(reload_args->interval_seconds);
     }

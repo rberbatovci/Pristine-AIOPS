@@ -6,14 +6,10 @@
 #include <time.h>
 #include <librdkafka/rdkafka.h>
 
-#include "process.h"
-#include "bulk.h"
-#include "config.h"
+#include "globals.h"
 
-// Global Kafka producer
-rd_kafka_t *signal_producer;
+//rd_kafka_t *signal_producer = NULL;
 
-// run flag for flush thread
 volatile int run = 1;
 
 static void stop_program(int sig) {
@@ -22,16 +18,16 @@ static void stop_program(int sig) {
 }
 
 
-// Flush thread function
 void *flush_loop(void *arg)
 {
+    rd_kafka_t *signal_producer = (rd_kafka_t *)arg;
+
     while (run)
     {
         sleep(DATA_FLUSH_INTERVAL);
 
         if (opensearch_events_count > 0)
         {
-            //printf("[INFO] Sending %d documents to OpenSearch.\n", opensearch_events_count);
             send_bulk_to_opensearch(opensearch_events_buffer, opensearch_events_count);
 
             for (int i = 0; i < opensearch_events_count; i++)
@@ -39,7 +35,7 @@ void *flush_loop(void *arg)
             opensearch_events_count = 0;
         }
 
-        send_bulk_to_kafka();
+        send_bulk_to_kafka(signal_producer);
     }
     return NULL;
 }
@@ -51,7 +47,8 @@ rd_kafka_t *setup_kafka_consumer(const char *brokers, const char *group_id, cons
 
     if (rd_kafka_conf_set(conf, "bootstrap.servers", brokers, errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK ||
         rd_kafka_conf_set(conf, "group.id", group_id, errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK ||
-        rd_kafka_conf_set(conf, "auto.offset.reset", "latest", errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK)
+        rd_kafka_conf_set(conf, "auto.offset.reset", "latest", errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK ||
+        rd_kafka_conf_set(conf, "enable.auto.commit", "false", errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK )
     {
         fprintf(stderr, "[ERROR] Kafka conf failed: %s\n", errstr);
         return NULL;
@@ -98,6 +95,10 @@ int main()
 
     load_env_config();
 
+    create_syslogs_index();
+
+    rd_kafka_t *signal_producer = init_signal_producer("kafka:9092");
+
     signal(SIGINT, stop_program);
     signal(SIGTERM, stop_program);
 
@@ -111,13 +112,13 @@ int main()
     }
 
     pthread_t flush_thread;
-    if (pthread_create(&flush_thread, NULL, flush_loop, NULL) != 0)
+    if (pthread_create(&flush_thread, NULL, flush_loop, signal_producer) != 0)
     {
         fprintf(stderr, "[ERROR] Failed to create flush thread\n");
         return 1;
     }
 
-    signal_producer = init_signal_producer("kafka:9092");
+    
     if (!signal_producer) {
         fprintf(stderr, "[ERROR] Failed to initialize Kafka alert producer. Exiting.\n");
         pthread_cancel(reload_thread);
@@ -127,7 +128,7 @@ int main()
     }
 
     rd_kafka_topic_partition_list_t *topics;
-    rd_kafka_t *rk = setup_kafka_consumer("kafka:9092", "trap-events-group", "trap-events", &topics);
+    rd_kafka_t *rk = setup_kafka_consumer("kafka:9092", "syslog-events-group", "syslog-events", &topics);
     if (!rk) {
         fprintf(stderr, "[ERROR] Failed to set up Kafka consumer. Exiting.\n");
         if (signal_producer)
@@ -137,26 +138,11 @@ int main()
         //free(args);
         return 1;
     }
+
+    printf("[DEBUG] Starting process_message()\n");
     process_message(rk, signal_producer);
-
-    run = 0;
-    pthread_join(flush_thread, NULL);
-
-    if (opensearch_events_count > 0)
-    {
-        printf("[INFO] Flushing %d remaining documents to OpenSearch before exit.\n", opensearch_events_count);
-        send_bulk_to_opensearch(opensearch_events_buffer, opensearch_events_count);
-        for (int i = 0; i < opensearch_events_count; i++)
-            json_decref(opensearch_events_buffer[i]);
-        opensearch_events_count = 0;
-    }
-
-    if (kafka_signals_count > 0)
-    {
-        printf("[INFO] Flushing %d remaining alerts to Kafka before exit.\n", kafka_signals_count);
-        send_bulk_to_kafka();
-    }
-
+    fprintf(stderr, "[INFO] process_message returned, exiting application.\n");
+    
     rd_kafka_flush(signal_producer, 3000);
     rd_kafka_topic_partition_list_destroy(topics);
     rd_kafka_consumer_close(rk);

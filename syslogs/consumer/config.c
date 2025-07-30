@@ -1,11 +1,10 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <time.h>
-#include "config.h"
 #include <libpq-fe.h>
 #include <stdlib.h>
 #include <string.h>
-#include "regex.h"
+#include "globals.h"
 
 MnemonicCache *cache = NULL;
 int cache_size = 0;
@@ -201,9 +200,9 @@ void* reload_data_thread(void* args) {
         pthread_mutex_lock(&config_mutex);
 
         load_mnemonics(conn);
-        print_loaded_mnemonics();       // Print loaded mnemonics
+        //print_loaded_mnemonics();       // Print loaded mnemonics
         load_regexes(conn);
-        print_loaded_regexes();         // Print loaded regexes  
+        //print_loaded_regexes();         // Print loaded regexes  
         load_severity(conn);
 
         pthread_mutex_unlock(&config_mutex);
@@ -213,7 +212,6 @@ void* reload_data_thread(void* args) {
 
     return NULL;
 }
-
 
 MnemonicInfo *get_mnemonic_from_cache(const char *mnemonic) {
     for (int i = 0; i < cache_size; i++) {

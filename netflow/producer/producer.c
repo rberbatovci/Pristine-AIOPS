@@ -9,11 +9,16 @@
 #include <librdkafka/rdkafka.h>
 
 #define BUFFER_SIZE 65535
-#define PORT 1162
-#define DEBUG 1
+#define DEBUG 0
 
 #define MAX_BATCH_SIZE 1000
 #define FLUSH_INTERVAL_SEC 5
+
+#define EXPIRATION_YEAR 2025
+#define EXPIRATION_MONTH 8
+#define EXPIRATION_DAY 29
+#define EXPIRATION_HOUR 17
+#define EXPIRATION_MINUTE 38
 
 rd_kafka_t *rk = NULL;
 rd_kafka_topic_t *rkt = NULL;
@@ -26,38 +31,25 @@ time_t last_flush_time = 0;
 void flush_kafka_bulk() {
     if (json_buffer_count == 0) return;
 
-    char message[65535] = "[";
-    size_t pos = 1;
+    for (int i = 0; i < json_buffer_count; i++) {
+        if (!json_buffer[i]) continue;
 
-    for (size_t i = 0; i < json_buffer_count; i++) {
-        if (i > 0) message[pos++] = ',';
-        size_t len = strlen(json_buffer[i]);
-        if (pos + len >= sizeof(message) - 2) break;
-        memcpy(&message[pos], json_buffer[i], len);
-        pos += len;
-        free(json_buffer[i]);
+        rd_kafka_produce(
+            rkt,
+            RD_KAFKA_PARTITION_UA,
+            RD_KAFKA_MSG_F_COPY,          // Kafka will copy the string
+            json_buffer[i], strlen(json_buffer[i]),
+            NULL, 0,
+            NULL
+        );
+
+        rd_kafka_poll(rk, 0);  // Let Kafka handle delivery report
+
+        free(json_buffer[i]);  // Free your malloc'd string
+        json_buffer[i] = NULL;
     }
 
-    message[pos++] = ']';
-    message[pos] = '\0';
-
-    rd_kafka_resp_err_t err = rd_kafka_producev(
-        rk,
-        RD_KAFKA_V_TOPIC("netflow-events"),
-        RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_COPY),
-        RD_KAFKA_V_VALUE((void *)message, strlen(message)),
-        RD_KAFKA_V_END
-    );
-
-    if (err) {
-        fprintf(stderr, "%% Failed to produce message: %s\n", rd_kafka_err2str(err));
-    } else if (DEBUG) {
-        printf("DEBUG: Flushed %zu records to Kafka\n", json_buffer_count);
-    }
-
-    rd_kafka_poll(rk, 0);
     json_buffer_count = 0;
-    last_flush_time = time(NULL);
 }
 
 typedef struct {
@@ -111,15 +103,20 @@ void print_ip_address(uint32_t ip) {
 }
 
 char* flow_record_to_json(const FlowRecord *record, const char *sender_ip) {
-    // Only allow TCP (6) and UDP (17) packets
     if (record->protocol != 6 && record->protocol != 17) {
-        if (DEBUG) printf("DEBUG: Skipping non-TCP/UDP flow with protocol %u\n", record->protocol);
-        return NULL;  // Skip records that are not TCP or UDP
+        return NULL;
     }
 
-    static char json[1024];
+    // Generate current time in ISO 8601 format
+    char iso_time[30];
+    time_t now = time(NULL);
+    struct tm *gmt = gmtime(&now);
+    strftime(iso_time, sizeof(iso_time), "%Y-%m-%dT%H:%M:%SZ", gmt);
 
-    snprintf(json, sizeof(json),
+    char *json = malloc(1200);  // slightly larger buffer
+    if (!json) return NULL;
+
+    snprintf(json, 1200,
         "{"
         "\"device\":\"%s\","
         "\"source_addr\":\"%u.%u.%u.%u\","
@@ -132,7 +129,8 @@ char* flow_record_to_json(const FlowRecord *record, const char *sender_ip) {
         "\"bytes_count\":%u,"
         "\"packets_count\":%u,"
         "\"first_timestamp\":%lu,"
-        "\"last_timestamp\":%lu"
+        "\"last_timestamp\":%lu,"
+        "\"@timestamp\":\"%s\""
         "}",
         sender_ip,
         (record->source_addr >> 24) & 0xFF, (record->source_addr >> 16) & 0xFF,
@@ -147,48 +145,14 @@ char* flow_record_to_json(const FlowRecord *record, const char *sender_ip) {
         record->bytes_count,
         record->packets_count,
         record->first_timestamp,
-        record->last_timestamp
+        record->last_timestamp,
+        iso_time
     );
 
     return json;
 }
 
-void send_to_kafka(const char *topic_name, const char *json_message) {
-    char errstr[512];
-    rd_kafka_t *rk;         // Producer instance
-    rd_kafka_conf_t *conf;  // Configuration
 
-    conf = rd_kafka_conf_new();
-    rd_kafka_conf_set(conf, "bootstrap.servers", "Kafka:9092", errstr, sizeof(errstr));
-
-    rk = rd_kafka_new(RD_KAFKA_PRODUCER, conf, errstr, sizeof(errstr));
-    if (!rk) {
-        fprintf(stderr, "%% Failed to create producer: %s\n", errstr);
-        return;
-    }
-
-    // Debug print of the JSON message being sent
-    if (DEBUG) {
-        printf("DEBUG: Sending JSON to Kafka topic '%s':\n%s\n", topic_name, json_message);
-    }
-
-    rd_kafka_resp_err_t err = rd_kafka_producev(
-        rk,
-        RD_KAFKA_V_TOPIC(topic_name),
-        RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_COPY),
-        RD_KAFKA_V_VALUE((void *)json_message, strlen(json_message)),
-        RD_KAFKA_V_END
-    );
-
-    if (err) {
-        fprintf(stderr, "%% Failed to produce message: %s\n", rd_kafka_err2str(err));
-    } else {
-        rd_kafka_poll(rk, 0);  // Serve delivery reports
-    }
-
-    rd_kafka_flush(rk, 1000); // Wait for all messages to be delivered
-    rd_kafka_destroy(rk);     // Destroy producer instance
-}
 
 int process_data_records(const unsigned char *data, size_t data_len, FlowRecord **records, size_t *record_count) {
     const size_t record_size = 45; // Size of our FlowRecord structure
@@ -291,29 +255,55 @@ int process_netflow_v9(const unsigned char *data, size_t data_len, NetFlowPacket
     return 0;
 }
 
+int is_expired() {
+    time_t current_time = time(NULL);
+    struct tm *now = gmtime(&current_time);  // Use gmtime() for UTC or localtime() for local
+
+    if ((now->tm_year + 1900) > EXPIRATION_YEAR ||
+        ((now->tm_year + 1900) == EXPIRATION_YEAR && (now->tm_mon + 1) > EXPIRATION_MONTH) ||
+        ((now->tm_year + 1900) == EXPIRATION_YEAR && (now->tm_mon + 1) == EXPIRATION_MONTH && now->tm_mday > EXPIRATION_DAY) ||
+        ((now->tm_year + 1900) == EXPIRATION_YEAR && (now->tm_mon + 1) == EXPIRATION_MONTH &&
+         now->tm_mday == EXPIRATION_DAY && now->tm_hour > EXPIRATION_HOUR) ||
+        ((now->tm_year + 1900) == EXPIRATION_YEAR && (now->tm_mon + 1) == EXPIRATION_MONTH &&
+         now->tm_mday == EXPIRATION_DAY && now->tm_hour == EXPIRATION_HOUR &&
+         now->tm_min >= EXPIRATION_MINUTE)) {
+        
+        return 1;
+    }
+
+    return 0;
+}
+
+void print_banner() {
+    printf("╔══════════════════════════════════════════════╗\n");
+    printf("║           Welcome to Pristine-AIOPS          ║\n");
+    printf("║                   v1.1 beta                  ║\n");
+    printf("║           Thanks for using our tool          ║\n");
+    printf("╚══════════════════════════════════════════════╝\n");
+    printf("\n");
+}
+
+int get_udp_port()
+{
+    const char *env_port = getenv("NETFLOW_PORT");
+    return env_port ? atoi(env_port) : 1162;
+}
+
 int main() {
+
+    if (is_expired()) {
+        fprintf(stderr, "⛔ Pristine-AIOPS v1.1 beta is out of date.\n Please contact the developer to get Pristine-AIOPS v1.2.\n");
+        return 1;
+    }
+
+    setbuf(stdout, NULL);
+
+    print_banner();
+
     int sockfd;
     struct sockaddr_in servaddr, cliaddr;
     socklen_t len;
     unsigned char buffer[BUFFER_SIZE];
-
-    // Kafka producer setup
-    char errstr[512];
-    conf = rd_kafka_conf_new();
-    rd_kafka_conf_set(conf, "bootstrap.servers", "Kafka:9092", errstr, sizeof(errstr));
-    rk = rd_kafka_new(RD_KAFKA_PRODUCER, conf, errstr, sizeof(errstr));
-    if (!rk) {
-        fprintf(stderr, "%% Failed to create producer: %s\n", errstr);
-        exit(EXIT_FAILURE);
-    }
-
-    rkt = rd_kafka_topic_new(rk, "netflow-topic", NULL);
-    if (!rkt) {
-        fprintf(stderr, "%% Failed to create topic object\n");
-        exit(EXIT_FAILURE);
-    }
-
-    last_flush_time = time(NULL);
 
     // UDP socket setup
     if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
@@ -325,7 +315,8 @@ int main() {
     memset(&cliaddr, 0, sizeof(cliaddr));
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = INADDR_ANY;
-    servaddr.sin_port = htons(PORT);
+    int port = get_udp_port(); 
+    servaddr.sin_port = htons(port);
 
     if (bind(sockfd, (const struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) {
         perror("bind failed");
@@ -333,12 +324,30 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    printf("NetFlow/IPFIX listener started on port %d\n", PORT);
+    printf("NetFlow/IPFIX listener started on port %d\n", port);
+
+    // Kafka producer setup
+    char errstr[512];
+    conf = rd_kafka_conf_new();
+    rd_kafka_conf_set(conf, "bootstrap.servers", "kafka:9092", errstr, sizeof(errstr));
+    rk = rd_kafka_new(RD_KAFKA_PRODUCER, conf, errstr, sizeof(errstr));
+    if (!rk) {
+        fprintf(stderr, "%% Failed to create producer: %s\n", errstr);
+        exit(EXIT_FAILURE);
+    }
+
+    rkt = rd_kafka_topic_new(rk, "netflow-events", NULL);
+    if (!rkt) {
+        fprintf(stderr, "%% Failed to create topic object\n");
+        exit(EXIT_FAILURE);
+    }
+
+    last_flush_time = time(NULL);
 
     while (1) {
         len = sizeof(cliaddr);
         ssize_t n = recvfrom(sockfd, buffer, BUFFER_SIZE, 0,
-                             (struct sockaddr *)&cliaddr, &len);
+                         (struct sockaddr *)&cliaddr, &len);
         if (n < 0) {
             perror("recvfrom failed");
             continue;
@@ -362,26 +371,33 @@ int main() {
 
         int result = process_netflow_v9(buffer, n, &packet);
 
-        if (result == 0) {
-            for (size_t i = 0; i < packet.record_count; i++) {
-                char *record_json = flow_record_to_json(&packet.records[i], sender_ip_str);
-                if (record_json != NULL) {
-                    if (json_buffer_count < MAX_BATCH_SIZE) {
-                        json_buffer[json_buffer_count++] = strdup(record_json);
-                    }
-                }
-            }
+        if (result != 0) {
+            continue;
+        }
 
-            time_t now = time(NULL);
-            if (json_buffer_count >= MAX_BATCH_SIZE || (now - last_flush_time) >= FLUSH_INTERVAL_SEC) {
-                flush_kafka_bulk();
-            }
-        } else {
-            if (DEBUG) printf("DEBUG: Failed to process packet\n");
+        for (size_t i = 0; i < packet.record_count; i++) {
+            char *record_json = flow_record_to_json(&packet.records[i], sender_ip_str);
+            if (record_json != NULL) {
+                //printf("[DEBUG] Record JSON: %s\n", record_json);
+
+                if (json_buffer_count < MAX_BATCH_SIZE) {
+                    json_buffer[json_buffer_count++] = strdup(record_json);
+                }
+            } 
+        }
+
+        time_t now = time(NULL);
+        if (json_buffer_count >= MAX_BATCH_SIZE || (now - last_flush_time) >= FLUSH_INTERVAL_SEC) {
+            flush_kafka_bulk();
         }
 
         if (packet.records != NULL) {
             free(packet.records);
+        }
+
+        if (is_expired()) {
+            fprintf(stderr, "⛔ Pristine-AIOPS v1.1 beta is out of date.\n Please contact the developer to get Pristine-AIOPS v1.2.\n");
+            break;
         }
     }
 

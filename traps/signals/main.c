@@ -2,10 +2,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <librdkafka/rdkafka.h>
-
-#include "rules.h"
-#include "process.h"
-#include "activeSignals.h"
+#include "globals.h"
 
 rd_kafka_t* setup_kafka_consumer(const char* brokers, const char* group_id, const char* topic, rd_kafka_topic_partition_list_t **topics_out) {
     char errstr[512];
@@ -13,7 +10,8 @@ rd_kafka_t* setup_kafka_consumer(const char* brokers, const char* group_id, cons
 
     if (rd_kafka_conf_set(conf, "bootstrap.servers", brokers, errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK ||
         rd_kafka_conf_set(conf, "group.id", group_id, errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK ||
-        rd_kafka_conf_set(conf, "auto.offset.reset", "earliest", errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK) {
+        rd_kafka_conf_set(conf, "auto.offset.reset", "earliest", errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK ||
+        rd_kafka_conf_set(conf, "enable.auto.commit", "false", errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK ) {
         fprintf(stderr, "[ERROR] Kafka config failed: %s\n", errstr);
         return NULL;
     }
@@ -57,6 +55,8 @@ int main() {
 
     activeSignalMonitor();
 
+    create_trap_signals_index();
+
     ReloadArgs* args = malloc(sizeof(ReloadArgs));
     if (!args) {
         fprintf(stderr, "[ERROR] Failed to allocate memory for reload args\n");
@@ -72,16 +72,14 @@ int main() {
         return EXIT_FAILURE;
     }
 
-    const char *brokers = "Kafka:9092";
-    const char *topic = "trap-signals";
     rd_kafka_topic_partition_list_t *topics;
 
     flushOpensearchBulkData();
 
-    rd_kafka_t *rk = setup_kafka_consumer(brokers, "trap-consumer-group", topic, &topics);
+    rd_kafka_t *rk = setup_kafka_consumer("kafka:9092", "trap-signals-group", "trap-signals", &topics);
     if (!rk) return EXIT_FAILURE;
 
-    //printf("[INFO] Subscribed to topic: %s\n", topic);
+    printf("[INFO] Subscribed to kafka topic:\n");
 
     process_message(rk);
 

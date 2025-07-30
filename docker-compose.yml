@@ -18,6 +18,8 @@ services:
         condition: service_healthy
     env_file:
       - .env
+    volumes:
+      - shared-mibs:/app/traps/producer/mibs
     networks:
       - kafka-net
     entrypoint: ["/app/entrypoint.sh"]
@@ -29,9 +31,9 @@ services:
       context: .
       dockerfile: ./dockerfiles/Dockerfile.frontend
     ports:
-      - "80:80"
-    volumes:
-      - ./frontend:/app
+      - "3000:80"
+    #volumes:
+    #  - ./frontend:/app
     environment:
       - CHOKIDAR_USEPOLLING=true
     networks:
@@ -175,7 +177,7 @@ services:
     env_file:
       - .env
     ports:
-      - "1160:1160/udp"
+      - "${SYSLOG_PORT}:${SYSLOG_PORT}/udp"
     depends_on:
       kafka:
         condition: service_healthy
@@ -237,6 +239,8 @@ services:
       - .env
     ports:
       - "1161:1161/udp"
+    volumes:
+      - shared-mibs:/app/traps/producer/mibs
     depends_on:
       kafka:
         condition: service_healthy
@@ -256,34 +260,36 @@ services:
       - kafka-net
     restart: unless-stopped
 
-  #netflow-producer:
-  #  container_name: NetflowProducer
-  #  #image: ghcr.io/rberbato/netflow-producer:latest
-  #  build:
-  #    context: .
-  #    dockerfile: ./dockerfiles/Dockerfile.netflow-producer
-  #  ports:
-  #    - "1162:1162/udp"
-  #  depends_on:
-  #    kafka:
-  #      condition: service_healthy
-  #  networks:
-  #    - kafka-net
+  netflow-producer:
+    container_name: NetflowProducer
+    #image: ghcr.io/rberbato/netflow-producer:latest
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.netflow-producer
+    ports:
+      - "1162:1162/udp"
+    env_file:
+      - .env
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - kafka-net
 
-  #netflow-consumer:
-  #  container_name: NetflowConsumer
-  #  #image: ghcr.io/rberbato/netflow-consumer:latest
-  #  build:
-  #    context: .
-  #    dockerfile: ./dockerfiles/Dockerfile.netflow-consumer
-  #  depends_on:
-  #    kafka:
-  #      condition: service_healthy
-  #    opensearch:
-  #      condition: service_healthy
-  #  restart: unless-stopped
-  #  networks:
-  #    - kafka-net
+  netflow-consumer:
+    container_name: NetflowConsumer
+    #image: ghcr.io/rberbato/netflow-consumer:latest
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.netflow-consumer
+    depends_on:
+      kafka:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - kafka-net
 
   #telemetry-producer:
   #  container_name: TelemetryProducer
@@ -354,3 +360,4 @@ services:
 volumes:
   postgres_data:
   opensearch-data1:
+  shared-mibs:

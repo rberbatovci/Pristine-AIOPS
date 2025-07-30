@@ -2,11 +2,10 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <time.h>
-#include "rules.h"
+#include "globals.h"
 #include <libpq-fe.h>
 #include <stdlib.h>
 #include <string.h>
-#include "regex.h"
 
 StatefulRule *signal_rules = NULL;
 int signal_rule_count = 0;

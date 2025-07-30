@@ -7,8 +7,6 @@
 #include <jansson.h>
 #include <signal.h>
 #include <unistd.h>
-#include <stdbool.h>  // for bool, true, false
-#include <ctype.h>    // for isdigit()
 
 #define OPENSEARCH_URL "http://OpenSearch:9200/netflow/_doc/"
 #define TOPIC_NAME "netflow-events"
@@ -47,60 +45,6 @@ size_t writefunc(void *ptr, size_t size, size_t nmemb, struct response_string *s
     s->ptr[new_len] = '\0';
     s->len = new_len;
     return size * nmemb;
-}
-
-void send_bulk_to_opensearch(char **json_docs, int doc_count) {
-    CURL *curl;
-    CURLcode res;
-
-    curl_global_init(CURL_GLOBAL_ALL);
-    curl = curl_easy_init();
-
-    if (!curl) {
-        fprintf(stderr, "[ERROR] Failed to initialize CURL\n");
-        return;
-    }
-
-    // Construct the bulk request body
-    size_t bulk_len = 0;
-    for (int i = 0; i < doc_count; i++) {
-        bulk_len += strlen(json_docs[i]) + 100;  // Estimate
-    }
-
-    char *bulk_data = malloc(bulk_len + doc_count * 2 + 1);
-    if (!bulk_data) {
-        fprintf(stderr, "[ERROR] Failed to allocate memory for bulk_data\n");
-        curl_easy_cleanup(curl);
-        return;
-    }
-
-    bulk_data[0] = '\0';
-
-    for (int i = 0; i < doc_count; i++) {
-        strcat(bulk_data, "{ \"index\": { \"_index\": \"netflow-events\" } }\n");
-        strcat(bulk_data, json_docs[i]);
-        strcat(bulk_data, "\n");
-    }
-
-    struct curl_slist *headers = NULL;
-    headers = curl_slist_append(headers, "Content-Type: application/x-ndjson");
-
-    curl_easy_setopt(curl, CURLOPT_URL, "http://OpenSearch:9200/_bulk");
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, bulk_data);
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, strlen(bulk_data));
-
-    res = curl_easy_perform(curl);
-
-    if (res != CURLE_OK) {
-        fprintf(stderr, "[ERROR] curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-    } else {
-        printf("[INFO] Bulk data sent to OpenSearch (%d documents)\n", doc_count);
-    }
-
-    curl_slist_free_all(headers);
-    curl_easy_cleanup(curl);
-    free(bulk_data);
 }
 
 void send_to_opensearch(const char *json_data) {
@@ -169,48 +113,8 @@ char* timestamp_to_iso(json_t *ts_item) {
     return default_iso;
 }
 
-// Safely preprocess large integers in JSON
-char *preprocess_large_integers(const char *input, size_t len) {
-    char *output = malloc(len * 2);
-    if (!output) return NULL;
-
-    size_t i = 0, j = 0;
-    bool in_string = false;
-
-    while (i < len) {
-        char c = input[i];
-
-        if (c == '"') {
-            output[j++] = c;
-            i++;
-            in_string = !in_string;
-            continue;
-        }
-
-        if (!in_string && isdigit(c)) {
-            size_t start = i;
-            while (i < len && isdigit(input[i])) i++;
-
-            size_t num_len = i - start;
-            if (num_len >= 19) {
-                output[j++] = '"';
-                memcpy(&output[j], &input[start], num_len);
-                j += num_len;
-                output[j++] = '"';
-            } else {
-                memcpy(&output[j], &input[start], num_len);
-                j += num_len;
-            }
-        } else {
-            output[j++] = input[i++];
-        }
-    }
-
-    output[j] = '\0';
-    return output;
-}
-
 int main() {
+
     signal(SIGINT, handle_sigterm);
     signal(SIGTERM, handle_sigterm);
 
@@ -252,37 +156,78 @@ int main() {
             fprintf(stderr, "⚠️ Kafka error: %s\n", rd_kafka_message_errstr(rkmessage));
         } else {
             printf("📥 Received raw message: %.*s\n", (int)rkmessage->len, (char *)rkmessage->payload);
-
-            char *preprocessed = preprocess_large_integers((char *)rkmessage->payload, rkmessage->len);
-            if (!preprocessed) {
-                fprintf(stderr, "❌ Failed to allocate memory for preprocessing\n");
-                rd_kafka_message_destroy(rkmessage);
-                continue;
-            }
-
             json_error_t error;
+            char *preprocessed = preprocess_large_integers((char *)rkmessage->payload, rkmessage->len);
             json_t *root = json_loads(preprocessed, JSON_REJECT_DUPLICATES, &error);
             free(preprocessed);
 
             if (!root) {
-                fprintf(stderr, "❌ Failed to parse message: %s\n", error.text);
+                char safe_payload[512];
+                int len = (int)(rkmessage->len > 200 ? 200 : rkmessage->len);
+                int j = 0;
+                for (int i = 0; i < len && j < sizeof(safe_payload) - 1; i++) {
+                    char c = ((char *)rkmessage->payload)[i];
+                    if (c == '\"' || c == '\\') {
+                        if (j < sizeof(safe_payload) - 2) {
+                            safe_payload[j++] = '\\';
+                        }
+                    }
+                    safe_payload[j++] = c;
+                }
+                safe_payload[j] = '\0';
+
+                char *error_doc = NULL;
+                asprintf(&error_doc, "{\"error\": \"Failed to parse message: %s\", \"raw_message\": \"%s\"}", error.text, safe_payload);
+                if (error_doc) {
+                    send_to_opensearch(error_doc);
+                    free(error_doc);
+                }
                 rd_kafka_message_destroy(rkmessage);
                 continue;
             }
 
-            if (json_is_object(root)) {
-                char *json_str = json_dumps(root, 0);
-                if (json_str) {
-                    send_to_opensearch(json_str);
-                    free(json_str);
+            if (json_is_array(root)) {
+                size_t index;
+                json_t *entry;
+                time_t now = time(NULL);
+                struct tm *gmt = gmtime(&now);
+                char iso_processing_timestamp[30];
+                strftime(iso_processing_timestamp, sizeof(iso_processing_timestamp), "%Y-%m-%dT%H:%M:%SZ", gmt);
+
+                json_array_foreach(root, index, entry) {
+                    if (json_is_object(entry)) {
+                        json_t *copy = json_deep_copy(entry);
+
+                        json_t *first_ts = json_object_get(copy, "first_timestamp");
+                        json_t *last_ts = json_object_get(copy, "last_timestamp");
+
+                        char *first_ts_iso_str = timestamp_to_iso(first_ts);
+                        char *last_ts_iso_str = timestamp_to_iso(last_ts);
+
+                        json_object_set_new(copy, "first_timestamp_iso", json_string(first_ts_iso_str));
+                        json_object_set_new(copy, "last_timestamp_iso", json_string(last_ts_iso_str));
+                        json_object_set_new(copy, "@timestamp", json_string(iso_processing_timestamp));
+
+                        // Remove the original large timestamp fields if you don't need them in OpenSearch
+                        json_object_del(copy, "first_timestamp");
+                        json_object_del(copy, "last_timestamp");
+
+                        char *json_str = json_dumps(copy, 0);
+                        if (json_str) {
+                            printf("Sending to OpenSearch: %s\n", json_str);
+                            send_to_opensearch(json_str);
+                            free(json_str);
+                        }
+                        free(first_ts_iso_str);
+                        free(last_ts_iso_str);
+                        json_decref(copy);
+                    }
                 }
             } else {
-                fprintf(stderr, "❌ Expected JSON object or array.\n");
+                fprintf(stderr, "❌ Expected JSON array.\n");
             }
-
             json_decref(root);
         }
-
         rd_kafka_message_destroy(rkmessage);
     }
 

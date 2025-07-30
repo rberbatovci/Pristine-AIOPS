@@ -1,5 +1,4 @@
-#include "activeSignals.h"
-#include "rules.h"
+#include "globals.h"
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -22,6 +21,63 @@ pthread_mutex_t bulk_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 ActiveSignal active_signals[MAX_SIGNALS];
 int active_signal_count = 0;
+
+void create_syslog_signals_index() {
+    CURL *curl;
+    CURLcode res;
+
+    const char *index_url = "http://opensearch:9200/syslog-signals";
+    const char *mapping_json =
+        "{"
+        "  \"settings\": {"
+        "    \"number_of_shards\": 1,"
+        "    \"number_of_replicas\": 1"
+        "  },"
+        "  \"mappings\": {"
+        "    \"properties\": {"
+        "      \"signalId\": {\"type\": \"keyword\"},"
+        "      \"mnemonics\": {\"type\": \"keyword\"},"
+        "      \"mnemonic_count\": {\"type\": \"integer\"},"
+        "      \"device\": {\"type\": \"keyword\"},"
+        "      \"startTime\": {\"type\": \"date\"},"
+        "      \"endTime\": {\"type\": \"date\"},"
+        "      \"status\": {\"type\": \"keyword\"},"
+        "      \"severity\": {\"type\": \"keyword\"},"
+        "      \"events\": {\"type\": \"keyword\"},"
+        "      \"event_count\": {\"type\": \"integer\"},"
+        "      \"status_changed_at\": {\"type\": \"date\"},"
+        "      \"affectedEntities\": {\"type\": \"object\"},"
+        "      \"rule\": {\"type\": \"keyword\"}"
+        "    }"
+        "  }"
+        "}";
+
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    curl = curl_easy_init();
+
+    if (curl) {
+        struct curl_slist *headers = NULL;
+        headers = curl_slist_append(headers, "Content-Type: application/json");
+
+        curl_easy_setopt(curl, CURLOPT_URL, index_url);
+        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, mapping_json);
+
+        res = curl_easy_perform(curl);
+
+        if (res != CURLE_OK) {
+            fprintf(stderr, "[ERROR] Failed to create 'syslog-signals' index: %s\n", curl_easy_strerror(res));
+        } else {
+            fprintf(stdout, "[INFO] OpenSearch index 'syslog-signals' created or already exists.\n");
+        }
+
+        curl_easy_cleanup(curl);
+        curl_slist_free_all(headers);
+    }
+
+    curl_global_cleanup();
+}
 
 void removeClosedSignals() {
     int j = 0;
@@ -130,10 +186,15 @@ char *active_signal_to_json(ActiveSignal *sig)
     json_object_set_new(root, "signalId", json_string(sig->signalId));
     json_object_set_new(root, "device", json_string(sig->device));
     json_object_set_new(root, "startTime", json_string(sig->startTime));
-    json_object_set_new(root, "endTime", json_string(sig->endTime));
     json_object_set_new(root, "status", json_string(sig->status));
     json_object_set_new(root, "severity", json_string(sig->severity));
     json_object_set_new(root, "rule", json_string(sig->rule));
+
+    if (strlen(sig->endTime) > 0) {
+        json_object_set_new(root, "endTime", json_string(sig->endTime));
+    } else {
+        json_object_set_new(root, "endTime", json_null());
+    }
 
     // Mnemonics array
     json_t *mnemonics_array = json_array();
@@ -395,11 +456,11 @@ void delete_signal_from_memory(int index)
     active_signal_count--;
 }
 
-void getCurrentTimeStr(char *buffer, size_t len)
+void getCurrentTimeStr(char *buffer, size_t size)
 {
     time_t now = time(NULL);
-    struct tm *tm_info = localtime(&now);
-    strftime(buffer, len, "%Y-%m-%d %H:%M:%S", tm_info);
+    struct tm *tm_info = gmtime(&now);  // Use gmtime for UTC (add 'Z')
+    strftime(buffer, size, "%Y-%m-%dT%H:%M:%SZ", tm_info);
 }
 
 int json_subset_match(json_t *subset, json_t *fullset)
@@ -448,7 +509,7 @@ int findActiveSignals(ActiveSignal *signal, const char *target_device, const cha
     return 1;
 }
 
-void createSignal(StatefulRule *rule, const char *device, const char *mnemonic, json_t *tags, const char *eventIdStr)
+void createSignal(StatefulRule *rule, const char *device, const char *mnemonic, json_t *tags, const char *eventIdStr, const char *timestamp)
 {
     if (!rule)
     {
@@ -493,8 +554,14 @@ void createSignal(StatefulRule *rule, const char *device, const char *mnemonic, 
     strncpy(signal->mnemonics[0], mnemonic, sizeof(signal->mnemonics[0]) - 1);
     signal->mnemonics[0][sizeof(signal->mnemonics[0]) - 1] = '\0';
 
-    getCurrentTimeStr(signal->startTime, sizeof(signal->startTime));
-    strcpy(signal->endTime, ""); // Not closed yet
+    if (timestamp && strlen(timestamp) > 0) {
+        strncpy(signal->startTime, timestamp, sizeof(signal->startTime) - 1);
+        signal->startTime[sizeof(signal->startTime) - 1] = '\0';
+    } else {
+        getCurrentTimeStr(signal->startTime, sizeof(signal->startTime));
+    }
+
+    signal->endTime[0] = '\0';
 
     if (eventIdStr)
     {
@@ -557,7 +624,7 @@ void createSignal(StatefulRule *rule, const char *device, const char *mnemonic, 
     //printSignal(signal);
 }
 
-void closeSignal(const char *signalId, const char *eventId)
+void closeSignal(const char *signalId, const char *eventId, const char *timestamp)
 {
     for (int i = 0; i < active_signal_count; ++i)
     {
@@ -573,7 +640,12 @@ void closeSignal(const char *signalId, const char *eventId)
             }
 
             // Set endTime
-            getCurrentTimeStr(signal->endTime, sizeof(signal->endTime));
+            if (timestamp && strlen(timestamp) > 0) {
+                strncpy(signal->endTime, timestamp, sizeof(signal->endTime) - 1);
+                signal->endTime[sizeof(signal->endTime) - 1] = '\0';
+            } else {
+                getCurrentTimeStr(signal->endTime, sizeof(signal->endTime));
+            }
 
             // Set status to closed and update timestamp
             strncpy(signal->status, "coolDown", sizeof(signal->status) - 1);

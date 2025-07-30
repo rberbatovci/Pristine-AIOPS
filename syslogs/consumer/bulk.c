@@ -4,12 +4,12 @@
 #include <string.h>
 #include <stdio.h>
 #include <librdkafka/rdkafka.h>
-#include "bulk.h"
+#include "globals.h"
 
 #define OPENSEARCH_URL "http://OpenSearch:9200/syslogs/_bulk"
 #define KAFKA_TOPIC "syslog-signals"
 
-int DATA_FLUSH_SIZE = 100;
+int DATA_FLUSH_SIZE = 1;
 int DATA_FLUSH_INTERVAL = 1;
 
 // Declare buffers and counters
@@ -19,11 +19,10 @@ int opensearch_events_count = 0;
 json_t *kafka_signals_buffer[BULK_LIMIT];
 int kafka_signals_count = 0;
 
-rd_kafka_t *kafka_producer = NULL;
-
-rd_kafka_t* init_signal_producer(const char* brokers) {
+rd_kafka_t *init_signal_producer(const char *brokers) {
     char errstr[512];
     rd_kafka_conf_t *conf = rd_kafka_conf_new();
+
     if (rd_kafka_conf_set(conf, "bootstrap.servers", brokers, errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK) {
         fprintf(stderr, "[ERROR] Kafka producer conf failed: %s\n", errstr);
         rd_kafka_conf_destroy(conf);
@@ -35,7 +34,111 @@ rd_kafka_t* init_signal_producer(const char* brokers) {
         fprintf(stderr, "[ERROR] Failed to create Kafka producer: %s\n", errstr);
         return NULL;
     }
+
+    printf("[INFO] Kafka producer initialized successfully.\n");
     return rk;
+}
+
+void send_bulk_to_kafka(rd_kafka_t *signal_producer)
+{
+    if (!signal_producer)
+    {
+        printf("No kafka signal_producer222\n");
+        return;
+    }
+
+    //printf("[INFO] Sending %d alerts to Kafka topic '%s'\n", kafka_signals_count, KAFKA_TOPIC);
+
+    for (int i = 0; i < kafka_signals_count; i++)
+    {
+        char *json_str = json_dumps(kafka_signals_buffer[i], JSON_COMPACT);
+        if (!json_str)
+        {
+            fprintf(stderr, "[ERROR] Failed to serialize JSON for bulk send (index %d)\n", i);
+            json_decref(kafka_signals_buffer[i]);
+            continue;
+        }
+
+        rd_kafka_resp_err_t err = rd_kafka_producev(
+            signal_producer,
+            RD_KAFKA_V_TOPIC(KAFKA_TOPIC),
+            RD_KAFKA_V_VALUE(json_str, strlen(json_str)),
+            RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_COPY),
+            RD_KAFKA_V_END);
+
+        if (err)
+        {
+            fprintf(stderr, "[ERROR] Kafka alert send failed (index %d): %s\n", i, rd_kafka_err2str(err));
+        }
+
+        free(json_str);
+        json_decref(kafka_signals_buffer[i]);
+    }
+
+    int remaining_timeout = 1000;
+    while (rd_kafka_outq_len(signal_producer) > 0 && remaining_timeout > 0)
+    {
+        int polled = rd_kafka_poll(signal_producer, 100);
+        remaining_timeout -= 100;
+    }
+
+    if (rd_kafka_outq_len(signal_producer) > 0)
+    {
+        fprintf(stderr, "[WARN] %d messages still in Kafka signal_producer queue after flush timeout.\n", rd_kafka_outq_len(signal_producer));
+    }
+
+    kafka_signals_count = 0;
+}
+
+void create_syslogs_index() {
+    CURL *curl;
+    CURLcode res;
+
+    const char *index_url = "http://opensearch:9200/syslogs";
+    const char *mapping_json =
+        "{"
+        "  \"settings\": {"
+        "    \"number_of_shards\": 1,"
+        "    \"number_of_replicas\": 1"
+        "  },"
+        "  \"mappings\": {"
+        "    \"properties\": {"
+        "      \"timestamp\": {\"type\": \"date\"},"
+        "      \"device\": {\"type\": \"keyword\"},"
+        "      \"mnemonic\": {\"type\": \"keyword\"},"
+        "      \"severity\": {\"type\": \"keyword\"},"
+        "      \"lsn\": {\"type\": \"integer\"},"
+        "      \"message\": {\"type\": \"text\"},"
+        "      \"received_at\": {\"type\": \"date\"},"
+        "      \"tags\": {\"type\": \"object\"}"
+        "    }"
+        "  }"
+        "}";
+
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    curl = curl_easy_init();
+
+    if (curl) {
+        struct curl_slist *headers = NULL;
+        headers = curl_slist_append(headers, "Content-Type: application/json");
+
+        curl_easy_setopt(curl, CURLOPT_URL, index_url);
+        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, mapping_json);
+
+        res = curl_easy_perform(curl);
+
+        if (res != CURLE_OK)
+            fprintf(stderr, "[ERROR] Failed to create index: %s\n", curl_easy_strerror(res));
+        else
+            fprintf(stdout, "[INFO] OpenSearch index 'syslogs' created or already exists.\n");
+
+        curl_easy_cleanup(curl);
+        curl_slist_free_all(headers);
+    }
+
+    curl_global_cleanup();
 }
 
 void load_env_config()
@@ -54,73 +157,11 @@ void load_env_config()
     }
 }
 
-void send_bulk_to_kafka()
+void add_alert_to_kafka_bulk(json_t *alert_json, rd_kafka_t *signal_producer)
 {
-    if (kafka_signals_count == 0)
-        return;
-
-    // rd_kafka_t *rk = init_kafka_alert_producer();  // WRONG: missing argument, recreate producer every time!
-    // Use the global producer:
-    if (!kafka_producer)
+    if (!signal_producer || !alert_json)
     {
-        fprintf(stderr, "[ERROR] Kafka producer not initialized\n");
-        return;
-    }
-
-    rd_kafka_topic_t *rkt = rd_kafka_topic_new(kafka_producer, KAFKA_TOPIC, NULL);
-
-    if (!rkt)
-    {
-        fprintf(stderr, "[ERROR] Failed to create Kafka topic handle\n");
-        return;
-    }
-
-    for (int i = 0; i < kafka_signals_count; i++)
-    {
-        if (!json_is_object(kafka_signals_buffer[i]))
-        {
-            continue;
-        }
-
-        char *json_str = json_dumps(kafka_signals_buffer[i], JSON_COMPACT);
-        if (!json_str)
-        {
-            fprintf(stderr, "[WARN] Failed to convert JSON to string\n");
-            continue;
-        }
-
-        if (rd_kafka_produce(
-                rkt,
-                RD_KAFKA_PARTITION_UA,
-                RD_KAFKA_MSG_F_COPY,
-                json_str, strlen(json_str),
-                NULL, 0,
-                NULL) == -1)
-        {
-            fprintf(stderr, "[ERROR] Kafka produce failed: %s\n", rd_kafka_err2str(rd_kafka_last_error()));
-        }
-
-        free(json_str);
-        json_decref(kafka_signals_buffer[i]); // ✅ Important
-    }
-
-    kafka_signals_count = 0;
-
-    rd_kafka_flush(kafka_producer, 1000);
-    rd_kafka_topic_destroy(rkt);
-}
-
-void add_alert_to_kafka_bulk(json_t *alert_json)
-{
-    if (!kafka_producer)
-    {
-        fprintf(stderr, "[ERROR] Invalid Kafka producer\n");
-        return;
-    }
-
-    if (!json_is_object(alert_json))
-    {
-        fprintf(stderr, "[ERROR] Attempted to buffer a non-object JSON alert\n");
+        json_decref(alert_json);
         return;
     }
 
@@ -131,7 +172,7 @@ void add_alert_to_kafka_bulk(json_t *alert_json)
     else
     {
         printf("[INFO] Kafka buffer full. Sending bulk...\n");
-        send_bulk_to_kafka();
+        send_bulk_to_kafka(signal_producer);
         kafka_signals_buffer[kafka_signals_count++] = json_incref(alert_json);
     }
 }

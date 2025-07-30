@@ -1,4 +1,4 @@
-#include "activeSignals.h"
+#include "globals.h"
 #include "rules.h"
 #include <stdio.h>
 #include <string.h>
@@ -22,6 +22,60 @@ pthread_mutex_t bulk_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 ActiveSignal active_signals[MAX_SIGNALS];
 int active_signal_count = 0;
+
+void create_trap_signals_index() {
+    CURL *curl;
+    CURLcode res;
+
+    const char *index_url = "http://OpenSearch:9200/trap-signals";
+    const char *mapping_json =
+        "{"
+        "  \"settings\": {"
+        "    \"number_of_shards\": 1,"
+        "    \"number_of_replicas\": 1"
+        "  },"
+        "  \"mappings\": {"
+        "    \"properties\": {"
+        "      \"signalId\": {\"type\": \"keyword\"},"
+        "      \"snmpTrapOids\": {\"type\": \"keyword\"},"
+        "      \"device\": {\"type\": \"keyword\"},"
+        "      \"startTime\": {\"type\": \"date\"},"
+        "      \"endTime\": {\"type\": \"date\"},"
+        "      \"status\": {\"type\": \"keyword\"},"
+        "      \"severity\": {\"type\": \"keyword\"},"
+        "      \"events\": {\"type\": \"keyword\"},"
+        "      \"status_changed_at\": {\"type\": \"date\"},"
+        "      \"affectedEntities\": {\"type\": \"object\"},"
+        "      \"rule\": {\"type\": \"keyword\"}"
+        "    }"
+        "  }"
+        "}";
+
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    curl = curl_easy_init();
+
+    if (curl) {
+        struct curl_slist *headers = NULL;
+        headers = curl_slist_append(headers, "Content-Type: application/json");
+
+        curl_easy_setopt(curl, CURLOPT_URL, index_url);
+        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, mapping_json);
+
+        res = curl_easy_perform(curl);
+
+        if (res != CURLE_OK)
+            fprintf(stderr, "[ERROR] Failed to create index 'trap-signals': %s\n", curl_easy_strerror(res));
+        else
+            fprintf(stdout, "[INFO] OpenSearch index 'trap-signals' created or already exists.\n");
+
+        curl_easy_cleanup(curl);
+        curl_slist_free_all(headers);
+    }
+
+    curl_global_cleanup();
+}
 
 void removeClosedSignals() {
     int j = 0;

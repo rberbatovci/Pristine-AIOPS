@@ -13,8 +13,6 @@ WORKDIR /app/netflow/producer
 
 RUN gcc -o producer producer.c -lrdkafka -lpcap
 
-# Expose the NetFlow port
-EXPOSE 1162/udp
 
 # Run the NetFlow listener
 CMD ["./producer"]
