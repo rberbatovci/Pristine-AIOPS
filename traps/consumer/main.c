@@ -4,7 +4,7 @@
 #include <librdkafka/rdkafka.h>
 #include <pthread.h>
 #include <unistd.h>
-
+#include <jansson.h>
 #include "globals.h"
 
 static volatile sig_atomic_t run = 1;
@@ -42,7 +42,8 @@ rd_kafka_t* setup_kafka_consumer(const char* brokers, const char* group_id, cons
 
     if (rd_kafka_conf_set(conf, "bootstrap.servers", brokers, errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK ||
         rd_kafka_conf_set(conf, "group.id", group_id, errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK ||
-        rd_kafka_conf_set(conf, "auto.offset.reset", "earliest", errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK) {
+        rd_kafka_conf_set(conf, "auto.offset.reset", "latest", errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK ||
+        rd_kafka_conf_set(conf, "enable.auto.commit", "false", errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK ) {
         fprintf(stderr, "[ERROR] Kafka conf failed: %s\n", errstr);
         return NULL;
     }

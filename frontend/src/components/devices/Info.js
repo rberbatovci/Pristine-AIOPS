@@ -14,7 +14,6 @@ import SnmpTrapConfig from './SnmpTrapConfig';
 import TelemetryConfig from './TelemetryConfig';
 
 const Info = ({ currentUser, selectedDevice, onDeviceDeselect, onConfigClick, onDeviceDelete }) => {
-  const [showData, setShowData] = useState(true);
   const [editedHostname, setEditedHostname] = useState(selectedDevice.hostname);
   const [isEditing, setIsEditing] = useState(false);
   const [dropdowns, setDropdowns] = useState({
@@ -64,10 +63,10 @@ const Info = ({ currentUser, selectedDevice, onDeviceDeselect, onConfigClick, on
   };
 
   return ( 
-    <div className={`signalRightElementContainer ${showData ? 'expanded' : 'collapsed'}`} style={{ maxHeight: '180px' }}>
+    <div className="signalRightElementContainer" style={{ maxHeight: '180px' }}>
       <div className="signalRightElementHeader">
-        <h2 className="signalRightElementHeaderTxt" onClick={() => setShowData(!showData)}>
-          {showData ? '\u25CF' : '\u25CB'} Device Info
+        <h2 className="signalRightElementHeaderTxt">
+          Device Info
         </h2>
         <div className="zoom-buttons-container">
             <div className="headerButtons">
@@ -83,10 +82,7 @@ const Info = ({ currentUser, selectedDevice, onDeviceDeselect, onConfigClick, on
             </div>
           </div>
       </div>
-
-      {showData && (
         <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '10px', color: 'var(--spanTextColor)', opacity: '0.8', height: '200px' }}>
-          {/* Left Column */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', fontSize: '13px', marginTop: '4px' }}>
               <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>Health:</p>
@@ -96,9 +92,7 @@ const Info = ({ currentUser, selectedDevice, onDeviceDeselect, onConfigClick, on
               <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>Vendor:</p>
               <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>{selectedDevice.vendor}</p>
             </div>
-
           </div>
-          {/* Center Column */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', fontSize: '13px', marginTop: '4px' }}>
               <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>IP Address:</p>
@@ -108,9 +102,7 @@ const Info = ({ currentUser, selectedDevice, onDeviceDeselect, onConfigClick, on
               <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>Version:</p>
               <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>{selectedDevice.version}</p>
             </div>
-
           </div>
-          {/* Right Column */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', fontSize: '13px', marginTop: '4px' }}>
               <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>Hostname:</p>
@@ -119,10 +111,7 @@ const Info = ({ currentUser, selectedDevice, onDeviceDeselect, onConfigClick, on
 
           </div>
         </div>
-
-      )}
     </div>
-
   );
 };
 

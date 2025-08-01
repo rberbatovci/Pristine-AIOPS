@@ -8,7 +8,7 @@ import differentMonths from './timeline/differentMonths';
 import { FormatDate } from '../misc/FormatDate';
 
 const Timeline = ({ currentUser, selectedSignal, events }) => {
-  const [showData, setShowData] = useState(false);
+  const [showData, setShowData] = useState(true);
   const [zoomCount, setZoomCount] = useState(1);
 
   const startTime = new Date(
@@ -59,12 +59,11 @@ const Timeline = ({ currentUser, selectedSignal, events }) => {
   };
 
   return (
-    <div className={`signalRightElementContainer ${showData ? 'expanded' : 'collapsed'}`}>
+    <div className="signalRightElementContainer signalTimeline">
       <div className="signalRightElementHeader">
-        <h2 className="signalRightElementHeaderTxt" onClick={() => setShowData(!showData)}>
-          {showData ? '\u25CF' : '\u25CB'} Signal Timeline
+        <h2 className="signalRightElementHeaderTxt">
+          Signal Timeline
         </h2>
-        {showData && (
           <div className="zoom-buttons-container">
             <div className="headerButtons">
               <button className="iconButton" onClick={resetZoom}>
@@ -81,7 +80,6 @@ const Timeline = ({ currentUser, selectedSignal, events }) => {
               </button>
             </div>
           </div>
-        )}
       </div>
       <div className="signal-timeline-content" style={{ margin: '10px'}}>
         {showData && <RenderComponent showData={showData} currentUser={currentUser} startTime={startTime} endTime={endTime} events={events} zoomCount={zoomCount}/>}

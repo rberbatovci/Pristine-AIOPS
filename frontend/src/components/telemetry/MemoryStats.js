@@ -127,7 +127,7 @@ const MemoryStats = ({ currentUser, selectedDevice }) => {
                   margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
                 >
                   <CartesianGrid stroke="#ccc" strokeDasharray="5 5" />
-                  <XAxis dataKey="timestamp" />
+                  <XAxis dataKey="timestamp" reversed={true} />
                   <YAxis domain={[0, 1000000000]} />
                   <Tooltip />
                   <Legend />

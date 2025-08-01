@@ -291,71 +291,86 @@ services:
     networks:
       - kafka-net
 
-  #telemetry-producer:
-  #  container_name: TelemetryProducer
-  #  #image: ghcr.io/rberbato/telemetry-producer:latest
-  #  build:
-  #    context: .
-  #    dockerfile: ./dockerfiles/Dockerfile.telemetry-producer
-  #  environment:
-  #    - KAFKA_BROKER=kafka:9092
-  #    - KAFKA_TOPIC=telemetry-topic
-  #  ports:
-  #    - "1163:1163"
-  #  env_file:
-  #    - .env
-  #  depends_on:
-  #    kafka:
-  #      condition: service_healthy
-  #    zookeeper:
-  #      condition: service_healthy
-  #  networks:
-  #    - kafka-net
+  telemetry-producer:
+    container_name: TelemetryProducer
+    #image: ghcr.io/rberbato/telemetry-producer:latest
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.telemetry-producer
+    environment:
+      - KAFKA_BROKER=kafka:9092
+      - KAFKA_TOPIC=telemetry-topic
+    ports:
+      - "1163:1163"
+    env_file:
+      - .env
+    depends_on:
+      kafka:
+        condition: service_healthy
+      zookeeper:
+        condition: service_healthy
+    networks:
+      - kafka-net
 
-  #cpu-util-stats:
-  #  container_name: CPUUtilStatistics
+  cpu-util-stats:
+    container_name: CPUUtilStatistics
     #image: ghcr.io/rberbato/telemetry-cpu-util-stats:latest
-  #  build:
-  #    context: .
-  #    dockerfile: ./dockerfiles/Dockerfile.telemetry-cpu-util-stats
-  #  depends_on:
-  #    kafka:
-  #      condition: service_healthy
-  #    opensearch:
-  #      condition: service_healthy
-  #  restart: unless-stopped
-  #  networks:
-  #    - kafka-net
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.telemetry-cpu-util-stats
+    depends_on:
+      kafka:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - kafka-net
 
-  #memory-statistics:
-  #  container_name: MemoryStatistics
+  memory-statistics:
+    container_name: MemoryStatistics
     #image: ghcr.io/rberbato/telemetry-memory-stats:latest
-  #  build:
-  #    context: .
-  #    dockerfile: ./dockerfiles/Dockerfile.telemetry-memory-stats
-  #  depends_on:
-  #    kafka:
-  #      condition: service_healthy
-  #    opensearch:
-  #      condition: service_healthy
-  #  restart: unless-stopped
-  #  networks:
-  #    - kafka-net
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.telemetry-memory-stats
+    depends_on:
+      kafka:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - kafka-net
       
-  #interface-statistics:
-  #  container_name: InterfaceStatistics
+  interface-statistics:
+    container_name: InterfaceStatistics
     #image: ghcr.io/rberbato/telemetry-interface-stats:latest
-  #  build:
-  #    context: .
-  #    dockerfile: ./dockerfiles/Dockerfile.telemetry-interface-stats
-  #  depends_on:
-  #    kafka:
-  #      condition: service_healthy
-  #    opensearch:
-  #      condition: service_healthy
-  #  restart: unless-stopped
-  #  networks:
-  #    - kafka-net
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.telemetry-interface-stats
+    depends_on:
+      kafka:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - kafka-net
+
+  bgp-connection-statistics:
+    container_name: BGPConnectionStatistics
+    #image: ghcr.io/rberbato/telemetry-interface-stats:latest
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.telemetry-bgp-connection-stats
+    depends_on:
+      kafka:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - kafka-net
   
 volumes:
   postgres_data:

@@ -116,10 +116,12 @@ void send_bulk_to_kafka(rd_kafka_t *signal_producer)
 
     for (int i = 0; i < kafka_signals_count; i++)
     {
+
         char *json_str = json_dumps(kafka_signals_buffer[i], JSON_COMPACT);
+        
         if (!json_str)
         {
-            fprintf(stderr, "[ERROR] Failed to serialize JSON for bulk send (index %d)\n", i);
+            //fprintf(stderr, "[ERROR] Failed to serialize JSON for bulk send (index %d)\n", i);
             json_decref(kafka_signals_buffer[i]);
             continue;
         }
@@ -231,11 +233,7 @@ void send_bulk_to_opensearch(json_t **docs, int doc_count)
 
 void add_alert_to_kafka_bulk(json_t *alert_json, rd_kafka_t *signal_producer)
 {
-    if (!signal_producer || !alert_json)
-    {
-        json_decref(alert_json);
-        return;
-    }
+    if (!signal_producer || !alert_json) { return; }
 
     json_t *copied_alert = json_deep_copy(alert_json);
     if (!copied_alert)

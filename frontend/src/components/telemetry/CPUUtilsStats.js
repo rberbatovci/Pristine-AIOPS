@@ -51,13 +51,15 @@ const CpuUtilsStats = ({ selectedDevice }) => {
   return (
     <div className={`signalRightElementContainer ${showData ? "expanded" : "collapsed"}`}>
       <div className="signalRightElementHeader">
-        <h2 className="signalRightElementHeaderTxt" onClick={() => setShowData(!showData)}>
-          {showData ? "\u25CF" : "\u25CB"} {selectedDevice || 'No device selected'} CPU Utilization Statistics
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <h2 className="signalRightElementHeaderTxt">
+         {selectedDevice || 'No device selected'}
         </h2>
+        <span style={{ fontSize: '14px', color: 'var(--textColor)' }}>- CPU Utliization Statistics</span>
+        </div>
       </div>
 
-      {showData && (
-        <div style={{ paddingTop: "10px" }}>
+        <div style={{ paddingTop: "10px"}}>
           {loading ? (
             <div className="p-4 text-gray-500">Loading CPU stats...</div>
           ) : error ? (
@@ -72,7 +74,7 @@ const CpuUtilsStats = ({ selectedDevice }) => {
                   margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
                 >
                   <CartesianGrid stroke="#ccc" strokeDasharray="5 5" />
-                  <XAxis dataKey="timestamp" />
+                  <XAxis dataKey="timestamp" reversed={true} />
                   <YAxis domain={[0, 100]} />
                   <Tooltip />
                   <Legend />
@@ -105,7 +107,6 @@ const CpuUtilsStats = ({ selectedDevice }) => {
             </div>
           )}
         </div>
-      )}
     </div>
   );
 };

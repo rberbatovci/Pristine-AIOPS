@@ -96,6 +96,7 @@ func getValue(field *telemetryBis.TelemetryField) interface{} {
 	}
 }
 
+
 func flushBulkToOpenSearch(ctx context.Context, osClient *opensearch.Client, index string) error {
     bulkBufferLock.Lock()
     defer bulkBufferLock.Unlock()
@@ -135,10 +136,12 @@ func flushBulkToOpenSearch(ctx context.Context, osClient *opensearch.Client, ind
     }
     defer res.Body.Close()
 
-    if res.IsError() {
-        errorBody, _ := io.ReadAll(res.Body)
-        return fmt.Errorf("bulk request error: %s - %s", res.String(), string(errorBody))
-    }
+    body, _ := io.ReadAll(res.Body)
+	log.Printf("📨 Bulk response: %s", body)
+
+	if res.IsError() {
+    	return fmt.Errorf("bulk request error: %s - %s", res.String(), string(body))
+	}
 
     log.Printf("✅ Bulk indexed %d documents to OpenSearch", len(bulkBody.Bytes()))
     return nil
@@ -150,7 +153,7 @@ func startPeriodicFlush(ctx context.Context, osClient *opensearch.Client, interv
         for {
             select {
             case <-ticker.C:
-                log.Printf("⏰ Periodic flush triggered (interval: %v)...", interval)
+                //log.Printf("⏰ Periodic flush triggered (interval: %v)...", interval)
                 if err := flushBulkToOpenSearch(ctx, osClient, opensearchIndex); err != nil {
                     log.Printf("❌ Periodic bulk flush failed: %v", err)
                 } else {
@@ -287,6 +290,8 @@ func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensea
         return
     }
 
+	log.Printf("🔍 CPU stats: %+v", statsMap)
+
     device := ""
     if nodeID, ok := t.NodeId.(*telemetryBis.Telemetry_NodeIdStr); ok {
         device = nodeID.NodeIdStr
@@ -295,7 +300,6 @@ func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensea
     // Create the full document
     doc := map[string]interface{}{
         "device":                device,
-        "subscription":          t.Subscription,
         "collection_id":         t.CollectionId,
         "collection_start_time": t.CollectionStartTime,
         "collection_end_time":   t.CollectionEndTime,
@@ -346,6 +350,81 @@ func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensea
 
 }
 
+func createIndexIfNotExists(client *opensearch.Client, indexName string) error {
+	// Check if index exists
+	existsReq := opensearchapi.IndicesExistsRequest{
+		Index: []string{indexName},
+	}
+	res, err := existsReq.Do(context.Background(), client)
+	if err != nil {
+		return fmt.Errorf("failed to check if index exists: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode == 200 {
+		log.Printf("ℹ️ Index [%s] already exists", indexName)
+		return nil
+	}
+
+	if res.StatusCode != 404 {
+		body, _ := io.ReadAll(res.Body)
+		return fmt.Errorf("unexpected response checking index: %s", string(body))
+	}
+
+	// Define optional settings/mappings for the index (customize as needed)
+	indexSettings := map[string]interface{}{
+		"settings": map[string]interface{}{
+			"number_of_shards":   1,
+			"number_of_replicas": 1,
+		},
+		"mappings": map[string]interface{}{
+			"properties": map[string]interface{}{
+				"device": map[string]interface{}{"type": "keyword"},
+				"collection_id": map[string]interface{}{"type": "long"},
+				"collection_start_time": map[string]interface{}{"type": "date"},
+				"collection_end_time":   map[string]interface{}{"type": "date"},
+				"msg_timestamp":         map[string]interface{}{"type": "date"},
+				"encoding_path":         map[string]interface{}{"type": "keyword"},
+				"ingested_at":           map[string]interface{}{"type": "date"},
+				"stats": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"five-seconds":       map[string]interface{}{"type": "float"},
+						"five-seconds-intr":  map[string]interface{}{"type": "float"},
+						"one-minute":         map[string]interface{}{"type": "float"},
+						"five-minutes":       map[string]interface{}{"type": "float"},
+					},
+				},
+			},
+		},
+	}
+
+	body, err := json.Marshal(indexSettings)
+	if err != nil {
+		return fmt.Errorf("failed to marshal index settings: %w", err)
+	}
+
+	// Create the index
+	createReq := opensearchapi.IndicesCreateRequest{
+		Index: indexName,
+		Body:  bytes.NewReader(body),
+	}
+
+	res, err = createReq.Do(context.Background(), client)
+	if err != nil {
+		return fmt.Errorf("failed to create index: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		body, _ := io.ReadAll(res.Body)
+		return fmt.Errorf("error creating index: %s", string(body))
+	}
+
+	log.Printf("✅ Created OpenSearch index: %s", indexName)
+	return nil
+}
+
 func main() {
 	// Load .env file (optional, safe to ignore errors in production)
 	_ = godotenv.Load()
@@ -380,6 +459,10 @@ func main() {
 	osClient, err := setupOpenSearchClient()
 	if err != nil {
 		log.Fatalf("❌ Application startup failed: %v", err)
+	}
+
+    if err := createIndexIfNotExists(osClient, opensearchIndex); err != nil {
+		log.Fatalf("❌ Failed to create index: %v", err)
 	}
 
     ctx, cancel := context.WithCancel(context.Background())

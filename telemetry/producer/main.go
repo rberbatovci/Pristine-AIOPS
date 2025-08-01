@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"sync"
 	"time"
+	"os/signal"
 
 	dialout "telemetry/protobuf/mdt_dialout"
 	telemetryBis "telemetry/protobuf/telemetry"
@@ -189,8 +190,29 @@ func init() {
 		telemetryPort, dataFlushInterval, dataFlushSize)
 }
 
+func flushAllBatchers() {
+	batcherPoolMu.Lock()
+	defer batcherPoolMu.Unlock()
+
+	for topic, batcher := range batcherPool {
+		log.Printf("🔄 Flushing batcher for topic: %s", topic)
+		batcher.flush()
+	}
+}
+
 func main() {
 	fmt.Println("🚀 Starting gRPC Telemetry Collector on", telemetryPort)
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt)
+
+	go func() {
+		<-sigChan
+		log.Println("🚦 Graceful shutdown: Flushing Kafka buffers...")
+		flushAllBatchers()
+		os.Exit(0)
+	}()
+
 
 	lis, err := net.Listen("tcp", telemetryPort)
 	if err != nil {

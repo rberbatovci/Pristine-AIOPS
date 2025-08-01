@@ -47,12 +47,11 @@ const Info = ({ currentUser, selectedSignal, correlatedSyslogs, onSignalDeselect
   const shortId = selectedSignal.id.split('-').slice(0, 2).join('-');
 
   return (
-    <div className={`signalRightElementContainer ${showData ? 'expanded' : 'collapsed'}`} style={{ maxHeight: '180px' }}>
+    <div className="signalRightElementContainer signalInfo" style={{ maxHeight: '180px' }}>
       <div className="signalRightElementHeader">
-        <h2 className="signalRightElementHeaderTxt" onClick={() => setShowData(!showData)}>
-          {showData ? '\u25CF' : '\u25CB'} Signal Info
+        <h2 className="signalRightElementHeaderTxt">
+           Signal Info
         </h2>
-        {showData && (
           <div className="zoom-buttons-container">
             <div className="headerButtons">
               <button className="iconButton" onClick={deleteSignal}>
@@ -69,10 +68,8 @@ const Info = ({ currentUser, selectedSignal, correlatedSyslogs, onSignalDeselect
               </button>
             </div>
           </div>
-        )}
       </div>
 
-      {showData && (
         <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '10px', color: 'var(--spanTextColor)', opacity: '0.8' }}>
           {/* Left Column */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -129,7 +126,6 @@ const Info = ({ currentUser, selectedSignal, correlatedSyslogs, onSignalDeselect
             )}
           </div>
         </div>
-      )}
     </div>
   );
 };

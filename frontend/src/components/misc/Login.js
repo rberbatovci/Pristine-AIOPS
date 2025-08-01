@@ -94,7 +94,7 @@ function Login({ onAuthentication, toggleTheme, isDarkTheme }) {
   };
 
   return (
-    <div style={{ position: "relative", width: "100%", height: "100vh", overflow: "hidden", display: "flex", justifyContent: "center", alignItems: "center", backgroundColor: 'var(--backgroundColor)' }}>}>
+    <div style={{ position: "relative", width: "100%", height: "100vh", overflow: "hidden", display: "flex", justifyContent: "center", alignItems: "center" }}>
       <Particles
         id="tsparticles"
         init={async (engine) => await loadSlim(engine)}
@@ -193,6 +193,9 @@ function Login({ onAuthentication, toggleTheme, isDarkTheme }) {
                 Staff
               </label>
             )}
+            
+          </div>
+          <div>
             {isRegistering ? (
               <button onClick={handleRegister} disabled={loading}>
                 Register

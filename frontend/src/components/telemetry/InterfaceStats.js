@@ -189,14 +189,14 @@ const InterfaceStats = ({ currentUser, selectedDevice }) => {
 
       {showData && selectedInterface && interfaceStatistics.length > 0 ? (
         <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '10px' }}>
-          <div style={{ width: '100%', height: 300 }}>
-            <ResponsiveContainer width="100%" height="100%">
+          <div style={{ width: '100%', height: 200 }}>
+            <ResponsiveContainer width="100%" height="100%" background="red">
               <LineChart
                 data={interfaceStatistics}
                 margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
               >
                 <CartesianGrid stroke="#ccc" strokeDasharray="5 5" />
-                <XAxis dataKey="timestamp" />
+                <XAxis dataKey="timestamp" reversed={true}/>
                 <YAxis domain={yDomain} /> {/* Use dynamically calculated yDomain */}
                 <Tooltip />
                 <Legend />

@@ -8,7 +8,6 @@ import { IoPushOutline, IoPushSharp } from "react-icons/io5";
 function SyslogConfig({ selectedDevice, onSuccess }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [showData, setShowData] = useState(false);
 
     const severityOptions = [
         { value: 'emergencies', label: '0 - Emergency' },
@@ -61,10 +60,10 @@ function SyslogConfig({ selectedDevice, onSuccess }) {
     };
 
     return (
-        <div className={`signalRightElementContainer ${showData ? 'syslogConfig' : 'collapsed'}`} style={{ maxHeight: '215px' }}>
+        <div className="signalRightElementContainer" style={{ maxHeight: '215px' }}>
             <div className="signalRightElementHeader">
-                <h2 className="signalRightElementHeaderTxt" onClick={() => setShowData(!showData)}>
-                    {showData ? '\u25CF' : '\u25CB'} Syslogs
+                <h2 className="signalRightElementHeaderTxt">
+                    Syslogs
                 </h2>
                 {!selectedDevice?.features?.syslogs && (
                     <div className="zoom-buttons-container">
@@ -89,7 +88,6 @@ function SyslogConfig({ selectedDevice, onSuccess }) {
                     </div>
                 )}
             </div>
-            {showData && (
                 <div style={{ padding: '8px', marginLeft: '15px', fontSize: '14px', color: 'var(--textColor)', opacity: '0.8' }}>
                     {loading ? (
                         <div style={{ color: 'var(--spanTextColor)' }}>
@@ -112,8 +110,6 @@ function SyslogConfig({ selectedDevice, onSuccess }) {
                         </div>
                     )}
                 </div>
-            )}
-
         </div>
     );
 }

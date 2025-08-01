@@ -29,7 +29,7 @@ void create_trap_event(TrapEvent *event, const char *device, const char *sysUpTi
     event->content = content;
 }
 
-char *serialize_events(const TrapEvent *event) {
+json_t *serialize_events(const TrapEvent *event) {
     json_t *root = json_object();
     json_object_set_new(root, "eventId", json_string(event->eventId));
     json_object_set_new(root, "device", json_string(event->device));
@@ -37,11 +37,7 @@ char *serialize_events(const TrapEvent *event) {
     json_object_set_new(root, "snmpTrapOid", json_string(event->snmpTrapOid));
     json_object_set_new(root, "timestamp", json_string(event->timestamp));
     json_object_set(root, "content", event->content);
-
-    char *json_str = json_dumps(root, JSON_COMPACT);
-    json_decref(root); 
-
-    return json_str;
+    return root;
 }
 
 const char *get_string_field_or(json_t *root, const char *key1, const char *key2) {
@@ -131,72 +127,65 @@ void process_message(rd_kafka_t *rk, rd_kafka_t *signal_producer)
         json_object_set_new(root, "eventId", json_string(event.eventId));
         json_object_set_new(root, "timestamp", json_string(event.timestamp));
 
-        char *event_json = serialize_events(&event);
-        if (!event_json) {
-            fprintf(stderr, "[ERROR] TrapEvent serialization failed\n");
-        } else {
-            printf("[DEBUG] TrapEvent JSON:\n%s\n", event_json);
-            free(event_json);
-        }
+
 
         printf("[TRACE] Looking up Trap OID info: %s\n", snmpTrapOid);
         SNMPTrapOID *info = findSnmpTrapOid(snmpTrapOid);
-        if (!info) {
+        if (info) {
+            printf("[TRACE] Tagging fields...\n");
+            pthread_mutex_lock(&config_mutex);
+            for (int i = 0; i < trapTagCount; ++i) {
+                SNMPTrapTag tag = trapTags[i];
+                for (int j = 0; j < tag.oid_count; ++j) {
+                    const char *oid = tag.oids[j];
+                    json_t *value = json_object_get(content, oid);
+                    if (value) {
+                        if (!json_object_get(content, tag.name)) {
+                            json_object_set(content, tag.name, value);
+                        }
+                        json_object_del(content, oid);
+                        break;
+                    }
+                }
+            }
+            pthread_mutex_unlock(&config_mutex);
+
+            json_t  *event_json = serialize_events(&event);
+            if (!event_json) {
+                fprintf(stderr, "[ERROR] TrapEvent serialization failed\n");
+            } else {
+                char *event_str = json_dumps(event_json, JSON_COMPACT);
+                fprintf(stderr, "[DEBUG] Serialized event JSON:\n%s\n", event_str);
+
+                if (info->alert) {
+                    printf("[INFO] Alert trap detected. Sending to Kafka 'trap-signals' topic...\n");
+                    add_alert_to_kafka_bulk(event_json, signal_producer);
+                }
+
+                printf("[TRACE] Handling OpenSearch buffer...\n");
+
+                if (opensearch_events_count < DATA_FLUSH_SIZE) {
+                    printf("[INFO] [BUFFER] Appending trap to OpenSearch buffer...\n");
+                    opensearch_events_buffer[opensearch_events_count++] = json_deep_copy(event_json);
+                } else {
+                    printf("[INFO] OpenSearch buffer full (%d events). Sending bulk...\n", opensearch_events_count);
+                    send_bulk_to_opensearch(opensearch_events_buffer, opensearch_events_count);
+                    for (int i = 0; i < opensearch_events_count; i++) {
+                        json_decref(opensearch_events_buffer[i]);
+                    }
+                    opensearch_events_count = 0;
+                    opensearch_events_buffer[opensearch_events_count++] = json_deep_copy(event_json);
+                }
+                json_decref(event_json);
+            }
+        } else {
             fprintf(stderr, "[ERROR] Unknown SNMP Trap OID: %s\n", snmpTrapOid);
-            json_decref(root);
             free(payload);
             rd_kafka_message_destroy(rkmessage);
             continue;
         }
-
-        printf("[TRACE] Tagging fields...\n");
-        pthread_mutex_lock(&config_mutex);
-        for (int i = 0; i < trapTagCount; ++i) {
-            SNMPTrapTag tag = trapTags[i];
-            for (int j = 0; j < tag.oid_count; ++j) {
-                const char *oid = tag.oids[j];
-                json_t *value = json_object_get(content, oid);
-                if (value) {
-                    if (!json_object_get(content, tag.name)) {
-                        json_object_set(content, tag.name, value);
-                    }
-                    json_object_del(content, oid);
-                    break;
-                }
-            }
-        }
-        pthread_mutex_unlock(&config_mutex);
-
-        char *final_json = json_dumps(root, JSON_INDENT(2));
-        if (final_json) {
-            printf("[DEBUG] Final JSON with metadata:\n%s\n", final_json);
-            free(final_json);
-        }
-
-        if (info->alert) {
-            printf("[INFO] Alert trap detected. Sending to Kafka 'trap-signals' topic...\n");
-            add_alert_to_kafka_bulk(root, signal_producer);
-        }
-
-        printf("[TRACE] Handling OpenSearch buffer...\n");
-
-        if (opensearch_events_count < DATA_FLUSH_SIZE) {
-            printf("[INFO] [BUFFER] Appending trap to OpenSearch buffer...\n");
-            
-            opensearch_events_buffer[opensearch_events_count++] = json_deep_copy(root);
-        } else {
-            printf("[INFO] OpenSearch buffer full (%d events). Sending bulk...\n", opensearch_events_count);
-            send_bulk_to_opensearch(opensearch_events_buffer, opensearch_events_count);
-            for (int i = 0; i < opensearch_events_count; i++) {
-                json_decref(opensearch_events_buffer[i]);
-            }
-            opensearch_events_count = 0;
-            opensearch_events_buffer[opensearch_events_count++] = json_deep_copy(root);
-        }
-
-
-        json_decref(root);
         free(payload);
+        rd_kafka_commit_message(rk, rkmessage, 0);
         rd_kafka_message_destroy(rkmessage);
     }
 

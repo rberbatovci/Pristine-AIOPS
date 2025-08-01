@@ -54,7 +54,7 @@ void send_bulk_to_kafka(rd_kafka_t *signal_producer)
         char *json_str = json_dumps(kafka_signals_buffer[i], JSON_COMPACT);
         if (!json_str)
         {
-            fprintf(stderr, "[ERROR] Failed to serialize JSON for bulk send (index %d)\n", i);
+            //fprintf(stderr, "[ERROR] Failed to serialize JSON for bulk send (index %d)\n", i);
             json_decref(kafka_signals_buffer[i]);
             continue;
         }

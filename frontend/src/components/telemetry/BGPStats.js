@@ -63,7 +63,7 @@ const BGPStats = ({ currentUser, selectedDevice }) => {
     <div className={`signalRightElementContainer ${showData ? 'expanded' : 'collapsed'}`}>
       <div className="signalRightElementHeader">
         <h2 className="signalRightElementHeaderTxt" onClick={() => setShowData(!showData)}>
-          {showData ? '\u25CF' : '\u25CB'} BGP Statistics
+          {showData ? '\u25CF' : '\u25CB'} BGP Neighbor Statistics
         </h2>
         {showData && (
           <div className="zoom-buttons-container">

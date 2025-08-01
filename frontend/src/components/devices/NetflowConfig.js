@@ -19,7 +19,6 @@ function NetflowConfig({ selectedDevice, version, onSuccess }) {
     const [error, setError] = useState('');
     const [interfaces, setInterfaces] = useState([]);
     const [interfaceOptions, setInterfaceOptions] = useState([]);
-    const [showData, setShowData] = useState(false);
 
     useEffect(() => {
         if (version === 'ios-xe') {
@@ -57,10 +56,10 @@ function NetflowConfig({ selectedDevice, version, onSuccess }) {
     const handleSkip = () => onSuccess?.(null);
 
     return (
-        <div className={`signalRightElementContainer ${showData ? 'netflowConfig' : 'collapsed'}`}>
+        <div className="signalRightElementContainer">
             <div className="signalRightElementHeader">
-                <h2 className="signalRightElementHeaderTxt" onClick={() => setShowData(!showData)}>
-                    {showData ? '\u25CF' : '\u25CB'} Netflow
+                <h2 className="signalRightElementHeaderTxt" >
+                     Netflow
                 </h2>
                 {!selectedDevice?.features?.netflow && (
                                     <div className="zoom-buttons-container">
@@ -85,7 +84,6 @@ function NetflowConfig({ selectedDevice, version, onSuccess }) {
                                     </div>
                                 )}
             </div>
-            {showData && (
                 <div style={{ padding: '8px', marginLeft: '15px', fontSize: '14px', color: 'var(--textColor)', opacity: '0.8' }}>
                     {loading ? (
                         <div style={{ color: 'var(--spanTextColor)' }}>
@@ -108,7 +106,6 @@ function NetflowConfig({ selectedDevice, version, onSuccess }) {
                         </div>
                     )}
                 </div>
-            )}
         </div>
     );
 }

@@ -20,6 +20,8 @@ import { PiUploadBold, PiUploadFill } from "react-icons/pi";
 import SnmpTrapOid from '../components/snmptraps/SnmpTrapOid.js';
 import TrapTags from '../components/snmptraps/TrapTags.js';
 import Pagination from '@mui/material/Pagination';
+import { now, getLocalTimeZone } from '@internationalized/date';
+
 
 function EventsDatabase({ currentUser, setDashboardTitle }) {
     const [loading, setLoading] = useState(false);
@@ -80,9 +82,11 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
     const [snmpTrapOids, setSnmpTrapOids] = useState([]);
     const [tagNames, setTagNames] = useState([]);
     const [devices, setDevices] = useState([]);
-    const [timeRange, setTimeRange] = useState('last_4_hour');
+    const [startTime, setStartTime] = useState(() => new Date(Date.now() - 60 * 60 * 1000));
+    const [endTime, setEndTime] = useState(() => new Date());
+    const [filters, setFilters] = useState({});
     const totalPages = Math.ceil(totalEvents / pageSize);
-    
+
     const handleButtonClick = (event, dropdownKey) => {
         const updatedDropdowns = Object.keys(dropdowns).reduce((acc, key) => {
             acc[key] = { ...dropdowns[key], visible: false };
@@ -103,18 +107,23 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
         return () => setDashboardTitle(''); // Clean up when navigating away
     }, [setDashboardTitle]);
 
+    // Helper function to format ISO without `[Zone]`
+    const formatDateForBackend = (zonedDateTime) => {
+        const iso = zonedDateTime.toString(); // e.g. 2025-08-01T01:24:17.217+02:00
+        return iso;
+    };
+
+
     const loadData = (
         dataSource,
         page = 1,
         pageSize = 20,
-        timeRange2 = timeRange,
-        startTime = null,
-        endTime = null,
-        filters = {}  // Renamed from selectedTags to filters
+        startTime = startTime,
+        endTime = endTime,
+        filters = {}
     ) => {
-
         if (dataSource === 'telemetry') {
-            setEventsData([]);  // Optional: set empty data
+            setEventsData([]);
             setTotalEvents(0);
             return;
         }
@@ -125,23 +134,18 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
         let url = '';
         if (dataSource === 'syslogs') {
             url = `/syslogs/?page=${page}&page_size=${pageSize}`;
-            if (timeRange) {
-                url += `&time_range=${timeRange}`;
-            } else if (startTime && endTime) {
-                url += `&start_time=${encodeURIComponent(startTime)}&end_time=${encodeURIComponent(endTime)}`;
-            }
+            if (startTime) url += `&start_time=${encodeURIComponent(startTime)}`;
+            if (endTime) url += `&end_time=${encodeURIComponent(endTime)}`;
         } else if (dataSource === 'snmptraps') {
             url = `/traps/?page=${page}&page_size=${pageSize}`;
-            if (timeRange) {
-                url += `&time_range=${timeRange}`;
-            } else if (startTime && endTime) {
-                url += `&start_time=${encodeURIComponent(startTime)}&end_time=${encodeURIComponent(endTime)}`;
-            }
+            if (startTime) url += `&start_time=${encodeURIComponent(startTime)}`;
+            if (endTime) url += `&end_time=${encodeURIComponent(endTime)} `;
         } else if (dataSource === 'netflow') {
             url = `/netflow/?page=${page}&page_size=${pageSize}`;
+            if (startTime) url += `&start_time=${encodeURIComponent(startTime)}`;
+            if (endTime) url += `&end_time=${encodeURIComponent(endTime)} `;
         }
 
-        // Build URLSearchParams from filters
         const query = new URLSearchParams();
 
         if (filters.device?.length) {
@@ -158,12 +162,13 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
 
         if (filters.tags) {
             for (const [key, values] of Object.entries(filters.tags)) {
-                values.forEach(value => query.append(`${key}`, value));
+                values.forEach(value => query.append(`${ key } `, value));
             }
         }
 
-        // Add built query string
-        url += `&${query.toString()}`;
+        if (query.toString()) {
+            url += `& ${ query.toString() } `;
+        }
 
         apiClient
             .get(url)
@@ -172,7 +177,7 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
                 if (response.data && response.data.results) {
                     results = response.data.results.map(item => item._source || item);
                     setTotalEvents(response.data.total || 0);
-                } else if (response.data && Array.isArray(response.data)) {
+                } else if (Array.isArray(response.data)) {
                     results = response.data.map(item => item._source || item);
                     setTotalEvents(response.data.length);
                 } else {
@@ -263,7 +268,7 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
     const handleHeaderClick = (source) => {
         setDataSource(source);
         setPage(1); // Reset to first page when changing source
-        loadData(source, 1, pageSize); // Load page 1 with correct size
+        loadData(dataSource, page, pageSize, startTime?.toISOString(), endTime?.toISOString(), filters); // Load page 1 with correct size
         setColumnConfigs(baseColumns); // Reset selected tags based on new source
 
         // Fetch specific data depending on selected source
@@ -288,30 +293,23 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
     };
 
     const handleTimeRangeChange = (start, end) => {
-        if (!start || !end) return;
-
-        // Format dates to ISO string
-        const startTime = new Date(start).toISOString();
-        const endTime = new Date(end).toISOString();
-
-        loadData('syslogs', 1, 10, null, startTime, endTime);
+        setStartTime(start);
+        setEndTime(end);
     };
 
     const handleTimeRangeSelect = (range) => {
-        loadData('syslogs', 1, pageSize, range, timeRange, null);
+        loadData(dataSource, page, pageSize, startTime?.toISOString(), endTime?.toISOString(), filters); 
     };
 
     const handleSearchAndCloseDropdown = (filters) => {
         console.log('Selected tags:', filters);
 
-        // Close the dropdown (if needed)
         setDropdowns(prev => ({
             ...prev,
             searchSyslogs: { ...prev.searchSyslogs, visible: false }
         }));
 
-        // Trigger data loading
-        loadData(dataSource, 1, 19, timeRange, null, null, filters);
+        loadData(dataSource, page, pageSize, startTime?.toISOString(), endTime?.toISOString(), filters); 
     };
 
     const handleTagsEditing = () => {
@@ -324,7 +322,7 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
 
 
     useEffect(() => {
-        loadData(dataSource, page, pageSize, timeRange);
+        loadData(dataSource, page, pageSize, startTime?.toISOString(), endTime?.toISOString(), filters);
 
         if (dataSource === 'syslogs') {
             fetchMnemonics();
@@ -332,7 +330,7 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
         } else if (dataSource === 'snmptraps') {
             fetchSnmpTrapOids();
         }
-    }, [page, dataSource, pageSize]);
+    }, [page, dataSource, startTime, endTime, pageSize]);
 
     const onTagChange = (tagName) => {
         setColumnConfigs(prev => {
@@ -352,7 +350,7 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
     }
 
     const handleApplyEventsPerPage = () => {
-        loadData(dataSource, 1, pageSize); // Reset to page 1 when page size changes
+        loadData(dataSource, page, pageSize, startTime?.toISOString(), endTime?.toISOString(), filters); // Reset to page 1 when page size changes
     };
 
     const handlePageSizeChange = (event) => {
@@ -391,25 +389,25 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
             <div className="mainContainerHeader">
                 <div className="headerTitles">
                     <h2
-                        className={`eventsTitleHeader ${dataSource === 'syslogs' ? 'eventsTitleHeaderActive' : ''}`}
+                        className={`eventsTitleHeader ${ dataSource === 'syslogs' ? 'eventsTitleHeaderActive' : '' } `}
                         onClick={() => handleHeaderClick('syslogs')}
                     >
                         Syslogs
                     </h2>
                     <h2
-                        className={`eventsTitleHeader ${dataSource === 'snmptraps' ? 'eventsTitleHeaderActive' : ''}`}
+                        className={`eventsTitleHeader ${ dataSource === 'snmptraps' ? 'eventsTitleHeaderActive' : '' } `}
                         onClick={() => handleHeaderClick('snmptraps')}
                     >
                         SNMP Traps
                     </h2>
                     <h2
-                        className={`eventsTitleHeader ${dataSource === 'netflow' ? 'eventsTitleHeaderActive' : ''}`}
+                        className={`eventsTitleHeader ${ dataSource === 'netflow' ? 'eventsTitleHeaderActive' : '' } `}
                         onClick={() => handleHeaderClick('netflow')}
                     >
                         Netflow
                     </h2>
                     <h2
-                        className={`eventsTitleHeader ${dataSource === 'telemetry' ? 'eventsTitleHeaderActive' : ''}`}
+                        className={`eventsTitleHeader ${ dataSource === 'telemetry' ? 'eventsTitleHeaderActive' : '' } `}
                         onClick={() => handleHeaderClick('telemetry')}
                     >
                         Telemetry
@@ -420,14 +418,14 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
                         <>
 
                             <button
-                                className={`iconButton ${dropdowns.mnemonics.visible ? 'active' : ''}`}
+                                className={`iconButton ${ dropdowns.mnemonics.visible ? 'active' : '' } `}
                                 onClick={(event) => handleButtonClick(event, 'mnemonics')}
                             >
                                 <MdBookmarkBorder className="defaultIcon" />
                                 <MdBookmark className="hoverIcon" />
                             </button>
                             <button
-                                className={`iconButton ${dropdowns.regExConfig.visible ? 'active' : ''}`}
+                                className={`iconButton ${ dropdowns.regExConfig.visible ? 'active' : '' } `}
                                 style={{ marginRight: '20px' }}
                                 onClick={(event) => handleButtonClick(event, 'regExConfig')}
                             >
@@ -439,21 +437,21 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
                     {dataSource === 'snmptraps' && (
                         <>
                             <button
-                                className={`iconButton ${dropdowns.MIBFiles.visible ? 'active' : ''}`}
+                                className={`iconButton ${ dropdowns.MIBFiles.visible ? 'active' : '' } `}
                                 onClick={(event) => handleButtonClick(event, 'MIBFiles')}
                             >
                                 <PiUploadBold className="defaultIcon" />
                                 <PiUploadFill className="hoverIcon" />
                             </button>
                             <button
-                                className={`iconButton ${dropdowns.snmpTrapOids.visible ? 'active' : ''}`}
+                                className={`iconButton ${ dropdowns.snmpTrapOids.visible ? 'active' : '' } `}
                                 onClick={(event) => handleButtonClick(event, 'snmpTrapOids')}
                             >
                                 <MdBookmarkBorder className="defaultIcon" />
                                 <MdBookmark className="hoverIcon" />
                             </button>
                             <button
-                                className={`iconButton ${dropdowns.regExConfig.visible ? 'active' : ''}`}
+                                className={`iconButton ${ dropdowns.regExConfig.visible ? 'active' : '' } `}
                                 style={{ marginRight: '20px' }}
                                 onClick={(event) => handleButtonClick(event, 'trapTags')}
                             >
@@ -464,17 +462,17 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
                     )}
                     {dataSource !== 'netflow' ? (
                         <button
-                            className={`iconButton ${dropdowns.showSyslogTags.visible ? 'active' : ''}`}
+                            className={`iconButton ${ dropdowns.showSyslogTags.visible ? 'active' : '' } `}
                             onClick={(event) => handleButtonClick(event, 'showSyslogTags')}
                         >
                             <HiOutlineViewColumns
-                                className={`defaultIcon ${selectedTags.length > 0 ? 'hasFilters' : 'noFilters'}`}
+                                className={`defaultIcon ${ selectedTags.length > 0 ? 'hasFilters' : 'noFilters' } `}
                             />
                             <HiViewColumns className="hoverIcon" />
                         </button>
                     ) : (
                         <button
-                            className={`iconButton ${dropdowns.searchSyslogs.visible ? 'active' : ''}`}
+                            className={`iconButton ${ dropdowns.searchSyslogs.visible ? 'active' : '' } `}
                             onClick={(event) => handleButtonClick(event, 'searchSyslogs')}
                         >
                             <RiFilterLine className="defaultIcon" />
@@ -483,7 +481,7 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
                     )}
                     {dataSource === 'telemetry' ? (
                         <button
-                            className={`iconButton ${dropdowns.searchSyslogs.visible ? 'active' : ''}`}
+                            className={`iconButton ${ dropdowns.searchSyslogs.visible ? 'active' : '' } `}
                             onClick={(event) => handleButtonClick(event, 'TelemetryStats')}
                         >
                             <RiFilterLine className="defaultIcon" />
@@ -493,7 +491,7 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
                         </button>
                     ) : (
                         <button
-                            className={`iconButton ${dropdowns.searchSyslogs.visible ? 'active' : ''}`}
+                            className={`iconButton ${ dropdowns.searchSyslogs.visible ? 'active' : '' } `}
                             onClick={(event) => handleButtonClick(event, 'searchSyslogs')}
                         >
                             <RiFilterLine className="defaultIcon" />
@@ -590,7 +588,7 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
             </div>
             <div ref={dropdownMenuRef}>
                 <div
-                    className={`dropdownMenu ${dropdowns.searchSyslogs.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
+                    className={`dropdownMenu ${ dropdowns.searchSyslogs.visible ? 'dropdownVisible' : 'dropdownHidden' } `}
                     style={{ width: '420px' }}
                 >
                     <FilterSyslogs
@@ -603,7 +601,7 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
                     />
                 </div>
                 <div
-                    className={`dropdownMenu ${dropdowns.regExConfig.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
+                    className={`dropdownMenu ${ dropdowns.regExConfig.visible ? 'dropdownVisible' : 'dropdownHidden' } `}
                     style={{ width: '700px' }}
                 >
                     <RegExConfig
@@ -615,16 +613,17 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
                     />
                 </div>
                 <div
-                    className={`dropdownMenu ${dropdowns.searchTime.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
+                    className={`dropdownMenu ${ dropdowns.searchTime.visible ? 'dropdownVisible' : 'dropdownHidden' } `}
                     style={{ width: 'auto' }}
                 >
                     <SearchTime
-                        onTimeRangeSelect={handleTimeRangeSelect}
+                        startTime={startTime}
+                        endTime={endTime}
                         onTimeRangeChange={handleTimeRangeChange}
                     />
                 </div>
                 <div
-                    className={`dropdownMenu ${dropdowns.showSyslogTags.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
+                    className={`dropdownMenu ${ dropdowns.showSyslogTags.visible ? 'dropdownVisible' : 'dropdownHidden' } `}
                     style={{ width: '280px' }}>
                     <SyslogTags
                         dataSource={dataSource}
@@ -633,13 +632,13 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
                     />
                 </div>
                 <div
-                    className={`dropdownMenu ${dropdowns.MIBFiles.visible ? 'dropdownVisible' : 'dropdownHidden'}`}>
+                    className={`dropdownMenu ${ dropdowns.MIBFiles.visible ? 'dropdownVisible' : 'dropdownHidden' } `}>
                     <UploadMIB
                         currentUser={currentUser}
                     />
                 </div>
                 <div
-                    className={`dropdownMenu ${dropdowns.snmpTrapOids.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
+                    className={`dropdownMenu ${ dropdowns.snmpTrapOids.visible ? 'dropdownVisible' : 'dropdownHidden' } `}
                     style={{
                         width: 'auto',
                         maxHeight: '740px',
@@ -650,7 +649,7 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
                     />
                 </div>
                 <div
-                    className={`dropdownMenu ${dropdowns.TelemetryStats.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
+                    className={`dropdownMenu ${ dropdowns.TelemetryStats.visible ? 'dropdownVisible' : 'dropdownHidden' } `}
                     style={{
                         width: '420px',
                         height: '110px'
@@ -662,7 +661,7 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
                     />
                 </div>
                 <div
-                    className={`dropdownMenu ${dropdowns.trapTags.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
+                    className={`dropdownMenu ${ dropdowns.trapTags.visible ? 'dropdownVisible' : 'dropdownHidden' } `}
                     style={{
                         width: 'auto',
                         maxHeight: '740px',
@@ -673,7 +672,7 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
                     />
                 </div>
                 <div
-                    className={`dropdownMenu ${dropdowns.mnemonics.visible ? 'dropdownVisible' : 'dropdownHidden'}`}
+                    className={`dropdownMenu ${ dropdowns.mnemonics.visible ? 'dropdownVisible' : 'dropdownHidden' } `}
                     style={{
                         width: 'auto',
                         maxHeight: '740px',

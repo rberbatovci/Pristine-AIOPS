@@ -8,7 +8,6 @@ import { IoPushOutline, IoPushSharp } from "react-icons/io5";
 function SnmpTrapConfig({ selectedDevice, onSuccess }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [showData, setShowData] = useState(false);
 
     const sendConfig = async (config) => {
         setLoading(true);
@@ -37,10 +36,10 @@ function SnmpTrapConfig({ selectedDevice, onSuccess }) {
     };
 
     return (
-        <div className={`signalRightElementContainer ${showData ? 'snmpTrapConfig' : 'collapsed'}`} style={{ maxHeight: '350px' }}>
+        <div className="signalRightElementContainer" style={{ maxHeight: '350px' }}>
             <div className="signalRightElementHeader">
-                <h2 className="signalRightElementHeaderTxt" onClick={() => setShowData(!showData)}>
-                    {showData ? '\u25CF' : '\u25CB'} SNMP Traps
+                <h2 className="signalRightElementHeaderTxt">
+                     SNMP Traps
                 </h2>
                 {!selectedDevice?.features?.snmp_traps && (
                     <div className="zoom-buttons-container">
@@ -65,7 +64,6 @@ function SnmpTrapConfig({ selectedDevice, onSuccess }) {
                     </div>
                 )}
             </div>
-            {showData && (
                 <div style={{ padding: '8px', marginLeft: '15px', fontSize: '14px', color: 'var(--textColor)', opacity: '0.8' }}>
                     {loading ? (
                         <div style={{ color: 'var(--spanTextColor)' }}>
@@ -88,7 +86,6 @@ function SnmpTrapConfig({ selectedDevice, onSuccess }) {
                         </div>
                     )}
                 </div>
-            )}
         </div>
     );
 }

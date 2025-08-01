@@ -1,5 +1,6 @@
 annotated-types==0.7.0
 ansible==9.5.1
+ansible-pylibssh
 anyio==4.9.0
 aiohttp==3.10.1
 async-timeout==5.0.1

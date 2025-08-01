@@ -121,25 +121,12 @@ function Events({ currentUser, events, source, rule}) {
   };
   
   return (
-    <div className={`signalRightElementContainer ${showData ? 'expanded' : 'collapsed'}`}>
+    <div className="signalRightElementContainer ">
       <div className="signalRightElementHeader">
-        <h2 className="signalRightElementHeaderTxt" onClick={() => setShowData(!showData)}>
+        <h2 className="signalRightElementHeaderTxt">
           {showData ? '\u25CF' : '\u25CB'} Signal Events
         </h2>
-        {showData && (
-          <div className="headerButtons" style={{ background: 'none', marginRight: '10px' }}>
-            <button
-              className="headerButton"
-              onClick={toggleTagsList}
-              onMouseEnter={() => setShowPanel(true)} 
-              onMouseLeave={() => setShowPanel(false)}
-            >
-              <BsToggles />
-            </button>
-          </div>
-        )}
       </div>
-      {showData && (
         <div className="signal-events-content" style={{ width: 'calc(100% - 15px)' }}>
           <EventsTable
             currentUser={currentUser}
@@ -149,26 +136,6 @@ function Events({ currentUser, events, source, rule}) {
             onDownload={(downloadFn) => (downloadRef.current = downloadFn)}
           />
         </div>
-      )}
-      {showPanel && (
-        <div
-          className={`tagsPanel ${showPanel ? 'dropdownVisible' : 'dropdownHidden'}`}
-          style={{
-            position: 'absolute',
-            top: `${tagsListPosition.top}px`,
-            right: '10px',
-            marginTop: '-140px',
-          }}
-          onMouseEnter={() => setShowPanel(true)}
-          onMouseLeave={() => setShowPanel(false)} 
-        >
-          <TagColumns
-            tags={tags}
-            selectedTags={selectedTags}
-            handleTagCheckboxChange={handleTagCheckboxChange}
-          />
-        </div>
-      )}
     </div>
   );
 }

@@ -8,13 +8,10 @@ const telemetryOptions = [
     { key: 'cpu_util', label: 'CPU utilization', apiType: 'cpu_util' },
     { key: 'memory_stats', label: 'Memory Statistics', apiType: 'memory_stats' },
     { key: 'interface_stats', label: 'Interface Statistics', apiType: 'interface_stats' },
-    { key: 'bgp_connections', label: 'BGP Connections', apiType: 'bgp_connections' },
-    { key: 'isis', label: 'ISIS Statistics', apiType: 'isis' }
 ];
 
 function TelemetryConfig({ selectedDevice, version, telemetryFeatures, onSuccess }) {
     const [loadingState, setLoadingState] = useState({});
-    const [showData, setShowData] = useState(false);
     const [currentLoadingLabel, setCurrentLoadingLabel] = useState('');
 
     const sendTelemetryConfig = async (type, label) => {
@@ -35,10 +32,10 @@ function TelemetryConfig({ selectedDevice, version, telemetryFeatures, onSuccess
     };
 
     return (
-        <div className={`signalRightElementContainer ${showData ? 'telemetryConfig' : 'collapsed'}`}>
+        <div className="signalRightElementContainer">
             <div className="signalRightElementHeader">
-                <h2 className="signalRightElementHeaderTxt" onClick={() => setShowData(!showData)}>
-                    {showData ? '\u25CF' : '\u25CB'} Model-Driven Telemetry
+                <h2 className="signalRightElementHeaderTxt" >
+                    Model-Driven Telemetry
                 </h2>
             </div>
             <div>

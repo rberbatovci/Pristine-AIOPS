@@ -148,27 +148,28 @@ void process_message(rd_kafka_t *rk, rd_kafka_t *signal_producer)
                 if (!event_json) {
                     fprintf(stderr, "[ERROR] Failed to serialize event\n");
                 } else {
-                    char *dump = json_dumps(event_json, JSON_INDENT(2));
-                    fprintf(stderr, "[DEBUG] Serialized event JSON:\n%s\n", dump);
-                    // free(dump); // optional, depending on usage
+                    char *event_str = json_dumps(event_json, JSON_COMPACT);
+                    fprintf(stderr, "[DEBUG] Serialized event JSON:\n%s\n", event_str); 
 
                     if (info->alert) {
-                        fprintf(stderr, "[DEBUG] Alert enabled, sending to Kafka\n");
+                        printf("[INFO] Alert syslog detected. Sending to Kafka 'syslog-signals' topic...\n");
                         add_alert_to_kafka_bulk(event_json, signal_producer);
                     }
 
+                    printf("[TRACE] Handling OpenSearch buffer...\n");
+
                     if (opensearch_events_count < DATA_FLUSH_SIZE) {
-                        opensearch_events_buffer[opensearch_events_count++] = json_incref(event_json);
+                        printf("[INFO] [BUFFER] Appending syslog to OpenSearch buffer...\n");
+                        opensearch_events_buffer[opensearch_events_count++] = json_deep_copy(event_json);
                     } else {
-                        fprintf(stderr, "[INFO] Buffer full, flushing to OpenSearch\n");
+                        printf("[INFO] OpenSearch buffer full (%d events). Sending bulk...\n", opensearch_events_count);
                         send_bulk_to_opensearch(opensearch_events_buffer, opensearch_events_count);
                         for (int i = 0; i < opensearch_events_count; i++) {
                             json_decref(opensearch_events_buffer[i]);
                         }
                         opensearch_events_count = 0;
-                        opensearch_events_buffer[opensearch_events_count++] = json_incref(event_json);
+                        opensearch_events_buffer[opensearch_events_count++] = json_deep_copy(event_json);
                     }
-
                     json_decref(event_json);
                 }
             } else {

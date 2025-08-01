@@ -148,7 +148,6 @@ async def get_syslogs(
     request: Request,
     page: int = Query(1, ge=1),
     page_size: int = Query(19, ge=1, le=100),
-    time_range: Optional[str] = Query(None),
     start_time: Optional[datetime] = Query(None),
     end_time: Optional[datetime] = Query(None),
 ):
@@ -156,21 +155,10 @@ async def get_syslogs(
     must_clauses = []
 
     # Handle time filters
-    if time_range:
-        from_time = get_time_range(time_range)
-        if from_time:
-            must_clauses.append({
-                "range": {
-                    "@timestamp": {
-                        "gte": from_time,
-                        "lte": "now"
-                    }
-                }
-            })
-    elif start_time and end_time:
+    if start_time and end_time:
         must_clauses.append({
             "range": {
-                "@timestamp": {
+                "timestamp": {
                     "gte": start_time.isoformat(),
                     "lte": end_time.isoformat()
                 }
@@ -179,7 +167,7 @@ async def get_syslogs(
 
     # Extract all query params
     query_params = request.query_params.multi_items()
-    fixed_params = {"page", "page_size", "time_range", "start_time", "end_time"}
+    fixed_params = {"page", "page_size", "start_time", "end_time"}
 
     # Extract dynamic filters
     dynamic_filters = [(k, v) for k, v in query_params if k not in fixed_params]
@@ -268,14 +256,19 @@ def get_unique_terms(index: str, field: str, size: int = 1000) -> List[str]:
 def get_dynamic_unique_values(field: str = Query(..., description="Field to aggregate")):
     return get_unique_terms(index="syslogs", field=field)
 
-@router.get("/syslogs/tags/statistics/{tag_key}")
-def get_tag_statistics(tag_key: str):
+TOP_LEVEL_FIELDS = ["device", "mnemonic", "severity"]
+
+@router.get("/syslogs/statistics/{key}")
+def get_field_statistics(key: str):
+    # Determine the full field path
+    field_path = key if key in TOP_LEVEL_FIELDS else f"tags.{key}.keyword"
+
     query = {
         "size": 0,
         "aggs": {
-            "tag_value_counts": {
+            "value_counts": {
                 "terms": {
-                    "field": f"{tag_key}.keyword",
+                    "field": field_path,
                     "size": 1000
                 }
             }
@@ -283,11 +276,11 @@ def get_tag_statistics(tag_key: str):
     }
 
     response = opensearch_client.search(index="syslogs", body=query)
-    stats = [
-        {"value": bucket["key"], "count": bucket["doc_count"]}
-        for bucket in response["aggregations"]["tag_value_counts"]["buckets"]
-    ]
-    return {"tag_key": tag_key, "statistics": stats}
+
+    buckets = response.get("aggregations", {}).get("value_counts", {}).get("buckets", [])
+    stats = [{"value": b["key"], "count": b["doc_count"]} for b in buckets]
+
+    return {"key": key, "statistics": stats}
 
 @router.get("/syslogs/filter")
 def filter_syslogs_by_tag(index: str, field: str = Query(...), value: str = Query(...), size: int = 100):

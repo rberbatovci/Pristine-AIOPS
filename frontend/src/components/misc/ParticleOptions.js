@@ -3,39 +3,61 @@ import darkBackground from '../../images/darkBackground.jpg'; // If you have a d
 
 export const lightThemeOptions = {
     background: {
-        color: "#ffffff",
-        image: `url(${lightBackground})`, // Use the imported image
+        color: "#e2e2e2ff",
+        image: `url(${lightBackground})`,
         position: "50% 50%",
         repeat: "no-repeat",
         size: "cover"
     },
     particles: {
-        color: {
-            value: "#22508bff",
+        number: {
+            value: 150
         },
-        links: {
-            color: "#7996bdff",
-            distance: 150,
-            enable: true,
-            opacity: 0.3,
-            width: .5,
+        groups: {
+            gray: {
+                number: {
+                    value: 106 // 80%
+                },
+                color: {
+                    value: "#eeeeeeff"
+                }
+            },
+            blue: {
+                number: {
+                    value: 22 // 10%
+                },
+                color: {
+                    value: "#22508b"
+                }
+            },
+            pink: {
+                number: {
+                    value: 22 // 10%
+                },
+                color: {
+                    value: "#ff69b4"
+                }
+            }
+        },
+        shape: {
+            type: "circle"
+        },
+        size: {
+            value: { min: 1, max: 3 }
         },
         move: {
             enable: true,
-            speed: 2,
+            speed: 2
         },
-        number: {
-            value: 120,
-        },
-        shape: {
-            type: "circle",
-        },
-        size: {
-            value: { min: 1, max: 5 },
-        },
+        links: {
+            color: "#fefeffff",
+            distance: 150,
+            enable: true,
+            opacity: 0.3,
+            width: 0.5
+        }
     },
     interactivity: {
-        detectsOn: "canvas",
         events: {
             onHover: {
                 enable: true,
@@ -71,76 +93,65 @@ export const lightThemeOptions = {
                 quantity: 2
             }
         }
-    },
+    }
 };
 
 export const darkThemeOptions = {
     background: {
         color: "#0a1c23",
-        image: "none",
         position: "50% 50%",
         repeat: "no-repeat",
-        size: "cover",
-        gradient: "red",
+        size: "cover"
     },
     particles: {
         number: {
-            value: 120,
-            density: {
-                enable: true,
-                value_area: 1200,
-            },
+            value: 150
         },
-        color: {
-            value: "#49a1d8ff",
+        groups: {
+            gray: {
+                number: {
+                    value: 106 // 80%
+                },
+                color: {
+                    value: "#0f6985ff"
+                }
+            },
+            blue: {
+                number: {
+                    value: 22 // 10%
+                },
+                color: {
+                    value: "#22508b"
+                }
+            },
+            pink: {
+                number: {
+                    value: 22 // 10%
+                },
+                color: {
+                    value: "#ff69b4"
+                }
+            }
         },
         shape: {
-            type: "circle",
-            stroke: {
-                width: 0,
-                color: "#247bc2ff",
-            },
-            polygon: {
-                nb_sides: 5,
-            },
-        },
-        opacity: {
-            value: 0.5,
-            random: false,
-            anim: {
-                enable: false,
-                speed: 1,
-                opacity_min: 0.1,
-                sync: false,
-            },
+            type: "circle"
         },
         size: {
-            value: { min: 1, max: 5 },
-        },
-        links: {
-            color: "#7ea7c0ff",
-            distance: 150,
-            enable: true,
-            opacity: 0.4,
-            width: 1,
+            value: { min: 1, max: 3 }
         },
         move: {
             enable: true,
-            speed: 2,
-            direction: "none",
-            random: false,
-            straight: false,
-            out_mode: "out",
-            bounce: false,
-            attract: {
-                enable: false,
-                rotateX: 600,
-                rotateY: 1200,
-            },
+            speed: 2
         },
+        links: {
+            color: "#0f6985ff",
+            distance: 150,
+            enable: true,
+            opacity: 0.3,
+            width: 0.5
+        }
     },
     interactivity: {
-        detectsOn: "canvas",
         events: {
             onHover: {
                 enable: true,
@@ -176,6 +187,5 @@ export const darkThemeOptions = {
                 quantity: 2
             }
         }
-    },
-    retina_detect: true,
+    }
 };

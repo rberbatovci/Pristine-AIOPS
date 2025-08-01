@@ -72,7 +72,7 @@
   display: inline-block;
   width: calc(100% - 50px);
   max-width: calc(100% - 50px);
-  border-radius: 10px;
+  border-radius: 12px;
   margin-left: 20px;
   margin-right: 20px;
   margin-top: 20px;
@@ -111,6 +111,10 @@
 
 .signalRightElementContainer.collapsed {
   height: 60px;
+}
+
+.signalRightElementContainer.signalInfo {
+  height: 600px;
 }
 
 .signalRightElementHeader {

@@ -1,7 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useDateRangePickerState } from 'react-stately';
 import { useDateRangePicker } from 'react-aria'; // useButton and useFocusRing are often handled by DateRangePicker directly
-import { ZonedDateTime, getLocalTimeZone, today, CalendarDate } from '@internationalized/date';
+import { now, ZonedDateTime, getLocalTimeZone, today, fromDate, CalendarDate, toCalendarDateTime } from '@internationalized/date';
 import '../../css/SearchTime.css'; // Make sure your CSS variables are defined here or globally
 
 // Import react-aria-components
@@ -22,14 +22,14 @@ import {
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const predefinedRanges = [
-    { label: '1 Hour', value: 'last_1_hour' },
-    { label: '4 Hours', value: 'last_4_hours' },
-    { label: '8 Hours', value: 'last_8_hours' },
-    { label: '12 Hours', value: 'last_12_hour' }, // Typo fixed: last_12_hours
+    { label: '1 Hour', value: '1' },
+    { label: '4 Hours', value: '4' },
+    { label: '8 Hours', value: '8' },
+    { label: '12 Hours', value: '12' }, // Typo fixed: last_12_hours
     { label: 'Today', value: 'today' },
 ];
 
-const SearchTime = ({ onTimeRangeSelect, onTimeRangeChange }) => {
+const SearchTime = ({ startTime, endTime, onTimeRangeChange }) => {
     // State for react-stately DateRangePicker
     const [dateRange, setDateRange] = useState({
         start: null,
@@ -40,16 +40,12 @@ const SearchTime = ({ onTimeRangeSelect, onTimeRangeChange }) => {
         value: dateRange,
         onChange: (newValue) => {
             setDateRange(newValue);
-            // Propagate the change to parent component if needed
             if (onTimeRangeChange) {
                 const startDate = newValue.start ? newValue.start.toDate(getLocalTimeZone()) : null;
                 const endDate = newValue.end ? newValue.end.toDate(getLocalTimeZone()) : null;
                 onTimeRangeChange(startDate, endDate);
             }
         },
-        // Optionally set default values or constraints
-        // minValue: today(getLocalTimeZone()),
-        // maxValue: today(getLocalTimeZone()).add({ months: 6 }),
     });
     const [hoveredDate, setHoveredDate] = useState(null);
     const ref = useRef(); // Ref for the main date range picker element
@@ -75,67 +71,39 @@ const SearchTime = ({ onTimeRangeSelect, onTimeRangeChange }) => {
         },
     }, state, ref);
 
+    const [activeRange, setActiveRange] = useState('1');
 
-    // State for active predefined range (if you want to link it)
-    const [activeRange, setActiveRange] = useState('last_1_hour');
+    const handleTimeRangeSelect = (value) => {
+        const nowZoned = fromDate(new Date(), getLocalTimeZone());
+        let newStart = null;
+        let newEnd = nowZoned;
 
-    const handleTimeRangeSelect = (range) => {
-        setActiveRange(range);
-        onTimeRangeSelect(range);
-
-        // Optional: Update the date picker based on predefined range
-        const now = today(getLocalTimeZone());
-        let startDate = null;
-        let endDate = null;
-
-        switch (range) {
-            case 'last_1_hour':
-                // For simplicity, defining as start of today to start of today + 1 hour.
-                // In a real app, you'd calculate exact time relative to now.
-                startDate = now.set({ hour: now.hour - 1 });
-                endDate = now;
-                break;
-            case 'last_4_hours':
-                startDate = now.set({ hour: now.hour - 4 });
-                endDate = now;
-                break;
-            case 'last_8_hours':
-                startDate = now.set({ hour: now.hour - 8 });
-                endDate = now;
-                break;
-            case 'last_12_hour': // Fixed typo
-                startDate = now.set({ hour: now.hour - 12 });
-                endDate = now;
-                break;
-            case 'today':
-                startDate = now.set({ hour: 0, minute: 0, second: 0, millisecond: 0 });
-                endDate = now.set({ hour: 23, minute: 59, second: 59, millisecond: 999 });
-                break;
-            default:
-                break;
+        if (value === 'today') {
+            const todayDate = today(getLocalTimeZone());
+            newStart = toCalendarDateTime(todayDate, 0, 0);
+        } else {
+            const hours = parseInt(value, 10);
+            newStart = nowZoned.subtract({ hours });
         }
 
-        // Update the date picker state if a predefined range is selected
-        if (startDate && endDate) {
-            setDateRange({ start: startDate, end: endDate });
-            if (onTimeRangeChange) {
-                onTimeRangeChange(startDate.toDate(getLocalTimeZone()), endDate.toDate(getLocalTimeZone()));
-            }
-        } else {
-            setDateRange({ start: null, end: null }); // Clear if no specific range
-            if (onTimeRangeChange) {
-                onTimeRangeChange(null, null);
-            }
+        setDateRange({ start: newStart, end: newEnd });
+        setActiveRange(value);
+
+        if (onTimeRangeChange) {
+            onTimeRangeChange(newStart.toDate(), newEnd.toDate());
         }
     };
 
+    useEffect(() => {
+        handleTimeRangeSelect('1'); // Default to "Last 1 Hour"
+    }, []);
 
     return (
         <div className="signalTagContainer">
             <>
                 <span>Select a timerange:</span>
-                <div style={{ backgroundColor: 'var(--backgroundColor3)', marginTop: '8px', padding: '10px', borderRadius: '8px'}}>
-                    <div className="button-group" >
+                <div style={{ backgroundColor: 'var(--backgroundColor3)', marginTop: '8px', padding: '10px', borderRadius: '8px' }}>
+                    <div className="button-group">
                         {predefinedRanges.map(({ label, value }) => (
                             <button
                                 key={value}
@@ -147,8 +115,8 @@ const SearchTime = ({ onTimeRangeSelect, onTimeRangeChange }) => {
                         ))}
                     </div>
                     <div className="date-picker-container" style={{ marginTop: '10px', display: 'flex', alignItems: 'center' }}>
-                        {/* Use DateRangePicker component from react-aria-components */}
                         <DateRangePicker
+                            format="yyyy-MM-dd HH:mm"
                             value={dateRange}
                             onChange={setDateRange}
                             granularity="minute"
@@ -161,7 +129,7 @@ const SearchTime = ({ onTimeRangeSelect, onTimeRangeChange }) => {
                                     <div style={{ display: 'flex', alignItems: 'center' }}>
                                         <Group
                                             style={{
-                                                flex: 1, // take remaining space
+                                                flex: 1,
                                                 borderRadius: 8,
                                                 padding: 8,
                                                 display: 'flex',
@@ -169,7 +137,7 @@ const SearchTime = ({ onTimeRangeSelect, onTimeRangeChange }) => {
                                                 gap: 10,
                                                 color: 'var(--textColor)',
                                                 backgroundColor: 'var(--buttonBackground)',
-                                                width: 'calc(100% - 20px)', // Adjust width to fit within container
+                                                width: 'calc(100% - 20px)',
                                             }}
                                         >
                                             <DateInput slot="start" {...state.startFieldProps} style={{ textAlign: 'right' }}>
@@ -191,7 +159,7 @@ const SearchTime = ({ onTimeRangeSelect, onTimeRangeChange }) => {
 
                                         {!state.isOpen && (
                                             <button
-                                                style={{ padding: '12px 42px', marginLeft: '10px'}}
+                                                style={{ padding: '12px 42px', marginLeft: '10px' }}
                                                 className='button save-button'
                                             >
                                                 Search
@@ -270,7 +238,7 @@ const SearchTime = ({ onTimeRangeSelect, onTimeRangeChange }) => {
                                                                 userSelect: 'none',
                                                                 backgroundColor:
                                                                     hoveredDate && hoveredDate?.toDate().toDateString() === date.toDate().toDateString()
-                                                                        ? 'rgba(100, 149, 237, 0.25)' // hover background
+                                                                        ? 'rgba(100, 149, 237, 0.25)'
                                                                         : 'var(--buttonBackground)',
                                                                 transition: 'background-color 0.2s ease',
                                                                 opacity: 0.7,

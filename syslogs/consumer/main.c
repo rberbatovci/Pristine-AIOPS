@@ -97,7 +97,7 @@ int main()
 
     create_syslogs_index();
 
-    rd_kafka_t *signal_producer = init_signal_producer("kafka:9092");
+    rd_kafka_t *signal_producer = init_signal_producer("Kafka:9092");
 
     signal(SIGINT, stop_program);
     signal(SIGTERM, stop_program);
@@ -128,7 +128,7 @@ int main()
     }
 
     rd_kafka_topic_partition_list_t *topics;
-    rd_kafka_t *rk = setup_kafka_consumer("kafka:9092", "syslog-events-group", "syslog-events", &topics);
+    rd_kafka_t *rk = setup_kafka_consumer("Kafka:9092", "syslog-events-group", "syslog-events", &topics);
     if (!rk) {
         fprintf(stderr, "[ERROR] Failed to set up Kafka consumer. Exiting.\n");
         if (signal_producer)

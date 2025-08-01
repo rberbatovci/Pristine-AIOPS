@@ -169,7 +169,7 @@ const App = () => {
                   </ProtectedRoute>
                 } />
                 <Route path="/geolocation" element={
-                  <ProtectedRoute isAuthenticated={isAuthenticated} >
+                  <ProtectedRoute isAuthenticated={isAuthenticated}>
                     <Geolocation currentUser={currentUser} setDashboardTitle={setDashboardTitle} />
                   </ProtectedRoute>
                 } />

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"log"
+	"fmt"
 	"time"
 
 	telemetryBis "telemetry/protobuf/telemetry"
@@ -126,6 +127,80 @@ func printTelemetryFields(fields []*telemetryBis.TelemetryField, indent string) 
 	}
 }
 
+func createMemoryIndexIfNotExists(client *opensearch.Client, indexName string) error {
+	// Check if index exists
+	existsReq := opensearchapi.IndicesExistsRequest{
+		Index: []string{indexName},
+	}
+	res, err := existsReq.Do(context.Background(), client)
+	if err != nil {
+		return fmt.Errorf("failed to check if memory index exists: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode == 200 {
+		log.Printf("ℹ️ Index [%s] already exists", indexName)
+		return nil
+	}
+
+	if res.StatusCode != 404 {
+		body, _ := io.ReadAll(res.Body)
+		return fmt.Errorf("unexpected response checking memory index: %s", string(body))
+	}
+
+	// Define index settings/mappings
+	indexSettings := map[string]interface{}{
+		"settings": map[string]interface{}{
+			"number_of_shards":   1,
+			"number_of_replicas": 1,
+		},
+		"mappings": map[string]interface{}{
+			"properties": map[string]interface{}{
+				"device":          map[string]interface{}{"type": "keyword"},
+				"collection_id":   map[string]interface{}{"type": "long"},
+				"msg_timestamp":   map[string]interface{}{"type": "date"},
+				"encoding_path":   map[string]interface{}{"type": "keyword"},
+				"ingested_at":     map[string]interface{}{"type": "date"},
+				"memory":          map[string]interface{}{"type": "keyword"}, // assuming memoryKey is string
+				"stats": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"total-memory":   map[string]interface{}{"type": "float"},
+						"used-memory":    map[string]interface{}{"type": "float"},
+						"free-memory":    map[string]interface{}{"type": "float"},
+						"lowest-usage":   map[string]interface{}{"type": "float"},
+						"highest-usage":  map[string]interface{}{"type": "float"},
+					},
+				},
+			},
+		},
+	}
+
+	body, err := json.Marshal(indexSettings)
+	if err != nil {
+		return fmt.Errorf("failed to marshal memory index settings: %w", err)
+	}
+
+	createReq := opensearchapi.IndicesCreateRequest{
+		Index: indexName,
+		Body:  bytes.NewReader(body),
+	}
+
+	res, err = createReq.Do(context.Background(), client)
+	if err != nil {
+		return fmt.Errorf("failed to create memory index: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		body, _ := io.ReadAll(res.Body)
+		return fmt.Errorf("error creating memory index: %s", string(body))
+	}
+
+	log.Printf("✅ Created OpenSearch memory index: %s", indexName)
+	return nil
+}
+
 func main() {
 	ctx := context.Background()
 
@@ -146,6 +221,10 @@ func main() {
 
 	if err := checkOpenSearchConnection(ctx, client); err != nil {
 		log.Fatalf("❌ OpenSearch connection failed: %v", err)
+	}
+
+	if err := createMemoryIndexIfNotExists(client, opensearchIndex); err != nil {
+		log.Fatalf("❌ Failed to create memory index: %v", err)
 	}
 
 	for {
@@ -169,18 +248,12 @@ func main() {
 			device = nodeID.NodeIdStr
 		}
 
-		subscriptionId := ""
-		if subID, ok := t.Subscription.(*telemetryBis.Telemetry_SubscriptionIdStr); ok {
-			subscriptionId = subID.SubscriptionIdStr
-		}
-
 		memoryKey := extractMemoryKey(t.DataGpbkv)
 
 		statsMap := extractMemoryStats(t.DataGpbkv)
 
 		doc := map[string]interface{}{
 			"device": device,
-			"subscriptionId": subscriptionId,
 			"collection_id":  t.CollectionId,
 			"encoding_path":  t.EncodingPath,
 			"msg_timestamp":  t.MsgTimestamp,
