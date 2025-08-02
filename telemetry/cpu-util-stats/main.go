@@ -115,7 +115,7 @@ func flushBulkToOpenSearch(ctx context.Context, osClient *opensearch.Client, ind
         data, err := json.Marshal(doc)
         if err != nil {
             // skip bad docs but log error
-            log.Printf("❌ Failed to marshal doc for bulk indexing: %v", err)
+            log.Printf("Failed to marshal doc for bulk indexing: %v", err)
             continue
         }
         bulkBody.Write(data)
@@ -137,13 +137,13 @@ func flushBulkToOpenSearch(ctx context.Context, osClient *opensearch.Client, ind
     defer res.Body.Close()
 
     body, _ := io.ReadAll(res.Body)
-	//log.Printf("📨 Bulk response: %s", body)
+	//log.Printf(" Bulk response: %s", body)
 
 	if res.IsError() {
     	return fmt.Errorf("bulk request error: %s - %s", res.String(), string(body))
 	}
 
-    log.Printf("✅ Bulk indexed %d documents to OpenSearch", len(bulkBody.Bytes()))
+    log.Printf(" Bulk indexed %d documents to OpenSearch", len(bulkBuffer))
     return nil
 }
 
@@ -153,14 +153,13 @@ func startPeriodicFlush(ctx context.Context, osClient *opensearch.Client, interv
         for {
             select {
             case <-ticker.C:
-                //log.Printf("⏰ Periodic flush triggered (interval: %v)...", interval)
                 if err := flushBulkToOpenSearch(ctx, osClient, opensearchIndex); err != nil {
-                    log.Printf("❌ Periodic bulk flush failed: %v", err)
+                    log.Printf("Periodic bulk flush failed: %v", err)
                 }
             case <-ctx.Done():
                 ticker.Stop()
                 return
-            
+            }
         }
     }()
 }
@@ -181,7 +180,7 @@ func setupOpenSearchClient() (*opensearch.Client, error) {
 
 	if res.IsError() {
 		bodyBytes, _ := io.ReadAll(res.Body)
-		return nil, fmt.Errorf("❌ OpenSearch connection error: %s - %s", res.Status(), string(bodyBytes))
+		return nil, fmt.Errorf("OpenSearch connection error: %s - %s", res.Status(), string(bodyBytes))
 	}
 
 	bodyBytes, err := io.ReadAll(res.Body)
@@ -201,7 +200,7 @@ func setupOpenSearchClient() (*opensearch.Client, error) {
 		}
 	}
 
-	log.Printf("✅ Connected to OpenSearch version: %s", version)
+	log.Printf("Connected to OpenSearch version: %s", version)
 	return client, nil
 }
 
@@ -254,7 +253,7 @@ func initKafkaWriter() {
         BatchSize:    100,
         BatchTimeout: 100 * time.Millisecond,
     }
-    log.Println("🛠️ Kafka writer initialized for topic: telemetry-signals")
+    log.Println("Kafka writer initialized")
 }
 
 func convertToFloat(v interface{}) (float64, bool) {
@@ -278,7 +277,7 @@ func convertToFloat(v interface{}) (float64, bool) {
 func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensearch.Client) {
     t := new(telemetryBis.Telemetry)
     if err := proto.Unmarshal(m.Value, t); err != nil {
-        log.Printf("❌ Failed to unmarshal protobuf message (Offset: %d): %v", m.Offset, err)
+        log.Printf("Failed to unmarshal protobuf message (Offset: %d): %v", m.Offset, err)
         return
     }
 
@@ -309,7 +308,7 @@ func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensea
 
     data, err := json.Marshal(doc)
     if err != nil {
-        log.Printf("❌ Failed to marshal document to JSON (Offset: %d): %v", m.Offset, err)
+        log.Printf("Failed to marshal document to JSON (Offset: %d): %v", m.Offset, err)
         return
     }
 
@@ -320,9 +319,9 @@ func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensea
     bulkBufferLock.Unlock()
 
     if currentSize >= bulkSize {
-        log.Printf("📦 Bulk size limit reached (%d >= %d), flushing buffer...", currentSize, bulkSize)
+        log.Printf("Bulk size limit reached (%d >= %d), flushing buffer...", currentSize, bulkSize)
         if err := flushBulkToOpenSearch(ctx, osClient, opensearchIndex); err != nil {
-            log.Printf("❌ Error flushing bulk buffer: %v", err)
+            log.Printf("Error flushing bulk buffer: %v", err)
         }
     }
 
@@ -336,11 +335,11 @@ func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensea
             log.Printf("🚨 High CPU alert triggered for device [%s]", device)
             deviceAlertState[device] = true
         }
-        // ✅ Send full doc JSON to Kafka topic
+        //  Send full doc JSON to Kafka topic
         sendToKafkaSignalTopic(data, kafkaWriter)
     } else {
         if alerting {
-            log.Printf("✅ CPU usage normalized for device [%s]", device)
+            log.Printf("CPU usage normalized for device [%s]", device)
             deviceAlertState[device] = false
         }
     }
@@ -360,7 +359,7 @@ func createIndexIfNotExists(client *opensearch.Client, indexName string) error {
 	defer res.Body.Close()
 
 	if res.StatusCode == 200 {
-		log.Printf("ℹ️ Index [%s] already exists", indexName)
+		log.Printf("ℹIndex [%s] already exists", indexName)
 		return nil
 	}
 
@@ -419,7 +418,7 @@ func createIndexIfNotExists(client *opensearch.Client, indexName string) error {
 		return fmt.Errorf("error creating index: %s", string(body))
 	}
 
-	log.Printf("✅ Created OpenSearch index: %s", indexName)
+	log.Printf("Created OpenSearch index: %s", indexName)
 	return nil
 }
 
@@ -456,11 +455,11 @@ func main() {
 
 	osClient, err := setupOpenSearchClient()
 	if err != nil {
-		log.Fatalf("❌ Application startup failed: %v", err)
+		log.Fatalf("Application startup failed: %v", err)
 	}
 
     if err := createIndexIfNotExists(osClient, opensearchIndex); err != nil {
-		log.Fatalf("❌ Failed to create index: %v", err)
+		log.Fatalf("Failed to create index: %v", err)
 	}
 
     ctx, cancel := context.WithCancel(context.Background())
@@ -469,7 +468,7 @@ func main() {
     // Start periodic flush every, say, 5 seconds
     startPeriodicFlush(ctx, osClient, flushInterval)
 
-	log.Println("🚀 Kafka consumer started. Waiting for telemetry messages...")
+	log.Println("Kafka consumer started. Waiting for telemetry messages...")
 
 	for {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -478,7 +477,7 @@ func main() {
 
 		if err != nil {
 			if err == context.DeadlineExceeded {
-				log.Println("⏰ No new Kafka messages within timeout. Retrying...")
+				log.Println("No new Kafka messages within timeout. Retrying...")
 				time.Sleep(5 * time.Second)
 				continue
 			}

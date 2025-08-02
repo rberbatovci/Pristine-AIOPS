@@ -67,7 +67,7 @@ def get_devices():
         "aggs": {
             "devices": {
                 "terms": {
-                    "field": "device.keyword",
+                    "field": "device",
                     "size": 1000
                 }
             }
@@ -83,7 +83,7 @@ def get_devices():
         "aggs": {
             "devices": {
                 "terms": {
-                    "field": "device.keyword",
+                    "field": "device",
                     "size": 1000
                 }
             }
@@ -100,7 +100,7 @@ def get_rules():
         "aggs": {
             "rules": {
                 "terms": {
-                    "field": "rule.keyword",
+                    "field": "rule",
                     "size": 1000
                 }
             }
@@ -116,7 +116,7 @@ def get_rules():
         "aggs": {
             "rules": {
                 "terms": {
-                    "field": "rule.keyword",
+                    "field": "rule",
                     "size": 1000
                 }
             }
@@ -133,7 +133,7 @@ def get_mnemonics():
         "aggs": {
             "mnemonics": {
                 "terms": {
-                    "field": "mnemonics.keyword",
+                    "field": "mnemonics",
                     "size": 1000
                 }
             }
@@ -150,7 +150,7 @@ def get_mnemonics():
         "aggs": {
             "snmpTrapOid": {
                 "terms": {
-                    "field": "snmpTrapOid.keyword",
+                    "field": "snmpTrapOid",
                     "size": 1000
                 }
             }
@@ -172,7 +172,7 @@ def get_affected_entity_values(entity_key: str):
         "aggs": {
             "affected_entity_values": {
                 "terms": {
-                    "field": agg_path + ".keyword",  # use .keyword to aggregate strings
+                    "field": agg_path,  # use .keyword to aggregate strings
                     "size": 1000  # adjust as needed
                 }
             }
@@ -195,7 +195,7 @@ def get_affected_entity_values(entity_key: str):
         "aggs": {
             "affected_entity_values": {
                 "terms": {
-                    "field": agg_path + ".keyword",  # use .keyword to aggregate strings
+                    "field": agg_path,  # use .keyword to aggregate strings
                     "size": 1000  # adjust as needed
                 }
             }
@@ -214,7 +214,7 @@ def get_device_statistics():
         "aggs": {
             "by_device": {
                 "terms": {
-                    "field": "device.keyword",
+                    "field": "device",
                     "size": 1000
                 }
             }
@@ -236,7 +236,7 @@ def get_device_statistics():
         "aggs": {
             "by_device": {
                 "terms": {
-                    "field": "device.keyword",
+                    "field": "device",
                     "size": 1000
                 }
             }
@@ -258,7 +258,7 @@ def get_mnemonic_statistics():
         "aggs": {
             "by_mnemonic": {
                 "terms": {
-                    "field": "mnemonics.keyword",
+                    "field": "mnemonics",
                     "size": 1000
                 }
             }
@@ -280,7 +280,7 @@ def get_snmp_oid_statistics():
         "aggs": {
             "by_snmpTrapOid": {
                 "terms": {
-                    "field": "snmpTrapOid.keyword",
+                    "field": "snmpTrapOid",
                     "size": 1000
                 }
             }
@@ -302,7 +302,7 @@ def get_rule_statistics():
         "aggs": {
             "by_rule": {
                 "terms": {
-                    "field": "rule.keyword",
+                    "field": "rule",
                     "size": 1000
                 }
             }
@@ -324,7 +324,7 @@ def get_rule_statistics():
         "aggs": {
             "by_rule": {
                 "terms": {
-                    "field": "rule.keyword",
+                    "field": "rule",
                     "size": 1000
                 }
             }
@@ -346,7 +346,7 @@ def get_syslog_status_statistics():
         "aggs": {
             "by_status": {
                 "terms": {
-                    "field": "status.keyword",
+                    "field": "status",
                     "size": 1000
                 }
             }
@@ -368,7 +368,7 @@ def get_trap_status_statistics():
         "aggs": {
             "by_status": {
                 "terms": {
-                    "field": "status.keyword",
+                    "field": "status",
                     "size": 1000
                 }
             }
@@ -390,7 +390,7 @@ def get_trap_severity_statistics():
         "aggs": {
             "by_severity": {
                 "terms": {
-                    "field": "severity.keyword",
+                    "field": "severity",
                     "size": 1000
                 }
             }
@@ -412,7 +412,7 @@ def get_trap_severity_statistics():
         "aggs": {
             "by_severity": {
                 "terms": {
-                    "field": "severity.keyword",
+                    "field": "severity",
                     "size": 1000
                 }
             }
@@ -430,7 +430,7 @@ def get_trap_severity_statistics():
 @router.get("/signals/syslogs/affected-entities/statistics/{entity_key}")
 def get_affected_entity_statistics(entity_key: str):
     index_name = "syslog-signals"
-    field_path = f"affectedEntities.{entity_key}.keyword"
+    field_path = f"affectedEntities.{entity_key}"
 
     query = {
         "size": 0,
@@ -456,7 +456,7 @@ def get_affected_entity_statistics(entity_key: str):
 @router.get("/signals/traps/affected-entities/statistics/{entity_key}")
 def get_affected_entity_statistics(entity_key: str):
     index_name = "trap-signals"
-    field_path = f"affectedEntities.{entity_key}.keyword"
+    field_path = f"affectedEntities.{entity_key}"
 
     query = {
         "size": 0,

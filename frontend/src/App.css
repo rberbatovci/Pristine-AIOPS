@@ -818,3 +818,15 @@ header {
     align-items: center;
     width: auto;
 }
+
+
+.custom-marker {
+  opacity: 0.4;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  transform: scale(1);
+}
+
+.custom-marker:hover {
+  opacity: 1;
+  transform: scale(1.2);
+}

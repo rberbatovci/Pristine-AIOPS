@@ -15,7 +15,8 @@ const defaultCenter = {
 function GeolocationMap({ locations }) {
   const [currentPosition, setCurrentPosition] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
-
+  const [hoveredIndex, setHoveredIndex] = useState(null);
+  
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -51,7 +52,7 @@ function GeolocationMap({ locations }) {
               position={{ lat: location.lat, lng: location.lng }}
               title={location.name}
               onClick={() => setSelectedLocation(location)}
-              icon={{ url: '/router4.png' }}
+              icon={{ url: '/router5.png' }}
               
             />
           ))}

@@ -322,10 +322,10 @@ void queue_signal_status_update(ActiveSignal *sig, char **bulk, const char *inde
     
     char update_doc[1024]; 
     if (endTimeStr && strlen(endTimeStr) > 0) {
-        time_t end_time_epoch = parse_iso8601_to_unix(endTimeStr);  // you'll implement this
+        //time_t end_time_epoch = parse_iso8601_to_unix(endTimeStr);  // you'll implement this
         snprintf(update_doc, sizeof(update_doc),
             "{\"doc\":{\"status\":\"%s\",\"status_changed_at\":%ld,\"endTime\":%ld,\"events\":%s}}\n",
-            sig->status, sig->status_changed_at, end_time_epoch, events_json);
+            sig->status, sig->status_changed_at, endTimeStr, events_json);
     } else {
         snprintf(update_doc, sizeof(update_doc),
             "{\"doc\":{\"status\":\"%s\",\"status_changed_at\":%ld,\"events\":%s}}\n",
