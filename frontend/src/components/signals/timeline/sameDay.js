@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import '../../../css/SignalTimeline.css';
 import { FormatDate } from '../../misc/FormatDate';
 
-const SameDay = ({ showData, currentUser, startTime, endTime, events, zoomCount }) => {
+const SameDay = ({ currentUser, selectedSignal, startTime, endTime, events, zoomCount }) => {
   const [hourWidth, setHourWidth] = useState(0);
   const [totalHours, setTotalHours] = useState(0);
   const [eventPositions, setEventPositions] = useState([]);
@@ -10,13 +10,17 @@ const SameDay = ({ showData, currentUser, startTime, endTime, events, zoomCount 
   const [timeContainerWidth, setTimeContainerWidth] = useState(null);
   const timeRef = useRef(null);
 
-  const zoomFactor = Math.pow(1.2, zoomCount);
+  const zoomFactor = Math.pow(1, zoomCount);
   const adjustedHourWidth = hourWidth * zoomFactor;
 
+  console.log('Signal events in sameDay', events);
+
   useEffect(() => {
-    const time = document.getElementById('timelineContainer');
-    if (time) {
-      setTimeContainerWidth(time.offsetWidth - 20);
+    console.log('sameDay called!!!!!!!!!!!!!!');
+    if (timeRef.current) {
+      setTimeContainerWidth(timeRef.current.offsetWidth);
+    } else {
+      setTimeContainerWidth(400);
     }
   }, []);
 
@@ -28,22 +32,26 @@ const SameDay = ({ showData, currentUser, startTime, endTime, events, zoomCount 
       const endHour = endDate.getHours();
       const countedHours = endHour - startHour + 1;
       setTotalHours(countedHours);
+      console.log('Total hours in the same day:', totalHours);
+    } else {
+      console.log('No startTime or endTime');
     }
   }, [startTime, endTime]);
 
   useEffect(() => {
-    if (totalHours > 0 && timeContainerWidth) {
+    if (timeContainerWidth && totalHours > 0) {
       const width = timeContainerWidth / totalHours;
+      console.log('✅ timeContainerWidth:', timeContainerWidth);
+      console.log('✅ totalHours:', totalHours);
+      console.log('✅ Calculated width:', width);
       setHourWidth(width);
     }
-  }, [totalHours, timeContainerWidth]);
+  }, [timeContainerWidth, totalHours]);
 
   useEffect(() => {
-    if (hourWidth > 0) {
-      generateTimeline();
-      createEvents();
-    }
-  }, [hourWidth, startTime, endTime, zoomCount, events]);
+    generateTimeline(hourWidth);
+    createEvents(hourWidth);
+  }, [hourWidth, totalHours, startTime, endTime, zoomCount, events]);
 
   const generateTimeline = () => {
     const time = document.getElementById('time');
@@ -61,11 +69,11 @@ const SameDay = ({ showData, currentUser, startTime, endTime, events, zoomCount 
     for (let hour = startHour; hour <= endHour; hour++) {
       const hourDiv = document.createElement('div');
       hourDiv.className = 'hourDiv';
-      hourDiv.style.width = `${adjustedHourWidth}px`;
+      hourDiv.style.width = `${hourWidth}px`;
 
       const minContainer = document.createElement('div');
       minContainer.className = 'minContainer';
-      addMinutes(minContainer, adjustedHourWidth, hour);
+      addMinutes(minContainer, hourWidth, hour);
       hourDiv.appendChild(minContainer);
 
       const hourText = document.createElement('div');
@@ -136,10 +144,16 @@ const SameDay = ({ showData, currentUser, startTime, endTime, events, zoomCount 
     }
   };
 
-  const createEvents = () => {
-    if (adjustedHourWidth > 0 && events.length > 1) {
+  const createEvents = (hourWidthValue) => {
+    const zoomFactor = Math.pow(1, zoomCount);
+    const adjustedWidth = hourWidthValue * zoomFactor;
+
+    if (adjustedWidth > 0 && events.length > 1) {
       const newPositions = events.map((event) => {
-        const left = calculateLeftPosition(new Date(event['@timestamp']));
+        const left = calculateLeftPosition(
+          new Date(event['timestamp']),
+          adjustedWidth
+        );
         return { ...event, left };
       });
 
@@ -163,11 +177,13 @@ const SameDay = ({ showData, currentUser, startTime, endTime, events, zoomCount 
     }
   };
 
-  const calculateLeftPosition = (eventTimestamp) => {
-    if (!adjustedHourWidth) return 0;
+  const calculateLeftPosition = (eventTimestamp, adjustedWidth) => {
+    if (!adjustedWidth) return 0;
 
     const startDate = new Date(startTime);
-    const eventDate = new Date(FormatDate(eventTimestamp, currentUser.timezone));
+    const eventDate = new Date(
+      FormatDate(eventTimestamp, currentUser.timezone)
+    );
 
     const eventHour = eventDate.getHours();
     const eventMinute = eventDate.getMinutes();
@@ -175,20 +191,20 @@ const SameDay = ({ showData, currentUser, startTime, endTime, events, zoomCount 
     const startHour = startDate.getHours();
 
     return (
-      (eventHour - startHour) * adjustedHourWidth +
-      (eventMinute * adjustedHourWidth) / 60 +
-      (eventSecond * adjustedHourWidth) / 3600
+      
+      (eventMinute * adjustedWidth) / 60 +
+      (eventSecond * adjustedWidth) / 3600
     );
   };
 
   return (
     <div className="signal-timeline-details" id="signal-timeline-details">
-      <div style={{ display: 'column' }}>
-        <div className="timelineContainer" id="timelineContainer">
+      <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+        <div className="timelineContainer" id="timelineContainer" ref={timeRef}>
           <div
             id="eventsContainer"
             style={{
-              width: timeContainerWidth,
+              width: '100%',
               position: 'relative',
               height: '80px',
             }}
@@ -199,7 +215,7 @@ const SameDay = ({ showData, currentUser, startTime, endTime, events, zoomCount 
                 className="rangeBar"
                 style={{
                   position: 'absolute',
-                  left: `${event.left - 2}px`,
+                  left: `${event.left}px`,
                   top: '25px',
                   backgroundColor: 'rgba(31, 155, 0, 0.5)',
                   width: `${event.width}px`,
@@ -229,7 +245,7 @@ const SameDay = ({ showData, currentUser, startTime, endTime, events, zoomCount 
               ></div>
             ))}
           </div>
-          <div className="timeContainer" id="time" style={{ width: timeContainerWidth }}></div>
+          <div className="timeContainer" id="time" style={{ width: `${timeContainerWidth}px` }}></div>
         </div>
       </div>
     </div>

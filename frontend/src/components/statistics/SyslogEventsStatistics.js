@@ -31,7 +31,7 @@ function SyslogEventsStatistics({ selSyslogEventsTags }) {
         selSyslogEventsTags.forEach(dataType => {
             if (!chartDataMap[dataType] && !loadingMap[dataType]) {
                 setLoadingMap(prev => ({ ...prev, [dataType]: true }));
-                const endpoint = `/syslogs/tags/statistics/${dataType}/`;
+                const endpoint = `/syslogs/statistics/${dataType}/`;
                 apiClient.get(endpoint)
                     .then(response => {
                         let processedData = [];

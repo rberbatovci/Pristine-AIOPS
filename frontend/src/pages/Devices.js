@@ -177,9 +177,7 @@ function Devices({ currentUser, setDashboardTitle }) {
                 }}
             >
                 <div className="right-content-wrapper">
-                    <div className="right-content" style={{
-                        transition: 'transition 1s ease-in-out'
-                    }}>
+                    <div className="right-content" style={{transition: 'transition 1s ease-in-out'}}>
                         {showComponents && selectedDevice && (
                             <>
                                 <Info

@@ -87,13 +87,6 @@ const App = () => {
   const handleAuthentication = (status, user) => {
     setIsAuthenticated(status);
     setCurrentUser(user);
-    if (status) {
-      localStorage.setItem("currentUser", JSON.stringify(user));
-      localStorage.setItem("isAuthenticated", JSON.stringify(true));
-    } else {
-      localStorage.removeItem("currentUser");
-      localStorage.setItem("isAuthenticated", JSON.stringify(false));
-    }
   };
 
   const handleLogout = () => {

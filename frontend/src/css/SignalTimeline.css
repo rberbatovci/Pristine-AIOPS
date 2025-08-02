@@ -8,7 +8,6 @@
   display: flex;
   flex-direction: column;
   position: relative;
-  padding: 8px;
 }
 
 #eventsContainer {

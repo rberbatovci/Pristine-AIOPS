@@ -13,6 +13,9 @@ from app.core.logging import LOGGING_CONFIG
 import logging.config
 from sqlalchemy.ext.declarative import declarative_base
 from dotenv import load_dotenv
+from fastapi import Request
+from fastapi.responses import JSONResponse
+from datetime import datetime
 
 load_dotenv()
 
@@ -21,6 +24,20 @@ Base = declarative_base()
 logging.config.dictConfig(LOGGING_CONFIG)
 
 app = FastAPI()
+
+@app.middleware("http")
+async def expiration_middleware(request: Request, call_next):
+    expiration_date = datetime(2025, 9, 1)
+    now = datetime.now()
+
+    if now >= expiration_date:
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "This application has expired as of October 1, 2025."}
+        )
+    
+    response = await call_next(request)
+    return response
 
 # Configure CORS
 origins = [

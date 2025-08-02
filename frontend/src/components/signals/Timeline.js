@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AiOutlineColumnWidth } from 'react-icons/ai';
-import { RiZoomInLine, RiZoomInFill, RiZoomOutLine, RiZoomOutFill  } from "react-icons/ri";
+import { RiZoomInLine, RiZoomInFill, RiZoomOutLine, RiZoomOutFill } from "react-icons/ri";
 import '../../css/SignalTimeline.css';
 import sameDay from './timeline/sameDay';
 import sameMonth from './timeline/sameMonth';
@@ -12,15 +12,15 @@ const Timeline = ({ currentUser, selectedSignal, events }) => {
   const [zoomCount, setZoomCount] = useState(1);
 
   const startTime = new Date(
-    FormatDate(selectedSignal.startTime || selectedSignal['@startTime'], currentUser.timezone)
+    FormatDate(selectedSignal.startTime, currentUser.timezone)
   );
 
-  const endTime = selectedSignal['@endTime']
-    ? new Date(FormatDate(selectedSignal['@endTime'], currentUser.timezone))
+  const endTime = selectedSignal.endTime
+    ? new Date(FormatDate(selectedSignal.endTime, currentUser.timezone))
     : new Date(FormatDate(new Date(), currentUser.timezone));
 
 
-    console.log('Start time in Timeline:', startTime, 'End time in Timeline:', endTime);
+  console.log('Start time in Timeline:', startTime, 'End time in Timeline:', endTime);
   const startTimeYear = startTime.getFullYear();
   const startTimeMonth = startTime.getMonth() + 1;
   const startTimeDay = startTime.getDate();
@@ -59,30 +59,30 @@ const Timeline = ({ currentUser, selectedSignal, events }) => {
   };
 
   return (
-    <div className="signalRightElementContainer signalTimeline">
+    <div className="signalRightElementContainer timeline">
       <div className="signalRightElementHeader">
         <h2 className="signalRightElementHeaderTxt">
           Signal Timeline
         </h2>
-          <div className="zoom-buttons-container">
-            <div className="headerButtons">
-              <button className="iconButton" onClick={resetZoom}>
-                <AiOutlineColumnWidth className="defaultIcon"/>
-                <AiOutlineColumnWidth className="hoverIcon"/>
-              </button>
-              <button className="iconButton" onClick={zoomIn}>
-                <RiZoomInLine className="defaultIcon"/>
-                <RiZoomInFill className="hoverIcon"/>
-              </button>
-              <button className="iconButton" onClick={zoomOut}>
-                <RiZoomOutLine className="defaultIcon"/>
-                <RiZoomOutFill className="hoverIcon"/>
-              </button>
-            </div>
+        <div className="zoom-buttons-container">
+          <div className="headerButtons">
+            <button className="iconButton" onClick={resetZoom}>
+              <AiOutlineColumnWidth className="defaultIcon" />
+              <AiOutlineColumnWidth className="hoverIcon" />
+            </button>
+            <button className="iconButton" onClick={zoomIn}>
+              <RiZoomInLine className="defaultIcon" />
+              <RiZoomInFill className="hoverIcon" />
+            </button>
+            <button className="iconButton" onClick={zoomOut}>
+              <RiZoomOutLine className="defaultIcon" />
+              <RiZoomOutFill className="hoverIcon" />
+            </button>
           </div>
+        </div>
       </div>
-      <div className="signal-timeline-content" style={{ margin: '10px'}}>
-        {showData && <RenderComponent showData={showData} currentUser={currentUser} startTime={startTime} endTime={endTime} events={events} zoomCount={zoomCount}/>}
+      <div className="signal-timeline-content" style={{ margin: '10px' }}>
+        <RenderComponent currentUser={currentUser} selectedSignal={selectedSignal} startTime={startTime} endTime={endTime} events={events} zoomCount={zoomCount} />
       </div>
     </div>
   );

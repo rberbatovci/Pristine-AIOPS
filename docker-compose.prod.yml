@@ -154,6 +154,10 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+      opensearch:
+        condition: service_healthy
+      postgresql:
+        condition: service_healthy
     networks:
       - aiops
     restart: unless-stopped

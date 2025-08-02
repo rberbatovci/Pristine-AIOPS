@@ -94,7 +94,7 @@ void create_syslogs_index() {
     CURL *curl;
     CURLcode res;
 
-    const char *index_url = "http://opensearch:9200/syslogs";
+    const char *index_url = "http://OpenSearch:9200/syslogs";
     const char *mapping_json =
         "{"
         "  \"settings\": {"

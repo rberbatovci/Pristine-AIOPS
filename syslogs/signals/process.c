@@ -140,7 +140,7 @@ void process_message(rd_kafka_t *rk)
                     if (matched_signal)
                     {
                         printf("[ACTION] Closing existing signal ID %s for rule ID %d\n", matched_signal->signalId, rule->id);
-                        printSignal(matched_signal);
+                        //printSignal(matched_signal);
                         closeSignal(matched_signal->signalId, eventIdStr, timestamp);
 
                     }

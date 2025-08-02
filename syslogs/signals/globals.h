@@ -59,7 +59,7 @@ extern ActiveSignal active_signals[];
 extern int active_signal_count;
 
 void activeSignalMonitor();
-void queue_signal_status_update(ActiveSignal *sig, char **bulk, const char *index_name);
+void queue_signal_status_update(ActiveSignal *sig, char **bulk, const char *index_name, const char *endTimeStr);
 int findActiveSignals(ActiveSignal *signal, const char *target_device, const char *target_mnemonic, json_t *target_entities);
 void createSignal(StatefulRule *rule, const char *device, const char *mnemonic, json_t *tags, const char *event_id_str, const char *timestamp);
 void closeSignal(const char *signalId, const char *eventId, const char *timestamp);

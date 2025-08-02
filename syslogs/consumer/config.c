@@ -189,7 +189,7 @@ void* reload_data_thread(void* args) {
     PGconn *conn = PQconnectdb(conninfo);
 
     if (PQstatus(conn) != CONNECTION_OK) {
-        fprintf(stderr, "[ERROR] [Config Data] Connection to database failed: %s\n", PQerrorMessage(conn));
+        fprintf(stderr, "[ERROR] [Config Data] Connection to database failed1: %s\n", PQerrorMessage(conn));
         PQfinish(conn);
         return NULL;
     }
@@ -227,7 +227,7 @@ MnemonicInfo *fetch_mnemonic_from_db(const char *mnemonic) {
     PGconn *conn = PQconnectdb(conninfo);
 
     if (PQstatus(conn) != CONNECTION_OK) {
-        fprintf(stderr, "[ERROR] [Config Data] Connection to database failed: %s\n", PQerrorMessage(conn));
+        fprintf(stderr, "[ERROR] [Config Data] Connection to database failed2: %s\n", PQerrorMessage(conn));
         PQfinish(conn);
         return NULL;
     }
@@ -327,7 +327,7 @@ MnemonicInfo *create_mnemonic_and_cache(const char *mnemonic) {
     PGconn *conn = PQconnectdb(conninfo);
 
     if (PQstatus(conn) != CONNECTION_OK) {
-        fprintf(stderr, "[ERROR] [Config Data] Connection to database failed: %s\n", PQerrorMessage(conn));
+        fprintf(stderr, "[ERROR] [Config Data] Connection to database failed3: %s\n", PQerrorMessage(conn));
         PQfinish(conn);
         return NULL;
     }

@@ -1,7 +1,7 @@
 version: '3.8'
 
 networks:
-  kafka-net:
+  aiops:
     driver: bridge
 
 services:
@@ -21,23 +21,23 @@ services:
     volumes:
       - shared-mibs:/app/traps/producer/mibs
     networks:
-      - kafka-net
+      - aiops
     entrypoint: ["/app/entrypoint.sh"]
 
-  frontend:
-    container_name: ReactJS
-    #image: ghcr.io/rberbato/frontend:latest
-    build:
-      context: .
-      dockerfile: ./dockerfiles/Dockerfile.frontend
-    ports:
-      - "3000:80"
-    #volumes:
-    #  - ./frontend:/app
-    environment:
-      - CHOKIDAR_USEPOLLING=true
-    networks:
-      - kafka-net
+  #frontend:
+  #  container_name: ReactJS
+  #  #image: ghcr.io/rberbato/frontend:latest
+  #  build:
+  #    context: .
+  #    dockerfile: ./dockerfiles/Dockerfile.frontend
+  #  ports:
+  #    - "3000:80"
+  #  #volumes:
+  #  #  - ./frontend:/app
+  #  environment:
+  #    - CHOKIDAR_USEPOLLING=true
+  #  networks:
+  #    - aiops
 
   postgresql:
     image: postgres:15
@@ -57,7 +57,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - kafka-net
+      - aiops
 
   kafka:
     container_name: Kafka
@@ -85,7 +85,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - kafka-net
+      - aiops
 
   zookeeper:
     container_name: Zookeeper
@@ -100,7 +100,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - kafka-net
+      - aiops
 
   opensearch:
     image: opensearchproject/opensearch:1.0.1
@@ -131,7 +131,7 @@ services:
       - 9200:9200
       - 9600:9600
     networks:
-      - kafka-net
+      - aiops
 
   #opensearch-init:
   #  image: ghcr.io/rberbato/opensearch-init:latest
@@ -142,7 +142,7 @@ services:
   #    opensearch:
   #      condition: service_healthy
   #  networks:
-  #    - kafka-net
+  #    - aiops
 
   #redis:
   #  container_name: Redis
@@ -151,7 +151,7 @@ services:
   #    - "6380:6379"
   #  command: ["redis-server", "--appendonly", "yes"]
   #  networks:
-  #    - kafka-net
+  #    - aiops
 
   #celery-worker:
   #  container_name: CeleryWorker
@@ -164,7 +164,7 @@ services:
   #    - redis
   #    - kafka
   #  networks:
-  #    - kafka-net
+  #    - aiops
 
   syslog-producer:
     container_name: SyslogProducer
@@ -182,7 +182,7 @@ services:
       kafka:
         condition: service_healthy
     networks:
-      - kafka-net
+      - aiops
 
   syslog-consumer:
     container_name: SyslogConsumer
@@ -194,7 +194,7 @@ services:
       kafka:
         condition: service_healthy
     networks:
-      - kafka-net
+      - aiops
     restart: unless-stopped
 
   syslog-signals:
@@ -207,7 +207,7 @@ services:
       kafka:
         condition: service_healthy
     networks:
-      - kafka-net
+      - aiops
     restart: unless-stopped
 
   trap-signals:
@@ -220,7 +220,7 @@ services:
       kafka:
         condition: service_healthy
     networks:
-      - kafka-net
+      - aiops
     restart: unless-stopped
 
   trap-producer:
@@ -245,7 +245,7 @@ services:
       kafka:
         condition: service_healthy
     networks:
-      - kafka-net
+      - aiops
 
   trap-consumer:
     container_name: TrapConsumer
@@ -257,7 +257,7 @@ services:
       kafka:
         condition: service_healthy
     networks:
-      - kafka-net
+      - aiops
     restart: unless-stopped
 
   netflow-producer:
@@ -274,7 +274,7 @@ services:
       kafka:
         condition: service_healthy
     networks:
-      - kafka-net
+      - aiops
 
   netflow-consumer:
     container_name: NetflowConsumer
@@ -289,7 +289,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     networks:
-      - kafka-net
+      - aiops
 
   telemetry-producer:
     container_name: TelemetryProducer
@@ -310,7 +310,7 @@ services:
       zookeeper:
         condition: service_healthy
     networks:
-      - kafka-net
+      - aiops
 
   cpu-util-stats:
     container_name: CPUUtilStatistics
@@ -325,7 +325,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     networks:
-      - kafka-net
+      - aiops
 
   memory-statistics:
     container_name: MemoryStatistics
@@ -340,7 +340,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     networks:
-      - kafka-net
+      - aiops
       
   interface-statistics:
     container_name: InterfaceStatistics
@@ -355,7 +355,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     networks:
-      - kafka-net
+      - aiops
 
   bgp-connection-statistics:
     container_name: BGPConnectionStatistics
@@ -370,7 +370,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     networks:
-      - kafka-net
+      - aiops
   
 volumes:
   postgres_data:

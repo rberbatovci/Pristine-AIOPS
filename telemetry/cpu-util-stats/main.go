@@ -137,7 +137,7 @@ func flushBulkToOpenSearch(ctx context.Context, osClient *opensearch.Client, ind
     defer res.Body.Close()
 
     body, _ := io.ReadAll(res.Body)
-	log.Printf("📨 Bulk response: %s", body)
+	//log.Printf("📨 Bulk response: %s", body)
 
 	if res.IsError() {
     	return fmt.Errorf("bulk request error: %s - %s", res.String(), string(body))
@@ -156,13 +156,11 @@ func startPeriodicFlush(ctx context.Context, osClient *opensearch.Client, interv
                 //log.Printf("⏰ Periodic flush triggered (interval: %v)...", interval)
                 if err := flushBulkToOpenSearch(ctx, osClient, opensearchIndex); err != nil {
                     log.Printf("❌ Periodic bulk flush failed: %v", err)
-                } else {
-                    log.Printf("✅ Flushed buffer due to periodic trigger.")
                 }
             case <-ctx.Done():
                 ticker.Stop()
                 return
-            }
+            
         }
     }()
 }

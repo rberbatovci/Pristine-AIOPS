@@ -101,7 +101,7 @@ const Info = ({ currentUser, selectedSignal, correlatedSyslogs, onSignalDeselect
             </div>
             <div style={{ display: 'flex', fontSize: '13px', color: 'var(--text-color2)', marginTop: '4px' }}>
               <p style={{ textAlign: 'right', width: '110px', marginRight: '10px' }}>Events:</p>
-              <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>({correlatedSyslogsCount} events received)</p>
+              <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>({selectedSignal.events?.length || 0} events received)</p>
             </div>
           </div>
 

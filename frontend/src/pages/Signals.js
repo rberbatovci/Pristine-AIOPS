@@ -135,23 +135,23 @@ const SignalsDashboard = ({ currentUser, setDashboardTitle }) => {
     };
 
     useEffect(() => {
-    const handleClickOutside = (event) => {
-        if (
-            dropdownRef.current &&
-            !dropdownRef.current.contains(event.target)
-        ) {
-            // Close dropdown if clicked outside
-            setIsDropdownVisible(false);
-            setActiveDropdown(null);
-        }
-    };
+        const handleClickOutside = (event) => {
+            if (
+                dropdownRef.current &&
+                !dropdownRef.current.contains(event.target)
+            ) {
+                // Close dropdown if clicked outside
+                setIsDropdownVisible(false);
+                setActiveDropdown(null);
+            }
+        };
 
-    document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('mousedown', handleClickOutside);
 
-    return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-    };
-}, []);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     const handleDeleteAllSignals = async () => {
         try {
@@ -250,8 +250,15 @@ const SignalsDashboard = ({ currentUser, setDashboardTitle }) => {
     }, [showSearchInput]);
 
     return (
-        <div className="signals-container" style={{ width: selectedSignal ? '90%' : '50%' }}>
-            <div className="left-column" style={{ width: selectedSignal ? '40%' : '100%', height: '100vh' }}>
+        <div className="signals-container" style={{ display: 'flex', width: showComponents ? '80%' : '40%', transition: 'width 1s ease' }}>
+            <div
+                style={{
+                    width: showComponents ? '40%' : '100%',
+                    transition: 'width 1s ease-in-out, opacity 1s ease-in-out',
+                    overflow: 'hidden',
+                    height: '100vh',
+                }}
+            >
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex' }}>
                         <h2
@@ -339,10 +346,10 @@ const SignalsDashboard = ({ currentUser, setDashboardTitle }) => {
                         {activeDropdown === 'trapConfig' && <StatefulTraps />}
                         {activeDropdown === 'time' && (
                             <div className="dropdownMenu dropdownVisible" style={{ width: 'auto', height: 'auto', color: 'var(--textColor)' }}>
-                            <SearchTime
-                                onTimeRangeSelect={handleTimeRangeSelect}
-                                onTimeRangeChange={handleTimeRangeChange}
-                            />
+                                <SearchTime
+                                    onTimeRangeSelect={handleTimeRangeSelect}
+                                    onTimeRangeChange={handleTimeRangeChange}
+                                />
                             </div>
                         )}
                         {activeDropdown === 'search' && dataSource === 'syslogs' && <SyslogSignalFilters onSearch={(f) => handleSearchFilters(f)} />}
@@ -357,22 +364,26 @@ const SignalsDashboard = ({ currentUser, setDashboardTitle }) => {
                 </div>
             </div>
 
-            {/* Right Column */}
-            {selectedSignal && (
-                <div className="right-column">
-                    <div className="right-content-wrapper" style={{ transition: '0.5s' }}>
-                        <div className="right-content">
-                            {showComponents && (
-                                <>
-                                    <Info currentUser={currentUser} selectedSignal={selectedSignal} events={events} onSignalDeselect={handleSignalDeselect} dataSource={dataSource} />
-                                    <Timeline currentUser={currentUser} selectedSignal={selectedSignal} events={events} dataSource={dataSource} />
-                                    <Events currentUser={currentUser} events={events} source={dataSource} rule={selectedSignalRule} />
-                                </>
-                            )}
-                        </div>
+            <div
+                className="right-column"
+                style={{
+                    width: showComponents ? '60%' : '0%',
+                    transition: 'width 1s ease-in-out',
+                    overflow: 'auto',
+                }}
+            >
+                <div className="right-content-wrapper" style={{ transition: '0.5s' }}>
+                    <div className="right-content" style={{transition: 'transition 1s ease-in-out'}}>
+                        { selectedSignal && (
+                            <>
+                                <Info currentUser={currentUser} selectedSignal={selectedSignal} events={events} onSignalDeselect={handleSignalDeselect} dataSource={dataSource} />
+                                <Timeline currentUser={currentUser} selectedSignal={selectedSignal} events={events} dataSource={dataSource} />
+                                <Events currentUser={currentUser} events={events} source={dataSource} rule={selectedSignalRule} />
+                            </>
+                        )}
                     </div>
                 </div>
-            )}
+            </div>
         </div>
     );
 };

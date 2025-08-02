@@ -117,6 +117,10 @@
   height: 600px;
 }
 
+.signalRightElementContainer.timeline {
+  height: 200px;
+}
+
 .signalRightElementHeader {
   background: var(--signalRightElementHeaderBackground);
   position: relative;

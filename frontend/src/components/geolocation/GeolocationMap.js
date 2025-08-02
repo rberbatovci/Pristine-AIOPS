@@ -51,7 +51,8 @@ function GeolocationMap({ locations }) {
               position={{ lat: location.lat, lng: location.lng }}
               title={location.name}
               onClick={() => setSelectedLocation(location)}
-              icon={{ url: '/favicon.ico' }}
+              icon={{ url: '/router4.png' }}
+              
             />
           ))}
 

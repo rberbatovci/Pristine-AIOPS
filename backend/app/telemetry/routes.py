@@ -12,7 +12,7 @@ def get_cpu_utilization(
     must_clauses = []
 
     if device:
-        must_clauses.append({"term": {"device.keyword": device}})
+        must_clauses.append({"term": {"device": device}})  # changed here
 
     query = {
         "query": {
@@ -43,9 +43,9 @@ def get_memory_statistics(
     must_clauses = []
 
     if device:
-        must_clauses.append({"term": {"device.keyword": device}})
+        must_clauses.append({"term": {"device": device}})
     if memory:
-        must_clauses.append({"term": {"memory.keyword": memory}})
+        must_clauses.append({"term": {"memory": memory}})
 
     query = {
         "query": {
