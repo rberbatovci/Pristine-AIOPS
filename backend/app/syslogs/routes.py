@@ -260,8 +260,8 @@ TOP_LEVEL_FIELDS = ["device", "mnemonic", "severity"]
 
 @router.get("/syslogs/statistics/{key}")
 def get_field_statistics(key: str):
-    # Determine the full field path
-    field_path = key if key in TOP_LEVEL_FIELDS else f"tags.{key}.keyword"
+    # Fields like 'severity', 'device', etc. should use .keyword
+    field_path = f"{key}.keyword" if key in TOP_LEVEL_FIELDS else f"tags.{key}.keyword"
 
     query = {
         "size": 0,

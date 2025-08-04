@@ -13,6 +13,8 @@ set(SOURCES
     rules.c
     activeSignals.c
     process.c
+    redis.c
+    opensearch.c
 )
 
 # Create executable

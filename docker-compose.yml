@@ -144,27 +144,27 @@ services:
   #  networks:
   #    - aiops
 
-  #redis:
-  #  container_name: Redis
-  #  image: redis:latest
-  #  ports:
-  #    - "6380:6379"
-  #  command: ["redis-server", "--appendonly", "yes"]
-  #  networks:
-  #    - aiops
+  redis:
+    container_name: Redis
+    image: redis:latest
+    ports:
+      - "6380:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    networks:
+      - aiops
 
-  #celery-worker:
-  #  container_name: CeleryWorker
-  #  image: ghcr.io/rberbato/celery:latest
-  #  build:
-  #    context: ./signals
-  #    dockerfile: Dockerfile.syslogSignals
-  #  command: celery -A tasks worker --loglevel=info
-  #  depends_on:
-  #    - redis
-  #    - kafka
-  #  networks:
-  #    - aiops
+  celery-worker:
+    container_name: CeleryWorker
+    image: ghcr.io/rberbato/celery:latest
+    build:
+      context: ./signals
+      dockerfile: Dockerfile.syslogSignals
+    command: celery -A tasks worker --loglevel=info
+    depends_on:
+      - redis
+      - kafka
+    networks:
+      - aiops
 
   syslog-producer:
     container_name: SyslogProducer

@@ -15,11 +15,9 @@
 #define MAX_OPENSEARCH_BULK_EVENTS 1000
 #define BULK_OPENSEARCH_FLUSH_INTERVAL 1
 
-char *bulk_payload = NULL;
-size_t bulk_event_count = 0;
-pthread_mutex_t bulk_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t status_update_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-ActiveSignal active_signals[MAX_SIGNALS];
+ActiveSignal active_signals[MAX_EVENTS_PER_SIGNAL];
 int active_signal_count = 0;
 
 void create_syslog_signals_index() {
@@ -85,27 +83,59 @@ void removeClosedSignals() {
     for (int i = 0; i < active_signal_count; i++) {
         if (strcmp(active_signals[i].status, "closed") != 0) {
             if (i != j) {
-                active_signals[j] = active_signals[i]; // copy to front
+                active_signals[j] = active_signals[i];
             }
             j++;
         } else {
             printf("[CLEANUP] Removing closed signal %s\n", active_signals[i].signalId);
 
-            // Free dynamically allocated memory if any
-            for (int k = 0; k < active_signals[i].mnemonic_count; ++k) {
-                free(active_signals[i].mnemonics[k]);
-            }
-            free(active_signals[i].mnemonics);
+            // DO NOT free fixed arrays like mnemonics or events
 
-            for (int k = 0; k < active_signals[i].event_count; ++k) {
-                free(active_signals[i].events[k]);
+            // Clean up only dynamically allocated fields
+            if (active_signals[i].affectedEntities) {
+                json_decref(active_signals[i].affectedEntities);
+                active_signals[i].affectedEntities = NULL;
             }
-            free(active_signals[i].events);
 
-            json_decref(active_signals[i].affectedEntities);
+            // Optionally zero out the struct (not required, but helps avoid bugs)
+            memset(&active_signals[i], 0, sizeof(ActiveSignal));
         }
     }
     active_signal_count = j;
+}
+
+void open_signal(ActiveSignal *s) {
+    time_t now = time(NULL);
+    strncpy(s->status, "open", sizeof(s->status) - 1);
+    s->status_changed_at = now;
+
+    printf("[STATE] Opening signal %s\n", s->signalId);
+
+    store_signal_in_redis(redis_ctx, s);
+    add_to_bulk_payload(s);
+}
+
+void close_signal(int signal_index) {
+    ActiveSignal *s = &active_signals[signal_index];
+
+    printf("[STATE] Closing signal %s\n", s->signalId);
+
+    time_t now = time(NULL);
+    strncpy(s->status, "closed", sizeof(s->status) - 1);
+    s->status_changed_at = now;
+
+    add_to_bulk_payload(s);
+    delete_signal_from_redis(s->signalId);
+
+    if (s->affectedEntities) {
+        json_decref(s->affectedEntities);
+        s->affectedEntities = NULL;
+    }
+
+    for (int j = signal_index; j < active_signal_count - 1; j++) {
+        active_signals[j] = active_signals[j + 1];
+    }
+    active_signal_count--;
 }
 
 void updateSignalStates() {
@@ -116,26 +146,14 @@ void updateSignalStates() {
         if (!rule) continue;
 
         if (strcmp(s->status, "warmUp") == 0 && difftime(now, s->status_changed_at) >= rule->warmup) {
-            printf("[STATE] Promoting signal %s from warmUp to open\n", s->signalId);
-            strncpy(s->status, "open", sizeof(s->status) - 1);
-            s->status_changed_at = now;
-            queue_signal_status_update(s, &bulk_payload, "syslog-signals", NULL);
+            open_signal(s);
         } else if (strcmp(s->status, "coolDown") == 0 && difftime(now, s->status_changed_at) >= rule->cooldown) {
-            printf("[STATE] Closing signal %s from coolDown to closed\n", s->signalId);
-            strncpy(s->status, "closed", sizeof(s->status) - 1);
-            s->status_changed_at = now;
-            queue_signal_status_update(s, &bulk_payload, "syslog-signals", NULL);
+            close_signal(i);
+            i--; 
+            continue;
         }
     }
-
-    // ✅ Send to OpenSearch before removing
-    if (bulk_payload && strlen(bulk_payload) > 0) {
-        send_bulk_to_opensearch(bulk_payload);  // You need a function for this
-        free(bulk_payload);
-        bulk_payload = NULL;
-    }
-
-    removeClosedSignals();  // safe to remove from memory now
+    removeClosedSignals();
 }
 
 static void *state_monitor_thread() {
@@ -154,29 +172,6 @@ void activeSignalMonitor() {
         pthread_detach(monitor_thread);  // optional: no need to join later
         printf("[INFO] Signal monitor thread started\n");
     }
-}
-
-void send_bulk_to_opensearch(const char *bulk_payload)
-{
-    CURL *curl = curl_easy_init();
-    if (!curl)
-        return;
-
-    struct curl_slist *headers = NULL;
-    headers = curl_slist_append(headers, "Content-Type: application/json");
-
-    curl_easy_setopt(curl, CURLOPT_URL, "http://OpenSearch:9200/syslog-signals/_bulk");
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, bulk_payload);
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-
-    CURLcode res = curl_easy_perform(curl);
-    if (res != CURLE_OK)
-    {
-        fprintf(stderr, "[CURL ERROR] %s\n", curl_easy_strerror(res));
-    }
-
-    curl_easy_cleanup(curl);
-    curl_slist_free_all(headers);
 }
 
 char *active_signal_to_json(ActiveSignal *sig)
@@ -230,35 +225,6 @@ char *active_signal_to_json(ActiveSignal *sig)
     return json_str; // Caller must free
 }
 
-void *bulk_flush_thread(void *arg __attribute__((unused)))
-{
-    while (1)
-    {
-        sleep(BULK_OPENSEARCH_FLUSH_INTERVAL);
-
-        pthread_mutex_lock(&bulk_mutex);
-        if (bulk_event_count >= MAX_OPENSEARCH_BULK_EVENTS || (bulk_payload && strlen(bulk_payload) > 0))
-        {
-            //printf("[INFO] Sending bulk with %zu events to OpenSearch\n", bulk_event_count);
-            send_bulk_to_opensearch(bulk_payload);
-            free(bulk_payload);
-            bulk_payload = calloc(1, 1);
-            bulk_event_count = 0;
-        }
-        pthread_mutex_unlock(&bulk_mutex);
-    }
-    return NULL;
-}
-
-void flushOpensearchBulkData()
-{
-    pthread_t thread;
-    if (pthread_create(&thread, NULL, bulk_flush_thread, NULL) != 0)
-    {
-        fprintf(stderr, "[ERROR] Failed to create bulk flush thread\n");
-    }
-}
-
 void create_and_queue_bulk(ActiveSignal *sig, char **bulk, const char *index_name)
 {
     // Use signalId directly as the OpenSearch _id
@@ -303,53 +269,6 @@ void create_and_queue_bulk(ActiveSignal *sig, char **bulk, const char *index_nam
 
 char endTime[64];
 
-void queue_signal_status_update(ActiveSignal *sig, char **bulk, const char *index_name, const char *endTimeStr) {
-    char update_action[256];
-    snprintf(update_action, sizeof(update_action),
-             "{\"update\":{\"_index\":\"%s\",\"_id\":\"%s\"}}\n", index_name, sig->signalId);
-
-    // Build JSON array for events
-    char events_json[4096] = "[";
-    for (int i = 0; i < sig->event_count; i++) {
-        char event_str[80];
-        snprintf(event_str, sizeof(event_str), "\"%s\"", sig->events[i]);
-        strcat(events_json, event_str);
-        if (i != sig->event_count - 1) {
-            strcat(events_json, ",");
-        }
-    }
-    strcat(events_json, "]");
-    
-    char update_doc[1024]; 
-    if (endTimeStr && strlen(endTimeStr) > 0) {
-        //time_t end_time_epoch = parse_iso8601_to_unix(endTimeStr);  // you'll implement this
-        snprintf(update_doc, sizeof(update_doc),
-            "{\"doc\":{\"status\":\"%s\",\"status_changed_at\":%ld,\"endTime\":%ld,\"events\":%s}}\n",
-            sig->status, sig->status_changed_at, endTimeStr, events_json);
-    } else {
-        snprintf(update_doc, sizeof(update_doc),
-            "{\"doc\":{\"status\":\"%s\",\"status_changed_at\":%ld,\"events\":%s}}\n",
-            sig->status, sig->status_changed_at, events_json);
-    }
-
-    size_t bulk_len = (*bulk) ? strlen(*bulk) : 0;
-    size_t action_len = strlen(update_action);
-    size_t doc_len = strlen(update_doc);
-    size_t new_len = bulk_len + action_len + doc_len + 1;
-
-    char *new_bulk = realloc(*bulk, new_len);
-    if (!new_bulk) {
-        fprintf(stderr, "[ERROR] Failed to realloc bulk payload for update\n");
-        return;
-    }
-
-    *bulk = new_bulk;
-
-    memcpy(*bulk + bulk_len, update_action, action_len);
-    memcpy(*bulk + bulk_len + action_len, update_doc, doc_len);
-    (*bulk)[new_len - 1] = '\0';
-}
-
 void printSignal(const ActiveSignal *signal)
 {
     if (!signal)
@@ -393,60 +312,6 @@ void printSignal(const ActiveSignal *signal)
         printf("  %s: %s\n", key, json_string_value(value));
     }
     printf("\n");
-}
-
-
-void close_and_queue_bulk(ActiveSignal *sig, char **bulk, size_t *bulk_size)
-{
-    if (sig->signalId[0] == '\0')
-    {
-        fprintf(stderr, "[ERROR] Cannot close signal with empty signalId\n");
-        return;
-    }
-
-    // Partial document
-    json_t *doc = json_object();
-    json_object_set_new(doc, "status", json_string("closed"));
-    json_object_set_new(doc, "endTime", json_string(sig->endTime));
-
-    // Optional: add updated event list
-    json_t *events_array = json_array();
-    for (int i = 0; i < sig->event_count; i++)
-    {
-        json_array_append_new(events_array, json_string(sig->events[i]));
-    }
-    json_object_set_new(doc, "events", events_array);
-
-    json_t *wrap = json_object();
-    json_object_set_new(wrap, "doc", doc);
-
-    char *update_json = json_dumps(wrap, JSON_COMPACT);
-    json_decref(wrap);
-
-    // Prepare OpenSearch update action
-    char action_line[256];
-    snprintf(action_line, sizeof(action_line),
-             "{\"update\":{\"_index\":\"syslog-signals\",\"_id\":\"%s\"}}\n", sig->signalId);
-
-    size_t new_data_len = strlen(action_line) + strlen(update_json) + 2;
-
-    char *new_bulk = realloc(*bulk, *bulk_size + new_data_len + 1);
-    if (!new_bulk)
-    {
-        fprintf(stderr, "[ERROR] Failed to realloc bulk payload\n");
-        free(update_json);
-        return;
-    }
-
-    *bulk = new_bulk;
-
-    strcat(*bulk, action_line);
-    strcat(*bulk, update_json);
-    strcat(*bulk, "\n");
-
-    *bulk_size += new_data_len;
-
-    free(update_json);
 }
 
 void delete_signal_from_memory(int index)
@@ -615,24 +480,57 @@ void createSignal(StatefulRule *rule, const char *device, const char *mnemonic, 
         json_decref(affected_keys);
     }
 
-    // Add to OpenSearch bulk payload
-    if (bulk_payload == NULL)
-    {
-        // Allocate initial buffer size. Realloc will handle growth.
-        bulk_payload = malloc(1024);
-        if (!bulk_payload) {
-            fprintf(stderr, "[ERROR] Failed to allocate initial bulk payload buffer\n");
-            return;
-        }
-        bulk_payload[0] = '\0';
-    }
-    create_and_queue_bulk(signal, &bulk_payload, "syslog-signals");
+    add_to_bulk_payload(signal);
 
     active_signal_count++;
+
+    store_signal_in_redis(redis_ctx, signal);
 
     //printSignal(signal);
 }
 
+void reopenSignal(ActiveSignal *signal, const char *eventIdStr, const char *timestamp)
+{
+    if (!signal)
+    {
+        fprintf(stderr, "[ERROR] Signal is NULL, cannot reopen\n");
+        return;
+    }
+
+    // Only allow reopening from coolDown
+    if (strcmp(signal->status, "coolDown") != 0)
+    {
+        fprintf(stderr, "[WARN] Signal is not in 'coolDown' state. Current state: %s\n", signal->status);
+        return;
+    }
+
+    // Change status to 'open' or 'warmUp'
+    strncpy(signal->status, "open", sizeof(signal->status) - 1);
+    signal->status[sizeof(signal->status) - 1] = '\0';
+    signal->status_changed_at = time(NULL);
+
+    // Clear endTime
+    signal->endTime[0] = '\0';
+
+    // Append new eventId if provided and there's space
+    if (eventIdStr && signal->event_count < MAX_EVENTS_PER_SIGNAL)
+    {
+        strncpy(signal->events[signal->event_count], eventIdStr, sizeof(signal->events[signal->event_count]) - 1);
+        signal->events[signal->event_count][sizeof(signal->events[signal->event_count]) - 1] = '\0';
+        signal->event_count++;
+    }
+
+    // Optionally update startTime if timestamp is provided
+    if (timestamp && strlen(timestamp) > 0)
+    {
+        strncpy(signal->startTime, timestamp, sizeof(signal->startTime) - 1);
+        signal->startTime[sizeof(signal->startTime) - 1] = '\0';
+    }
+
+    add_to_bulk_payload(signal);
+
+    printf("[INFO] Reopened signal ID %s for rule %s\n", signal->signalId, signal->rule);
+}
 
 void closeSignal(const char *signalId, const char *eventId, const char *timestamp)
 {
@@ -662,15 +560,8 @@ void closeSignal(const char *signalId, const char *eventId, const char *timestam
             signal->status[sizeof(signal->status) - 1] = '\0';
             signal->status_changed_at = time(NULL);
 
-            // Lock + queue update OpenSearch partial doc
-            pthread_mutex_lock(&bulk_mutex);
-            queue_signal_status_update(signal, &bulk_payload, "syslog-signals", timestamp);
-            pthread_mutex_unlock(&bulk_mutex);
-
-            // Do NOT delete from memory — keep the signal active
             return;
         }
     }
 
-    //fprintf(stderr, "[WARNING] Signal with signalId '%s' not found to close\n", signalId);
 }

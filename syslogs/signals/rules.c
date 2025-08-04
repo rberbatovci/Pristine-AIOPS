@@ -116,39 +116,53 @@ RuleMatch *findSignalRule(const char *mnemonic, json_t *tags, int *match_count)
 
     for (int i = 0; i < signal_rule_count; i++)
     {
+        // Check for MATCH_OPEN
         if (strcmp(signal_rules[i].openMnemonic, mnemonic) == 0)
         {
             const char *key = signal_rules[i].openTag;
             const char *expected_value = signal_rules[i].openValue;
 
             json_t *value_json = json_object_get(tags, key);
-            if (json_is_string(value_json))
+            const char *actual_value = json_is_string(value_json) ? json_string_value(value_json) : NULL;
+
+            printf("[DEBUG] Checking MATCH_OPEN: rule %d\n", i);
+            printf("[DEBUG] Mnemonic: %s\n", mnemonic);
+            printf("[DEBUG] Rule openTag: %s, expected value: %s\n", key, expected_value);
+            if (actual_value)
+                printf("[DEBUG] Tag '%s' found in tags with value: %s\n", key, actual_value);
+            else
+                printf("[DEBUG] Tag '%s' not found or not a string\n", key);
+
+            if (actual_value && strcmp(actual_value, expected_value) == 0)
             {
-                const char *actual_value = json_string_value(value_json);
-                if (strcmp(actual_value, expected_value) == 0)
-                {
-                    matches[*match_count].rule = &signal_rules[i];
-                    matches[*match_count].match_type = MATCH_OPEN;
-                    (*match_count)++;
-                }
+                matches[*match_count].rule = &signal_rules[i];
+                matches[*match_count].match_type = MATCH_OPEN;
+                (*match_count)++;
             }
         }
 
+        // Check for MATCH_CLOSE
         if (strcmp(signal_rules[i].closeMnemonic, mnemonic) == 0)
         {
             const char *key = signal_rules[i].closeTag;
             const char *expected_value = signal_rules[i].closeValue;
 
             json_t *value_json = json_object_get(tags, key);
-            if (json_is_string(value_json))
+            const char *actual_value = json_is_string(value_json) ? json_string_value(value_json) : NULL;
+
+            printf("[DEBUG] Checking MATCH_CLOSE: rule %d\n", i);
+            printf("[DEBUG] Mnemonic: %s\n", mnemonic);
+            printf("[DEBUG] Rule closeTag: %s, expected value: %s\n", key, expected_value);
+            if (actual_value)
+                printf("[DEBUG] Tag '%s' found in tags with value: %s\n", key, actual_value);
+            else
+                printf("[DEBUG] Tag '%s' not found or not a string\n", key);
+
+            if (actual_value && strcmp(actual_value, expected_value) == 0)
             {
-                const char *actual_value = json_string_value(value_json);
-                if (strcmp(actual_value, expected_value) == 0)
-                {
-                    matches[*match_count].rule = &signal_rules[i];
-                    matches[*match_count].match_type = MATCH_CLOSE;
-                    (*match_count)++;
-                }
+                matches[*match_count].rule = &signal_rules[i];
+                matches[*match_count].match_type = MATCH_CLOSE;
+                (*match_count)++;
             }
         }
     }

@@ -34,15 +34,27 @@ function Statistics({ setDashboardTitle }) {
   };
 
   const handleButtonClick = (event, dropdownKey) => {
+    let actualKey;
+
+    if (dropdownKey === 'signals') {
+      actualKey = dataSource === 'syslogs' ? 'syslogSignals' : 'trapSignals';
+    } else if (dropdownKey === 'events') {
+      actualKey = dataSource === 'syslogs' ? 'syslogEvents' : 'trapEvents';
+    } else {
+      actualKey = dropdownKey;
+    }
+
     const updatedDropdowns = Object.keys(dropdowns).reduce((acc, key) => {
       acc[key] = { ...dropdowns[key], visible: false };
       return acc;
     }, {});
-    const newVisibility = !dropdowns[dropdownKey].visible;
+
+    const newVisibility = !dropdowns[actualKey].visible;
+
     setDropdowns({
       ...updatedDropdowns,
-      [dropdownKey]: {
-        ...dropdowns[dropdownKey],
+      [actualKey]: {
+        ...dropdowns[actualKey],
         visible: newVisibility,
       },
     });

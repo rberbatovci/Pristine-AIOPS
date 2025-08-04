@@ -3,6 +3,7 @@
 #include <pthread.h>
 #include <librdkafka/rdkafka.h>
 #include "globals.h"
+#include <hiredis/hiredis.h>
 
 rd_kafka_t* setup_kafka_consumer(const char* brokers, const char* group_id, const char* topic, rd_kafka_topic_partition_list_t **topics_out) {
     char errstr[512];
@@ -53,12 +54,18 @@ int main() {
     setbuf(stdout, NULL);
 
     activeSignalMonitor();
-
     print_banner();
-
     printf("🚀 Consumer listening for signals ...\n");
 
     create_syslog_signals_index();
+
+    redisContext *redis_ctx = NULL;
+    if (on_startup_redis("redis", 6379) < 0) {
+        fprintf(stderr, "[ERROR] Redis startup failed. Continuing without Redis...\n");
+    }
+
+    // At this point, `active_signals[]` and `active_signal_count` are ready
+    // You can pass them to process_message(), or access globally
 
     PGconn *conn = PQconnectdb("host=postgresql dbname=fpristine user=PristineAdmin password=PristinePassword");
     if (PQstatus(conn) != CONNECTION_OK) {
@@ -70,8 +77,6 @@ int main() {
     loadSignalRules(conn);
     PQfinish(conn);
 
-
-    // Start thread to reload rules and states periodically
     ReloadArgs* args = malloc(sizeof(ReloadArgs));
     if (!args) {
         fprintf(stderr, "[ERROR] Failed to allocate memory for reload args\n");
@@ -79,7 +84,6 @@ int main() {
     }
 
     args->interval_seconds = 60;
-
     pthread_t reload_thread;
     if (pthread_create(&reload_thread, NULL, reload_data_thread, args) != 0) {
         fprintf(stderr, "[ERROR] Failed to create reload thread\n");
@@ -87,22 +91,21 @@ int main() {
         return EXIT_FAILURE;
     }
 
-    rd_kafka_topic_partition_list_t *topics;
-
     flushOpensearchBulkData();
 
+    rd_kafka_topic_partition_list_t *topics;
     rd_kafka_t *rk = setup_kafka_consumer("kafka:9092", "syslog-signals-group", "syslog-signals", &topics);
     if (!rk) return EXIT_FAILURE;
 
-    printf("[INFO] Subscribed to kafka topic: \n");
+    printf("[INFO] Subscribed to kafka topic\n");
 
-    // Main loop to consume and process messages
-    process_message(rk);
+    // 👇 Here’s where your signal memory is already ready
+    process_message(rk);  // Uses active_signals[]
 
-    // Cleanup
     rd_kafka_topic_partition_list_destroy(topics);
     rd_kafka_consumer_close(rk);
     rd_kafka_destroy(rk);
 
+    if (redis_ctx) redisFree(redis_ctx);
     return EXIT_SUCCESS;
 }
