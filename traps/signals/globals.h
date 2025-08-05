@@ -2,11 +2,14 @@
 #define GLOBALS_H
 
 #define UUID_STRING_LENGTH 37
+#define MAX_EVENTS_PER_SIGNAL 1000
+#define MAX_ACTIVE_SIGNALS 1000
 
 #include <librdkafka/rdkafka.h>
 #include <jansson.h>
 #include <pthread.h>
 #include <libpq-fe.h>
+#include <hiredis/hiredis.h>
 
 typedef struct StatefulRule {
     int id;
@@ -63,15 +66,24 @@ void queue_signal_status_update(ActiveSignal *sig, char **bulk, const char *inde
 int findActiveSignals(ActiveSignal *signal, const char *target_device, const char *target_rule_name, json_t *target_entities);
 void createSignal(StatefulRule *rule, const char *device, const char *snmpTrapOid, json_t *tags, const char *event_id_str);
 void closeSignal(const char *signalId, const char *eventId);
+void reopenSignal(ActiveSignal *signal, const char *eventIdStr, const char *timestamp);
 void flushOpensearchBulkData();
 void printSignal(const ActiveSignal *signal);
 void create_trap_signals_index();
 
 void process_message(rd_kafka_t *rk);
 
+int on_startup_redis(const char *redis_host, int redis_port);
+int store_signal_in_redis(redisContext *ctx, const ActiveSignal *signal);
+int load_active_signals_from_redis(redisContext *c);
+void delete_signal_from_redis(const char *signalId);
+
+void add_to_bulk_payload(const ActiveSignal *signal);
+void send_bulk_to_opensearch(const char *bulk_payload);
 
 extern StatefulRule *signal_rules;
 extern int signal_rule_count;
+extern redisContext *redis_ctx;
 
 void load_signal_rules(PGconn *conn);
 void free_signal_rules(void);

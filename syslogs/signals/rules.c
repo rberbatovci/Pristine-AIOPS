@@ -32,7 +32,7 @@ void free_signal_rules(void)
     signal_rule_count = 0;
 }
 
-void loadSignalRules(PGconn *conn)
+void load_signal_rules(PGconn *conn)
 {
     // Clean up old rules first
     free_signal_rules();
@@ -209,7 +209,7 @@ void *reload_data_thread(void *args)
     {
         pthread_mutex_lock(&config_mutex);
 
-        loadSignalRules(conn);
+        load_signal_rules(conn);
 
         pthread_mutex_unlock(&config_mutex);
 

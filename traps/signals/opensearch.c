@@ -54,10 +54,11 @@ void flushOpensearchBulkData()
     }
 }
 
+
 void add_to_bulk_payload(const ActiveSignal *signal) {
     init_bulk_array();
 
-    const char *index = "syslog-signals";  // Set index internally
+    const char *index = "trap-signals";  // Set index internally
 
     // Construct OpenSearch bulk action header
     json_t *action_meta = json_pack("{s:{s:s, s:s}}", "index", "_index", index, "_id", signal->signalId);
@@ -79,12 +80,12 @@ void add_to_bulk_payload(const ActiveSignal *signal) {
         json_object_set_new(signal_json, "endTime", json_null());
     }
 
-    // Add mnemonics as a JSON array
-    json_t *mnemonics_array = json_array();
-    for (int i = 0; i < signal->mnemonic_count; i++) {
-        json_array_append_new(mnemonics_array, json_string(signal->mnemonics[i]));
+    // Add snmpTrapOids as a JSON array
+    json_t *snmpTrapOids_array = json_array();
+    for (int i = 0; i < signal->snmpTrapOids_count; i++) {
+        json_array_append_new(snmpTrapOids_array, json_string(signal->snmpTrapOids[i]));
     }
-    json_object_set_new(signal_json, "mnemonics", mnemonics_array);
+    json_object_set_new(signal_json, "snmpTrapOids", snmpTrapOids_array);
 
     // Add events as a JSON array
     json_t *events_array = json_array();
@@ -117,7 +118,7 @@ void send_bulk_to_opensearch(const char *bulk_payload)
     struct curl_slist *headers = NULL;
     headers = curl_slist_append(headers, "Content-Type: application/json");
 
-    curl_easy_setopt(curl, CURLOPT_URL, "http://OpenSearch:9200/syslog-signals/_bulk");
+    curl_easy_setopt(curl, CURLOPT_URL, "http://OpenSearch:9200/trap-signals/_bulk");
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, bulk_payload);
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L); // Enable verbose debug output from libcurl

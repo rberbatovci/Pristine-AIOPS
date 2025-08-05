@@ -3,6 +3,7 @@
 #include <pthread.h>
 #include <librdkafka/rdkafka.h>
 #include "globals.h"
+#include <hiredis/hiredis.h>
 
 rd_kafka_t* setup_kafka_consumer(const char* brokers, const char* group_id, const char* topic, rd_kafka_topic_partition_list_t **topics_out) {
     char errstr[512];
@@ -57,6 +58,21 @@ int main() {
 
     create_trap_signals_index();
 
+    redisContext *redis_ctx = NULL;
+    if (on_startup_redis("redis", 6379) < 0) {
+        fprintf(stderr, "[ERROR] Redis startup failed. Continuing without Redis...\n");
+    }
+
+    PGconn *conn = PQconnectdb("host=postgresql dbname=fpristine user=PristineAdmin password=PristinePassword");
+    if (PQstatus(conn) != CONNECTION_OK) {
+        fprintf(stderr, "[ERROR] Connection to DB failed: %s\n", PQerrorMessage(conn));
+        PQfinish(conn);
+        return EXIT_FAILURE;
+    }
+
+    load_signal_rules(conn);
+    PQfinish(conn);    
+
     ReloadArgs* args = malloc(sizeof(ReloadArgs));
     if (!args) {
         fprintf(stderr, "[ERROR] Failed to allocate memory for reload args\n");
@@ -86,6 +102,6 @@ int main() {
     rd_kafka_topic_partition_list_destroy(topics);
     rd_kafka_consumer_close(rk);
     rd_kafka_destroy(rk);
-
+    if (redis_ctx) redisFree(redis_ctx);
     return EXIT_SUCCESS;
 }

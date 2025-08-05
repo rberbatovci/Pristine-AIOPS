@@ -39,7 +39,7 @@ int load_active_signals_from_redis(redisContext *c) {
 
     for (size_t i = 0; i < reply->elements && active_signal_count < MAX_ACTIVE_SIGNALS; ++i) {
         const char *signal_id = reply->element[i]->str;
-        redisReply *data = redisCommand(c, "GET signals:syslogs:%s", signal_id);
+        redisReply *data = redisCommand(c, "GET signals:traps:%s", signal_id);
         if (!data || data->type != REDIS_REPLY_STRING) {
             if (data) freeReplyObject(data);
             continue;
@@ -60,14 +60,14 @@ int load_active_signals_from_redis(redisContext *c) {
         strncpy(sig->status, json_string_value(json_object_get(json, "status")), sizeof(sig->status));
         strncpy(sig->startTime, json_string_value(json_object_get(json, "startTime")), sizeof(sig->startTime));
         strncpy(sig->endTime, json_string_value(json_object_get(json, "endTime")), sizeof(sig->endTime));
-        
-        json_t *mnemonics_array = json_object_get(json, "mnemonics");        
-        if (json_is_array(mnemonics_array)) {
-            sig->mnemonic_count = json_array_size(mnemonics_array);
-            for (int j = 0; j < sig->mnemonic_count && j < 3; ++j) {
-                const char *val = json_string_value(json_array_get(mnemonics_array, j));
+
+        json_t *snmpTrapOids_array = json_object_get(json, "snmpTrapOids");        
+        if (json_is_array(snmpTrapOids_array)) {
+            sig->snmpTrapOids_count = json_array_size(snmpTrapOids_array);
+            for (int j = 0; j < sig->snmpTrapOids_count && j < 3; ++j) {
+                const char *val = json_string_value(json_array_get(snmpTrapOids_array, j));
                 if (val) {
-                    strncpy(sig->mnemonics[j], val, sizeof(sig->mnemonics[j]));
+                    strncpy(sig->snmpTrapOids[j], val, sizeof(sig->snmpTrapOids[j]));
                 }
             }
         }
@@ -102,7 +102,6 @@ int store_signal_in_redis(redisContext *ctx, const ActiveSignal *signal) {
     snprintf(redis_key, sizeof(redis_key), "signals:syslogs:%s", signal->signalId);
 
     json_t *json = json_object();
-
     json_object_set_new(json, "signalId", json_string(signal->signalId));
     json_object_set_new(json, "device", json_string(signal->device));
     json_object_set_new(json, "rule", json_string(signal->rule));
@@ -113,14 +112,12 @@ int store_signal_in_redis(redisContext *ctx, const ActiveSignal *signal) {
     json_object_set_new(json, "status_changed_at", json_integer(signal->status_changed_at));
     json_object_set(json, "affectedEntities", signal->affectedEntities);
 
-    // Add mnemonics as JSON array
-    json_t *mnemonics_array = json_array();
-    for (int i = 0; i < signal->mnemonic_count; ++i) {
-        json_array_append_new(mnemonics_array, json_string(signal->mnemonics[i]));
+    json_t *snmpTrapOids_array = json_array();
+    for (int i = 0; i < signal->snmpTrapOids_count; ++i) {
+        json_array_append_new(snmpTrapOids_array, json_string(signal->snmpTrapOids[i]));
     }
-    json_object_set_new(json, "mnemonics", mnemonics_array);
+    json_object_set_new(json, "snmpTrapOids", snmpTrapOids_array);
 
-    // Add events as JSON array
     json_t *events_array = json_array();
     for (int i = 0; i < signal->event_count; ++i) {
         json_array_append_new(events_array, json_string(signal->events[i]));
@@ -129,6 +126,7 @@ int store_signal_in_redis(redisContext *ctx, const ActiveSignal *signal) {
 
     char *json_str = json_dumps(json, JSON_COMPACT);
 
+    // Store to Redis key
     redisReply *reply = redisCommand(ctx, "SET %s %s", redis_key, json_str);
     if (!reply) {
         fprintf(stderr, "[REDIS ERROR] Failed to store signal %s\n", signal->signalId);
@@ -138,6 +136,7 @@ int store_signal_in_redis(redisContext *ctx, const ActiveSignal *signal) {
     }
     freeReplyObject(reply);
 
+    // Add signal ID to active_signals set
     reply = redisCommand(ctx, "SADD active_signals %s", signal->signalId);
     if (!reply) {
         fprintf(stderr, "[REDIS ERROR] Failed to add signal %s to active_signals set\n", signal->signalId);

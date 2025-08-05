@@ -64,9 +64,6 @@ int main() {
         fprintf(stderr, "[ERROR] Redis startup failed. Continuing without Redis...\n");
     }
 
-    // At this point, `active_signals[]` and `active_signal_count` are ready
-    // You can pass them to process_message(), or access globally
-
     PGconn *conn = PQconnectdb("host=postgresql dbname=fpristine user=PristineAdmin password=PristinePassword");
     if (PQstatus(conn) != CONNECTION_OK) {
         fprintf(stderr, "[ERROR] Connection to DB failed: %s\n", PQerrorMessage(conn));
@@ -74,7 +71,7 @@ int main() {
         return EXIT_FAILURE;
     }
 
-    loadSignalRules(conn);
+    load_signal_rules(conn);
     PQfinish(conn);
 
     ReloadArgs* args = malloc(sizeof(ReloadArgs));
@@ -94,7 +91,7 @@ int main() {
     flushOpensearchBulkData();
 
     rd_kafka_topic_partition_list_t *topics;
-    rd_kafka_t *rk = setup_kafka_consumer("kafka:9092", "syslog-signals-group", "syslog-signals", &topics);
+    rd_kafka_t *rk = setup_kafka_consumer("Kafka:9092", "syslog-signals-group", "syslog-signals", &topics);
     if (!rk) return EXIT_FAILURE;
 
     printf("[INFO] Subscribed to kafka topic\n");
@@ -105,7 +102,6 @@ int main() {
     rd_kafka_topic_partition_list_destroy(topics);
     rd_kafka_consumer_close(rk);
     rd_kafka_destroy(rk);
-
     if (redis_ctx) redisFree(redis_ctx);
     return EXIT_SUCCESS;
 }

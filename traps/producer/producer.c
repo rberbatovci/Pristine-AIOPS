@@ -314,8 +314,8 @@ int main(int argc, char **argv)
     setenv("MIBS", "ALL", 1);
     setenv("MIBDIRS", "/app/traps/producer/mibs", 1);
     init_snmp("consumer");
-    snmp_enable_stderrlog();
-    snmp_set_do_debugging(1);
+    //snmp_enable_stderrlog();
+    //snmp_set_do_debugging(1);
 
     init_mib();
     read_all_mibs();

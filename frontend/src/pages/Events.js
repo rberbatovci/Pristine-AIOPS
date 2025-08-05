@@ -162,12 +162,13 @@ function EventsDatabase({ currentUser, setDashboardTitle }) {
 
         if (filters.tags) {
             for (const [key, values] of Object.entries(filters.tags)) {
-                values.forEach(value => query.append(`${ key } `, value));
+                const cleanKey = key.trim();
+                values.forEach(value => query.append(cleanKey, value));
             }
         }
 
         if (query.toString()) {
-            url += `& ${ query.toString() } `;
+            url += `&${ query.toString() } `;
         }
 
         apiClient

@@ -11,6 +11,8 @@ set(SOURCES
     rules.c
     activeSignals.c
     process.c
+    redis.c
+    opensearch.c
 )
 
 add_executable(trap_signals ${SOURCES})

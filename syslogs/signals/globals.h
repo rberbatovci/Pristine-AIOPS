@@ -77,16 +77,16 @@ void flushOpensearchBulkData();
 void printSignal(const ActiveSignal *signal);
 void create_syslog_signals_index();
 
-void add_to_bulk_payload(const ActiveSignal *signal);
-
 void process_message(rd_kafka_t *rk);
+
+void add_to_bulk_payload(const ActiveSignal *signal);
 void send_bulk_to_opensearch(const char *bulk_payload);
 
 extern StatefulRule *signal_rules;
 extern int signal_rule_count;
 extern redisContext *redis_ctx;
 
-void loadSignalRules(PGconn *conn);
+void load_signal_rules(PGconn *conn);
 void free_signal_rules(void);
 
 StatefulRule *findRuleByName(const char *name);

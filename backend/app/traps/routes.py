@@ -5,7 +5,7 @@ from .models import Tag as TagModel
 from .models import Trap as TrapModel
 from .models import TrapOid as TrapOidModel, StatefulTrapRule as TrapRulesModel
 from ..db.session import get_db, opensearch_client
-from fastapi import APIRouter, Depends, status, HTTPException, Query, UploadFile, File, Body
+from fastapi import APIRouter, Depends, status, HTTPException, Query, UploadFile, File, Body, Request
 from fastapi.responses import JSONResponse
 import os
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,6 +18,8 @@ from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import selectinload
 import traceback
 import redis
+from datetime import datetime
+from collections import defaultdict
 
 router = APIRouter()
 
@@ -87,32 +89,61 @@ async def create_trap(trap_data: TrapCreate, db: AsyncSession = Depends(get_db))
 
 client = OpenSearch([{'host': 'localhost', 'port': 9200}])
 
+TOP_LEVEL_FIELDS = ["device", "snmpTrapOid", "sysUpTime"]
+
 @router.get("/traps/")
-async def get_traps(page: int = Query(1, ge=1, description="Page number"),
-                    page_size: int = Query(10, ge=1, le=100, description="Number of items per page")):
-    """
-    Retrieves paginated SNMP traps from OpenSearch.
-
-    Args:
-        page: The page number to retrieve (default: 1).
-        page_size: The number of traps to return per page (default: 10, max: 100).
-
-    Returns:
-        A list of trap hits for the requested page.
-    """
+async def get_traps(
+    request: Request,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    start_time: Optional[datetime] = Query(None),
+    end_time: Optional[datetime] = Query(None),
+):
     start = (page - 1) * page_size
+    must_clauses = []
+
+    if start_time and end_time:
+        must_clauses.append({
+            "range": {
+                "timestamp": {
+                    "gte": start_time.isoformat(),
+                    "lte": end_time.isoformat()
+                }
+            }
+        })
+
+    query_params = request.query_params.multi_items()
+    fixed_params = {"page", "page_size", "start_time", "end_time"}
+
+    dynamic_filters = [(k, v) for k, v in query_params if k not in fixed_params]
+    filter_dict = defaultdict(list)
+    for k, v in dynamic_filters:
+        filter_dict[k].append(v)
+
+    for field, values in filter_dict.items():
+        if field in TOP_LEVEL_FIELDS:
+            es_field = field
+        else:
+            es_field = f"content.{field}"
+
+        if len(values) == 1:
+            must_clauses.append({"term": {es_field: values[0]}})
+        else:
+            must_clauses.append({"terms": {es_field: values}})
+
     body = {
-        "query": {"match_all": {}},
+        "query": {
+            "bool": {
+                "must": must_clauses or [{"match_all": {}}]
+            }
+        },
         "from": start,
         "size": page_size
     }
-    response = opensearch_client.search(
-        index="traps",
-        body=body
-    )
-    
+
+    response = opensearch_client.search(index='traps', body=body)
     hits = response['hits']['hits']
-    total = response['hits']['total']['value']  # Get total number of traps
+    total = response['hits']['total']['value']
 
     return {
         "results": hits,
@@ -166,7 +197,16 @@ def get_unique_terms(index: str, field: str, size: int = 1000) -> List[str]:
 
 @router.get("/traps/tags/unique-values", response_model=List[str])
 def get_dynamic_unique_values(field: str = Query(..., description="Field to aggregate")):
-    return get_unique_terms(index="traps", field=field)
+    # Determine actual field path for aggregation
+    if field in TOP_LEVEL_FIELDS:
+        field_path = field
+    else:
+        field_path = f"content.{field}"
+
+    try:
+        return get_unique_terms(index="traps", field=field_path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/traps/tags/statistics/{tag_key}")
 def get_tag_statistics(tag_key: str):
@@ -270,16 +310,16 @@ async def create_snmpTrapOid(snmpTrapOid: TrapOidCreate, db: AsyncSession = Depe
     return snmpTrapOid_with_relations
 
 @router.get("/traps/trapOids/", response_model=list[TrapOidBrief])
-async def read_mnemonics(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
+async def read_snmpTrapOids(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(TrapOidModel)
         .options(selectinload(TrapOidModel.tags))  # eager load tags here
         .offset(skip)
         .limit(limit)
     )
-    mnemonics = result.scalars().all()
+    snmpTrapOids = result.scalars().all()
     
-    return mnemonics
+    return snmpTrapOids
 
 @router.get("/traps/trapOids/{trap_oid_name}", response_model=dict)
 async def get_trap_oid_by_name(trap_oid_name: str, db: AsyncSession = Depends(get_db)):
@@ -473,11 +513,10 @@ async def get_rule(rule_name: str, db: AsyncSession = Depends(get_db)):
     )
 
 @router.delete("/traps/statefulrules/{rule_name}", status_code=204)
-async def delete_stateful_syslog_rule(
+async def delete_stateful_trap_rule(
     rule_name: str, 
     session: AsyncSession = Depends(get_db)
 ):
-    # Eagerly load related mnemonics
     result = await session.execute(
         select(TrapRulesModel)
         .options(

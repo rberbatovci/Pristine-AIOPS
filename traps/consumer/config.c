@@ -55,9 +55,9 @@ void* reload_data_thread(void* args) {
     while (1) {
         pthread_mutex_lock(&config_mutex);
         load_trap_oids(conn);
-        //print_trap_oids();
+        print_trap_oids();
         load_trap_tags(conn);
-        //print_trap_tags();
+        print_trap_tags();
         pthread_mutex_unlock(&config_mutex);
         sleep(reload_args->interval_seconds);
     }

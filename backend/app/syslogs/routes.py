@@ -143,18 +143,19 @@ def get_time_range(range_str: str) -> Optional[str]:
     else:
         return None
 
+TOP_LEVEL_FIELDS = ["device", "mnemonic", "severity"]
+
 @router.get("/syslogs/")
 async def get_syslogs(
     request: Request,
     page: int = Query(1, ge=1),
-    page_size: int = Query(19, ge=1, le=100),
+    page_size: int = Query(20, ge=1, le=100),
     start_time: Optional[datetime] = Query(None),
     end_time: Optional[datetime] = Query(None),
 ):
     start = (page - 1) * page_size
     must_clauses = []
 
-    # Handle time filters
     if start_time and end_time:
         must_clauses.append({
             "range": {
@@ -165,27 +166,25 @@ async def get_syslogs(
             }
         })
 
-    # Extract all query params
     query_params = request.query_params.multi_items()
     fixed_params = {"page", "page_size", "start_time", "end_time"}
 
-    # Extract dynamic filters
     dynamic_filters = [(k, v) for k, v in query_params if k not in fixed_params]
-
-    # Group by field
     filter_dict = defaultdict(list)
     for k, v in dynamic_filters:
         filter_dict[k].append(v)
 
-    # Apply filters on `.keyword` fields
     for field, values in filter_dict.items():
-        keyword_field = f"{field}.keyword"
-        if len(values) == 1:
-            must_clauses.append({"term": {keyword_field: values[0]}})
+        if field in TOP_LEVEL_FIELDS:
+            es_field = field
         else:
-            must_clauses.append({"terms": {keyword_field: values}})
+            es_field = f"tags.{field}"
 
-    # Compose search query
+        if len(values) == 1:
+            must_clauses.append({"term": {es_field: values[0]}})
+        else:
+            must_clauses.append({"terms": {es_field: values}})
+
     body = {
         "query": {
             "bool": {
@@ -196,10 +195,6 @@ async def get_syslogs(
         "size": page_size
     }
 
-    # Optional: debug print
-    # import pprint; pprint.pprint(body)
-
-    # Perform search
     response = opensearch_client.search(index='syslogs', body=body)
     hits = response['hits']['hits']
     total = response['hits']['total']['value']
@@ -231,7 +226,6 @@ async def get_multiple_syslogs(syslog_ids: list[str] = Body(..., embed=True)):
 
 def get_unique_terms(index: str, field: str, size: int = 1000) -> List[str]:
     try:
-        field_keyword = f"{field}.keyword"
         response = opensearch_client.search(
             index=index,
             size=0,
@@ -239,7 +233,7 @@ def get_unique_terms(index: str, field: str, size: int = 1000) -> List[str]:
                 "aggs": {
                     "unique_terms": {
                         "terms": {
-                            "field": field_keyword,
+                            "field": field,
                             "size": size
                         }
                     }
@@ -254,9 +248,16 @@ def get_unique_terms(index: str, field: str, size: int = 1000) -> List[str]:
 
 @router.get("/syslogs/tags/unique-values", response_model=List[str])
 def get_dynamic_unique_values(field: str = Query(..., description="Field to aggregate")):
-    return get_unique_terms(index="syslogs", field=field)
+    # Determine actual field path for aggregation
+    if field in TOP_LEVEL_FIELDS:
+        field_path = field
+    else:
+        field_path = f"tags.{field}"
 
-TOP_LEVEL_FIELDS = ["device", "mnemonic", "severity"]
+    try:
+        return get_unique_terms(index="syslogs", field=field_path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/syslogs/statistics/{key}")
 def get_field_statistics(key: str):
