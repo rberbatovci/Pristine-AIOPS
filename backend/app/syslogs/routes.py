@@ -600,9 +600,11 @@ async def update_mnemonic_by_name(mnemonic_name: str, mnemonic_update: schemas.M
 
     if mnemonic_update.rules is not None:
         # Fetch the rule objects by their names (assuming rule names are unique)
+        rule_names = [rule.name for rule in mnemonic_update.rules]
         result_rules = await db.execute(
-            select(models.StatefulSyslogRule).where(models.StatefulSyslogRule.name.in_(mnemonic_update.rules))
+            select(models.StatefulSyslogRule).where(models.StatefulSyslogRule.name.in_(rule_names))
         )
+        
         rules = result_rules.scalars().all()
 
         # Update rules

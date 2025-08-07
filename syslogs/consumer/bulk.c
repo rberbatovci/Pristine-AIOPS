@@ -125,30 +125,51 @@ void create_syslogs_index() {
         "  }"
         "}";
 
+    int max_retries = 10;
+    int retry_delay = 30; // seconds
+    int attempt = 0;
+    int success = 0;
+
     curl_global_init(CURL_GLOBAL_DEFAULT);
-    curl = curl_easy_init();
 
-    if (curl) {
-        struct curl_slist *headers = NULL;
-        headers = curl_slist_append(headers, "Content-Type: application/json");
+    while (attempt < max_retries) {
+        curl = curl_easy_init();
+        if (curl) {
+            struct curl_slist *headers = NULL;
+            headers = curl_slist_append(headers, "Content-Type: application/json");
 
-        curl_easy_setopt(curl, CURLOPT_URL, index_url);
-        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
-        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, mapping_json);
+            curl_easy_setopt(curl, CURLOPT_URL, index_url);
+            curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
+            curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, mapping_json);
 
-        res = curl_easy_perform(curl);
+            res = curl_easy_perform(curl);
 
-        if (res != CURLE_OK)
-            fprintf(stderr, "[ERROR] Failed to create index: %s\n", curl_easy_strerror(res));
-        else
-            fprintf(stdout, "[INFO] OpenSearch index 'syslogs' created or already exists.\n");
+            if (res == CURLE_OK) {
+                fprintf(stdout, "[INFO] OpenSearch index 'syslogs' created or already exists.\n");
+                success = 1;
+                curl_easy_cleanup(curl);
+                curl_slist_free_all(headers);
+                break;
+            } else {
+                fprintf(stderr, "[WARN] Attempt %d: Failed to connect to OpenSearch: %s\n", attempt + 1, curl_easy_strerror(res));
+                curl_easy_cleanup(curl);
+                curl_slist_free_all(headers);
+            }
+        }
 
-        curl_easy_cleanup(curl);
-        curl_slist_free_all(headers);
+        attempt++;
+        if (attempt < max_retries) {
+            sleep(retry_delay);
+        }
     }
 
     curl_global_cleanup();
+
+    if (!success) {
+        fprintf(stderr, "[ERROR] Could not connect to OpenSearch after %d attempts. Exiting.\n", max_retries);
+        exit(1);
+    }
 }
 
 void load_env_config()

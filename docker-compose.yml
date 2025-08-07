@@ -153,18 +153,18 @@ services:
     networks:
       - aiops
 
-  celery-worker:
-    container_name: CeleryWorker
-    image: ghcr.io/rberbato/celery:latest
-    build:
-      context: ./signals
-      dockerfile: Dockerfile.syslogSignals
-    command: celery -A tasks worker --loglevel=info
-    depends_on:
-      - redis
-      - kafka
-    networks:
-      - aiops
+  #celery-worker:
+  #  container_name: CeleryWorker
+  #  image: ghcr.io/rberbato/celery:latest
+  #  build:
+  #    context: ./signals
+  #    dockerfile: Dockerfile.syslogSignals
+  #  command: celery -A tasks worker --loglevel=info
+  #  depends_on:
+  #    - redis
+  #    - kafka
+  #  networks:
+  #    - aiops
 
   syslog-producer:
     container_name: SyslogProducer
@@ -192,6 +192,8 @@ services:
        dockerfile: ./dockerfiles/Dockerfile.syslog-consumer
     depends_on:
       kafka:
+        condition: service_healthy
+      opensearch:
         condition: service_healthy
     networks:
       - aiops
@@ -255,6 +257,8 @@ services:
       dockerfile: ./dockerfiles/Dockerfile.traps-consumer
     depends_on:
       kafka:
+        condition: service_healthy
+      opensearch:
         condition: service_healthy
     networks:
       - aiops

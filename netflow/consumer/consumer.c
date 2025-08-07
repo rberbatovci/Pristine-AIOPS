@@ -210,9 +210,100 @@ char *preprocess_large_integers(const char *input, size_t len) {
     return output;
 }
 
+void create_netflow_index() {
+    CURL *curl;
+    CURLcode res;
+
+    const char *index_url = "http://opensearch:9200/netflow";
+    const char *mapping_json =
+        "{"
+        "  \"settings\": {"
+        "    \"number_of_shards\": 1,"
+        "    \"number_of_replicas\": 1"
+        "  },"
+        "  \"mappings\": {"
+        "    \"dynamic\": false,"
+        "    \"properties\": {"
+        "      \"source_addr\":     {\"type\": \"ip\"},"
+        "      \"dest_addr\":       {\"type\": \"ip\"},"
+        "      \"protocol\":        {\"type\": \"integer\"},"
+        "      \"source_port\":     {\"type\": \"integer\"},"
+        "      \"dest_port\":       {\"type\": \"integer\"},"
+        "      \"input_snmp\":      {\"type\": \"long\"},"
+        "      \"output_snmp\":     {\"type\": \"long\"},"
+        "      \"bytes_count\":     {\"type\": \"long\"},"
+        "      \"packets_count\":   {\"type\": \"long\"},"
+        "      \"first_timestamp\": {\"type\": \"date\", \"format\": \"epoch_millis\"},"
+        "      \"last_timestamp\":  {\"type\": \"date\", \"format\": \"epoch_millis\"}"
+        "    }"
+        "  }"
+        "}";
+
+    int max_retries = 10;
+    int retry_delay = 30; // seconds
+    int attempt = 0;
+    int success = 0;
+
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+
+    while (attempt < max_retries) {
+        curl = curl_easy_init();
+        if (curl) {
+            struct curl_slist *headers = NULL;
+            headers = curl_slist_append(headers, "Content-Type: application/json");
+
+            curl_easy_setopt(curl, CURLOPT_URL, index_url);
+            curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
+            curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, mapping_json);
+
+            res = curl_easy_perform(curl);
+
+            if (res == CURLE_OK) {
+                fprintf(stdout, "[INFO] OpenSearch index 'netflow' created or already exists.\n");
+                success = 1;
+                curl_easy_cleanup(curl);
+                curl_slist_free_all(headers);
+                break;
+            } else {
+                fprintf(stderr, "[WARN] Attempt %d: Failed to connect to OpenSearch: %s\n", attempt + 1, curl_easy_strerror(res));
+                curl_easy_cleanup(curl);
+                curl_slist_free_all(headers);
+            }
+        }
+
+        attempt++;
+        if (attempt < max_retries) {
+            sleep(retry_delay);
+        }
+    }
+
+    curl_global_cleanup();
+
+    if (!success) {
+        fprintf(stderr, "[ERROR] Could not connect to OpenSearch after %d attempts. Exiting.\n", max_retries);
+        exit(1);
+    }
+}
+
+void print_banner() {
+    printf("╔══════════════════════════════════════════════╗\n");
+    printf("║           Welcome to Pristine-AIOPS          ║\n");
+    printf("║                   v1.1 beta                  ║\n");
+    printf("║           Thanks for using our tool          ║\n");
+    printf("╚══════════════════════════════════════════════╝\n");
+    printf("\n");
+}
+
 int main() {
     signal(SIGINT, handle_sigterm);
     signal(SIGTERM, handle_sigterm);
+
+    print_banner();
+
+    printf("🚀 Consumer listening for Netflow data...\n");
+
+    create_netflow_index();
 
     char errstr[512];
     rd_kafka_conf_t *conf = rd_kafka_conf_new();
