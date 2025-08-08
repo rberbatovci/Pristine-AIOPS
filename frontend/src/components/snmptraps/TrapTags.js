@@ -206,9 +206,6 @@ function TrapTags({ currentUser, onAdd, onDelete, onEdit, onSave }) {
                             />
                         </div>
                         <div className="signalConfigButtonContainer">
-                            <button onClick={handleSyncToRedis} className="addRuleButton">
-                                Sync to Redis
-                            </button>
                             {selectedTag ? (
                                 <button
                                     className="saveRuleButton"
