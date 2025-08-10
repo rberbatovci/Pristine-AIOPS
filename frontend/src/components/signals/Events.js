@@ -121,7 +121,7 @@ function Events({ currentUser, events, source, rule}) {
   };
   
   return (
-    <div className="signalRightElementContainer ">
+    <div className="signalRightElementContainer" style={{height: '390px'}}>
       <div className="signalRightElementHeader">
         <h2 className="signalRightElementHeaderTxt">
           {showData ? '\u25CF' : '\u25CB'} Signal Events

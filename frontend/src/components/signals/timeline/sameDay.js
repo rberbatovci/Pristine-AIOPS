@@ -16,12 +16,22 @@ const SameDay = ({ currentUser, selectedSignal, startTime, endTime, events, zoom
   console.log('Signal events in sameDay', events);
 
   useEffect(() => {
-    console.log('sameDay called!!!!!!!!!!!!!!');
-    if (timeRef.current) {
-      setTimeContainerWidth(timeRef.current.offsetWidth);
-    } else {
-      setTimeContainerWidth(400);
-    }
+    const measureWidth = () => {
+      if (timeRef.current?.offsetWidth) {
+        setTimeContainerWidth(timeRef.current.offsetWidth);
+      } else {
+        console.warn('⚠️ timeContainerWidth not found, using fallback 400px');
+        setTimeContainerWidth(820); // fallback
+      }
+    };
+
+    // Try immediately
+    measureWidth();
+
+    // Try again after the DOM paints
+    const retry = setTimeout(measureWidth, 50);
+
+    return () => clearTimeout(retry);
   }, []);
 
   useEffect(() => {
@@ -32,14 +42,13 @@ const SameDay = ({ currentUser, selectedSignal, startTime, endTime, events, zoom
       const endHour = endDate.getHours();
       const countedHours = endHour - startHour + 1;
       setTotalHours(countedHours);
-      console.log('Total hours in the same day:', totalHours);
     } else {
       console.log('No startTime or endTime');
     }
   }, [startTime, endTime]);
 
   useEffect(() => {
-    if (timeContainerWidth && totalHours > 0) {
+    if (timeContainerWidth !== null && totalHours > 0) {
       const width = timeContainerWidth / totalHours;
       console.log('✅ timeContainerWidth:', timeContainerWidth);
       console.log('✅ totalHours:', totalHours);
@@ -49,8 +58,10 @@ const SameDay = ({ currentUser, selectedSignal, startTime, endTime, events, zoom
   }, [timeContainerWidth, totalHours]);
 
   useEffect(() => {
-    generateTimeline(hourWidth);
-    createEvents(hourWidth);
+    if (hourWidth > 0) {
+      generateTimeline(hourWidth);
+      createEvents(hourWidth);
+    }
   }, [hourWidth, totalHours, startTime, endTime, zoomCount, events]);
 
   const generateTimeline = () => {
@@ -191,7 +202,7 @@ const SameDay = ({ currentUser, selectedSignal, startTime, endTime, events, zoom
     const startHour = startDate.getHours();
 
     return (
-      
+
       (eventMinute * adjustedWidth) / 60 +
       (eventSecond * adjustedWidth) / 3600
     );

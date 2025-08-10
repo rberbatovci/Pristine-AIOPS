@@ -39,7 +39,7 @@ function TelemetryConfig({ selectedDevice, version, telemetryFeatures, onSuccess
                 </h2>
             </div>
             <div>
-                <ul className="signalTagList">
+                <ul style={{ padding: '10px' }}>
                     {telemetryOptions.map(({ key, label, apiType }) => (
                         <li key={key} className="telemetryFeatureItem">
                             <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
@@ -47,7 +47,7 @@ function TelemetryConfig({ selectedDevice, version, telemetryFeatures, onSuccess
                                     <input
                                         type="checkbox"
                                         readOnly
-                                        checked={telemetryFeatures?.[key] || false}
+                                        checked={selectedDevice?.features?.telemetry?.[key] || false}
                                         style={{ marginRight: '6px', accentColor: '#2196f3' }}
                                     />
                                     <span style={{ paddingLeft: '8px' }}>

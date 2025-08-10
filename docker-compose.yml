@@ -206,6 +206,8 @@ services:
       context: .
       dockerfile: ./dockerfiles/Dockerfile.syslog-signals
     depends_on:
+      postgresql:
+        condition: service_healthy
       kafka:
         condition: service_healthy
     networks:

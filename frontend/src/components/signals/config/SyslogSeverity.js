@@ -28,31 +28,8 @@ const SyslogSeverity = () => {
 
       try {
         const response = await apiClient.get('/syslogsignals/syslogsignalseverity/');
-        const data = response.data;
-
-        if (Array.isArray(data)) {
-          if (data.length === 0) {
-            // Empty list: no config
-            setShowCreateForm(true);
-          } else {
-            const { number, severity, description } = data[0];
-            setActiveSeverity(number);
-            setDescription(description);
-            setShowCreateForm(false);
-          }
-        } else if (typeof data === 'object' && data !== null) {
-          if (data.detail === "NoConfig") {
-            setShowCreateForm(true);
-          } else {
-            // Single object
-            const { severity_level, description } = data;
-            setActiveSeverity(severity_level);
-            setDescription(description);
-            setShowCreateForm(false);
-          }
-        } else {
-          setError('Unexpected response format.');
-        }
+        setActiveSeverity(Number(response.data.number));
+        setDescription(response.data.description);
       } catch (error) {
         if (error.response && error.response.status === 404) {
           setShowCreateForm(true);
@@ -94,12 +71,12 @@ const SyslogSeverity = () => {
   };
 
   return (
-    <div className="signalConfigRuleContainer">
+    <div className="signalConfigRuleContainer" style={{ margin: '10px' }}>
       {isLoading ? (
         <div className="signalConfigRuleMessage">Loading syslog severity config. Please wait...</div>
       ) : error ? (
         <div className="signalConfigRuleMessage">{error}</div>
-      )  : (
+      ) : (
         <>
           <div style={{ background: 'var(--backgroundColor3)', borderRadius: '5px', color: 'var(--textColor)', padding: '10px', paddingLeft: '15px' }}>
             <div style={{ marginBottom: '10px', top: '10px' }}>
@@ -108,13 +85,11 @@ const SyslogSeverity = () => {
             <div style={{ width: '100%' }}>
               <div style={{ display: 'flex', gap: '5px', marginBottom: '10px', width: '100%' }}>
                 {severityOptions.map(({ label, value }) => {
-                  const isActive = value <= Math.max(activeSeverity ?? -1, hoveredSeverity ?? -1);
+                  const isActive = value <= (activeSeverity ?? -1); // highlight up to API value
                   return (
                     <button
                       key={value}
                       onClick={() => setActiveSeverity(value)}
-                      onMouseEnter={() => setHoveredSeverity(value)}
-                      onMouseLeave={() => setHoveredSeverity(null)}
                       className={`syslogSeverityX ${isActive ? 'selectedSyslogSeverityX' : ''}`}
                     >
                       {label}
@@ -149,9 +124,9 @@ const SyslogSeverity = () => {
               </div>
             </div>
           </div>
-    </>
-  )
-}
+        </>
+      )
+      }
     </div >
   );
 };

@@ -365,24 +365,19 @@ const SignalsDashboard = ({ currentUser, setDashboardTitle }) => {
             </div>
 
             <div
-                className="right-column"
                 style={{
                     width: showComponents ? '60%' : '0%',
                     transition: 'width 1s ease-in-out',
                     overflow: 'auto',
                 }}
             >
-                <div className="right-content-wrapper" style={{ transition: '0.5s' }}>
-                    <div className="right-content" style={{transition: 'transition 1s ease-in-out'}}>
-                        { selectedSignal && (
-                            <>
-                                <Info currentUser={currentUser} selectedSignal={selectedSignal} events={events} onSignalDeselect={handleSignalDeselect} dataSource={dataSource} />
-                                <Timeline currentUser={currentUser} selectedSignal={selectedSignal} events={events} dataSource={dataSource} />
-                                <Events currentUser={currentUser} events={events} source={dataSource} rule={selectedSignalRule} />
-                            </>
-                        )}
-                    </div>
-                </div>
+                {selectedSignal && (
+                    <>
+                        <Info currentUser={currentUser} selectedSignal={selectedSignal} events={events} onSignalDeselect={handleSignalDeselect} dataSource={dataSource} />
+                        <Timeline currentUser={currentUser} selectedSignal={selectedSignal} events={events} dataSource={dataSource} />
+                        <Events currentUser={currentUser} events={events} source={dataSource} rule={selectedSignalRule} />
+                    </>
+                )}
             </div>
         </div>
     );

@@ -154,7 +154,6 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
 
       if (onDelete) onDelete(editedData); // ✅ call parent callback
     } catch (error) {
-      console.error('Error deleting tag:', error);
       setAlert("Failed to delete tag. Please try again.");
     } finally {
       setLoadingState(null);

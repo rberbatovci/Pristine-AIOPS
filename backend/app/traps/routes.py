@@ -339,8 +339,8 @@ async def get_trap_oid_by_name(trap_oid_name: str, db: AsyncSession = Depends(ge
         "id": trap_oid.id,
         "name": trap_oid.name,
         "value": trap_oid.value,
+        "alert": trap_oid.alert,
         "tags": [tag.name for tag in trap_oid.tags],
-        "rules": [rule.name for rule in trap_oid.rules]  # if rules are ORM objects
     }
 
 @router.patch("/traps/trapOids/{trap_oid_name}", response_model=TrapOid)
