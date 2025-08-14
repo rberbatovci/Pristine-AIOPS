@@ -40,17 +40,13 @@ services:
   #    - aiops
 
   postgresql:
-    image: postgres:15
+    image: ghcr.io/rberbatovci/postgresql:latest
     container_name: PostgreSQL
     ports:
       - "5432:5432"
-    environment:
-      POSTGRES_USER: PristineAdmin
-      POSTGRES_PASSWORD: PristinePassword
-      POSTGRES_DB: fpristine
+    env_file: .env
     volumes:
       - postgres_data:/var/lib/postgresql/data/
-      - ./postgresql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U PristineAdmin -d fpristine"]
       interval: 5s

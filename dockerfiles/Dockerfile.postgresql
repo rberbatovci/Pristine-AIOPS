@@ -1,0 +1,4 @@
+FROM postgres:15
+
+# Copy your init script into the container's entrypoint folder
+COPY postgresql/init.sql /postgresql/init.sql

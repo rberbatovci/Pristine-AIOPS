@@ -29,6 +29,7 @@ void create_traps_index() {
         "    \"number_of_shards\": 1,"
         "    \"number_of_replicas\": 1"
         "  },"
+        "  \"mappings\": {"
         "    \"properties\": {"
         "      \"timestamp\":     {\"type\": \"date\"},"
         "      \"eventId\":       {\"type\": \"keyword\"},"
