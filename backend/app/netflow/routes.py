@@ -33,7 +33,7 @@ async def get_netflow(page: int = Query(1, ge=1, description="Page number"),
     )
     
     hits = response['hits']['hits']
-    total = response['hits']['total']['value']  # Get total number of matching documents
+    total = response['hits']['total']['value']
 
     return {
         "results": hits,

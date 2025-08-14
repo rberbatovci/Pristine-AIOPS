@@ -52,22 +52,10 @@
     
 }
 
-@keyframes shadowPulse {
-  0% {
-    text-shadow: none;
-  }
-  80% {
-    text-shadow: 0px 2px 8px rgba(186, 2, 192, 0.7);
-  }
-  100% {
-    text-shadow: none;
-  }
-}
 
 .eventsTitleHeader:hover {
-  animation: shadowPulse 0.6s forwards;
   font-size: 1rem;
-  color: rgb(186, 2, 192);
+  color: var(--textColor2);
   background-color: rgba(255, 255, 255, 0.05);
   opacity: 1;
 }

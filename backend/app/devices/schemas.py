@@ -56,8 +56,8 @@ class SyslogConfig(BaseModel):
     severity: Optional[str] = "informational"
 
 class NetflowConfig(BaseModel):
-    enabled: bool
-    interfaces: List[str]
+    enabled: Optional[bool] = True
+    interfaces: Optional[List[str]] = []
 
 class CPUTelemetryConfig(BaseModel):
     receiver_ip: str

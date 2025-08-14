@@ -161,7 +161,6 @@ async def configure_syslogs(
 async def configure_telemetry_feature(
     hostname: str,
     feature_name: str,
-    config: schemas.CPUTelemetryConfig,
     db: AsyncSession = Depends(get_db)
 ):
     # Validate supported telemetry feature
@@ -321,7 +320,6 @@ async def configure_snmp_traps(
 @router.post("/devices/{hostname}/netflow-xe-config/", response_model=schemas.DeviceResponse)
 async def configure_netflow(
     hostname: str,
-    config: schemas.NetflowConfig,
     db: AsyncSession = Depends(get_db)
 ):
     result = await db.execute(select(models.Device).where(models.Device.hostname == hostname))

@@ -18,15 +18,3 @@ class Device(Base):
     gps_latitude = Column(Float, nullable=True)
     gps_longitude = Column(Float, nullable=True)
     features = Column(MutableDict.as_mutable(JSONB))
-
-    statefulSyslogRules = relationship(
-        "StatefulSyslogRule",
-        secondary=stateful_syslog_rule_devices,
-        back_populates="devices"
-    )
-
-    statefulTrapRules = relationship(
-        "StatefulTrapRule",
-        secondary="stateful_trap_rule_devices",
-        back_populates="devices"
-    )

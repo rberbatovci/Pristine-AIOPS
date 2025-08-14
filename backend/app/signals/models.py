@@ -44,18 +44,6 @@ class SyslogSignal(Base):
     mnemonics_name = Column(String(255), ForeignKey("mnemonics.name"), nullable=False)
     events = relationship("Syslog", secondary="syslog_signal_events", back_populates="signals")
 
-class TrapSignal(Base):
-    __tablename__ = "trap_signal"
-
-    id = Column(Integer, primary_key=True, index=True)
-    state = Column(String(10), nullable=False)
-    startTime = Column(DateTime, nullable=False)
-    endTime = Column(DateTime, nullable=True)
-    device_id = Column(Integer, ForeignKey("devices.id"), nullable=True)
-    source = Column(String(15), nullable=True)
-    rule_id = Column(Integer, ForeignKey("stateful_trap_rules.id"), nullable=True)
-    affectedEntity = Column(JSON, nullable=True)
-    description = Column(Text, default='')
 
 
 class SyslogSignalSeverity(Base):

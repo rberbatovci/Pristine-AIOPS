@@ -33,23 +33,3 @@ class SyslogSignalRead(SyslogSignalBase):
         from_attributes = True
 
 
-class TrapSignalBase(BaseModel):
-    state: str
-    startTime: datetime
-    endTime: Optional[datetime] = None
-    source: Optional[str] = None
-    rule_id: Optional[int] = None
-    device_id: Optional[int] = None
-    affectedEntity: Optional[dict] = None
-    description: Optional[str] = ''
-
-
-class TrapSignalCreate(TrapSignalBase):
-    pass
-
-
-class TrapSignalRead(TrapSignalBase):
-    id: int
-
-    class Config:
-        from_attributes = True

@@ -1,10 +1,9 @@
 from fastapi import FastAPI
 from app.users import routes as users
 from app.devices import routes as devices
-from app.syslogs import routes as syslogs
-from app.traps import routes as traps
+from app.syslogs import events as syslogEvents, signals as syslogSignals, mnemonics, regex, rules as syslogRules, tags as syslogTags, statistics as syslogStatistics
+from app.traps import events as trapEvents, signals as trapSignals, snmptrapoids, tags as trapTags, statistics as trapStatistics, rules as trapRules, mibs
 from app.netflow import routes as netflow
-from app.signals import routes as signals
 from app.telemetry import routes as telemetry
 from app.db.session import engine
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -59,10 +58,25 @@ app.add_middleware(
 
 app.include_router(users.router)
 app.include_router(devices.router)
-app.include_router(syslogs.router)
-app.include_router(traps.router)
+
+app.include_router(syslogEvents.router)
+app.include_router(mnemonics.router)
+app.include_router(regex.router)
+app.include_router(syslogRules.router)
+app.include_router(syslogTags.router)
+app.include_router(syslogStatistics.router)
+app.include_router(syslogSignals.router)
+
+app.include_router(trapEvents.router)
+app.include_router(snmptrapoids.router)
+app.include_router(trapTags.router)
+app.include_router(trapStatistics.router)
+app.include_router(trapRules.router)
+app.include_router(mibs.router)
+app.include_router(trapSignals.router)
+
 app.include_router(netflow.router)
-app.include_router(signals.router)
+#app.include_router(signals.router)
 app.include_router(telemetry.router)
 
 async def create_tables(engine: AsyncEngine):

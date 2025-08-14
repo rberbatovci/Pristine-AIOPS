@@ -1,111 +1,92 @@
-import React, { useState, useEffect } from 'react';
-import Select from 'react-select';
+import { useState } from 'react';
 import apiClient from '../misc/AxiosConfig';
-import customStyles from '../misc/SelectStyles';
 import { TailSpin } from 'react-loader-spinner';
 import { IoPushOutline, IoPushSharp } from "react-icons/io5";
 
-const IOS_XE_INTERFACES = [
-    'GigabitEthernet1', 'GigabitEthernet2', 'Loopback0', 'Loopback1', 'Vlan1'
-];
-
-const IOS_XR_INTERFACES = [
-    'GigabitEthernet0/0/0/0', 'GigabitEthernet0/0/0/1', 'Loopback0', 'MgmtEth0/RP0/CPU0/0'
-];
-
-function NetflowConfig({ selectedDevice, version, onSuccess }) {
-    const [enabled, setEnabled] = useState(false);
+function NetflowConfig({ selectedDevice: initialDevice, onSuccess }) {
+    const [device, setDevice] = useState(initialDevice);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [interfaces, setInterfaces] = useState([]);
-    const [interfaceOptions, setInterfaceOptions] = useState([]);
 
-    useEffect(() => {
-        if (version === 'ios-xe') {
-            setInterfaceOptions(IOS_XE_INTERFACES.map((intf) => ({ value: intf, label: intf })));
-        } else if (version === 'ios-xr') {
-            setInterfaceOptions(IOS_XR_INTERFACES.map((intf) => ({ value: intf, label: intf })));
-        } else {
-            setInterfaceOptions([]);
-        }
-    }, [version]);
-
-    const handleChange = (selectedOptions) => {
-        setInterfaces(selectedOptions || []);
+    const getNetflowEndpoint = () => {
+        if (!device.version) throw new Error('Device version not provided');
+        if (device.version === 'ios-xe') return `/devices/${device.hostname}/netflow-xe-config/`;
+        if (device.version === 'ios-xr') return `/devices/${device.hostname}/netflow-xr-config/`;
+        throw new Error(`Unsupported device version: ${device.version}`);
     };
 
     const sendConfig = async () => {
+
         setLoading(true);
         setError('');
         try {
-            const response = await apiClient.post(`/devices/${selectedDevice.hostname}/netflow-xe-config/`, {
-                enabled,
-                interfaces: interfaces.map((opt) => opt.value),
-            });
+            const response = await apiClient.post(getNetflowEndpoint(), {});
+
+            setDevice(prev => ({
+                ...prev,
+                features: { ...prev.features, netflow: true }
+            }));
 
             if (onSuccess) onSuccess(response.data);
-        } catch (error) {
-            console.error('Netflow config failed:', error);
-            setError(error.response?.data?.detail || error.message || 'Unknown error');
+        } catch (err) {
+            console.error('Netflow config failed:', err);
+            setError(err.response?.data?.detail || err.message || 'Unknown error');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleSubmit = () => sendConfig();
-    const handleSkip = () => onSuccess?.(null);
-
     return (
         <div className="signalRightElementContainer">
             <div className="signalRightElementHeader">
                 <h2 className="signalRightElementHeaderTxt" >
-                     Netflow
+                    Netflow
                 </h2>
-                {!selectedDevice?.features?.netflow && (
-                                    <div className="zoom-buttons-container">
-                                        <div className="headerButtons">
-                
-                                            {loading ? (
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                        <TailSpin
-                                                            height="20"
-                                                            width="20"
-                                                            color="#ffffff"
-                                                            ariaLabel="loading"
-                                                        />
-                                                    </div>
-                                            ) : (
-                                                <button onClick={sendConfig} className="iconButton">
-                                                    <IoPushOutline className="defaultIcon" />
-                                                    <IoPushSharp className="hoverIcon" />
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-            </div>
-                <div style={{ padding: '8px', marginLeft: '15px', fontSize: '14px', color: 'var(--textColor)', opacity: '0.8' }}>
-                    {loading ? (
-                        <div style={{ color: 'var(--spanTextColor)' }}>
-                            Configuring Netflow<span className="dot-flash">...</span>
-                        </div>
-                    ) : selectedDevice?.features?.netflow ? (
-                        <div style={{ color: 'var(--spanTextColor)' }}>
-                            Netflow are already configured on this device.
-                        </div>
-                    ) : (
-                        <div style={{ color: 'var(--spanTextColor)' }}>
-                            Please configure Netflow on the device.
-                        </div>
-                    )}
+                {!device?.features?.netflow && (
+                    <div className="zoom-buttons-container">
+                        <div className="headerButtons">
 
-                    {/* Error message */}
-                    {error && (
-                        <div style={{ color: 'red', marginTop: '10px' }}>
-                            {typeof error === 'string' ? error : JSON.stringify(error)}
+                            {loading ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <TailSpin
+                                        height="20"
+                                        width="20"
+                                        color="#ffffff"
+                                        ariaLabel="loading"
+                                    />
+                                </div>
+                            ) : (
+                                <button onClick={sendConfig} className="iconButton">
+                                    <IoPushOutline className="defaultIcon" />
+                                    <IoPushSharp className="hoverIcon" />
+                                </button>
+                            )}
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
+            </div>
+            <div style={{ padding: '8px', marginLeft: '15px', fontSize: '14px', color: 'var(--textColor)', opacity: '0.8' }}>
+                {loading ? (
+                    <div style={{ color: 'var(--spanTextColor)' }}>
+                        Configuring Netflow<span className="dot-flash">...</span>
+                    </div>
+                ) : device?.features?.netflow ? (
+                    <div style={{ color: 'var(--spanTextColor)' }}>
+                        Netflow are already configured on this device.
+                    </div>
+                ) : (
+                    <div style={{ color: 'var(--spanTextColor)' }}>
+                        Please configure Netflow on the device.
+                    </div>
+                )}
+
+                {/* Error message */}
+                {error && (
+                    <div style={{ color: 'red', marginTop: '10px' }}>
+                        {typeof error === 'string' ? error : JSON.stringify(error)}
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
