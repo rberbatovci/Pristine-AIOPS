@@ -15,7 +15,6 @@ COPY frontend/ ./
 RUN npm run build
 
 # Remove default Nginx config and add custom one for React SPA
-RUN rm /etc/nginx/conf.d/default.conf
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Use a lightweight web server to serve the static files
