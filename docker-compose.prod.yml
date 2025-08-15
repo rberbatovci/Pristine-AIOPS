@@ -34,17 +34,13 @@ services:
   #    - aiops
 
   postgresql:
-    image: postgres:15
+    image: ghcr.io/rberbatovci/postgresql:latest
     container_name: PostgreSQL
     ports:
       - "5432:5432"
-    environment:
-      POSTGRES_USER: PristineAdmin
-      POSTGRES_PASSWORD: PristinePassword
-      POSTGRES_DB: fpristine
+    env_file: .env
     volumes:
       - postgres_data:/var/lib/postgresql/data/
-      - ./postgresql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U PristineAdmin -d fpristine"]
       interval: 5s
@@ -130,10 +126,7 @@ services:
   syslog-producer:
     container_name: SyslogProducer
     image: ghcr.io/rberbatovci/syslog-producer:latest
-    environment:
-      SYSLOG_PORT: ${SYSLOG_PORT:-1160}
-      DATA_FLUSH_INTERVAL: ${DATA_FLUSH_INTERVAL:-1}
-      DATA_FLUSH_SIZE: ${DATA_FLUSH_SIZE:-100}
+    env_file: .env
     ports:
       - "1160:1160/udp"
     depends_on:
@@ -145,12 +138,7 @@ services:
   syslog-consumer:
     container_name: SyslogConsumer
     image: ghcr.io/rberbatovci/syslog-consumer:latest
-    environment:
-      KAFKA_BROKER: kafka:9092
-      KAFKA_EVENTS_TOPIC: syslog-events
-      KAFKA_SIGNALS_TOPIC: syslog-signals
-      DATA_FLUSH_INTERVAL: ${DATA_FLUSH_INTERVAL:-1}
-      DATA_FLUSH_SIZE: ${DATA_FLUSH_SIZE:-100}
+    env_file: .env
     depends_on:
       kafka:
         condition: service_healthy
@@ -165,11 +153,7 @@ services:
   syslog-signals:
     container_name: SyslogSignals
     image: ghcr.io/rberbatovci/syslog-signals:latest
-    environment:
-      KAFKA_BROKER: kafka:9092
-      KAFKA_SIGNALS_TOPIC: syslog-signals
-      DATA_FLUSH_INTERVAL: ${DATA_FLUSH_INTERVAL:-1}
-      DATA_FLUSH_SIZE: ${DATA_FLUSH_SIZE:-100}
+    env_file: .env
     depends_on:
       kafka:
         condition: service_healthy
@@ -180,11 +164,7 @@ services:
   trap-signals:
     container_name: TrapSignals
     image: ghcr.io/rberbatovci/traps-signals:latest
-    environment:
-      KAFKA_BROKER: kafka:9092
-      KAFKA_SIGNALS_TOPIC: trap-signals
-      DATA_FLUSH_INTERVAL: ${DATA_FLUSH_INTERVAL:-1}
-      DATA_FLUSH_SIZE: ${DATA_FLUSH_SIZE:-100}
+    env_file: .env
     depends_on:
       kafka:
         condition: service_healthy
@@ -195,17 +175,7 @@ services:
   trap-producer:
     container_name: TrapProducer
     image: ghcr.io/rberbatovci/traps-producer:latest
-    environment:
-      KAFKA_BROKER: kafka:9092
-      KAFKA_EVENTS_TOPIC: trap-events
-      KAFKA_SIGNALS_TOPIC: trap-signals
-      SNMP_AUTH_PASS: ${SNMP_AUTH_PASS}
-      SNMP_PRIV_PASS: ${SNMP_PRIV_PASS}
-      SNMP_USERNAME: ${SNMP_USERNAME}
-      SNMP_ENGINE_ID: ${SNMP_ENGINE_ID}
-      SNMP_TRAP_PORT: ${SNMP_TRAP_PORT}
-      DATA_FLUSH_INTERVAL: ${DATA_FLUSH_INTERVAL:-1}
-      DATA_FLUSH_SIZE: ${DATA_FLUSH_SIZE:-100}
+    env_file: .env
     ports:
       - "1161:1161/udp"
     volumes:
@@ -219,12 +189,7 @@ services:
   trap-consumer:
     container_name: TrapConsumer
     image: ghcr.io/rberbatovci/traps-consumer:latest
-    environment:
-      KAFKA_BROKER: kafka:9092
-      KAFKA_EVENTS_TOPIC: trap-events
-      KAFKA_SIGNALS_TOPIC: trap-signals
-      DATA_FLUSH_INTERVAL: ${DATA_FLUSH_INTERVAL:-1}
-      DATA_FLUSH_SIZE: ${DATA_FLUSH_SIZE:-100}
+    env_file: .env
     depends_on:
       kafka:
         condition: service_healthy
@@ -237,6 +202,7 @@ services:
     image: ghcr.io/rberbatovci/netflow-producer:latest
     ports:
       - "1162:1162/udp"
+    env_file: .env
     depends_on:
       kafka:
         condition: service_healthy
@@ -246,6 +212,7 @@ services:
   netflow-consumer:
     container_name: NetflowConsumer
     image: ghcr.io/rberbatovci/netflow-consumer:latest
+    env_file: .env
     depends_on:
       kafka:
         condition: service_healthy
@@ -258,13 +225,9 @@ services:
   telemetry-producer:
     container_name: TelemetryProducer
     image: ghcr.io/rberbatovci/telemetry-producer:latest
-    environment:
-      - KAFKA_BROKER=kafka:9092
-      - KAFKA_TOPIC=telemetry-topic
+    env_file: .env
     ports:
       - "1163:1163"
-    env_file:
-      - .env
     depends_on:
       kafka:
         condition: service_healthy
@@ -276,6 +239,7 @@ services:
   cpu-util-stats:
     container_name: CPUUtilStatistics
     image: ghcr.io/rberbatovci/telemetry-cpu-util-stats:latest
+    env_file: .env
     depends_on:
       kafka:
         condition: service_healthy
@@ -288,6 +252,7 @@ services:
   memory-statistics:
     container_name: MemoryStatistics
     image: ghcr.io/rberbatovci/telemetry-memory-stats:latest
+    env_file: .env
     depends_on:
       kafka:
         condition: service_healthy
@@ -300,6 +265,7 @@ services:
   interface-statistics:
     container_name: InterfaceStatistics
     image: ghcr.io/rberbatovci/telemetry-interface-stats:latest
+    env_file: .env
     depends_on:
       kafka:
         condition: service_healthy
