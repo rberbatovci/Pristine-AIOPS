@@ -98,16 +98,49 @@ services:
     networks:
       - aiops
 
-  opensearch:
-    image: opensearchproject/opensearch:1.0.1
-    container_name: OpenSearch
+  #opensearch:
+  #  image: opensearchproject/opensearch:1.0.1
+  #  container_name: OpenSearch
+  #  environment:
+  #    - cluster.name=opensearch-cluster
+  #    - node.name=opensearch-node1
+  #    - discovery.type=single-node
+  #    - bootstrap.memory_lock=true
+  #    - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+  #    - DISABLE_SECURITY_PLUGIN=true
+  #  ulimits:
+  #    memlock:
+  #      soft: -1
+  #      hard: -1
+  #    nofile:
+  #      soft: 65536
+  #      hard: 65536
+  #  volumes:
+  #    - ./opensearch/config/opensearch.yml:/usr/share/opensearch/config/opensearch.yml
+  #    - ./opensearch/config/jvm.options:/usr/share/opensearch/config/jvm.options
+  #  healthcheck:
+  #    test: ["CMD-SHELL", "curl -sf http://localhost:9200/"]
+  #    interval: 30s
+  #    timeout: 10s
+  #    retries: 5
+  #  ports:
+  #    - 9200:9200
+  #    - 9600:9600
+  #  networks:
+  #    - aiops
+
+  opensearch-node1:
+    image: opensearchproject/opensearch:3.1.0
+    container_name: opensearch-node1
     environment:
-      - cluster.name=opensearch-cluster
-      - node.name=opensearch-node1
-      - discovery.type=single-node
-      - bootstrap.memory_lock=true
-      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
-      - DISABLE_SECURITY_PLUGIN=true
+      cluster.name: opensearch-cluster
+      node.name: opensearch-node1
+      discovery.seed_hosts: opensearch-node1,opensearch-node2,opensearch-node3
+      cluster.initial_cluster_manager_nodes: opensearch-node1,opensearch-node2,opensearch-node3
+      bootstrap.memory_lock: "true"
+      OPENSEARCH_USERNAME: ${OPENSEARCH_USERNAME}
+      OPENSEARCH_PASSWORD: ${OPENSEARCH_PASSWORD}
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: ${OPENSEARCH_PASSWORD}
     ulimits:
       memlock:
         soft: -1
@@ -116,29 +149,84 @@ services:
         soft: 65536
         hard: 65536
     volumes:
-      - ./opensearch/config/opensearch.yml:/usr/share/opensearch/config/opensearch.yml
-      - ./opensearch/config/jvm.options:/usr/share/opensearch/config/jvm.options
+      - opensearch-data1:/usr/share/opensearch/data
+    ports:
+      - "9200:9200"
+      - "9600:9600"
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:9200/"]
+      test: ["CMD-SHELL", "curl -sk -u ${OPENSEARCH_USERNAME}:${OPENSEARCH_PASSWORD} https://localhost:9200 | grep -q 'cluster_name'"]
       interval: 30s
       timeout: 10s
-      retries: 5
-    ports:
-      - 9200:9200
-      - 9600:9600
+      retries: 10
     networks:
       - aiops
 
-  #opensearch-init:
-  #  image: ghcr.io/rberbato/opensearch-init:latest
-  #  build:
-  #    context: ./opensearch
-  #    dockerfile: Dockerfile.OpenSearch
-  #  depends_on:
-  #    opensearch:
-  #      condition: service_healthy
-  #  networks:
-  #    - aiops
+  opensearch-node2:
+    image: opensearchproject/opensearch:3.1.0
+    container_name: opensearch-node2
+    environment:
+      cluster.name: opensearch-cluster
+      node.name: opensearch-node2
+      discovery.seed_hosts: opensearch-node1,opensearch-node2,opensearch-node3
+      cluster.initial_cluster_manager_nodes: opensearch-node1,opensearch-node2,opensearch-node3
+      bootstrap.memory_lock: "true"
+      OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
+      OPENSEARCH_USERNAME: ${OPENSEARCH_USERNAME}
+      OPENSEARCH_PASSWORD: ${OPENSEARCH_PASSWORD}
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: ${OPENSEARCH_PASSWORD}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - opensearch-data2:/usr/share/opensearch/data
+    networks:
+      - aiops
+
+  opensearch-node3:
+    image: opensearchproject/opensearch:3.1.0
+    container_name: opensearch-node3
+    environment:
+      cluster.name: opensearch-cluster
+      node.name: opensearch-node3
+      discovery.seed_hosts: opensearch-node1,opensearch-node2,opensearch-node3
+      cluster.initial_cluster_manager_nodes: opensearch-node1,opensearch-node2,opensearch-node3
+      bootstrap.memory_lock: "true"
+      OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
+      OPENSEARCH_USERNAME: ${OPENSEARCH_USERNAME}
+      OPENSEARCH_PASSWORD: ${OPENSEARCH_PASSWORD}
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: ${OPENSEARCH_PASSWORD}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - opensearch-data3:/usr/share/opensearch/data
+    networks:
+      - aiops
+
+  dashboards:
+    image: opensearchproject/opensearch-dashboards:3.1.0
+    container_name: opensearch-dashboards
+    environment:
+      OPENSEARCH_HOSTS: '["https://opensearch-node1:9200","https://opensearch-node2:9200","https://opensearch-node3:9200"]'
+      OPENSEARCH_USERNAME: ${OPENSEARCH_USERNAME}
+      OPENSEARCH_PASSWORD: ${OPENSEARCH_PASSWORD}
+      OPENSEARCH_SSL_VERIFICATIONMODE: none
+    depends_on: 
+      - opensearch-node1
+      - opensearch-node2
+      - opensearch-node3
+    ports:
+      - "5601:5601"
+    networks:
+      - aiops
 
   redis:
     container_name: Redis
@@ -189,7 +277,7 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
-      opensearch:
+      opensearch-node1:
         condition: service_healthy
     networks:
       - aiops
@@ -256,7 +344,7 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
-      opensearch:
+      opensearch-node1:
         condition: service_healthy
     networks:
       - aiops
@@ -287,7 +375,7 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
-      opensearch:
+      opensearch-node1:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -323,7 +411,7 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
-      opensearch:
+      opensearch-node1:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -338,7 +426,7 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
-      opensearch:
+      opensearch-node1:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -353,7 +441,7 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
-      opensearch:
+      opensearch-node1:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -368,7 +456,7 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
-      opensearch:
+      opensearch-node1:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -377,4 +465,6 @@ services:
 volumes:
   postgres_data:
   opensearch-data1:
+  opensearch-data2:
+  opensearch-data3:
   shared-mibs:
