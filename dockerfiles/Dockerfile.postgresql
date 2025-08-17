@@ -1,4 +1,4 @@
 FROM postgres:15
 
 # Copy your init script into the container's entrypoint folder
-COPY postgresql/init.sql /docker-entrypoint-initdb.d/init.sql
+COPY postgresql/init.sql /docker-entrypoint-initdb.d/
