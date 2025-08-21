@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import Column, String, Integer, ForeignKey, JSON 
-from app.db.session import Base, get_db
+from app.db.session import Base, get_db, opensearch_client
 from sqlalchemy import Column, Integer, String, ForeignKey, JSON, DateTime, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime

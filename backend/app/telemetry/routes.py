@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, Dict, Any, List
-from ..db.session import get_db, opensearch_client
+from app.db.session import get_db, opensearch_client
 
 router = APIRouter()
 
@@ -81,13 +81,14 @@ def get_memory_statistics(
     return {"results": results}
 
 @router.get("/telemetry/interface-statistics/interfaces/")
-def getDeviceInterfaces(device: Optional[str] = Query(None)):
+def get_device_interfaces(device: Optional[str] = Query(None)):
     must_clauses = []
     if device:
-        must_clauses.append({"term": {"device.keyword": device}})
+        # Use the `.keyword` field to aggregate exact matches
+        must_clauses.append({"term": {"device": device}})
 
     query = {
-        "size": 0,
+        "size": 0,  # We only want aggregation results
         "query": {
             "bool": {
                 "must": must_clauses
@@ -96,8 +97,8 @@ def getDeviceInterfaces(device: Optional[str] = Query(None)):
         "aggs": {
             "unique_interfaces": {
                 "terms": {
-                    "field": "interface.keyword",
-                    "size": 1000
+                    "field": "interface",
+                    "size": 1000  # max number of interfaces to return
                 }
             }
         }
@@ -114,7 +115,7 @@ def getDeviceInterfaces(device: Optional[str] = Query(None)):
     return {"interfaces": interfaces}
 
 @router.get("/telemetry/interface-statistics/")
-def get_memory_statistics(
+def get_interface_statistics(
     device: Optional[str] = Query(None),
     interface: Optional[str] = Query(None),
     limit: int = Query(100)
@@ -122,9 +123,9 @@ def get_memory_statistics(
     must_clauses = []
 
     if device:
-        must_clauses.append({"term": {"device.keyword": device}})
+        must_clauses.append({"term": {"device": device}})
     if interface:
-        must_clauses.append({"term": {"interface.keyword": interface}})
+        must_clauses.append({"term": {"interface": interface}})
 
     query = {
         "query": {
@@ -143,7 +144,7 @@ def get_memory_statistics(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"OpenSearch query failed: {str(e)}")
 
-    hits = response["hits"]["hits"]
+    hits = response.get("hits", {}).get("hits", [])
 
     results = [
         {
@@ -153,6 +154,7 @@ def get_memory_statistics(
             "timestamp": doc["_source"]["msg_timestamp"],
             "ingested_at": doc["_source"]["ingested_at"],
             "collection_id": doc["_source"]["collection_id"],
+            "subscription": doc["_source"].get("subscription", {}),
         }
         for doc in hits
     ]

@@ -1,8 +1,11 @@
 from typing import List
 from fastapi import APIRouter, status, HTTPException, Query
+from app.db.session import opensearch_client
 
 # Router instance
 router = APIRouter()
+
+TOP_LEVEL_FIELDS = [ "snmpTrapOid", "device"]
 
 # ======================
 # SQLAlchemy Model

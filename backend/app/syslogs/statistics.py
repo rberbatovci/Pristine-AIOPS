@@ -1,7 +1,10 @@
 from fastapi import APIRouter, HTTPException, Query, Body 
 from typing import List
+from app.db.session import opensearch_client
 
 router = APIRouter()
+
+TOP_LEVEL_FIELDS = [ "mnemonic", "device", "severity" ]
 
 def get_unique_terms(index: str, field: str, size: int = 1000) -> List[str]:
     try:
@@ -41,7 +44,7 @@ def get_dynamic_unique_values(field: str = Query(..., description="Field to aggr
 @router.get("/syslogs/statistics/{key}")
 def get_field_statistics(key: str):
     # Fields like 'severity', 'device', etc. should use .keyword
-    field_path = f"{key}.keyword" if key in TOP_LEVEL_FIELDS else f"tags.{key}.keyword"
+    field_path = f"{key}" if key in TOP_LEVEL_FIELDS else f"tags.{key}"
 
     query = {
         "size": 0,
