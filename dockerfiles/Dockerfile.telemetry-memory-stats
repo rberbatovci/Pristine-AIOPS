@@ -2,17 +2,20 @@ FROM golang:1.23-alpine AS builder
 
 WORKDIR /app/telemetry/memory-stats
 
+# Copy go.mod and go.sum
 COPY telemetry/memory-stats/go.mod telemetry/memory-stats/go.sum ./
 
+# Copy protobuf + source *before* tidy
 COPY telemetry/protobuf /app/telemetry/protobuf
-
 COPY telemetry/memory-stats/. .
 
-RUN go mod download
+# Run tidy AFTER code is present
+RUN go mod tidy
 
 # Build your binary
 RUN go build -o consumer main.go
 
+# Final stage
 FROM alpine:3.18
 
 WORKDIR /app/telemetry/memory-stats

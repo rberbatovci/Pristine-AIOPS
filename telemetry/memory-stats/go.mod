@@ -9,6 +9,7 @@ require (
 	github.com/opensearch-project/opensearch-go v1.1.0
 	github.com/segmentio/kafka-go v0.4.48
 	telemetry/protobuf v0.0.0
+	github.com/joho/godotenv v1.5.1
 )
 
 require (

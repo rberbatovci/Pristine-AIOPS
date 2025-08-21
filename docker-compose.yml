@@ -133,31 +133,27 @@ services:
     image: opensearchproject/opensearch:3.1.0
     container_name: opensearch-node1
     environment:
-      cluster.name: opensearch-cluster
-      node.name: opensearch-node1
-      discovery.seed_hosts: opensearch-node1,opensearch-node2,opensearch-node3
-      cluster.initial_cluster_manager_nodes: opensearch-node1,opensearch-node2,opensearch-node3
-      bootstrap.memory_lock: "true"
-      OPENSEARCH_USERNAME: ${OPENSEARCH_USERNAME}
-      OPENSEARCH_PASSWORD: ${OPENSEARCH_PASSWORD}
-      OPENSEARCH_INITIAL_ADMIN_PASSWORD: ${OPENSEARCH_PASSWORD}
+      - cluster.name=opensearch-cluster
+      - node.name=opensearch-node1
+      - discovery.seed_hosts=opensearch-node1,opensearch-node2,opensearch-node3
+      - cluster.initial_master_nodes=opensearch-node1,opensearch-node2,opensearch-node3
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - DISABLE_SECURITY_PLUGIN=true
     ulimits:
       memlock:
         soft: -1
         hard: -1
-      nofile:
-        soft: 65536
-        hard: 65536
     volumes:
       - opensearch-data1:/usr/share/opensearch/data
     ports:
-      - "9200:9200"
-      - "9600:9600"
+      - "9200:9200"   # REST API
+      - "9600:9600"   # Performance Analyzer
     healthcheck:
-      test: ["CMD-SHELL", "curl -sk -u ${OPENSEARCH_USERNAME}:${OPENSEARCH_PASSWORD} https://localhost:9200 | grep -q 'cluster_name'"]
+      test: ["CMD-SHELL", "curl -s http://localhost:9200 || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 10
+      retries: 5
     networks:
       - aiops
 
@@ -165,24 +161,24 @@ services:
     image: opensearchproject/opensearch:3.1.0
     container_name: opensearch-node2
     environment:
-      cluster.name: opensearch-cluster
-      node.name: opensearch-node2
-      discovery.seed_hosts: opensearch-node1,opensearch-node2,opensearch-node3
-      cluster.initial_cluster_manager_nodes: opensearch-node1,opensearch-node2,opensearch-node3
-      bootstrap.memory_lock: "true"
-      OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
-      OPENSEARCH_USERNAME: ${OPENSEARCH_USERNAME}
-      OPENSEARCH_PASSWORD: ${OPENSEARCH_PASSWORD}
-      OPENSEARCH_INITIAL_ADMIN_PASSWORD: ${OPENSEARCH_PASSWORD}
+      - cluster.name=opensearch-cluster
+      - node.name=opensearch-node2
+      - discovery.seed_hosts=opensearch-node1,opensearch-node2,opensearch-node3
+      - cluster.initial_master_nodes=opensearch-node1,opensearch-node2,opensearch-node3
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - DISABLE_SECURITY_PLUGIN=true
     ulimits:
       memlock:
         soft: -1
         hard: -1
-      nofile:
-        soft: 65536
-        hard: 65536
     volumes:
       - opensearch-data2:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     networks:
       - aiops
 
@@ -190,24 +186,24 @@ services:
     image: opensearchproject/opensearch:3.1.0
     container_name: opensearch-node3
     environment:
-      cluster.name: opensearch-cluster
-      node.name: opensearch-node3
-      discovery.seed_hosts: opensearch-node1,opensearch-node2,opensearch-node3
-      cluster.initial_cluster_manager_nodes: opensearch-node1,opensearch-node2,opensearch-node3
-      bootstrap.memory_lock: "true"
-      OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
-      OPENSEARCH_USERNAME: ${OPENSEARCH_USERNAME}
-      OPENSEARCH_PASSWORD: ${OPENSEARCH_PASSWORD}
-      OPENSEARCH_INITIAL_ADMIN_PASSWORD: ${OPENSEARCH_PASSWORD}
+      - cluster.name=opensearch-cluster
+      - node.name=opensearch-node3
+      - discovery.seed_hosts=opensearch-node1,opensearch-node2,opensearch-node3
+      - cluster.initial_master_nodes=opensearch-node1,opensearch-node2,opensearch-node3
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - DISABLE_SECURITY_PLUGIN=true
     ulimits:
       memlock:
         soft: -1
         hard: -1
-      nofile:
-        soft: 65536
-        hard: 65536
     volumes:
       - opensearch-data3:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     networks:
       - aiops
 
@@ -274,6 +270,8 @@ services:
     build:
        context: .
        dockerfile: ./dockerfiles/Dockerfile.syslog-consumer
+    env_file:
+      - .env
     depends_on:
       kafka:
         condition: service_healthy
@@ -289,6 +287,8 @@ services:
     build:
       context: .
       dockerfile: ./dockerfiles/Dockerfile.syslog-signals
+    env_file:
+      - .env
     depends_on:
       postgresql:
         condition: service_healthy
@@ -304,6 +304,8 @@ services:
     build:
       context: .
       dockerfile: ./dockerfiles/Dockerfile.traps-signals
+    env_file:
+      - .env
     depends_on:
       kafka:
         condition: service_healthy
@@ -341,6 +343,8 @@ services:
     build:
       context: .
       dockerfile: ./dockerfiles/Dockerfile.traps-consumer
+    env_file:
+      - .env
     depends_on:
       kafka:
         condition: service_healthy

@@ -193,7 +193,21 @@ void printRule(StatefulRule *rule) {
 
 void *reload_data_thread(void *args)
 {
-    const char *conninfo = "host=postgresql dbname=fpristine user=PristineAdmin password=PristinePassword";
+    const char *host = getenv("POSTGRES_HOST");
+    const char *dbname = getenv("POSTGRES_DB");
+    const char *user = getenv("POSTGRES_USER");
+    const char *password = getenv("POSTGRES_PASSWORD");
+
+    if (!host || !dbname || !user || !password) {
+        fprintf(stderr, "[ERROR] One or more PostgreSQL environment variables are not set.\n");
+        return NULL;
+    }
+
+    char conninfo[512];
+    snprintf(conninfo, sizeof(conninfo),
+             "host=%s dbname=%s user=%s password=%s",
+             host, dbname, user, password);
+
     PGconn *conn = PQconnectdb(conninfo);
 
     if (PQstatus(conn) != CONNECTION_OK)
@@ -202,6 +216,8 @@ void *reload_data_thread(void *args)
         PQfinish(conn);
         return NULL;
     }
+
+    fprintf(stdout, "[INFO] Connected to PostgreSQL successfully.\n");
 
     ReloadArgs *reload_args = (ReloadArgs *)args;
 
@@ -216,5 +232,6 @@ void *reload_data_thread(void *args)
         sleep(reload_args->interval_seconds);
     }
 
+    PQfinish(conn);
     return NULL;
 }

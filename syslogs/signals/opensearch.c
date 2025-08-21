@@ -7,6 +7,13 @@
 
 #define BULK_OPENSEARCH_FLUSH_INTERVAL 5
 #define MAX_OPENSEARCH_BULK_EVENTS 1
+#define OPENSEARCH_NODE_COUNT 3
+
+const char *opensearch_nodes[OPENSEARCH_NODE_COUNT] = {
+    "http://opensearch-node1:9200",
+    "http://opensearch-node2:9200",
+    "http://opensearch-node3:9200"
+};
 
 pthread_mutex_t bulk_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -20,6 +27,89 @@ void init_bulk_array() {
         fprintf(stdout, "[DEBUG] Initializing bulk array\n");
         bulk_array = json_array();
     }
+}
+
+int current_node_index = 0;
+pthread_mutex_t node_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+const char *get_next_node_url() {
+    pthread_mutex_lock(&node_mutex);
+    const char *url = opensearch_nodes[current_node_index];
+    current_node_index = (current_node_index + 1) % OPENSEARCH_NODE_COUNT;
+    pthread_mutex_unlock(&node_mutex);
+    return url;
+}
+
+void create_syslog_signals_index() {
+    CURL *curl;
+    CURLcode res;
+
+    const char *mapping_json =
+        "{"
+        "  \"settings\": {"
+        "    \"number_of_shards\": 1,"
+        "    \"number_of_replicas\": 1"
+        "  },"
+        "  \"mappings\": {"
+        "    \"properties\": {"
+        "      \"signalId\": {\"type\": \"keyword\"},"
+        "      \"mnemonics\": {\"type\": \"keyword\"},"
+        "      \"mnemonic_count\": {\"type\": \"integer\"},"
+        "      \"flaps\": {\"type\": \"integer\"},"
+        "      \"device\": {\"type\": \"keyword\"},"
+        "      \"startTime\": {\"type\": \"date\"},"
+        "      \"endTime\": {\"type\": \"date\"},"
+        "      \"status\": {\"type\": \"keyword\"},"
+        "      \"severity\": {\"type\": \"keyword\"},"
+        "      \"events\": {\"type\": \"keyword\"},"
+        "      \"event_count\": {\"type\": \"integer\"},"
+        "      \"status_changed_at\": {\"type\": \"date\"},"
+        "      \"affectedEntities\": {\"type\": \"object\"},"
+        "      \"rule\": {\"type\": \"keyword\"}"
+        "    }"
+        "  }"
+        "}";
+
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    curl = curl_easy_init();
+
+    if (!curl) {
+        fprintf(stderr, "[ERROR] Failed to initialize CURL\n");
+        return;
+    }
+
+    struct curl_slist *headers = NULL;
+    headers = curl_slist_append(headers, "Content-Type: application/json");
+    curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, mapping_json);
+
+    int tries = 0;
+    int success = 0;
+    while (tries < OPENSEARCH_NODE_COUNT && !success) {
+        const char *node_url = get_next_node_url();
+        char index_url[256];
+        snprintf(index_url, sizeof(index_url), "%s/syslog-signals", node_url);
+
+        curl_easy_setopt(curl, CURLOPT_URL, index_url);
+        res = curl_easy_perform(curl);
+
+        if (res == CURLE_OK) {
+            fprintf(stdout, "[INFO] OpenSearch index 'syslog-signals' created or already exists at %s\n", node_url);
+            success = 1;
+        } else {
+            fprintf(stderr, "[WARN] Failed to create index at %s: %s\n", node_url, curl_easy_strerror(res));
+            tries++;
+        }
+    }
+
+    if (!success) {
+        fprintf(stderr, "[ERROR] Failed to create 'syslog-signals' index on all nodes\n");
+    }
+
+    curl_easy_cleanup(curl);
+    curl_slist_free_all(headers);
+    curl_global_cleanup();
 }
 
 void *bulk_flush_thread(void *arg __attribute__((unused)))
@@ -117,7 +207,10 @@ void send_bulk_to_opensearch(const char *bulk_payload)
     struct curl_slist *headers = NULL;
     headers = curl_slist_append(headers, "Content-Type: application/json");
 
-    curl_easy_setopt(curl, CURLOPT_URL, "http://OpenSearch:9200/syslog-signals/_bulk");
+    char url[256];
+    snprintf(url, sizeof(url), "%s/syslog-signals/_bulk", get_next_node_url());
+
+    curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, bulk_payload);
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L); // Enable verbose debug output from libcurl

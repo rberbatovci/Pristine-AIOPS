@@ -29,6 +29,10 @@ const (
 	opensearchURL   = "http://opensearch:9200"
 	opensearchIndex = "cpu-utilization"
 	kafkaGroupID    = "cpu-utilization-group"
+
+	opensearch1 = "http://opensearch-node1:9200"
+    opensearch2 = "http://opensearch-node2:9200"
+    opensearch3 = "http://opensearch-node3:9200"
 )
 
 var (
@@ -41,14 +45,6 @@ var (
 
 var kafkaWriter *kafka.Writer
 
-// extractCPUUtilization iterates through telemetry fields to find and extract
-// aggregate CPU utilization metrics. It specifically looks for "cpu-usage"
-// and then "cpu-utilization" within it.
-//
-// This function is designed to extract top-level CPU metrics (e.g., idle, user, system)
-// and *ignores* any deeper nested fields that might represent per-process CPU usage,
-// as per the requirement. It assumes that the "cpu-utilization" field directly
-// contains these aggregate metrics as its immediate sub-fields.
 func extractCPUUtilization(fields []*telemetryBis.TelemetryField) map[string]interface{} {
 	for _, field := range fields {
 		for _, subField := range field.Fields {
@@ -95,7 +91,6 @@ func getValue(field *telemetryBis.TelemetryField) interface{} {
 		return nil
 	}
 }
-
 
 func flushBulkToOpenSearch(ctx context.Context, osClient *opensearch.Client, index string) error {
     bulkBufferLock.Lock()
@@ -165,43 +160,51 @@ func startPeriodicFlush(ctx context.Context, osClient *opensearch.Client, interv
 }
 
 func setupOpenSearchClient() (*opensearch.Client, error) {
-	client, err := opensearch.NewClient(opensearch.Config{
-		Addresses: []string{opensearchURL},
-	})
-	if err != nil {
-		return nil, err
-	}
+    client, err := opensearch.NewClient(opensearch.Config{
+        Addresses: []string{
+            opensearch1,
+            opensearch2,
+            opensearch3,
+        },
+        // Optional: set retry behavior
+        RetryOnStatus: []int{502, 503, 504, 429},
+        MaxRetries:    5,
+    })
+    if err != nil {
+        return nil, err
+    }
 
-	res, err := client.Info()
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
+    // Check connection
+    res, err := client.Info()
+    if err != nil {
+        return nil, err
+    }
+    defer res.Body.Close()
 
-	if res.IsError() {
-		bodyBytes, _ := io.ReadAll(res.Body)
-		return nil, fmt.Errorf("OpenSearch connection error: %s - %s", res.Status(), string(bodyBytes))
-	}
+    if res.IsError() {
+        bodyBytes, _ := io.ReadAll(res.Body)
+        return nil, fmt.Errorf("OpenSearch connection error: %s - %s", res.Status(), string(bodyBytes))
+    }
 
-	bodyBytes, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
+    bodyBytes, err := io.ReadAll(res.Body)
+    if err != nil {
+        return nil, err
+    }
 
-	var info map[string]interface{}
-	if err := json.Unmarshal(bodyBytes, &info); err != nil {
-		return nil, err
-	}
+    var info map[string]interface{}
+    if err := json.Unmarshal(bodyBytes, &info); err != nil {
+        return nil, err
+    }
 
-	version := "unknown"
-	if vMap, ok := info["version"].(map[string]interface{}); ok {
-		if vStr, ok := vMap["number"].(string); ok {
-			version = vStr
-		}
-	}
+    version := "unknown"
+    if vMap, ok := info["version"].(map[string]interface{}); ok {
+        if vStr, ok := vMap["number"].(string); ok {
+            version = vStr
+        }
+    }
 
-	log.Printf("Connected to OpenSearch version: %s", version)
-	return client, nil
+    log.Printf("Connected to OpenSearch cluster version: %s", version)
+    return client, nil
 }
 
 func isHighCPU(stats map[string]interface{}) bool {

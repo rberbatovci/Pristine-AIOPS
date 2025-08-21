@@ -1,0 +1,3 @@
+# This is for node certificate verification
+# If you use default Docker certs, leave empty:
+[]

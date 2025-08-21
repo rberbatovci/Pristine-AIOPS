@@ -1,0 +1,5 @@
+osUser:
+  hash: "$2y$12$7U1P7hXyYXcMzZQY/FRmGeGq3sD6H5xUOftg9qL5H7OQMRKz0ZqPa"  # password: osPa$$w0rd!
+  reserved: true
+  backend_roles:
+    - admin

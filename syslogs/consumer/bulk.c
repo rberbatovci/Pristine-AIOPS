@@ -9,6 +9,17 @@
 #define OPENSEARCH_URL "http://OpenSearch:9200/syslogs/_bulk"
 #define KAFKA_TOPIC "syslog-signals"
 
+#define OPENSEARCH_USERNAME "osUser"     // or "admin"
+#define OPENSEARCH_PASSWORD "osPa$$w0rd!"
+
+// OpenSearch nodes for failover
+const char *OPENSEARCH_NODES[] = {
+    "http://opensearch-node1:9200",
+    "http://opensearch-node2:9200",
+    "http://opensearch-node3:9200"
+};
+const int NUM_NODES = 3;
+
 int DATA_FLUSH_SIZE = 1;
 int DATA_FLUSH_INTERVAL = 1;
 
@@ -93,25 +104,18 @@ void send_bulk_to_kafka(rd_kafka_t *signal_producer)
 void create_syslogs_index() {
     CURL *curl;
     CURLcode res;
+    const char *index_path = "/syslogs";
 
-    const char *index_url = "http://OpenSearch:9200/syslogs";
     const char *mapping_json =
         "{"
-        "  \"settings\": {"
-        "    \"number_of_shards\": 1,"
-        "    \"number_of_replicas\": 1"
-        "  },"
+        "  \"settings\": {\"number_of_shards\": 1,\"number_of_replicas\": 1},"
         "  \"mappings\": {"
-        "    \"dynamic_templates\": ["
-        "      {"
-        "        \"tags_keywords\": {"
-        "          \"path_match\": \"tags.*\","
-        "          \"mapping\": {"
-        "            \"type\": \"keyword\""
-        "          }"
-        "        }"
+        "    \"dynamic_templates\": [{"
+        "      \"tags_keywords\": {"
+        "        \"path_match\": \"tags.*\","
+        "        \"mapping\": {\"type\": \"keyword\"}"
         "      }"
-        "    ],"
+        "    }],"
         "    \"properties\": {"
         "      \"timestamp\": {\"type\": \"date\"},"
         "      \"device\": {\"type\": \"keyword\"},"
@@ -125,16 +129,24 @@ void create_syslogs_index() {
         "  }"
         "}";
 
-    int max_retries = 10;
-    int retry_delay = 30; // seconds
-    int attempt = 0;
-    int success = 0;
-
     curl_global_init(CURL_GLOBAL_DEFAULT);
 
-    while (attempt < max_retries) {
-        curl = curl_easy_init();
-        if (curl) {
+    int success = 0;
+    for (int node_idx = 0; node_idx < NUM_NODES; node_idx++) {
+        char index_url[512];
+        snprintf(index_url, sizeof(index_url), "%s%s", OPENSEARCH_NODES[node_idx], index_path);
+
+        int attempt = 0;
+        const int max_retries = 10;
+        const int retry_delay = 5; // seconds
+
+        while (attempt < max_retries) {
+            curl = curl_easy_init();
+            if (!curl) {
+                fprintf(stderr, "[ERROR] CURL init failed\n");
+                break;
+            }
+
             struct curl_slist *headers = NULL;
             headers = curl_slist_append(headers, "Content-Type: application/json");
 
@@ -143,34 +155,34 @@ void create_syslogs_index() {
             curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
             curl_easy_setopt(curl, CURLOPT_POSTFIELDS, mapping_json);
 
-            res = curl_easy_perform(curl);
+            // ❌ remove username/password and SSL options
 
+            res = curl_easy_perform(curl);
             if (res == CURLE_OK) {
-                fprintf(stdout, "[INFO] OpenSearch index 'syslogs' created or already exists.\n");
+                fprintf(stdout, "[INFO] OpenSearch index 'syslogs' created or already exists at %s.\n", index_url);
                 success = 1;
                 curl_easy_cleanup(curl);
                 curl_slist_free_all(headers);
                 break;
             } else {
-                fprintf(stderr, "[WARN] Attempt %d: Failed to connect to OpenSearch: %s\n", attempt + 1, curl_easy_strerror(res));
+                fprintf(stderr, "[WARN] Attempt %d to %s failed: %s\n", attempt + 1, index_url, curl_easy_strerror(res));
                 curl_easy_cleanup(curl);
                 curl_slist_free_all(headers);
+                sleep(retry_delay);
             }
+            attempt++;
         }
-
-        attempt++;
-        if (attempt < max_retries) {
-            sleep(retry_delay);
-        }
+        if (success) break; // stop after first successful node
     }
 
     curl_global_cleanup();
 
     if (!success) {
-        fprintf(stderr, "[ERROR] Could not connect to OpenSearch after %d attempts. Exiting.\n", max_retries);
+        fprintf(stderr, "[ERROR] Could not create 'syslogs' index after trying all nodes.\n");
         exit(1);
     }
 }
+
 
 void load_env_config()
 {
@@ -208,11 +220,9 @@ void add_alert_to_kafka_bulk(json_t *alert_json, rd_kafka_t *signal_producer)
     }
 }
 
-void send_bulk_to_opensearch(json_t **buffer, int count)
-{
+void send_bulk_to_opensearch(json_t **buffer, int count) {
     CURL *curl = curl_easy_init();
-    if (!curl)
-    {
+    if (!curl) {
         fprintf(stderr, "[ERROR] Failed to init CURL\n");
         return;
     }
@@ -221,21 +231,18 @@ void send_bulk_to_opensearch(json_t **buffer, int count)
     headers = curl_slist_append(headers, "Content-Type: application/x-ndjson");
 
     // Build bulk payload
-    size_t bulk_size = 1;                      // For null terminator
-    char *bulk_payload = calloc(1, bulk_size); // Start with empty string
+    size_t bulk_size = 1;
+    char *bulk_payload = calloc(1, bulk_size);
 
-    for (int i = 0; i < count; i++)
-    {
+    for (int i = 0; i < count; i++) {
         const char *event_id = json_string_value(json_object_get(buffer[i], "eventId"));
-        if (!event_id)
-        {
+        if (!event_id) {
             fprintf(stderr, "[WARN] Missing eventId in buffer[%d]\n", i);
             continue;
         }
 
         char *json_str = json_dumps(buffer[i], JSON_COMPACT);
-        if (!json_str)
-            continue;
+        if (!json_str) continue;
 
         char action_line[512];
         snprintf(action_line, sizeof(action_line),
@@ -243,8 +250,7 @@ void send_bulk_to_opensearch(json_t **buffer, int count)
 
         size_t additional_size = strlen(action_line) + strlen(json_str) + 2;
         bulk_payload = realloc(bulk_payload, bulk_size + additional_size);
-        if (!bulk_payload)
-        {
+        if (!bulk_payload) {
             fprintf(stderr, "[ERROR] Failed to realloc payload\n");
             free(json_str);
             break;
@@ -258,14 +264,35 @@ void send_bulk_to_opensearch(json_t **buffer, int count)
         free(json_str);
     }
 
-    curl_easy_setopt(curl, CURLOPT_URL, OPENSEARCH_URL);
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, bulk_payload);
+    int success = 0;
+    const int max_retries = 3;
+    const int retry_delay = 3;
 
-    CURLcode res = curl_easy_perform(curl);
-    if (res != CURLE_OK)
-    {
-        fprintf(stderr, "[ERROR] Failed to send to OpenSearch: %s\n", curl_easy_strerror(res));
+    for (int node_idx = 0; node_idx < NUM_NODES && !success; node_idx++) {
+        char bulk_url[512];
+        snprintf(bulk_url, sizeof(bulk_url), "%s/syslogs/_bulk", OPENSEARCH_NODES[node_idx]);
+
+        for (int attempt = 0; attempt < max_retries; attempt++) {
+            curl_easy_setopt(curl, CURLOPT_URL, bulk_url);
+            curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, bulk_payload);
+
+            // ❌ remove username/password and SSL options
+
+            CURLcode res = curl_easy_perform(curl);
+            if (res == CURLE_OK) {
+                fprintf(stdout, "[INFO] Successfully sent %d events to OpenSearch node %s.\n", count, OPENSEARCH_NODES[node_idx]);
+                success = 1;
+                break;
+            } else {
+                fprintf(stderr, "[WARN] Attempt %d to node %s failed: %s\n", attempt + 1, OPENSEARCH_NODES[node_idx], curl_easy_strerror(res));
+                sleep(retry_delay);
+            }
+        }
+    }
+
+    if (!success) {
+        fprintf(stderr, "[ERROR] Failed to send bulk data after trying all nodes.\n");
     }
 
     free(bulk_payload);

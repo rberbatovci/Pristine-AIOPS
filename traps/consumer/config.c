@@ -43,7 +43,21 @@ void print_trap_tags() {
 
 void* reload_data_thread(void* args) {
     ReloadArgs* reload_args = (ReloadArgs*)args;
-    const char *conninfo = "host=postgresql dbname=fpristine user=PristineAdmin password=PristinePassword";
+
+    // Read PostgreSQL credentials from environment variables
+    const char *host     = getenv("POSTGRES_HOST");   // optional, defaults to "postgresql"
+    const char *dbname   = getenv("POSTGRES_DB");
+    const char *user     = getenv("POSTGRES_USER");
+    const char *password = getenv("POSTGRES_PASSWORD");
+
+    char conninfo[512];
+    snprintf(conninfo, sizeof(conninfo),
+             "host=%s dbname=%s user=%s password=%s",
+             host ? host : "postgresql",
+             dbname ? dbname : "fpristine",
+             user ? user : "PristineAdmin",
+             password ? password : "");
+
     PGconn *conn = PQconnectdb(conninfo);
 
     if (PQstatus(conn) != CONNECTION_OK) {
@@ -54,11 +68,14 @@ void* reload_data_thread(void* args) {
 
     while (1) {
         pthread_mutex_lock(&config_mutex);
+
         load_trap_oids(conn);
-        ///print_trap_oids();
+        // print_trap_oids();  // optional debug
         load_trap_tags(conn);
-        ///print_trap_tags();
+        // print_trap_tags();  // optional debug
+
         pthread_mutex_unlock(&config_mutex);
+
         sleep(reload_args->interval_seconds);
     }
 

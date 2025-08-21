@@ -18,39 +18,52 @@ int opensearch_events_count = 0;
 json_t *kafka_signals_buffer[BULK_LIMIT];
 int kafka_signals_count = 0;
 
+// OpenSearch nodes for failover
+const char *OPENSEARCH_NODES[] = {
+    "http://opensearch-node1:9200",
+    "http://opensearch-node2:9200",
+    "http://opensearch-node3:9200"
+};
+const int NUM_NODES = 3;
+
 void create_traps_index() {
     CURL *curl;
     CURLcode res;
+    const char *index_path = "/traps";
 
-    const char *index_url = "http://opensearch:9200/traps";
     const char *mapping_json =
         "{"
-        "  \"settings\": {"
-        "    \"number_of_shards\": 1,"
-        "    \"number_of_replicas\": 1"
-        "  },"
+        "  \"settings\": {\"number_of_shards\": 1, \"number_of_replicas\": 1},"
         "  \"mappings\": {"
         "    \"properties\": {"
-        "      \"timestamp\":     {\"type\": \"date\"},"
-        "      \"eventId\":       {\"type\": \"keyword\"},"
-        "      \"snmpTrapOid\":   {\"type\": \"keyword\"},"
-        "      \"sysUpTime\":     {\"type\": \"keyword\"},"
-        "      \"device\":        {\"type\": \"keyword\"},"
-        "      \"content\":       {\"type\": \"object\", \"dynamic\": true}"
+        "      \"timestamp\":   {\"type\": \"date\"},"
+        "      \"eventId\":     {\"type\": \"keyword\"},"
+        "      \"snmpTrapOid\": {\"type\": \"keyword\"},"
+        "      \"sysUpTime\":   {\"type\": \"keyword\"},"
+        "      \"device\":      {\"type\": \"keyword\"},"
+        "      \"content\":     {\"type\": \"object\", \"dynamic\": true}"
         "    }"
         "  }"
         "}";
 
-    int max_retries = 10;
-    int retry_delay = 30; // seconds
-    int attempt = 0;
-    int success = 0;
-
     curl_global_init(CURL_GLOBAL_DEFAULT);
 
-    while (attempt < max_retries) {
-        curl = curl_easy_init();
-        if (curl) {
+    int success = 0;
+    for (int node_idx = 0; node_idx < NUM_NODES; node_idx++) {
+        char index_url[512];
+        snprintf(index_url, sizeof(index_url), "%s%s", OPENSEARCH_NODES[node_idx], index_path);
+
+        int attempt = 0;
+        const int max_retries = 10;
+        const int retry_delay = 5; // seconds
+
+        while (attempt < max_retries) {
+            curl = curl_easy_init();
+            if (!curl) {
+                fprintf(stderr, "[ERROR] CURL init failed\n");
+                break;
+            }
+
             struct curl_slist *headers = NULL;
             headers = curl_slist_append(headers, "Content-Type: application/json");
 
@@ -62,28 +75,38 @@ void create_traps_index() {
             res = curl_easy_perform(curl);
 
             if (res == CURLE_OK) {
-                fprintf(stdout, "[INFO] OpenSearch index 'traps' created or already exists.\n");
-                success = 1;
-                curl_easy_cleanup(curl);
-                curl_slist_free_all(headers);
-                break;
+                long response_code = 0;
+                curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
+
+                if (response_code == 200 || response_code == 400) {
+                    // 400 happens if index already exists
+                    fprintf(stdout, "[INFO] OpenSearch index 'traps' created or already exists at %s.\n", index_url);
+                    success = 1;
+                    curl_easy_cleanup(curl);
+                    curl_slist_free_all(headers);
+                    break;
+                } else {
+                    fprintf(stderr, "[WARN] Attempt %d to %s failed: HTTP %ld\n",
+                            attempt + 1, index_url, response_code);
+                }
             } else {
-                fprintf(stderr, "[WARN] Attempt %d: Failed to connect to OpenSearch: %s\n", attempt + 1, curl_easy_strerror(res));
-                curl_easy_cleanup(curl);
-                curl_slist_free_all(headers);
+                fprintf(stderr, "[WARN] Attempt %d to %s failed: %s\n",
+                        attempt + 1, index_url, curl_easy_strerror(res));
             }
+
+            curl_easy_cleanup(curl);
+            curl_slist_free_all(headers);
+            sleep(retry_delay);
+            attempt++;
         }
 
-        attempt++;
-        if (attempt < max_retries) {
-            sleep(retry_delay);
-        }
+        if (success) break; // stop after first successful node
     }
 
     curl_global_cleanup();
 
     if (!success) {
-        fprintf(stderr, "[ERROR] Could not connect to OpenSearch after %d attempts. Exiting.\n", max_retries);
+        fprintf(stderr, "[ERROR] Could not create 'traps' index after trying all nodes.\n");
         exit(1);
     }
 }
@@ -177,77 +200,90 @@ void send_bulk_to_kafka(rd_kafka_t *signal_producer)
     kafka_signals_count = 0;
 }
 
-void send_bulk_to_opensearch(json_t **docs, int doc_count)
-{
-    CURL *curl;
-    CURLcode res;
-    curl_global_init(CURL_GLOBAL_ALL);
-    curl = curl_easy_init();
-
+void send_bulk_to_opensearch(json_t **buffer, int count) {
+    CURL *curl = curl_easy_init();
     if (!curl) {
-        fprintf(stderr, "[ERROR] Failed to initialize CURL\n");
-        return;
-    }
-
-    char *bulk_data = NULL;
-    size_t total_len = 0;
-
-    for (int i = 0; i < doc_count; i++) {
-        const char *event_id = json_string_value(json_object_get(docs[i], "eventId"));
-        if (!event_id) {
-            fprintf(stderr, "[ERROR] Missing eventId in document %d\n", i);
-            continue; // skip this doc
-        }
-
-        // Create metadata line with index name and _id
-        char meta_line[512];
-        snprintf(meta_line, sizeof(meta_line),
-                 "{\"index\":{\"_index\":\"traps\",\"_id\":\"%s\"}}\n", event_id);
-
-        char *json_str = json_dumps(docs[i], JSON_COMPACT);
-        size_t meta_len = strlen(meta_line);
-        size_t json_len = strlen(json_str);
-        size_t line_len = meta_len + json_len + 1; // \n
-
-        bulk_data = realloc(bulk_data, total_len + line_len + 1);
-        if (!bulk_data) {
-            fprintf(stderr, "[ERROR] Memory allocation failed\n");
-            free(json_str);
-            return;
-        }
-
-        snprintf(bulk_data + total_len, line_len + 1, "%s%s\n", meta_line, json_str);
-        total_len += line_len;
-
-        free(json_str);
-    }
-
-    if (total_len == 0 || !bulk_data) {
-        fprintf(stderr, "[WARN] No bulk data constructed. Skipping OpenSearch request.\n");
-        curl_easy_cleanup(curl);
-        curl_global_cleanup();
+        fprintf(stderr, "[ERROR] Failed to init CURL\n");
         return;
     }
 
     struct curl_slist *headers = NULL;
     headers = curl_slist_append(headers, "Content-Type: application/x-ndjson");
 
-    // ✅ Correct bulk URL with index
-    curl_easy_setopt(curl, CURLOPT_URL, "http://opensearch:9200/_bulk");
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, bulk_data);
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    // Build bulk payload
+    size_t bulk_size = 1;
+    char *bulk_payload = calloc(1, bulk_size);
 
-    res = curl_easy_perform(curl);
-    if (res != CURLE_OK) {
-        fprintf(stderr, "[ERROR] CURL request failed: %s\n", curl_easy_strerror(res));
-    } else {
-        fprintf(stdout, "[INFO] Bulk data successfully sent to OpenSearch\n");
+    for (int i = 0; i < count; i++) {
+        const char *event_id = json_string_value(json_object_get(buffer[i], "eventId"));
+        if (!event_id) {
+            fprintf(stderr, "[WARN] Missing eventId in buffer[%d], using index only\n", i);
+        }
+
+        char *json_str = json_dumps(buffer[i], JSON_COMPACT);
+        if (!json_str) continue;
+
+        char action_line[512];
+        if (event_id) {
+            snprintf(action_line, sizeof(action_line),
+                     "{ \"index\": { \"_index\": \"traps\", \"_id\": \"%s\" } }\n", event_id);
+        } else {
+            // no _id -> let OpenSearch auto-generate
+            snprintf(action_line, sizeof(action_line),
+                     "{ \"index\": { \"_index\": \"traps\" } }\n");
+        }
+
+        size_t additional_size = strlen(action_line) + strlen(json_str) + 2;
+        bulk_payload = realloc(bulk_payload, bulk_size + additional_size);
+        if (!bulk_payload) {
+            fprintf(stderr, "[ERROR] Failed to realloc payload\n");
+            free(json_str);
+            break;
+        }
+
+        strcat(bulk_payload, action_line);
+        strcat(bulk_payload, json_str);
+        strcat(bulk_payload, "\n");
+
+        bulk_size += additional_size;
+        free(json_str);
     }
 
-    curl_easy_cleanup(curl);
+    int success = 0;
+    const int max_retries = 3;
+    const int retry_delay = 3;
+
+    for (int node_idx = 0; node_idx < NUM_NODES && !success; node_idx++) {
+        char bulk_url[512];
+        snprintf(bulk_url, sizeof(bulk_url), "%s/traps/_bulk", OPENSEARCH_NODES[node_idx]);
+
+        for (int attempt = 0; attempt < max_retries; attempt++) {
+            curl_easy_setopt(curl, CURLOPT_URL, bulk_url);
+            curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, bulk_payload);
+
+            // ❌ no auth, no SSL
+
+            CURLcode res = curl_easy_perform(curl);
+            if (res == CURLE_OK) {
+                fprintf(stdout, "[INFO] Successfully sent %d traps to OpenSearch node %s.\n", count, OPENSEARCH_NODES[node_idx]);
+                success = 1;
+                break;
+            } else {
+                fprintf(stderr, "[WARN] Attempt %d to node %s failed: %s\n",
+                        attempt + 1, OPENSEARCH_NODES[node_idx], curl_easy_strerror(res));
+                sleep(retry_delay);
+            }
+        }
+    }
+
+    if (!success) {
+        fprintf(stderr, "[ERROR] Failed to send traps bulk data after trying all nodes.\n");
+    }
+
+    free(bulk_payload);
     curl_slist_free_all(headers);
-    free(bulk_data);
-    curl_global_cleanup();
+    curl_easy_cleanup(curl);
 }
 
 

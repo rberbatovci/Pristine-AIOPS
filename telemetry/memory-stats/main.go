@@ -7,10 +7,13 @@ import (
 	"io"
 	"log"
 	"fmt"
+	"os"
+    "strconv"
 	"time"
 
 	telemetryBis "telemetry/protobuf/telemetry"
 
+	"github.com/joho/godotenv"
 	"github.com/golang/protobuf/proto"
 	"github.com/opensearch-project/opensearch-go"
 	"github.com/opensearch-project/opensearch-go/opensearchapi"
@@ -21,8 +24,16 @@ const (
 	kafkaBroker     = "kafka:9092"
 	kafkaTopic      = "memory-statistics"
 	opensearchURL   = "http://opensearch:9200"
+	opensearch1 = "http://opensearch-node1:9200"
+    opensearch2 = "http://opensearch-node2:9200"
+    opensearch3 = "http://opensearch-node3:9200"
 	opensearchIndex = "memory-statistics"
 	debug           = false // Toggle for verbose logging
+)
+
+var (
+    flushInterval time.Duration
+    bulkSize      int
 )
 
 func extractMemoryStats(fields []*telemetryBis.TelemetryField) map[string]interface{} {
@@ -201,98 +212,176 @@ func createMemoryIndexIfNotExists(client *opensearch.Client, indexName string) e
 	return nil
 }
 
+func getEnvInt(key string, defaultVal int) int {
+    valStr := os.Getenv(key)
+    if valStr == "" {
+        return defaultVal
+    }
+    val, err := strconv.Atoi(valStr)
+    if err != nil {
+        log.Printf("⚠️ Invalid int for %s=%s, using default %d", key, valStr, defaultVal)
+        return defaultVal
+    }
+    return val
+}
+
+
+func bulkIndex(ctx context.Context, client *opensearch.Client, index string, docs []map[string]interface{}) error {
+    var buf bytes.Buffer
+    enc := json.NewEncoder(&buf)
+
+    for _, doc := range docs {
+        meta := map[string]interface{}{
+            "index": map[string]interface{}{
+                "_index": index,
+            },
+        }
+        if err := enc.Encode(meta); err != nil {
+            return fmt.Errorf("encode meta: %w", err)
+        }
+        if err := enc.Encode(doc); err != nil {
+            return fmt.Errorf("encode doc: %w", err)
+        }
+    }
+
+    req := opensearchapi.BulkRequest{
+        Body:    &buf,
+        Refresh: "false",
+    }
+
+    res, err := req.Do(ctx, client)
+    if err != nil {
+        return fmt.Errorf("bulk request: %w", err)
+    }
+    defer res.Body.Close()
+
+    if res.IsError() {
+        return fmt.Errorf("bulk error: %s", res.String())
+    }
+
+    return nil
+}
+
 func main() {
-	ctx := context.Background()
+    // Optional: load environment variables from .env
+    if err := godotenv.Load(); err != nil {
+        log.Printf("⚠️ No .env file found, using system environment")
+    }
 
-	reader := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:     []string{kafkaBroker},
-		Topic:       kafkaTopic,
-		GroupID:     "memory-statistics-group",
-		StartOffset: kafka.FirstOffset,
-	})
-	defer reader.Close()
+    // --- Declare variables ---
+    var flushInterval time.Duration
+    var bulkSize int
 
-	client, err := opensearch.NewClient(opensearch.Config{
-		Addresses: []string{opensearchURL},
-	})
-	if err != nil {
-		log.Fatalf("❌ Failed to create OpenSearch client: %v", err)
-	}
+    // --- Flush interval ---
+    flushIntervalStr := os.Getenv("DATA_FLUSH_INTERVAL")
+    if flushIntervalStr == "" {
+        flushIntervalStr = "5" // default 5 seconds
+    }
+    intervalSec, err := strconv.Atoi(flushIntervalStr)
+    if err != nil || intervalSec <= 0 {
+        fmt.Printf("Invalid DATA_FLUSH_INTERVAL=%q, falling back to 5s\n", flushIntervalStr)
+        intervalSec = 5
+    }
+    flushInterval = time.Duration(intervalSec) * time.Second
 
-	if err := checkOpenSearchConnection(ctx, client); err != nil {
-		log.Fatalf("❌ OpenSearch connection failed: %v", err)
-	}
+    // --- Bulk size ---
+    bulkSizeStr := os.Getenv("DATA_FLUSH_SIZE")
+    if bulkSizeStr == "" {
+        bulkSizeStr = "100" // default 100
+    }
+    size, err := strconv.Atoi(bulkSizeStr)
+    if err != nil || size <= 0 {
+        fmt.Printf("Invalid DATA_FLUSH_SIZE=%q, falling back to 100\n", bulkSizeStr)
+        size = 100
+    }
+    bulkSize = size
 
-	if err := createMemoryIndexIfNotExists(client, opensearchIndex); err != nil {
-		log.Fatalf("❌ Failed to create memory index: %v", err)
-	}
+    log.Printf("⚙️ Using flushInterval=%ds bulkSize=%d", intervalSec, bulkSize)
 
-	for {
-		m, err := reader.ReadMessage(ctx)
-		if err != nil {
-			log.Printf("❌ Kafka read error: %v", err)
-			time.Sleep(3 * time.Second)
-			continue
-		}
+    ctx := context.Background()
 
-		t := new(telemetryBis.Telemetry)
-		if err := proto.Unmarshal(m.Value, t); err != nil {
-			log.Printf("❌ Protobuf unmarshal error (offset %d): %v", m.Offset, err)
-			continue
-		}
+    reader := kafka.NewReader(kafka.ReaderConfig{
+        Brokers:     []string{"kafka:9092"}, // adjust your brokers
+        Topic:       "memory-statistics",
+        GroupID:     "memory-statistics-group",
+        StartOffset: kafka.FirstOffset,
+    })
+    defer reader.Close()
 
-		//printTelemetryFields(t.DataGpbkv, "")
+    client, err := opensearch.NewClient(opensearch.Config{
+        Addresses: []string{
+    		"http://opensearch-node1:9200",
+    		"http://opensearch-node2:9200",
+    		"http://opensearch-node3:9200",
+		},
+    })
+    if err != nil {
+        log.Fatalf("❌ Failed to create OpenSearch client: %v", err)
+    }
 
-		device := ""
-		if nodeID, ok := t.NodeId.(*telemetryBis.Telemetry_NodeIdStr); ok {
-			device = nodeID.NodeIdStr
-		}
+    if err := checkOpenSearchConnection(ctx, client); err != nil {
+        log.Fatalf("❌ OpenSearch connection failed: %v", err)
+    }
 
-		memoryKey := extractMemoryKey(t.DataGpbkv)
+    if err := createMemoryIndexIfNotExists(client, "memory-statistics"); err != nil {
+        log.Fatalf("❌ Failed to create memory index: %v", err)
+    }
 
-		statsMap := extractMemoryStats(t.DataGpbkv)
+    var docs []map[string]interface{}
+    ticker := time.NewTicker(flushInterval)
+    defer ticker.Stop()
 
-		doc := map[string]interface{}{
-			"device": device,
-			"collection_id":  t.CollectionId,
-			"encoding_path":  t.EncodingPath,
-			"msg_timestamp":  t.MsgTimestamp,
-			"memory":         memoryKey,
-			"stats":          statsMap,
-			"ingested_at":    time.Now().UTC(),
-		}
+    for {
+        select {
+        case <-ticker.C:
+            if len(docs) > 0 {
+                log.Printf("📦 Flushing %d docs to OpenSearch", len(docs))
+                if err := bulkIndex(ctx, client, "memory-statistics", docs); err != nil {
+                    log.Printf("❌ Bulk index error: %v", err)
+                }
+                docs = nil
+            }
+        default:
+            m, err := reader.ReadMessage(ctx)
+            if err != nil {
+                log.Printf("❌ Kafka read error: %v", err)
+                time.Sleep(3 * time.Second)
+                continue
+            }
 
-		data, err := json.Marshal(doc)
-		if err != nil {
-			log.Printf("❌ JSON marshal error (offset %d): %v", m.Offset, err)
-			continue
-		}
+            t := new(telemetryBis.Telemetry)
+            if err := proto.Unmarshal(m.Value, t); err != nil {
+                log.Printf("❌ Protobuf unmarshal error (offset %d): %v", m.Offset, err)
+                continue
+            }
 
-		log.Printf("✅ Indexing doc for NodeID=%s CollectionID=%d", device, t.CollectionId)
+            device := ""
+            if nodeID, ok := t.NodeId.(*telemetryBis.Telemetry_NodeIdStr); ok {
+                device = nodeID.NodeIdStr
+            }
 
-		log.Printf("📦 Sending to OpenSearch:\n%s", string(data))
+            memoryKey := extractMemoryKey(t.DataGpbkv)
+            statsMap := extractMemoryStats(t.DataGpbkv)
 
-		req := opensearchapi.IndexRequest{
-			Index:   opensearchIndex,
-			Body:    bytes.NewReader(data),
-			Refresh: "false",
-		}
+            doc := map[string]interface{}{
+                "device":        device,
+                "collection_id": t.CollectionId,
+                "encoding_path": t.EncodingPath,
+                "msg_timestamp": t.MsgTimestamp,
+                "memory":        memoryKey,
+                "stats":         statsMap,
+                "ingested_at":   time.Now().UTC(),
+            }
 
-		res, err := req.Do(ctx, client)
-		if err != nil {
-			log.Printf("❌ OpenSearch index error (offset %d): %v", m.Offset, err)
-			continue
-		}
-		defer res.Body.Close()
+            docs = append(docs, doc)
 
-		if res.IsError() {
-			log.Printf("❌ OpenSearch indexing error (status: %s): %s", res.Status(), res.String())
-		} else if debug {
-			var respBody map[string]interface{}
-			if err := json.NewDecoder(res.Body).Decode(&respBody); err == nil {
-				pretty, _ := json.MarshalIndent(respBody, "", "  ")
-				log.Printf("📥 OpenSearch index response:\n%s", pretty)
-			}
-		}
-	}
+            if len(docs) >= bulkSize {
+                log.Printf("📦 Bulk size reached: flushing %d docs", len(docs))
+                if err := bulkIndex(ctx, client, "memory-statistics", docs); err != nil {
+                    log.Printf("❌ Bulk index error: %v", err)
+                }
+                docs = nil
+            }
+        }
+    }
 }

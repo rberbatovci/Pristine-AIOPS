@@ -53,34 +53,29 @@ void print_banner() {
 int main() {
     setbuf(stdout, NULL);
 
-    activeSignalMonitor();
     print_banner();
     printf("🚀 Consumer listening for signals ...\n");
 
+    // Start signal monitoring
+    activeSignalMonitor();
+
+    // Create OpenSearch index
     create_syslog_signals_index();
 
+    // Setup Redis
     redisContext *redis_ctx = NULL;
     if (on_startup_redis("redis", 6379) < 0) {
         fprintf(stderr, "[ERROR] Redis startup failed. Continuing without Redis...\n");
     }
 
-    PGconn *conn = PQconnectdb("host=postgresql dbname=fpristine user=PristineAdmin password=PristinePassword");
-    if (PQstatus(conn) != CONNECTION_OK) {
-        fprintf(stderr, "[ERROR] Connection to DB failed: %s\n", PQerrorMessage(conn));
-        PQfinish(conn);
-        return EXIT_FAILURE;
-    }
-
-    load_signal_rules(conn);
-    PQfinish(conn);
-
+    // Start reload thread (handles both initial load and periodic reload)
     ReloadArgs* args = malloc(sizeof(ReloadArgs));
     if (!args) {
         fprintf(stderr, "[ERROR] Failed to allocate memory for reload args\n");
         return EXIT_FAILURE;
     }
-
     args->interval_seconds = 60;
+
     pthread_t reload_thread;
     if (pthread_create(&reload_thread, NULL, reload_data_thread, args) != 0) {
         fprintf(stderr, "[ERROR] Failed to create reload thread\n");
@@ -88,20 +83,27 @@ int main() {
         return EXIT_FAILURE;
     }
 
+    // Flush any OpenSearch bulk data
     flushOpensearchBulkData();
 
+    // Setup Kafka consumer
     rd_kafka_topic_partition_list_t *topics;
     rd_kafka_t *rk = setup_kafka_consumer("Kafka:9092", "syslog-signals-group", "syslog-signals", &topics);
     if (!rk) return EXIT_FAILURE;
 
     printf("[INFO] Subscribed to kafka topic\n");
 
-    // 👇 Here’s where your signal memory is already ready
-    process_message(rk);  // Uses active_signals[]
+    // Start processing messages (will use active_signals updated by reload thread)
+    process_message(rk);
 
+    // Cleanup
     rd_kafka_topic_partition_list_destroy(topics);
     rd_kafka_consumer_close(rk);
     rd_kafka_destroy(rk);
+
     if (redis_ctx) redisFree(redis_ctx);
+
+    // Optional: Join reload thread (will actually run forever, so usually this is never reached)
+    pthread_join(reload_thread, NULL);
     return EXIT_SUCCESS;
 }

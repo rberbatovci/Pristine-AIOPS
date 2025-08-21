@@ -54,31 +54,24 @@ int main() {
 
     printf("🚀 Consumer listening for signals...\n");
 
+    // Start signal memory
     activeSignalMonitor();
 
+    // Create OpenSearch index for SNMP trap signals
     create_trap_signals_index();
 
+    // Setup Redis
     redisContext *redis_ctx = NULL;
     if (on_startup_redis("redis", 6379) < 0) {
         fprintf(stderr, "[ERROR] Redis startup failed. Continuing without Redis...\n");
     }
 
-    PGconn *conn = PQconnectdb("host=postgresql dbname=fpristine user=PristineAdmin password=PristinePassword");
-    if (PQstatus(conn) != CONNECTION_OK) {
-        fprintf(stderr, "[ERROR] Connection to DB failed: %s\n", PQerrorMessage(conn));
-        PQfinish(conn);
-        return EXIT_FAILURE;
-    }
-
-    load_signal_rules(conn);
-    PQfinish(conn);    
-
+    // Start reload thread (handles initial load and periodic reload)
     ReloadArgs* args = malloc(sizeof(ReloadArgs));
     if (!args) {
         fprintf(stderr, "[ERROR] Failed to allocate memory for reload args\n");
         return EXIT_FAILURE;
     }
-
     args->interval_seconds = 60;
 
     pthread_t reload_thread;
@@ -88,20 +81,28 @@ int main() {
         return EXIT_FAILURE;
     }
 
-    rd_kafka_topic_partition_list_t *topics;
-
+    // Flush any pending OpenSearch bulk data
     flushOpensearchBulkData();
 
+    // Setup Kafka consumer
+    rd_kafka_topic_partition_list_t *topics;
     rd_kafka_t *rk = setup_kafka_consumer("kafka:9092", "trap-signals-group", "trap-signals", &topics);
     if (!rk) return EXIT_FAILURE;
 
-    printf("[INFO] Subscribed to kafka topic:\n");
+    printf("[INFO] Subscribed to Kafka topic for SNMP traps\n");
 
+    // Start consuming messages (uses active_signals updated by reload thread)
     process_message(rk);
 
+    // Cleanup
     rd_kafka_topic_partition_list_destroy(topics);
     rd_kafka_consumer_close(rk);
     rd_kafka_destroy(rk);
+
     if (redis_ctx) redisFree(redis_ctx);
+
+    // Optional: join reload thread if you implement graceful shutdown
+    pthread_join(reload_thread, NULL);
+
     return EXIT_SUCCESS;
 }

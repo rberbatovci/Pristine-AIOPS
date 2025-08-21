@@ -22,64 +22,6 @@ pthread_mutex_t status_update_mutex = PTHREAD_MUTEX_INITIALIZER;
 ActiveSignal active_signals[MAX_EVENTS_PER_SIGNAL];
 int active_signal_count = 0;
 
-void create_syslog_signals_index() {
-    CURL *curl;
-    CURLcode res;
-
-    const char *index_url = "http://opensearch:9200/syslog-signals";
-    const char *mapping_json =
-        "{"
-        "  \"settings\": {"
-        "    \"number_of_shards\": 1,"
-        "    \"number_of_replicas\": 1"
-        "  },"
-        "  \"mappings\": {"
-        "    \"properties\": {"
-        "      \"signalId\": {\"type\": \"keyword\"},"
-        "      \"mnemonics\": {\"type\": \"keyword\"},"
-        "      \"mnemonic_count\": {\"type\": \"integer\"},"
-        "      \"flaps\": {\"type\": \"integer\"},"
-        "      \"device\": {\"type\": \"keyword\"},"
-        "      \"startTime\": {\"type\": \"date\"},"
-        "      \"endTime\": {\"type\": \"date\"},"
-        "      \"status\": {\"type\": \"keyword\"},"
-        "      \"severity\": {\"type\": \"keyword\"},"
-        "      \"events\": {\"type\": \"keyword\"},"
-        "      \"event_count\": {\"type\": \"integer\"},"
-        "      \"status_changed_at\": {\"type\": \"date\"},"
-        "      \"affectedEntities\": {\"type\": \"object\"},"
-        "      \"rule\": {\"type\": \"keyword\"}"
-        "    }"
-        "  }"
-        "}";
-
-    curl_global_init(CURL_GLOBAL_DEFAULT);
-    curl = curl_easy_init();
-
-    if (curl) {
-        struct curl_slist *headers = NULL;
-        headers = curl_slist_append(headers, "Content-Type: application/json");
-
-        curl_easy_setopt(curl, CURLOPT_URL, index_url);
-        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
-        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, mapping_json);
-
-        res = curl_easy_perform(curl);
-
-        if (res != CURLE_OK) {
-            fprintf(stderr, "[ERROR] Failed to create 'syslog-signals' index: %s\n", curl_easy_strerror(res));
-        } else {
-            fprintf(stdout, "[INFO] OpenSearch index 'syslog-signals' created or already exists.\n");
-        }
-
-        curl_easy_cleanup(curl);
-        curl_slist_free_all(headers);
-    }
-
-    curl_global_cleanup();
-}
-
 void removeClosedSignals() {
     int j = 0;
     for (int i = 0; i < active_signal_count; i++) {

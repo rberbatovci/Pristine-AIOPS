@@ -185,11 +185,23 @@ void load_severity(PGconn *conn) {
 }
 
 void* reload_data_thread(void* args) {
-    const char *conninfo = "host=postgresql dbname=fpristine user=PristineAdmin password=PristinePassword";
+    const char *host = getenv("POSTGRES_HOST");     // add in .env if needed
+    const char *dbname = getenv("POSTGRES_DB");
+    const char *user = getenv("POSTGRES_USER");
+    const char *password = getenv("POSTGRES_PASSWORD");
+
+    char conninfo[512];
+    snprintf(conninfo, sizeof(conninfo),
+             "host=%s dbname=%s user=%s password=%s",
+             host ? host : "postgresql",
+             dbname ? dbname : "postgres",
+             user ? user : "postgres",
+             password ? password : "");
+
     PGconn *conn = PQconnectdb(conninfo);
 
     if (PQstatus(conn) != CONNECTION_OK) {
-        fprintf(stderr, "[ERROR] [Config Data] Connection to database failed1: %s\n", PQerrorMessage(conn));
+        fprintf(stderr, "[ERROR] [Config Data] Connection to database failed: %s\n", PQerrorMessage(conn));
         PQfinish(conn);
         return NULL;
     }
@@ -200,9 +212,9 @@ void* reload_data_thread(void* args) {
         pthread_mutex_lock(&config_mutex);
 
         load_mnemonics(conn);
-        print_loaded_mnemonics();       // Print loaded mnemonics
+        print_loaded_mnemonics();
         load_regexes(conn);
-        print_loaded_regexes();         // Print loaded regexes  
+        print_loaded_regexes();
         load_severity(conn);
 
         pthread_mutex_unlock(&config_mutex);
@@ -223,11 +235,23 @@ MnemonicInfo *get_mnemonic_from_cache(const char *mnemonic) {
 }
 
 MnemonicInfo *fetch_mnemonic_from_db(const char *mnemonic) {
-    const char *conninfo = "host=postgresql dbname=fpristine user=PristineAdmin password=PristinePassword";
+    const char *host = getenv("POSTGRES_HOST");
+    const char *dbname = getenv("POSTGRES_DB");
+    const char *user = getenv("POSTGRES_USER");
+    const char *password = getenv("POSTGRES_PASSWORD");
+
+    char conninfo[512];
+    snprintf(conninfo, sizeof(conninfo),
+             "host=%s dbname=%s user=%s password=%s",
+             host ? host : "postgresql",
+             dbname ? dbname : "postgres",
+             user ? user : "postgres",
+             password ? password : "");
+
     PGconn *conn = PQconnectdb(conninfo);
 
     if (PQstatus(conn) != CONNECTION_OK) {
-        fprintf(stderr, "[ERROR] [Config Data] Connection to database failed2: %s\n", PQerrorMessage(conn));
+        fprintf(stderr, "[ERROR] [Config Data] Connection to database failed: %s\n", PQerrorMessage(conn));
         PQfinish(conn);
         return NULL;
     }
@@ -322,12 +346,23 @@ MnemonicInfo *create_mnemonic_and_cache(const char *mnemonic) {
         alert = true;
     }
 
-    // Connect to DB
-    const char *conninfo = "host=postgresql dbname=fpristine user=PristineAdmin password=PristinePassword";
+    const char *host = getenv("POSTGRES_HOST");     // add in .env if needed
+    const char *dbname = getenv("POSTGRES_DB");
+    const char *user = getenv("POSTGRES_USER");
+    const char *password = getenv("POSTGRES_PASSWORD");
+
+    char conninfo[512];
+    snprintf(conninfo, sizeof(conninfo),
+             "host=%s dbname=%s user=%s password=%s",
+             host ? host : "postgresql",
+             dbname ? dbname : "postgres",
+             user ? user : "postgres",
+             password ? password : "");
+
     PGconn *conn = PQconnectdb(conninfo);
 
     if (PQstatus(conn) != CONNECTION_OK) {
-        fprintf(stderr, "[ERROR] [Config Data] Connection to database failed3: %s\n", PQerrorMessage(conn));
+        fprintf(stderr, "[ERROR] [Config Data] Connection to database failed: %s\n", PQerrorMessage(conn));
         PQfinish(conn);
         return NULL;
     }

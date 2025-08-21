@@ -10,10 +10,16 @@
 #include <stdbool.h>  // for bool, true, false
 #include <ctype.h>    // for isdigit()
 
-#define OPENSEARCH_URL "http://OpenSearch:9200/netflow/_doc/"
 #define TOPIC_NAME "netflow-events"
-#define BULK_BATCH_SIZE 100
-#define BULK_TIMEOUT_SEC 5
+#define OPENSEARCH_NODE_COUNT 3
+
+const char *opensearch_nodes[OPENSEARCH_NODE_COUNT] = {
+    "http://opensearch-node1:9200",
+    "http://opensearch-node2:9200",
+    "http://opensearch-node3:9200"
+};
+
+
 
 volatile sig_atomic_t keep_running = 1;
 
@@ -75,7 +81,6 @@ void send_bulk_to_opensearch(char **json_docs, int doc_count) {
     }
 
     bulk_data[0] = '\0';
-
     for (int i = 0; i < doc_count; i++) {
         strcat(bulk_data, "{ \"index\": { \"_index\": \"netflow-events\" } }\n");
         strcat(bulk_data, json_docs[i]);
@@ -85,17 +90,30 @@ void send_bulk_to_opensearch(char **json_docs, int doc_count) {
     struct curl_slist *headers = NULL;
     headers = curl_slist_append(headers, "Content-Type: application/x-ndjson");
 
-    curl_easy_setopt(curl, CURLOPT_URL, "http://OpenSearch:9200/_bulk");
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, bulk_data);
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, strlen(bulk_data));
+    int success = 0;
+    for (int i = 0; i < OPENSEARCH_NODE_COUNT && !success; i++) {
+        char bulk_url[256];
+        snprintf(bulk_url, sizeof(bulk_url), "%s/_bulk", opensearch_nodes[i]);
 
-    res = curl_easy_perform(curl);
+        curl_easy_setopt(curl, CURLOPT_URL, bulk_url);
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, bulk_data);
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, strlen(bulk_data));
 
-    if (res != CURLE_OK) {
-        fprintf(stderr, "[ERROR] curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-    } else {
-        printf("[INFO] Bulk data sent to OpenSearch (%d documents)\n", doc_count);
+        res = curl_easy_perform(curl);
+
+        if (res != CURLE_OK) {
+            fprintf(stderr, "[WARN] Bulk send failed on %s: %s\n",
+                    opensearch_nodes[i], curl_easy_strerror(res));
+        } else {
+            printf("[INFO] Bulk data sent to OpenSearch (%d documents) via %s\n",
+                   doc_count, opensearch_nodes[i]);
+            success = 1;
+        }
+    }
+
+    if (!success) {
+        fprintf(stderr, "[ERROR] Failed to send bulk data to any OpenSearch node.\n");
     }
 
     curl_slist_free_all(headers);
@@ -103,54 +121,6 @@ void send_bulk_to_opensearch(char **json_docs, int doc_count) {
     free(bulk_data);
 }
 
-void send_to_opensearch(const char *json_data) {
-    CURL *curl;
-    CURLcode res;
-    struct curl_slist *headers = NULL;
-    struct response_string response;
-
-    init_string(&response);
-    curl_global_init(CURL_GLOBAL_ALL);
-    curl = curl_easy_init();
-
-    if (curl) {
-        headers = curl_slist_append(headers, "Content-Type: application/json");
-        curl_easy_setopt(curl, CURLOPT_URL, OPENSEARCH_URL);
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_data);
-        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writefunc);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-
-        res = curl_easy_perform(curl);
-        if (res != CURLE_OK) {
-            fprintf(stderr, "❌ curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-        } else {
-            long response_code;
-            curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
-            if (response_code == 200 || response_code == 201) {
-                json_error_t error;
-                json_t *root = json_loads(response.ptr, 0, &error);
-                if (root) {
-                    const char *result = json_string_value(json_object_get(root, "result"));
-                    if (result && (strcmp(result, "created") == 0 || strcmp(result, "updated") == 0)) {
-                        printf("✅ Data successfully stored in OpenSearch.\n");
-                    } else {
-                        fprintf(stderr, "⚠️ Unexpected OpenSearch response: %s\n", response.ptr);
-                    }
-                    json_decref(root);
-                } else {
-                    fprintf(stderr, "⚠️ Failed to parse OpenSearch response: %s\n", error.text);
-                }
-            } else {
-                fprintf(stderr, "❌ OpenSearch HTTP error %ld\nResponse: %s\n", response_code, response.ptr);
-            }
-        }
-        curl_easy_cleanup(curl);
-        curl_slist_free_all(headers);
-    }
-    curl_global_cleanup();
-    free(response.ptr);
-}
 
 char* timestamp_to_iso(json_t *ts_item) {
     if (ts_item && json_is_integer(ts_item)) {
@@ -210,11 +180,12 @@ char *preprocess_large_integers(const char *input, size_t len) {
     return output;
 }
 
+
+
 void create_netflow_index() {
     CURL *curl;
     CURLcode res;
 
-    const char *index_url = "http://opensearch:9200/netflow";
     const char *mapping_json =
         "{"
         "  \"settings\": {"
@@ -246,42 +217,48 @@ void create_netflow_index() {
 
     curl_global_init(CURL_GLOBAL_DEFAULT);
 
-    while (attempt < max_retries) {
-        curl = curl_easy_init();
-        if (curl) {
-            struct curl_slist *headers = NULL;
-            headers = curl_slist_append(headers, "Content-Type: application/json");
+    while (attempt < max_retries && !success) {
+        for (int i = 0; i < OPENSEARCH_NODE_COUNT && !success; i++) {
+            curl = curl_easy_init();
+            if (curl) {
+                struct curl_slist *headers = NULL;
+                headers = curl_slist_append(headers, "Content-Type: application/json");
 
-            curl_easy_setopt(curl, CURLOPT_URL, index_url);
-            curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
-            curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, mapping_json);
+                char index_url[256];
+                snprintf(index_url, sizeof(index_url), "%s/netflow", opensearch_nodes[i]);
 
-            res = curl_easy_perform(curl);
+                curl_easy_setopt(curl, CURLOPT_URL, index_url);
+                curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
+                curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+                curl_easy_setopt(curl, CURLOPT_POSTFIELDS, mapping_json);
 
-            if (res == CURLE_OK) {
-                fprintf(stdout, "[INFO] OpenSearch index 'netflow' created or already exists.\n");
-                success = 1;
-                curl_easy_cleanup(curl);
-                curl_slist_free_all(headers);
-                break;
-            } else {
-                fprintf(stderr, "[WARN] Attempt %d: Failed to connect to OpenSearch: %s\n", attempt + 1, curl_easy_strerror(res));
+                res = curl_easy_perform(curl);
+
+                if (res == CURLE_OK) {
+                    fprintf(stdout, "[INFO] OpenSearch index 'netflow' created or already exists on %s.\n", opensearch_nodes[i]);
+                    success = 1;
+                } else {
+                    fprintf(stderr, "[WARN] Attempt %d (node %s): Failed: %s\n",
+                            attempt + 1, opensearch_nodes[i], curl_easy_strerror(res));
+                }
+
                 curl_easy_cleanup(curl);
                 curl_slist_free_all(headers);
             }
         }
 
-        attempt++;
-        if (attempt < max_retries) {
-            sleep(retry_delay);
+        if (!success) {
+            attempt++;
+            if (attempt < max_retries) {
+                sleep(retry_delay);
+            }
         }
     }
 
     curl_global_cleanup();
 
     if (!success) {
-        fprintf(stderr, "[ERROR] Could not connect to OpenSearch after %d attempts. Exiting.\n", max_retries);
+        fprintf(stderr, "[ERROR] Could not connect to any OpenSearch node after %d attempts. Exiting.\n", max_retries);
         exit(1);
     }
 }
@@ -304,6 +281,21 @@ int main() {
     printf("🚀 Consumer listening for Netflow data...\n");
 
     create_netflow_index();
+
+    int BULK_SIZE = 1000;        // default
+    int FLUSH_INTERVAL = 1;     // default seconds
+
+    char *env_flush_size = getenv("DATA_FLUSH_SIZE");
+    if (env_flush_size) {
+        BULK_SIZE = atoi(env_flush_size);
+        if (BULK_SIZE <= 0) BULK_SIZE = 500; // fallback
+    }
+
+    char *env_flush_interval = getenv("DATA_FLUSH_INTERVAL");
+    if (env_flush_interval) {
+        FLUSH_INTERVAL = atoi(env_flush_interval);
+        if (FLUSH_INTERVAL <= 0) FLUSH_INTERVAL = 5; // fallback
+    }
 
     char errstr[512];
     rd_kafka_conf_t *conf = rd_kafka_conf_new();
@@ -335,9 +327,25 @@ int main() {
 
     printf("📡 Listening for messages on Kafka topic: %s\n", TOPIC_NAME);
 
+    // buffer for bulk sending
+    char **json_buffer = malloc(BULK_SIZE * sizeof(char *));
+    int buffer_count = 0;
+    time_t last_flush = time(NULL);
+
     while (keep_running) {
         rd_kafka_message_t *rkmessage = rd_kafka_consumer_poll(rk, 1000);
-        if (!rkmessage) continue;
+        if (!rkmessage) {
+            // check flush interval
+            if (buffer_count > 0 && difftime(time(NULL), last_flush) >= FLUSH_INTERVAL) {
+                send_bulk_to_opensearch(json_buffer, buffer_count);
+
+                // free memory of docs
+                for (int i = 0; i < buffer_count; i++) free(json_buffer[i]);
+                buffer_count = 0;
+                last_flush = time(NULL);
+            }
+            continue;
+        }
 
         if (rkmessage->err) {
             fprintf(stderr, "⚠️ Kafka error: %s\n", rd_kafka_message_errstr(rkmessage));
@@ -364,18 +372,34 @@ int main() {
             if (json_is_object(root)) {
                 char *json_str = json_dumps(root, 0);
                 if (json_str) {
-                    send_to_opensearch(json_str);
-                    free(json_str);
+                    json_buffer[buffer_count++] = json_str;
                 }
             } else {
-                fprintf(stderr, "❌ Expected JSON object or array.\n");
+                fprintf(stderr, "❌ Expected JSON object.\n");
             }
 
             json_decref(root);
+
+            // flush if buffer full
+            if (buffer_count >= BULK_SIZE) {
+                send_bulk_to_opensearch(json_buffer, buffer_count);
+
+                for (int i = 0; i < buffer_count; i++) free(json_buffer[i]);
+                buffer_count = 0;
+                last_flush = time(NULL);
+            }
         }
 
         rd_kafka_message_destroy(rkmessage);
     }
+
+    // flush remaining docs on exit
+    if (buffer_count > 0) {
+        send_bulk_to_opensearch(json_buffer, buffer_count);
+        for (int i = 0; i < buffer_count; i++) free(json_buffer[i]);
+    }
+
+    free(json_buffer);
 
     rd_kafka_consumer_close(rk);
     rd_kafka_topic_partition_list_destroy(topics);
