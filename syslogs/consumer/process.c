@@ -108,23 +108,23 @@ void process_message(rd_kafka_t *rk, rd_kafka_t *signal_producer)
 
         snprintf(event.message, sizeof(event.message), "%s", msg_str);
 
-        fprintf(stderr, "[DEBUG] Extracting LSN...\n");
+        //fprintf(stderr, "[DEBUG] Extracting LSN...\n");
         event.lsn = extract_lsn(msg_str);
-        fprintf(stderr, "[DEBUG] LSN extracted: %d\n", event.lsn);
+        //fprintf(stderr, "[DEBUG] LSN extracted: %d\n", event.lsn);
 
-        fprintf(stderr, "[DEBUG] Extracting timestamp...\n");
+        //fprintf(stderr, "[DEBUG] Extracting timestamp...\n");
         extract_timestamp(msg_str, event.timestamp, sizeof(event.timestamp));
-        fprintf(stderr, "[DEBUG] Timestamp extracted: %s\n", event.timestamp);
+        //fprintf(stderr, "[DEBUG] Timestamp extracted: %s\n", event.timestamp);
 
         char mnemonic[64] = {0};
-        fprintf(stderr, "[DEBUG] Extracting mnemonic...\n");
+        //fprintf(stderr, "[DEBUG] Extracting mnemonic...\n");
         if (extract_mnemonic(msg_str, mnemonic, sizeof(mnemonic))) {
-            fprintf(stderr, "[DEBUG] Mnemonic extracted: %s\n", mnemonic);
+            //fprintf(stderr, "[DEBUG] Mnemonic extracted: %s\n", mnemonic);
             snprintf(event.mnemonic, sizeof(event.mnemonic), "%s", mnemonic);
 
             MnemonicInfo *info = findMnemonic(mnemonic);
             if (info) {
-                fprintf(stderr, "[DEBUG] Mnemonic info found. Severity: %s\n", info->severity);
+                //fprintf(stderr, "[DEBUG] Mnemonic info found. Severity: %s\n", info->severity);
                 snprintf(event.severity, sizeof(event.severity), "%s", info->severity);
 
                 event.tags = json_object();
@@ -152,11 +152,11 @@ void process_message(rd_kafka_t *rk, rd_kafka_t *signal_producer)
                     fprintf(stderr, "[DEBUG] Serialized event JSON:\n%s\n", event_str); 
 
                     if (info->alert) {
-                        printf("[INFO] Alert syslog detected. Sending to Kafka 'syslog-signals' topic...\n");
+                        //printf("[INFO] Alert syslog detected. Sending to Kafka 'syslog-signals' topic...\n");
                         add_alert_to_kafka_bulk(event_json, signal_producer);
                     }
 
-                    printf("[TRACE] Handling OpenSearch buffer...\n");
+                    //printf("[TRACE] Handling OpenSearch buffer...\n");
 
                     if (opensearch_events_count < DATA_FLUSH_SIZE) {
                         printf("[INFO] [BUFFER] Appending syslog to OpenSearch buffer...\n");

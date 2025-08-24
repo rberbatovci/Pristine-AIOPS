@@ -219,23 +219,39 @@ SNMPTrapOID *fetch_snmpTrapOid_from_db(PGconn *conn, const char *snmpTrapOid) {
 }
 
 SNMPTrapOID *create_snmpTrapOid_and_cache(const char *snmpTrapOid) {
-    const char *conninfo = "host=postgresql dbname=fpristine user=PristineAdmin password=PristinePassword";
+    // Read connection info from environment variables
+    const char *host = getenv("POSTGRES_HOST");
+    const char *dbname = getenv("POSTGRES_DB");
+    const char *user = getenv("POSTGRES_USER");
+    const char *password = getenv("POSTGRES_PASSWORD");
+
+    char conninfo[512];
+    snprintf(conninfo, sizeof(conninfo),
+             "host=%s dbname=%s user=%s password=%s",
+             host ? host : "postgresql",
+             dbname ? dbname : "postgres",
+             user ? user : "postgres",
+             password ? password : "");
+
     PGconn *conn = PQconnectdb(conninfo);
 
     if (PQstatus(conn) != CONNECTION_OK) {
-        fprintf(stderr, "[ERROR] Connection to DB failed: %s\n", PQerrorMessage(conn));
+        fprintf(stderr, "[ERROR] [SNMP Trap] Connection to DB failed: %s\n", PQerrorMessage(conn));
         PQfinish(conn);
         return NULL;
     }
 
     // Insert a new default OID if not exists
-    const char *insertQuery = "INSERT INTO snmp_trap_oids (name, value, tags) VALUES ($1, $2, ARRAY[]::text[]) ON CONFLICT DO NOTHING";
-    const char *defaultName = snmpTrapOid; // or provide another default name
-    const char *paramValues[2] = { defaultName, snmpTrapOid };
+    const char *insertQuery =
+        "INSERT INTO snmp_trap_oids (name, value, tags) "
+        "VALUES ($1, $2, ARRAY[]::text[]) "
+        "ON CONFLICT DO NOTHING";
+
+    const char *paramValues[2] = { snmpTrapOid, snmpTrapOid };
 
     PGresult *res = PQexecParams(conn, insertQuery, 2, NULL, paramValues, NULL, NULL, 0);
     if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-        fprintf(stderr, "[ERROR] Failed to insert new snmpTrapOid: %s\n", PQerrorMessage(conn));
+        fprintf(stderr, "[ERROR] [SNMP Trap] Failed to insert new snmpTrapOid: %s\n", PQerrorMessage(conn));
         PQclear(res);
         PQfinish(conn);
         return NULL;
@@ -244,6 +260,7 @@ SNMPTrapOID *create_snmpTrapOid_and_cache(const char *snmpTrapOid) {
 
     // Now fetch and return it
     SNMPTrapOID *result = fetch_snmpTrapOid_from_db(conn, snmpTrapOid);
+
     PQfinish(conn);
     return result;
 }
@@ -261,7 +278,22 @@ SNMPTrapOID *findSnmpTrapOid(const char *snmpTrapOid) {
 
     printf("[DEBUG] Not found in cache, fetching from DB: %s\n", snmpTrapOid);
 
-    const char *conninfo = "host=postgresql dbname=fpristine user=PristineAdmin password=PristinePassword";
+    // Build connection string from environment variables
+    const char *db_host = getenv("POSTGRES_HOST");
+    const char *db_name = getenv("POSTGRES_DB");
+    const char *db_user = getenv("POSTGRES_USER");
+    const char *db_password = getenv("POSTGRES_PASSWORD");
+
+    if (!db_host || !db_name || !db_user || !db_password) {
+        fprintf(stderr, "[ERROR] Missing one or more DB environment variables (POSTGRES_HOST, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD)\n");
+        return NULL;
+    }
+
+    char conninfo[512];
+    snprintf(conninfo, sizeof(conninfo),
+             "host=%s dbname=%s user=%s password=%s",
+             db_host, db_name, db_user, db_password);
+
     PGconn *conn = PQconnectdb(conninfo);
 
     if (PQstatus(conn) != CONNECTION_OK) {

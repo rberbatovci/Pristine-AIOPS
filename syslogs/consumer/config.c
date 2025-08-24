@@ -8,6 +8,7 @@
 
 MnemonicCache *cache = NULL;
 int cache_size = 0;
+
 Regex *regexes = NULL;
 int regex_count = 0;
 

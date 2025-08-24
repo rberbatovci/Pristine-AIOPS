@@ -21,7 +21,10 @@ void *flush_loop(void *arg)
     while (run)
     {
         sleep(DATA_FLUSH_INTERVAL);
-
+        
+        // Debug print
+        printf("[DEBUG] Entering flush loop. Current OpenSearch buffer count: %d\n", opensearch_events_count);
+        
         if (opensearch_events_count > 0)
         {
             send_bulk_to_opensearch(opensearch_events_buffer, opensearch_events_count);
@@ -31,7 +34,7 @@ void *flush_loop(void *arg)
             opensearch_events_count = 0;
         }
 
-        send_bulk_to_kafka(signal_producer);  // ⬅️ Pass producer here
+        send_bulk_to_kafka(signal_producer);
     }
     return NULL;
 }
@@ -83,8 +86,6 @@ int main() {
     print_banner();
 
     printf("🚀 Consumer listening for SNMPv3 traps...\n");
-
-    load_env_config();
 
     create_traps_index();
 

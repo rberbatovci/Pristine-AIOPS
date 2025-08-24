@@ -9,13 +9,10 @@
 #define OPENSEARCH_URL "http://OpenSearch:9200/traps/_bulk"
 #define KAFKA_TOPIC "trap-signals"
 
-int DATA_FLUSH_SIZE = 100;
-int DATA_FLUSH_INTERVAL = 1;
-
-json_t *opensearch_events_buffer[BULK_LIMIT];
+json_t *opensearch_events_buffer[DATA_FLUSH_SIZE];
 int opensearch_events_count = 0;
 
-json_t *kafka_signals_buffer[BULK_LIMIT];
+json_t *kafka_signals_buffer[DATA_FLUSH_SIZE];
 int kafka_signals_count = 0;
 
 // OpenSearch nodes for failover
@@ -131,21 +128,6 @@ rd_kafka_t* init_signal_producer(const char* brokers) {
     return rk;
 }
 
-void load_env_config()
-{
-    const char *flush_size = getenv("DATA_FLUSH_SIZE");
-    const char *flush_interval = getenv("DATA_FLUSH_INTERVAL");
-
-    if (flush_size)
-    {
-        DATA_FLUSH_SIZE = atoi(flush_size);
-    }
-
-    if (flush_interval)
-    {
-        DATA_FLUSH_INTERVAL = atoi(flush_interval);
-    }
-}
 
 void send_bulk_to_kafka(rd_kafka_t *signal_producer)
 {

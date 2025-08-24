@@ -8,7 +8,8 @@
 #include <libpq-fe.h>
 #include <stdbool.h>
 
-#define BULK_LIMIT 1
+#define DATA_FLUSH_SIZE 1000
+#define DATA_FLUSH_INTERVAL 5
 
 typedef struct {
     int interval_seconds;
@@ -35,6 +36,9 @@ typedef struct {
     char *tag;
 } Regex;
 
+extern Regex *regex_cache;
+extern size_t regex_cache_size;
+
 typedef struct {
     char *severity;
     bool alert;
@@ -47,6 +51,10 @@ typedef struct {
     char *mnemonic;
     MnemonicInfo info;
 } MnemonicCache;
+
+extern MnemonicCache *mnemonic_cache;
+extern size_t mnemonic_cache_size;
+
 
 MnemonicInfo* findMnemonic(const char *mnemonic);
 
@@ -77,13 +85,9 @@ void send_bulk_to_kafka(rd_kafka_t *signal_producer);
 void send_bulk_to_opensearch(json_t **docs, int doc_count);
 void create_syslogs_index();
 
-
-
-extern int DATA_FLUSH_SIZE;
-extern int DATA_FLUSH_INTERVAL;
-extern json_t *opensearch_events_buffer[BULK_LIMIT];
+extern json_t *opensearch_events_buffer[DATA_FLUSH_SIZE];
 extern int opensearch_events_count;
-extern json_t *kafka_signals_buffer[BULK_LIMIT];
+extern json_t *kafka_signals_buffer[DATA_FLUSH_SIZE];
 extern int kafka_signals_count;
 
 extern rd_kafka_t *kafka_producer;

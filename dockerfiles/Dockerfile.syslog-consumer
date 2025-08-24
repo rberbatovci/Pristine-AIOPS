@@ -11,11 +11,11 @@ RUN apt-get update && apt-get install -y \
     libpthread-stubs0-dev \
     uuid-dev \
     pkg-config \
+    libhiredis-dev \
     ca-certificates \
     libcurl4-openssl-dev \
     libssl-dev \
-    
-    && apt-get clean
+ && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app

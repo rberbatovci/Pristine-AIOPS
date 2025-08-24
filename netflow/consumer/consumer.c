@@ -82,7 +82,7 @@ void send_bulk_to_opensearch(char **json_docs, int doc_count) {
 
     bulk_data[0] = '\0';
     for (int i = 0; i < doc_count; i++) {
-        strcat(bulk_data, "{ \"index\": { \"_index\": \"netflow-events\" } }\n");
+        strcat(bulk_data, "{ \"index\": { \"_index\": \"netflow\" } }\n");
         strcat(bulk_data, json_docs[i]);
         strcat(bulk_data, "\n");
     }
@@ -204,8 +204,8 @@ void create_netflow_index() {
         "      \"output_snmp\":     {\"type\": \"long\"},"
         "      \"bytes_count\":     {\"type\": \"long\"},"
         "      \"packets_count\":   {\"type\": \"long\"},"
-        "      \"first_timestamp\": {\"type\": \"date\", \"format\": \"epoch_millis\"},"
-        "      \"last_timestamp\":  {\"type\": \"date\", \"format\": \"epoch_millis\"}"
+        "      \"first_timestamp\": {\"type\": \"keyword\"},"
+        "      \"last_timestamp\":  {\"type\": \"keyword\"}"
         "    }"
         "  }"
         "}";
@@ -284,18 +284,6 @@ int main() {
 
     int BULK_SIZE = 1000;        // default
     int FLUSH_INTERVAL = 1;     // default seconds
-
-    char *env_flush_size = getenv("DATA_FLUSH_SIZE");
-    if (env_flush_size) {
-        BULK_SIZE = atoi(env_flush_size);
-        if (BULK_SIZE <= 0) BULK_SIZE = 500; // fallback
-    }
-
-    char *env_flush_interval = getenv("DATA_FLUSH_INTERVAL");
-    if (env_flush_interval) {
-        FLUSH_INTERVAL = atoi(env_flush_interval);
-        if (FLUSH_INTERVAL <= 0) FLUSH_INTERVAL = 5; // fallback
-    }
 
     char errstr[512];
     rd_kafka_conf_t *conf = rd_kafka_conf_new();

@@ -26,8 +26,12 @@ void *flush_loop(void *arg)
     {
         sleep(DATA_FLUSH_INTERVAL);
 
+        // Debug print
+        printf("[DEBUG] Entering flush loop. Current OpenSearch buffer count: %d\n", opensearch_events_count);
+
         if (opensearch_events_count > 0)
         {
+            printf("[DEBUG] Flushing %d events to OpenSearch...\n", opensearch_events_count);
             send_bulk_to_opensearch(opensearch_events_buffer, opensearch_events_count);
 
             for (int i = 0; i < opensearch_events_count; i++)
@@ -92,8 +96,6 @@ int main()
     printf("🚀 Consumer listening for syslogs...\n");
 
     setbuf(stdout, NULL);
-
-    load_env_config();
 
     create_syslogs_index();
 

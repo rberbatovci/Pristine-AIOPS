@@ -10,6 +10,8 @@
 #include <librdkafka/rdkafka.h>
 
 #define BULK_LIMIT 1
+#define DATA_FLUSH_SIZE 1000
+#define DATA_FLUSH_INTERVAL 5
 
 typedef struct {
     int interval_seconds;
@@ -53,12 +55,10 @@ extern int trapOidCount;
 extern SNMPTrapTag *trapTags;
 extern int trapTagCount;
 
-
-extern int DATA_FLUSH_SIZE;
-extern int DATA_FLUSH_INTERVAL;
-extern json_t *opensearch_events_buffer[BULK_LIMIT];
+extern json_t *opensearch_events_buffer[DATA_FLUSH_SIZE];
 extern int opensearch_events_count;
-extern json_t *kafka_signals_buffer[BULK_LIMIT];
+
+extern json_t *kafka_signals_buffer[DATA_FLUSH_SIZE];
 extern int kafka_signals_count;
 
 rd_kafka_t *init_signal_producer(const char *brokers);

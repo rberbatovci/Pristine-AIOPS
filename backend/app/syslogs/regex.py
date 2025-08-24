@@ -14,6 +14,7 @@ import redis
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from app.db.session import Base, get_db
+from app.syslogs.tags import SyslogTag
 
 router = APIRouter()
 
@@ -80,9 +81,14 @@ class RegExResponse(BaseModel):
 class RegExBrief(BaseModel):
     id: int
     name: str
+    
     class Config:
         from_attributes = True
 
+class RegExName(BaseModel):
+    name: str
+    class Config:
+        from_attributes = True
 
 # ======================
 # Redis Helper Functions
@@ -176,7 +182,7 @@ async def delete_regex(regex_name: str, db: AsyncSession = Depends(get_db)):
         result = await db.execute(select(RegEx).filter(RegEx.tag == tag_name))
         remaining_regexes = result.scalars().all()
         if not remaining_regexes:
-            db_tag_result = await db.scalar(select(models.SyslogTag).filter(models.SyslogTag.name == tag_name))
+            db_tag_result = await db.scalar(select(SyslogTag).filter(SyslogTag.name == tag_name))
             if db_tag_result:
                 await db.delete(db_tag_result)
                 await db.commit()
@@ -192,11 +198,11 @@ async def create_regex(regex: RegExCreate, db: AsyncSession = Depends(get_db)):
 
     db_tag = None
     if regex.tag:
-        db_tag_result = await db.scalar(select(models.SyslogTag).where(models.SyslogTag.name == regex.tag))
+        db_tag_result = await db.scalar(select(SyslogTag).where(SyslogTag.name == regex.tag))
         if db_tag_result:
             db_tag = db_tag_result
         else:
-            db_tag = models.SyslogTag(name=regex.tag)
+            db_tag = SyslogTag(name=regex.tag)
             db.add(db_tag)
             await db.commit()
             await db.refresh(db_tag)
@@ -222,10 +228,10 @@ async def update_regex(regex_name: str, regex_update: RegExUpdate, db: AsyncSess
     for key, value in regex_update.dict(exclude_unset=True).items():
         if key == "tag":
             if value:
-                db_tag_result = await db.scalar(select(models.SyslogTag).where(models.SyslogTag.name == value))
+                db_tag_result = await db.scalar(select(SyslogTag).where(SyslogTag.name == value))
                 db_tag = db_tag_result
                 if not db_tag:
-                    db_tag = models.SyslogTag(name=value)
+                    db_tag = SyslogTag(name=value)
                     db.add(db_tag)
                     await db.commit()
                     await db.refresh(db_tag)

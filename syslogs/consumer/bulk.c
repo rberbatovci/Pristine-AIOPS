@@ -9,9 +9,6 @@
 #define OPENSEARCH_URL "http://OpenSearch:9200/syslogs/_bulk"
 #define KAFKA_TOPIC "syslog-signals"
 
-#define OPENSEARCH_USERNAME "osUser"     // or "admin"
-#define OPENSEARCH_PASSWORD "osPa$$w0rd!"
-
 // OpenSearch nodes for failover
 const char *OPENSEARCH_NODES[] = {
     "http://opensearch-node1:9200",
@@ -20,14 +17,11 @@ const char *OPENSEARCH_NODES[] = {
 };
 const int NUM_NODES = 3;
 
-int DATA_FLUSH_SIZE = 1;
-int DATA_FLUSH_INTERVAL = 1;
-
 // Declare buffers and counters
-json_t *opensearch_events_buffer[BULK_LIMIT];
+json_t *opensearch_events_buffer[DATA_FLUSH_SIZE];
 int opensearch_events_count = 0;
 
-json_t *kafka_signals_buffer[BULK_LIMIT];
+json_t *kafka_signals_buffer[DATA_FLUSH_SIZE];
 int kafka_signals_count = 0;
 
 rd_kafka_t *init_signal_producer(const char *brokers) {
@@ -180,23 +174,6 @@ void create_syslogs_index() {
     if (!success) {
         fprintf(stderr, "[ERROR] Could not create 'syslogs' index after trying all nodes.\n");
         exit(1);
-    }
-}
-
-
-void load_env_config()
-{
-    const char *flush_size = getenv("DATA_FLUSH_SIZE");
-    const char *flush_interval = getenv("DATA_FLUSH_INTERVAL");
-
-    if (flush_size)
-    {
-        DATA_FLUSH_SIZE = atoi(flush_size);
-    }
-
-    if (flush_interval)
-    {
-        DATA_FLUSH_INTERVAL = atoi(flush_interval);
     }
 }
 

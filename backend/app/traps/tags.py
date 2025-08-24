@@ -81,67 +81,8 @@ class OIDTag(BaseModel):
         orm_mode = True
 
 # ======================
-# Redis Helpers
-# ======================
-def add_tag_to_redis(name: str, oids: list[str]):
-    r = redis.Redis(host='redis', port=6379, decode_responses=True)
-    key = f"traps:tags:{name}"
-
-    r.hset(key, mapping={
-        "name": name,
-        "oids": ",".join(oids)
-    })
-
-    r.sadd("traps:tags:all", name)
-
-def update_tag_in_redis(name: str, oids: list[str]):
-    add_tag_to_redis(name, oids)
-
-def delete_tag_from_redis(regex_name):
-    r = redis.Redis(host='redis', port=6379, decode_responses=True)
-    key = f"traps:tags:{regex_name}"
-    r.delete(key)
-    r.srem("traps:tags:all", regex_name)
-
-def sync_tags_to_redis():
-    conn = psycopg2.connect(
-        dbname="fpristine",
-        user="PristineAdmin",
-        password="PristinePassword",
-        host="postgresql"
-    )
-    cursor = conn.cursor(cursor_factory=RealDictCursor)
-
-    r = redis.Redis(host='redis', port=6379, decode_responses=True)
-
-    for key in r.scan_iter("traps:tags:*"):
-        r.delete(key)
-    r.delete("traps:tags:all")
-
-    cursor.execute('SELECT * FROM "trapTags";')
-    tags = cursor.fetchall()
-
-    for tag in tags:
-        key = f"traps:tags:{tag['name']}"
-        r.hset(key, mapping={
-            'name': tag['name'],
-            'oids': ','.join(tag['oids']) if tag['oids'] else ''
-        })
-        r.sadd("traps:tags:all", tag['name'])
-
-    conn.close()
-
-# ======================
 # API Routes
 # ======================
-@router.post("/snmptraps/tags/syncToRedis/")
-def sync_snmpTrapTags():
-    try:
-        sync_tags_to_redis()
-        return {"message": "SNMP tags synchronized successfully to Redis"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
 
 @router.get("/traps/tags/", response_model=list[TagBrief])
 async def get_tags(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
@@ -165,9 +106,6 @@ async def create_tag(tag: TagCreate, db: AsyncSession = Depends(get_db)):
 
     await db.commit()
     await db.refresh(new_tag)
-
-    add_tag_to_redis(new_tag.name, new_tag.oids)
-
     return new_tag
 
 @router.put("/traps/tags/{name}", response_model=TagSchema)
@@ -182,11 +120,8 @@ async def update_tag(name: str, tag: TagUpdate, db: AsyncSession = Depends(get_d
 
     result = await db.execute(select(Tag).where(Tag.name == name))
     updated = result.scalar_one_or_none()
-
     if not updated:
         raise HTTPException(404, "Tag not found")
-
-    add_tag_to_redis(name, tag.oids)
 
     return TagSchema.from_orm(updated)
 
@@ -198,8 +133,6 @@ async def delete_tag(name: str, db: AsyncSession = Depends(get_db)):
 
         if not tag:
             raise HTTPException(404, "Tag not found")
-
         await db.delete(tag)
 
-    delete_tag_from_redis(name) 
     return
