@@ -15,10 +15,10 @@
 #define NETSNMP_DEBUG 0
 
 #define EXPIRATION_YEAR 2025
-#define EXPIRATION_MONTH 8
-#define EXPIRATION_DAY 25
+#define EXPIRATION_MONTH 11
+#define EXPIRATION_DAY 3
 #define EXPIRATION_HOUR 17
-#define EXPIRATION_MINUTE 46
+#define EXPIRATION_MINUTE 38
 
 
 // Global Kafka producer handle

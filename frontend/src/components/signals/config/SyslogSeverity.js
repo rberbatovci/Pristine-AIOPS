@@ -27,7 +27,7 @@ const SyslogSeverity = () => {
       setError(null);
 
       try {
-        const response = await apiClient.get('/syslogsignals/syslogsignalseverity/');
+        const response = await apiClient.get('/syslogs/severity/');
         setActiveSeverity(Number(response.data.number));
         setDescription(response.data.description);
       } catch (error) {
@@ -58,7 +58,7 @@ const SyslogSeverity = () => {
     }
 
     try {
-      await apiClient.put('/syslogsignals/syslogsignalseverity/', {
+      await apiClient.put('/syslogs/severity/', {
         number: selected.value,
         severity: selected.label,
         description

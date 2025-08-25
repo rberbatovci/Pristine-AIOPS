@@ -48,15 +48,6 @@
   border-radius: 8px;
 }
 
-.signalTagList {
-  height: auto;
-  max-height: 350px;
-  overflow-y: auto;
-  background: var(--backgroundColor3);
-  padding: 10px;
-  border-radius: 8px;
-}
-
 .signalSearchItem {
   border: none;
   outline: none;

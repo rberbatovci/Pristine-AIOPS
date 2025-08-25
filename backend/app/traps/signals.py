@@ -2,7 +2,7 @@ from fastapi import APIRouter
 from typing import Optional
 from datetime import datetime
 from fastapi import APIRouter
-from app.db.session import Base
+from app.db.session import Base, opensearch_client
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, JSON
 from pydantic import BaseModel
 from sqlalchemy.orm import relationship

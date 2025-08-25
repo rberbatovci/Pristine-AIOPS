@@ -12,7 +12,7 @@ from sqlalchemy.orm import relationship, selectinload
 from app.db.session import Base, get_db
 from app.syslogs.services import mnemonic_rules_association
 from pydantic import BaseModel
-from .rules import StatefulSyslogRule, StatefulSyslogRuleBase
+from .rules import StatefulSyslogRuleBase
 from app.syslogs.events import Syslog
 from app.syslogs.regex import RegEx, RegExBrief  
 

@@ -115,14 +115,47 @@ const StatefulSyslogs = ({ devices, mnemonics }) => {
             });
     };
 
-    // Handle changes in the editable inputs
-    const handleInputChange = (event) => {
-        const { name, value } = event.target;
-        setEditedData({
-            ...editedData,
-            [name]: value,  // Update the changed field
-        });
-    };
+    const handleSave = async () => {
+    if (!selectedOption) return;
+
+    try {
+        // Merge selected rule with any edits
+        const updatedRule = {
+            ...selectedOption,   // all existing values
+            ...editedData        // overwrite with edits
+        };
+
+        // ✅ Ensure backend-required fields are included
+        const payload = {
+            name: updatedRule.name,
+            opensignalmnemonic: updatedRule.opensignalmnemonic,
+            closesignalmnemonic: updatedRule.closesignalmnemonic,
+            opensignaltag: updatedRule.opensignaltag,
+            opensignalvalue: updatedRule.opensignalvalue,
+            closesignaltag: updatedRule.closesignaltag,
+            closesignalvalue: updatedRule.closesignalvalue,
+            initialseverity: updatedRule.initialseverity,
+            affectedentity: updatedRule.affectedentity,
+            description: updatedRule.description,
+            warmup: updatedRule.warmup,
+            cooldown: updatedRule.cooldown,
+        };
+
+        const response = await apiClient.put(
+            `/syslogs/statefulrules/${selectedOption.name}`,
+            payload
+        );
+
+        // update state
+        setSyslogRules(syslogRules.map(rule =>
+            rule.id === selectedOption.id ? response.data : rule
+        ));
+        setSelectedOption(response.data);
+        setEditedData({});
+    } catch (err) {
+        console.error("Error updating rule:", err);
+    }
+};
 
     const handleDelete = async () => {
         try {
@@ -152,7 +185,7 @@ const StatefulSyslogs = ({ devices, mnemonics }) => {
                 <>
                     <div style={{ display: 'flex', gap: '10px' }}>
                         <div style={{ width: '270px', padding: '8px', background: 'var(--backgroundColor3)', borderRadius: '8px' }}>
-                            <ul style={{ padding: 0, listStyle: 'none'}}>
+                            <ul style={{ padding: 0, listStyle: 'none' }}>
                                 <li
                                     className={`signalTagItem ${isAddingNewRule ? 'selected' : ''}`}
                                     onClick={() => {
@@ -454,6 +487,12 @@ const StatefulSyslogs = ({ devices, mnemonics }) => {
                                     className="buttonStyles deleteRuleButton"
                                 >
                                     Delete
+                                </button>
+                                <button
+                                    onClick={handleSave}
+                                    className="buttonStyles deleteRuleButton"
+                                >
+                                    Save
                                 </button>
                             </>
                         )

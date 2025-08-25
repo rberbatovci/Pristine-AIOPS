@@ -15,22 +15,14 @@ function Mnemonics({ currentUser, mnemonics, entityOptions }) {
     const [filteredMnemonics, setFilteredMnemonics] = useState(mnemonics || []);
     const [onSuccesss, setOnSuccesss] = useState(false);
 
-    const handleMnemonicSelection = (mnemonic) => {
-        setIsLoading(true);
-        setError('');
-        setAlert('');
-        apiClient.get(`/syslogs/mnemonics/${mnemonic.name}/`)
-            .then((response) => {
-                setSelectedMnemonic({
-                    ...response.data,
-                    regexes: response.data.regexes || [],
-                });
-                console.log('Fetched Mnemonic Tag Details:', response.data);
-            })
-            .catch((error) => {
-                console.error('Error fetching syslog tag details:', error);
-            })
-            .finally(() => setIsLoading(false));
+    const handleMnemonicSelection = async (mnemonic) => {
+        try {
+            const response = await apiClient.get(`/syslogs/mnemonics/${mnemonic.name}/`);
+            const fetchedMnemonic = response.data;
+            setSelectedMnemonic(fetchedMnemonic);
+        } catch (err) {
+            setError('Failed to load selected Mnemonic.');
+        }
     };
 
     useEffect(() => {
@@ -100,7 +92,7 @@ function Mnemonics({ currentUser, mnemonics, entityOptions }) {
             ) : (
                 <>
                     <div style={{ display: 'flex', gap: '10px' }}>
-                        <div className="signalTagList" style={{ flex: 1, maxHeight: '300px', overflowY: 'auto', paddingBottom: '10px' }}>
+                        <div className="signalTagList">
                             <input
                                 type="text"
                                 placeholder="Search Mnemonics..."
@@ -199,7 +191,7 @@ function Mnemonics({ currentUser, mnemonics, entityOptions }) {
             )}
             {!isLoading && !error && selectedMnemonic && (
                 <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-end' }}>
-                    {onSuccesss ? (<div style={{ padding: '12px', borderRadius: '6px', width: '100%', background: 'var(--backgroundColor3)'}}> Mnemnic has been updated successfully</div>) : (<div><button onClick={handleSave} disabled={isSaving} style={{ marginRight: '10px' }} className="button save-button">
+                    {onSuccesss ? (<div style={{ padding: '12px', borderRadius: '6px', width: '100%', background: 'var(--backgroundColor3)' }}> Mnemnic has been updated successfully</div>) : (<div><button onClick={handleSave} disabled={isSaving} style={{ marginRight: '10px' }} className="button save-button">
                         {isSaving ? <TailSpin height={16} width={16} color="#fff" /> : 'Save'}
                     </button> </div>)}
 
