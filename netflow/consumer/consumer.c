@@ -195,6 +195,7 @@ void create_netflow_index() {
         "  \"mappings\": {"
         "    \"dynamic\": false,"
         "    \"properties\": {"
+        "      \"@timestamp\":     {\"type\": \"date\",}"
         "      \"source_addr\":     {\"type\": \"ip\"},"
         "      \"dest_addr\":       {\"type\": \"ip\"},"
         "      \"protocol\":        {\"type\": \"integer\"},"

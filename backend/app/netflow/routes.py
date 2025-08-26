@@ -34,7 +34,7 @@ async def get_netflow(
     if start_time and end_time:
         must_clauses.append({
             "range": {
-                "timestamp": {
+                "@timestamp": {
                     "gte": start_time.isoformat(),
                     "lte": end_time.isoformat()
                 }

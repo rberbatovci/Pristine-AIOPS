@@ -105,7 +105,7 @@ function TrapTags({ currentUser, onAdd, onDelete, onEdit, onSave }) {
         try {
             const response = await apiClient.get(`/traps/tags/${tag.name}`);
             const fullTag = response.data;
-
+            setIsAddNewTag(false);
             setSelectedTag(fullTag);
             setNewTag({
                 name: fullTag.name,
@@ -175,22 +175,6 @@ function TrapTags({ currentUser, onAdd, onDelete, onEdit, onSave }) {
                                         }}
                                     >
                                         {tag.name}
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleDelete(tag.name);
-                                            }}
-                                            style={{
-                                                background: 'transparent',
-                                                border: 'none',
-                                                color: 'red',
-                                                cursor: 'pointer',
-                                                fontWeight: 'bold',
-                                                marginLeft: '8px',
-                                            }}
-                                        >
-                                            ×
-                                        </button>
                                     </li>
                                 ))}
                             </ul>
@@ -228,9 +212,7 @@ function TrapTags({ currentUser, onAdd, onDelete, onEdit, onSave }) {
                     <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-end' }}>
                         {isAddNewTag ? (
                             <>
-
                                 <button onClick={() => setIsAddNewTag(false)} className="button cancel-button">Cancel</button>
-
                                 <button onClick={handleAdd} disabled={loadingState === 'adding'} className="button add-button">
                                     {loadingState === 'adding' ? <TailSpin height={16} width={16} color="#fff" /> : 'Add Rule'}
                                 </button>
@@ -238,8 +220,7 @@ function TrapTags({ currentUser, onAdd, onDelete, onEdit, onSave }) {
                         ) : (
                             selectedTag && (
                                 <>
-
-                                    <button onClick={handleDelete} disabled={loadingState === 'removing'} className="button delete-button">
+                                    <button onClick={handleDelete(selectedTag.name)} disabled={loadingState === 'removing'} className="button delete-button">
                                         {loadingState === 'removing' ? <TailSpin height={16} width={16} color="#fff" /> : 'Delete'}
                                     </button>
                                     <button onClick={handleSave} disabled={loadingState === 'editing'} className="button save-button">

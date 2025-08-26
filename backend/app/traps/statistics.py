@@ -12,7 +12,6 @@ TOP_LEVEL_FIELDS = [ "snmpTrapOid", "device"]
 # ======================
 def get_unique_terms(index: str, field: str, size: int = 1000) -> List[str]:
     try:
-        field_keyword = f"{field}.keyword"
         response = opensearch_client.search(
             index=index,
             size=0,
@@ -20,7 +19,7 @@ def get_unique_terms(index: str, field: str, size: int = 1000) -> List[str]:
                 "aggs": {
                     "unique_terms": {
                         "terms": {
-                            "field": field_keyword,
+                            "field": field,
                             "size": size
                         }
                     }
@@ -52,7 +51,7 @@ def get_tag_statistics(tag_key: str):
         "aggs": {
             "tag_value_counts": {
                 "terms": {
-                    "field": f"{tag_key}.keyword",
+                    "field": f"{tag_key}",
                     "size": 1000
                 }
             }
