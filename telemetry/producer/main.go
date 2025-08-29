@@ -26,13 +26,16 @@ const (
 	kafkaBroker = "kafka:9092"
 )
 
-// Map subscription IDs to Kafka topics
-var subscriptionTopicMap = map[string]string{
-	"101": "cpu-utilization",
-	"102": "memory-statistics",
-	"103": "interface-statistics",
-	"104": "bgp-connections",
-	"105": "isis-statistics",
+var pathTopicMap = map[string]string{
+	"Cisco-IOS-XR-infra-statsd-oper:infra-statistics/interfaces/interface/latest/generic-counters": "interface-statistics",
+	"Cisco-IOS-XR-wdsysmon-fd-oper:system-monitoring/cpu-utilization":                             "cpu-utilization",
+	"Cisco-IOS-XR-nto-misc-oper:memory-summary/nodes/node/summary":                                "memory-statistics",
+	"Cisco-IOS-XR-ipv4-bgp-oper:bgp/instances/instance/instance-active/default-vrf/neighbors":      "bgp-connections",
+	"Cisco-IOS-XR-clns-isis-oper:isis/instances/instance/statistics-global":                       "isis-statistics",
+
+	"/process-cpu-ios-xe-oper:cpu-utilization": "cpu-utilization",
+	"/memory-ios-xe-oper:memory-statistics":    "memory-statistics",
+	"/interfaces-ios-xe-oper:interface-statistics": "interface-statistics",
 }
 
 var (
@@ -227,6 +230,13 @@ func main() {
 	}
 }
 
+func extractEncodingPath(t *telemetryBis.Telemetry) string {
+    if t.EncodingPath != "" {
+        return t.EncodingPath
+    }
+    return "unknown"
+}
+
 func (s *grpcServer) MdtDialout(stream dialout.GRPCMdtDialout_MdtDialoutServer) error {
 	for {
 		in, err := stream.Recv()
@@ -244,13 +254,7 @@ func (s *grpcServer) MdtDialout(stream dialout.GRPCMdtDialout_MdtDialoutServer) 
 			continue
 		}
 
-		var subscriptionId string
-		switch v := telemetryMsg.Subscription.(type) {
-		case *telemetryBis.Telemetry_SubscriptionIdStr:
-			subscriptionId = v.SubscriptionIdStr
-		default:
-			subscriptionId = "unknown"
-		}
+		path := extractEncodingPath(telemetryMsg)
 
 		var nodeId string
 		switch v := telemetryMsg.NodeId.(type) {
@@ -260,9 +264,9 @@ func (s *grpcServer) MdtDialout(stream dialout.GRPCMdtDialout_MdtDialoutServer) 
 			nodeId = "unknown"
 		}
 
-		log.Printf("📥 Received telemetry data from device: %s, subscription ID: %s", nodeId, subscriptionId)
+		log.Printf("📥 Received telemetry data from %s, path: %s", nodeId, path, telemetryMsg)
 
-		go sendToKafkaTopic(subscriptionId, in.Data)
+		go sendToKafkaTopic(path, in.Data)
 
 		if err := stream.Send(&dialout.MdtDialoutArgs{ReqId: in.ReqId}); err != nil {
 			log.Printf("❌ Error sending keep-alive: %v", err)
@@ -271,8 +275,8 @@ func (s *grpcServer) MdtDialout(stream dialout.GRPCMdtDialout_MdtDialoutServer) 
 	}
 }
 
-func sendToKafkaTopic(subscriptionId string, data []byte) {
-	topic, ok := subscriptionTopicMap[subscriptionId]
+func sendToKafkaTopic(path string, data []byte) {
+	topic, ok := pathTopicMap[path]
 	if !ok {
 		topic = "telemetry.unknown"
 	}

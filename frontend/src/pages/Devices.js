@@ -5,7 +5,10 @@ import List from '../components/devices/List';
 import SyslogConfig from '../components/devices/SyslogConfig';
 import SnmpTrapConfig from '../components/devices/SnmpTrapConfig';
 import NetflowConfig from '../components/devices/NetflowConfig';
-import TelemetryConfig from '../components/devices/TelemetryConfig';
+import CpuUtilization from '../components/devices/CpuUtilization';
+import MemoryStatistics from '../components/devices/MemoryStatistics';
+import InterfaceStatistics from '../components/devices/InterfaceStatistics';
+import SystemUtilization from '../components/devices/SystemUtilization';
 import Info from '../components/devices/Info';
 import { MdDeleteForever, MdOutlineDeleteForever } from "react-icons/md";
 import apiClient from '../components/misc/AxiosConfig';
@@ -187,10 +190,12 @@ function Devices({ currentUser, setDashboardTitle }) {
                                     onConfigClick={handleConfigClick}
                                     onDeviceDelete={handleDeviceDelete}
                                 />
-                                <SyslogConfig selectedDevice={selectedDevice} onSuccess={fetchDevices} />
+                                <SystemUtilization selectedDevice={selectedDevice} onSuccess={fetchDevices} />
                                 <SnmpTrapConfig selectedDevice={selectedDevice} onSuccess={fetchDevices} />
                                 <NetflowConfig selectedDevice={selectedDevice} onSuccess={fetchDevices} />
-                                <TelemetryConfig selectedDevice={selectedDevice} onSuccess={fetchDevices} />
+                                <CpuUtilization selectedDevice={selectedDevice} onSuccess={fetchDevices} />
+                                <MemoryStatistics selectedDevice={selectedDevice} onSuccess={fetchDevices} />
+                                <InterfaceStatistics selectedDevice={selectedDevice} onSuccess={fetchDevices} />
                             </>
                         )}
 

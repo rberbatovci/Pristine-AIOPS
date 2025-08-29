@@ -3,7 +3,7 @@ import apiClient from '../misc/AxiosConfig';
 import { TailSpin } from 'react-loader-spinner';
 import { IoPushOutline, IoPushSharp } from "react-icons/io5";
 
-function SyslogConfig({ selectedDevice, onSuccess }) {
+function MemoryStatistics({ selectedDevice, onSuccess }) {
     const [device, setDevice] = useState(selectedDevice);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -53,7 +53,7 @@ function SyslogConfig({ selectedDevice, onSuccess }) {
     return (
         <div className="signalRightElementContainer" style={{ maxHeight: '215px' }}>
             <div className="signalRightElementHeader">
-                <h2 className="signalRightElementHeaderTxt">Syslogs</h2>
+                <h2 className="signalRightElementHeaderTxt">Memory Statistics</h2>
                 {!device?.features?.syslogs && (
                     <div className="zoom-buttons-container">
                         <div className="headerButtons">
@@ -94,4 +94,4 @@ function SyslogConfig({ selectedDevice, onSuccess }) {
     );
 }
 
-export default SyslogConfig;
+export default MemoryStatistics;

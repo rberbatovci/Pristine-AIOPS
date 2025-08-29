@@ -127,7 +127,6 @@ function AddNewDevice({ onDeviceAdded }) {
               value={version}
               onChange={setVersion}
               styles={customStyles('325px')}
-              isDisabled={true}
             />
           </div>
         </div>

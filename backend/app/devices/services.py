@@ -21,6 +21,7 @@ BGPConnectionsXEPlaybook = os.path.join(BASE_DIR, '..', 'ansible', 'xe-bgp-conne
 ribTablePlaybook = os.path.join(BASE_DIR, '..', 'ansible', 'rib-table.yml')
 fibEntryPlaybook = os.path.join(BASE_DIR, '..', 'ansible', 'fib-entry.yml')
 ISISStatsXEPlaybook = os.path.join(BASE_DIR, '..', 'ansible', 'xe-isis-statistics.yml')
+syslogXRPlaybook = os.path.join(BASE_DIR, '..', 'ansible', 'xr-syslogs.yml')
 
 async def create_device_minimal(db: AsyncSession, device: DeviceCreate) -> Device:
     db_device = Device(**device.dict())

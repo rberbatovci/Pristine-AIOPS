@@ -4,6 +4,8 @@ from app.devices import routes as devices
 from app.syslogs import events as syslogEvents, signals as syslogSignals, mnemonics, regex, rules as syslogRules, tags as syslogTags, statistics as syslogStatistics
 from app.traps import events as trapEvents, signals as trapSignals, snmptrapoids, tags as trapTags, statistics as trapStatistics, rules as trapRules, mibs
 from app.netflow import routes as netflow
+from app.devices import netconf
+from app.devices import ansible
 from app.telemetry import routes as telemetry
 from app.db.session import engine
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -76,6 +78,8 @@ app.include_router(mibs.router)
 app.include_router(trapSignals.router)
 
 app.include_router(netflow.router)
+app.include_router(netconf.router)
+app.include_router(ansible.router)
 #app.include_router(signals.router)
 app.include_router(telemetry.router)
 
