@@ -70,7 +70,20 @@ const Info = ({ currentUser, selectedDevice, onDeviceDeselect, onConfigClick, on
         </h2>
         <div className="zoom-buttons-container">
             <div className="headerButtons">
-              
+              <button
+                                    className={`iconButton ${selectedDevice.features?.syslogs ? 'active' : ''}`}>
+                                    <PiTerminalDuotone className="defaultIcon" />
+                                    <PiTerminalFill className="hoverIcon" />
+                                </button><button
+                                    className={`iconButton ${selectedDevice.features?.snmp_traps ? 'active' : ''}`}>
+                                    <RiStackshareLine className="defaultIcon" />
+                                    <RiStackshareFill className="hoverIcon" />
+                                </button>
+                                <button
+                                    className={`iconButton ${selectedDevice.features?.netflow ? 'active' : ''}`}>
+                                    <PiSwapFill className="defaultIcon" />
+                                    <PiSwapDuotone className="hoverIcon" />
+                                </button>
               <button className="iconButton" onClick={deleteDevice}>
                 <RiDeleteBin2Line className="defaultIcon" />
                 <RiDeleteBin2Fill className="hoverIcon" />

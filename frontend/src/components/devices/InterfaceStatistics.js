@@ -8,21 +8,21 @@ function InterfaceStatistics({ selectedDevice, onSuccess }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    // ✅ Sync state when selectedDevice changes
+    const [interfaces, setInterfaces] = useState([]);
+    const [interfacesLoading, setInterfacesLoading] = useState(false);
+
+    // Sync state when selectedDevice changes
     useEffect(() => {
         setDevice(selectedDevice);
+        if (selectedDevice?.hostname) {
+            getInterfacesStatus(selectedDevice.hostname);
+        }
     }, [selectedDevice]);
 
     const getSyslogEndpoint = () => {
-        if (!device?.version) {
-            throw new Error('Device version not provided');
-        }
-        if (device.version === 'ios-xe') {
-            return `/devices/${device.hostname}/syslogs-xe-config/`;
-        }
-        if (device.version === 'ios-xr') {
-            return `/devices/${device.hostname}/syslogs-xr-config/`;
-        }
+        if (!device?.version) throw new Error('Device version not provided');
+        if (device.version === 'ios-xe') return `/devices/${device.hostname}/syslogs-xe-config/`;
+        if (device.version === 'ios-xr') return `/devices/${device.hostname}/syslogs-xr-config/`;
         throw new Error(`Unsupported device version: ${device.version}`);
     };
 
@@ -31,27 +31,40 @@ function InterfaceStatistics({ selectedDevice, onSuccess }) {
         setError('');
         try {
             const response = await apiClient.post(getSyslogEndpoint(), {});
-
             setDevice(prev => ({
                 ...prev,
                 features: { ...prev.features, syslogs: true }
             }));
-
             if (onSuccess) onSuccess(response.data);
         } catch (error) {
             console.error('Syslog config failed:', error);
-            if (error.response?.data?.detail) {
-                setError(error.response.data.detail);
-            } else {
-                setError(error.message || 'Unknown error');
-            }
+            setError(error.response?.data?.detail || error.message || 'Unknown error');
         } finally {
             setLoading(false);
         }
     };
 
+const getInterfacesStatus = async (hostname) => {
+    setInterfacesLoading(true);
+    setError('');
+    try {
+        const response = await apiClient.get(`/devices/${hostname}/status/interfaces/`);
+
+        // Drill down to actual interface list
+        const intfs =
+            response.data.interfaces?.["ietf-interfaces:interfaces-state"]?.interface || [];
+
+        setInterfaces(intfs);
+    } catch (err) {
+        console.error('Interfaces fetch failed:', err);
+        setError(err.response?.data?.detail || err.message || 'Unknown error');
+    } finally {
+        setInterfacesLoading(false);
+    }
+};
+
     return (
-        <div className="signalRightElementContainer" style={{ maxHeight: '215px' }}>
+        <div className="signalRightElementContainer" style={{ maxHeight: '300px', overflowY: 'auto' }}>
             <div className="signalRightElementHeader">
                 <h2 className="signalRightElementHeaderTxt">Interface Statistics</h2>
                 {!device?.features?.syslogs && (
@@ -69,25 +82,38 @@ function InterfaceStatistics({ selectedDevice, onSuccess }) {
                     </div>
                 )}
             </div>
-            <div style={{ padding: '8px', marginLeft: '15px', fontSize: '14px', color: 'var(--textColor)', opacity: '0.8' }}>
-                {loading ? (
-                    <div style={{ color: 'var(--spanTextColor)' }}>
-                        Configuring syslogs<span className="dot-flash">...</span>
-                    </div>
-                ) : device?.features?.syslogs ? (
-                    <div style={{ color: 'var(--spanTextColor)' }}>
-                        Syslogs are already configured on this device.
-                    </div>
-                ) : (
-                    <div style={{ color: 'var(--spanTextColor)' }}>
-                        Please configure syslogs on the device.
+
+            <div style={{ padding: '8px', marginLeft: '15px', fontSize: '14px', color: 'var(--textColor)', opacity: '0.9' }}>
+                {error && (
+                    <div style={{ color: 'red', marginBottom: '10px' }}>
+                        {typeof error === 'string' ? error : JSON.stringify(error)}
                     </div>
                 )}
 
-                {error && (
-                    <div style={{ color: 'red', marginTop: '10px' }}>
-                        {typeof error === 'string' ? error : JSON.stringify(error)}
+                {interfacesLoading ? (
+                    <div style={{ color: 'var(--spanTextColor)' }}>
+                        Loading interfaces...
                     </div>
+                ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                            <tr style={{ textAlign: 'left', borderBottom: '1px solid #ccc' }}>
+                                <th style={{ padding: '4px 8px' }}>Interface</th>
+                                <th style={{ padding: '4px 8px' }}>Admin Status</th>
+                                <th style={{ padding: '4px 8px' }}>Oper Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+    {interfaces.map((intf, idx) => (
+        <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
+            <td style={{ padding: '4px 8px' }}>{intf.name}</td>
+            <td style={{ padding: '4px 8px' }}>{intf['admin-status']}</td>
+            <td style={{ padding: '4px 8px' }}>{intf['oper-status']}</td>
+        </tr>
+    ))}
+</tbody>
+
+                    </table>
                 )}
             </div>
         </div>

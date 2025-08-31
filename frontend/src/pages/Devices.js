@@ -191,11 +191,7 @@ function Devices({ currentUser, setDashboardTitle }) {
                                     onDeviceDelete={handleDeviceDelete}
                                 />
                                 <SystemUtilization selectedDevice={selectedDevice} onSuccess={fetchDevices} />
-                                <SnmpTrapConfig selectedDevice={selectedDevice} onSuccess={fetchDevices} />
-                                <NetflowConfig selectedDevice={selectedDevice} onSuccess={fetchDevices} />
-                                <CpuUtilization selectedDevice={selectedDevice} onSuccess={fetchDevices} />
-                                <MemoryStatistics selectedDevice={selectedDevice} onSuccess={fetchDevices} />
-                                <InterfaceStatistics selectedDevice={selectedDevice} onSuccess={fetchDevices} />
+                                <InterfaceStatistics selectedDevice={selectedDevice} onSuccess={fetchDevices} />                               
                             </>
                         )}
 
