@@ -28,7 +28,7 @@ app = FastAPI()
 
 @app.middleware("http")
 async def expiration_middleware(request: Request, call_next):
-    expiration_date = datetime(2025, 9, 1)
+    expiration_date = datetime(2025, 11, 3)
     now = datetime.now()
 
     if now >= expiration_date:

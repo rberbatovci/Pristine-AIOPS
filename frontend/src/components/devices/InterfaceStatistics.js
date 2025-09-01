@@ -48,7 +48,7 @@ const getInterfacesStatus = async (hostname) => {
     setInterfacesLoading(true);
     setError('');
     try {
-        const response = await apiClient.get(`/devices/${hostname}/status/interfaces/`);
+        const response = await apiClient.get(`/devices/${hostname}/status/live/interfaces/`);
 
         // Drill down to actual interface list
         const intfs =
