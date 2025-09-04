@@ -1,148 +1,97 @@
 import { useState, useEffect } from 'react';
 import apiClient from '../misc/AxiosConfig';
-import { TailSpin } from 'react-loader-spinner';
-import { IoPushOutline, IoPushSharp } from "react-icons/io5";
-import { RadialBarChart, RadialBar, PieChart, Pie, Cell, Tooltip as RechartsTooltip, Legend } from 'recharts';
+import { RadialBarChart, PolarAngleAxis, RadialBar, Cell, Tooltip as RechartsTooltip } from 'recharts';
+import { IoPushOutline, IoPushSharp, IoRefreshCircleSharp, IoRefreshCircleOutline } from "react-icons/io5";
 
 function CpuUtilization({ selectedDevice, onSuccess }) {
-    const [device, setDevice] = useState(selectedDevice);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [cpuLoading, setCpuLoading] = useState(false);
-    const [cpuTimestamp, setCpuTimestamp] = useState(null);
-    const [cpu5s, setCpu5s] = useState(0);
-    const [cpu1m, setCpu1m] = useState(0);
-    const [cpu5m, setCpu5m] = useState(0);
-    const [cpuChartData, setCpuChartData] = useState([
-        { name: '5s Avg', value: 0, fill: 'green', opacity: 0.7 },
-        { name: '1m Avg', value: 0, fill: 'purple', opacity: 0.5 },
-        { name: '5m Avg', value: 0, fill: 'aqua', opacity: 0.3 },
-    ]);
+  const [device, setDevice] = useState(selectedDevice);
+  const [error, setError] = useState('');
+  const [cpuLoading, setCpuLoading] = useState(false);
+  const [cpuTimestamp, setCpuTimestamp] = useState(null);
+  const [shouldSpin, setShouldSpin] = useState(true);
 
-    // ✅ Sync state when selectedDevice changes
-    useEffect(() => {
-        setDevice(selectedDevice);
-    }, [selectedDevice]);
+  const [cpuChartData, setCpuChartData] = useState([
+    { name: '5s Avg', value: 20, fill: '#ababab', opacity: 0.6 },
+    { name: '1m Avg', value: 40, fill: '#ababab', opacity: 0.5 },
+    { name: '5m Avg', value: 60, fill: '#ababab', opacity: 0.4 },
+  ]);
 
-    const sendConfig = async () => {
-        setLoading(true); setError('');
-        try {
-            const response = await apiClient.post(`/devices/${device.hostname}/config/syslogs/`, {});
-            setDevice(prev => ({ ...prev, features: { ...prev.features, syslogs: true } }));
-            if (onSuccess) onSuccess(response.data);
-        } catch (err) {
-            setError(err.response?.data?.detail || err.message || 'Unknown error');
-        } finally { setLoading(false); }
-    };
+  // keep device in sync
+  useEffect(() => {
+    setDevice(selectedDevice);
+  }, [selectedDevice]);
 
-    // Last stats from OpenSearch
-    const getLastCpuStatus = async () => {
-        setCpuLoading(true); setError('');
-        try {
-            const response = await apiClient.get("/telemetry/cpu-utilization/", {
-                params: { device: device.hostname, limit: 1 }
-            });
-            const last = response.data.results?.[0];
+  const getLastCpuStatus = async () => {
+    setCpuLoading(true);
+    setError('');
+    setShouldSpin(true);
 
-            if (last) {
-                setCpu5s(last.cpu_5s || 0);
-                setCpu1m(last.cpu_1m || 0);
-                setCpu5m(last.cpu_5m || 0);
-                setCpuTimestamp(last.timestamp || null);
-            }
-            if (last) {
-                const newData = [
-                    { name: '5s Avg', value: Math.min(last.cpu_5s, 100), fill: 'black', opacity: 0.5 },
-                    { name: '1m Avg', value: Math.min(last.cpu_1m, 100), fill: 'black', opacity: 0.4 },
-                    { name: '5m Avg', value: Math.min(last.cpu_5m, 100), fill: 'black', opacity: 0.3 },
-                ];
-                setCpuChartData(newData);
-                setCpuTimestamp(new Date().toISOString());
-            }
-        } catch (err) {
-            setError(err.response?.data?.detail || err.message || 'Unknown error');
-        } finally { setCpuLoading(false); }
-    };
+    try {
+      const response = await apiClient.get(`/devices/${device.hostname}/status/last/cpu-util/`);
+      const stats = response.data; // <-- use data directly
 
-    // Add this CSS somewhere (App.css or module.css)
-    const rotatingRingStyle = {
-        width: "150px",
-        height: "150px",
-        border: "6px solid rgba(0,0,0,0.1)",
-        borderTop: "6px solid #4cafef",
-        borderRadius: "50%",
-        animation: "spin 1s linear infinite",
-        margin: "auto"
-    };
+      if (stats && Object.keys(stats).length > 0) {
+        const newData = [
+          { name: '5s Avg', value: Math.min(stats["five-seconds"] ?? 0, 100), fill: 'green', opacity: 1 },
+          { name: '1m Avg', value: Math.min(stats["one-minute"] ?? 0, 100), fill: 'green', opacity: 0.9 },
+          { name: '5m Avg', value: Math.min(stats["five-minutes"] ?? 0, 100), fill: 'green', opacity: 0.8 },
+        ];
 
-    const getCpuStatus = async () => {
-        setCpuLoading(true); setError('');
-        try {
-            const response = await apiClient.get(`/devices/${device.hostname}/status/live/cpu/`);
-            const cpu = response.data.cpu?.["Cisco-IOS-XE-process-cpu-oper:cpu-utilization"];
-            if (cpu) {
-                const newData = [
-                    { name: '5s Avg', value: Math.min(cpu["five-seconds"], 100), fill: 'black', opacity: 0.5 },
-                    { name: '1m Avg', value: Math.min(cpu["one-minute"], 100), fill: 'black', opacity: 0.4 },
-                    { name: '5m Avg', value: Math.min(cpu["five-minutes"], 100), fill: 'black', opacity: 0.3 },
-                ];
-                setCpuChartData(newData);
-                setCpuTimestamp(new Date().toISOString());
-            }
-        } catch (err) {
-            setError(err.response?.data?.detail || err.message || 'Unknown error');
-        } finally { setCpuLoading(false); }
-    };
+        setCpuChartData(newData);
+        setCpuTimestamp(new Date().toISOString()); // if backend doesn't send ingested_at
+        setShouldSpin(false);
+      } else {
+        setError('No data available');
+      }
+    } catch (err) {
+      setError(err.response?.data?.detail || err.message || 'Unknown error');
+    } finally {
+      setCpuLoading(false);
+    }
+  };
 
-    const CustomTooltip = ({ active, payload, label }) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="p-2 rounded-lg shadow-lg bg-gray-900 text-white">
-        <p className="text-sm font-semibold">{label}</p>
-        {payload.map((item, i) => (
-          <p key={i} className="text-xs" style={{ color: item.fill }}>
-            {item.name}: {item.value}%
-          </p>
-        ))}
-      </div>
-    );
-  }
-  return null;
-};
+  useEffect(() => {
+    if (device?.hostname) {
+      getLastCpuStatus();
+    }
+  }, [device]);
 
-    useEffect(() => {
-        if (device?.hostname) {
-            getLastCpuStatus();
-            getCpuStatus();
-        }
-    }, [device]);
+  const rotatingChartStyle = `
+    @keyframes rotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .rotate-on-load {
+      animation: rotate 2s linear infinite;
+    }
+  `;
 
-return (
-  <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-    {/* CPU Section */}
-    <div>
-      {cpuLoading ? (
-        // ✅ Rotating ring effect
-        <div style={rotatingRingStyle}></div>
-      ) : (
-        // ✅ Normal animated RadialBarChart once data arrives
+  return (
+    <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+      {/* inject spin CSS */}
+      <style>{rotatingChartStyle}</style>
+
+      {/* CPU Section */}
+      <div>
         <RadialBarChart
           width={150}
           height={150}
           cx="50%"
           cy="50%"
-          innerRadius="20%"
+          innerRadius="40%"
           outerRadius="100%"
           barSize={15}
           data={cpuChartData}
+          className={shouldSpin ? 'rotate-on-load' : ''}
         >
           <RadialBar
             minAngle={5}
             clockWise
             dataKey="value"
             cornerRadius={10}
-            isAnimationActive={true}
+            isAnimationActive={!shouldSpin} // animate bars only after spin stops
             animationDuration={800}
+            background={{ fill: "#eee", opacity: 0.1 }}
           >
             {cpuChartData.map((entry) => (
               <Cell
@@ -152,35 +101,47 @@ return (
               />
             ))}
           </RadialBar>
-          <RechartsTooltip content={<CustomTooltip />} />
+          <PolarAngleAxis
+            type="number"
+            domain={[0, 100]} // ✅ Fixes scaling so 4 → 4%, 8 → 8%
+            tick={false}
+          />
         </RadialBarChart>
-      )}
-    </div>
+      </div>
 
-    {/* Info Section */}
-    <div
-      style={{
-        fontSize: "14px",
-        color: "var(--textColor)",
-        opacity: 0.9,
-        width: "200px"
-      }}
-    >
-      <div><b>CPU Utilization</b></div>
-      <div style={{ display: "flex", fontSize: "13px" }}>
-        <p style={{ textAlign: "right", width: "100px" }}>Time:</p>
-        <p style={{ textAlign: "left", width: "100px" }}>
-          {cpuTimestamp ? new Date(cpuTimestamp).toLocaleString() : "N/A"}
-        </p>
+      {/* Info Section */}
+      <div
+        style={{
+          fontSize: "14px",
+          color: "var(--textColor)",
+          opacity: 0.9,
+          width: "200px",
+        }}
+      >
+        <div><b>CPU Utilization</b></div>
+        <div style={{ display: "flex" }}>
+          <p style={{ marginTop: "5px" }}>5s: {cpuChartData[0]?.value ?? "--"}%</p>
+          <p style={{ marginTop: "5px", marginLeft: "10px" }}>1m: {cpuChartData[1]?.value ?? "--"}%</p>
+          <p style={{ marginTop: "5px", marginLeft: "10px" }}>5m: {cpuChartData[2]?.value ?? "--"}%</p>
+        </div>
+        <div style={{ display: "flex", fontSize: "13px" }}>
+          <p style={{ textAlign: "left", width: "100px", marginLeft: "5px", marginTop: "5px" }}>
+            {cpuTimestamp ? new Date(cpuTimestamp).toLocaleString() : "Loading..."}
+          </p>
+        </div>
+        <div style={{ display: "flex", marginTop: "5px" }}>
+          <button className="iconButton">
+            <IoRefreshCircleOutline className="defaultIcon" />
+            <IoRefreshCircleSharp className="hoverIcon" />
+          </button>
+          <button className="iconButton">
+            <IoPushOutline className="defaultIcon" />
+            <IoPushSharp className="hoverIcon" />
+          </button>
+        </div>
       </div>
-      <div style={{ display: "flex", fontSize: "13px" }}>
-        <p style={{ textAlign: "right", width: "100px" }}>Source:</p>
-        <p style={{ textAlign: "left", width: "100px" }}>Telemetry</p>
-      </div>
-      <button className="telemetryButton">Configure Telemetry</button>
     </div>
-  </div>
-);
+  );
 }
 
 export default CpuUtilization;

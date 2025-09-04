@@ -338,6 +338,7 @@ func createIndexIfNotExists(client *opensearch.Client, indexName string) error {
 }
 
 func main() {
+	
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers: []string{kafkaBroker},
 		Topic:   kafkaTopic,

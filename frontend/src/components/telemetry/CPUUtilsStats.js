@@ -28,7 +28,7 @@ const CpuUtilsStats = ({ selectedDevice }) => {
         });
 
         const formatted = res.data.results.map((item) => ({
-          timestamp: moment(item.ingested_at).format("HH:mm:ss"),
+          timestamp: moment(item.timestamp).format("HH:mm:ss"),
           fiveSeconds: item.stats?.["five-seconds"] ?? 0,
           oneMinute: item.stats?.["one-minute"] ?? 0,
           fiveMinutes: item.stats?.["five-minutes"] ?? 0,

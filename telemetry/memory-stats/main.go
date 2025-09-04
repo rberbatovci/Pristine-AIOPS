@@ -7,28 +7,27 @@ import (
 	"io"
 	"log"
 	"fmt"
-	"os"
     "strconv"
 	"time"
 
 	telemetryBis "telemetry/protobuf/telemetry"
 
-	"github.com/joho/godotenv"
 	"github.com/golang/protobuf/proto"
 	"github.com/opensearch-project/opensearch-go"
 	"github.com/opensearch-project/opensearch-go/opensearchapi"
 	"github.com/segmentio/kafka-go"
+	"github.com/redis/go-redis/v9"
 )
 
 const (
 	kafkaBroker     = "kafka:9092"
 	kafkaTopic      = "memory-statistics"
-	opensearchURL   = "http://opensearch:9200"
+	kafkaGroupID    = "memory-statistics-group"
+
 	opensearch1 = "http://opensearch-node1:9200"
     opensearch2 = "http://opensearch-node2:9200"
     opensearch3 = "http://opensearch-node3:9200"
 	opensearchIndex = "memory-statistics"
-	debug           = false // Toggle for verbose logging
 )
 
 var (
@@ -262,126 +261,134 @@ func bulkIndex(ctx context.Context, client *opensearch.Client, index string, doc
     return nil
 }
 
+func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensearch.Client) {
+    t := new(telemetryBis.Telemetry)
+    if err := proto.Unmarshal(m.Value, t); err != nil {
+        log.Printf("Failed to unmarshal protobuf message (Offset: %d): %v", m.Offset, err)
+        return
+    }
+
+    statsMap := extractMemoryStats(t.DataGpbkv)
+
+	if len(statsMap) == 0 {
+        return
+    }
+
+    log.Printf("🔍 Memory stats: %+v", statsMap)
+
+    device := ""
+    if nodeID, ok := t.NodeId.(*telemetryBis.Telemetry_NodeIdStr); ok {
+        device = nodeID.NodeIdStr
+    }
+
+    // Save latest Memory stats in Redis
+    redisKey := fmt.Sprintf("telemetry:%s:memory-stats", device)
+    statsJSON, _ := json.Marshal(statsMap) // convert map to JSON
+    if err := redisClient.Set(ctx, redisKey, statsJSON, 0).Err(); err != nil {
+        log.Printf("Failed to save Memory stats to Redis for device %s: %v", device, err)
+    } else {
+        log.Printf("✅ Updated Redis key %s with latest Memory stats", redisKey)
+    }
+
+    // Create the full document
+    doc := map[string]interface{}{
+        "device":                device,
+        "collection_id":         t.CollectionId,
+        "collection_start_time": t.CollectionStartTime,
+        "collection_end_time":   t.CollectionEndTime,
+        "msg_timestamp":         t.MsgTimestamp,
+        "encoding_path":         t.EncodingPath,
+        "stats":                 statsMap,
+        "ingested_at":           time.Now().UTC(),
+    }
+
+    data, err := json.Marshal(doc)
+    if err != nil {
+        log.Printf("Failed to marshal document to JSON (Offset: %d): %v", m.Offset, err)
+        return
+    }
+
+    // Buffer doc into bulk buffer
+    bulkBufferLock.Lock()
+    bulkBuffer = append(bulkBuffer, doc)
+    currentSize := len(bulkBuffer)
+    bulkBufferLock.Unlock()
+
+    if currentSize >= bulkSize {
+        log.Printf("Bulk size limit reached (%d >= %d), flushing buffer...", currentSize, bulkSize)
+        if err := flushBulkToOpenSearch(ctx, osClient, opensearchIndex); err != nil {
+            log.Printf("Error flushing bulk buffer: %v", err)
+        }
+    }
+
+    // Determine current Memory status
+    highMemory := isHighMemory(statsMap)
+
+    stateLock.Lock()
+    alerting := deviceAlertState[device]
+    if highMemory {
+        if !alerting {
+            log.Printf("🚨 High Memory alert triggered for device [%s]", device)
+            deviceAlertState[device] = true
+        }
+        //  Send full doc JSON to Kafka topic
+        sendToKafkaSignalTopic(data, kafkaWriter)
+    } else {
+        if alerting {
+            log.Printf("Memory usage normalized for device [%s]", device)
+            deviceAlertState[device] = false
+        }
+    }
+    stateLock.Unlock()
+
+}
+
 func main() {
-    // Optional: load environment variables from .env
-    if err := godotenv.Load(); err != nil {
-        log.Printf("⚠️ No .env file found, using system environment")
-    }
+    bulkSize = 1000                     
+    flushInterval := 1 * time.Second
 
-    // --- Declare variables ---
-    var flushInterval time.Duration
-    var bulkSize int
+	initRedis()
 
-    // --- Flush interval ---
-    flushIntervalStr := os.Getenv("DATA_FLUSH_INTERVAL")
-    if flushIntervalStr == "" {
-        flushIntervalStr = "5" // default 5 seconds
-    }
-    intervalSec, err := strconv.Atoi(flushIntervalStr)
-    if err != nil || intervalSec <= 0 {
-        fmt.Printf("Invalid DATA_FLUSH_INTERVAL=%q, falling back to 5s\n", flushIntervalStr)
-        intervalSec = 5
-    }
-    flushInterval = time.Duration(intervalSec) * time.Second
-
-    // --- Bulk size ---
-    bulkSizeStr := os.Getenv("DATA_FLUSH_SIZE")
-    if bulkSizeStr == "" {
-        bulkSizeStr = "100" // default 100
-    }
-    size, err := strconv.Atoi(bulkSizeStr)
-    if err != nil || size <= 0 {
-        fmt.Printf("Invalid DATA_FLUSH_SIZE=%q, falling back to 100\n", bulkSizeStr)
-        size = 100
-    }
-    bulkSize = size
-
-    log.Printf("⚙️ Using flushInterval=%ds bulkSize=%d", intervalSec, bulkSize)
-
-    ctx := context.Background()
+	initKafkaWriter()
 
     reader := kafka.NewReader(kafka.ReaderConfig{
         Brokers:     []string{"kafka:9092"}, // adjust your brokers
-        Topic:       "memory-statistics",
-        GroupID:     "memory-statistics-group",
+        Topic:       kafkaTopic,
+        GroupID:     kafkaGroupID,
         StartOffset: kafka.FirstOffset,
     })
     defer reader.Close()
 
-    client, err := opensearch.NewClient(opensearch.Config{
-        Addresses: []string{
-    		"http://opensearch-node1:9200",
-    		"http://opensearch-node2:9200",
-    		"http://opensearch-node3:9200",
-		},
-    })
-    if err != nil {
-        log.Fatalf("❌ Failed to create OpenSearch client: %v", err)
-    }
+	osClient, err := setupOpenSearchClient()
+	if err != nil {
+		log.Fatalf("Application startup failed: %v", err)
+	}
 
-    if err := checkOpenSearchConnection(ctx, client); err != nil {
-        log.Fatalf("❌ OpenSearch connection failed: %v", err)
-    }
+    if err := createMemoryIndexIfNotExists(osClient, opensearchIndex); err != nil {
+		log.Fatalf("Failed to create index: %v", err)
+	}
 
-    if err := createMemoryIndexIfNotExists(client, "memory-statistics"); err != nil {
-        log.Fatalf("❌ Failed to create memory index: %v", err)
-    }
+    ctx, cancel := context.WithCancel(context.Background())
+    defer cancel()
 
-    var docs []map[string]interface{}
-    ticker := time.NewTicker(flushInterval)
-    defer ticker.Stop()
+    startPeriodicFlush(ctx, osClient, flushInterval)
 
-    for {
-        select {
-        case <-ticker.C:
-            if len(docs) > 0 {
-                log.Printf("📦 Flushing %d docs to OpenSearch", len(docs))
-                if err := bulkIndex(ctx, client, "memory-statistics", docs); err != nil {
-                    log.Printf("❌ Bulk index error: %v", err)
-                }
-                docs = nil
-            }
-        default:
-            m, err := reader.ReadMessage(ctx)
-            if err != nil {
-                log.Printf("❌ Kafka read error: %v", err)
-                time.Sleep(3 * time.Second)
-                continue
-            }
+	log.Println("Kafka consumer started. Waiting for telemetry messages...")
 
-            t := new(telemetryBis.Telemetry)
-            if err := proto.Unmarshal(m.Value, t); err != nil {
-                log.Printf("❌ Protobuf unmarshal error (offset %d): %v", m.Offset, err)
-                continue
-            }
+	for {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		m, err := reader.ReadMessage(ctx)
+		cancel() 
 
-            device := ""
-            if nodeID, ok := t.NodeId.(*telemetryBis.Telemetry_NodeIdStr); ok {
-                device = nodeID.NodeIdStr
-            }
-
-            memoryKey := extractMemoryKey(t.DataGpbkv)
-            statsMap := extractMemoryStats(t.DataGpbkv)
-
-            doc := map[string]interface{}{
-                "device":        device,
-                "collection_id": t.CollectionId,
-                "encoding_path": t.EncodingPath,
-                "msg_timestamp": t.MsgTimestamp,
-                "memory":        memoryKey,
-                "stats":         statsMap,
-                "ingested_at":   time.Now().UTC(),
-            }
-
-            docs = append(docs, doc)
-
-            if len(docs) >= bulkSize {
-                log.Printf("📦 Bulk size reached: flushing %d docs", len(docs))
-                if err := bulkIndex(ctx, client, "memory-statistics", docs); err != nil {
-                    log.Printf("❌ Bulk index error: %v", err)
-                }
-                docs = nil
-            }
-        }
-    }
+		if err != nil {
+			if err == context.DeadlineExceeded {
+				log.Println("No new Kafka messages within timeout. Retrying...")
+				time.Sleep(5 * time.Second)
+				continue
+			}
+			time.Sleep(5 * time.Second) 
+			continue
+		}
+		processKafkaMessage(context.Background(), m, osClient)
+	}
 }

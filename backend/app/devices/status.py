@@ -7,6 +7,8 @@ import os
 import urllib3
 import requests
 from requests.auth import HTTPBasicAuth
+import redis
+import json
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -17,6 +19,8 @@ HEADERS = {
     "Content-Type": "application/yang-data+json"
 }
 
+r = redis.Redis(host="Redis", port=6379, db=0)
+
 # Helper to get device by hostname
 async def get_device_by_hostname(hostname: str, db: AsyncSession):
     result = await db.execute(select(Device).where(Device.hostname == hostname))
@@ -24,6 +28,8 @@ async def get_device_by_hostname(hostname: str, db: AsyncSession):
     if not device:
         raise HTTPException(status_code=404, detail=f"Device '{hostname}' not found")
     return device
+
+
 
 # Helper to select RESTCONF path based on version and type
 def get_restconf_path(device_version: str, metric: str) -> str:
@@ -42,6 +48,13 @@ def get_restconf_path(device_version: str, metric: str) -> str:
         elif metric == "interfaces":
             return "ietf-interfaces:interfaces-state"
     raise ValueError(f"No RESTCONF path for {metric} on version {device_version}")
+
+@router.get("/devices/{hostname}/status/last/cpu-util/")
+def get_cpu_util(hostname: str):
+    value = r.get(f"telemetry:{hostname}:cpu-util")
+    if value:
+        return json.loads(value)
+    return {"error": "no data"}
 
 # CPU endpoint
 @router.get("/devices/{hostname}/status/live/cpu/")

@@ -64,7 +64,7 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_CREATE_TOPICS: "telemetry-signals:1:1,cpu-utilization:1:1,memory-statistics:1:1,interface-statistics:1:1,bgp-connections:1:1,isis-statistics:1:1,syslog-events:1:1,trap-events:1:1,netflow-events:1:1,syslog-signals:1:1,trap-signals:1:1"
+      KAFKA_CREATE_TOPICS: "unknown:1:1,telemetry-signals:1:1,cpu-utilization:1:1,memory-statistics:1:1,interface-statistics:1:1,bgp-connections:1:1,isis-statistics:1:1,syslog-events:1:1,trap-events:1:1,netflow-events:1:1,syslog-signals:1:1,trap-signals:1:1"
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_OFFSETS_TOPIC_NUM_PARTITIONS: 50
       KAFKA_BROKER_ID: 1
@@ -150,10 +150,11 @@ services:
       - "9200:9200"   # REST API
       - "9600:9600"   # Performance Analyzer
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:9200 || exit 1"]
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 5
+      retries: 10
+      start_period: 60s
     networks:
       - aiops
 

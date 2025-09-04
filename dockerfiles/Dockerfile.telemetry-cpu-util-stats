@@ -10,7 +10,7 @@ COPY telemetry/cpu-util-stats/. .
 
 RUN go mod download
 
-RUN go get github.com/joho/godotenv
+RUN go get github.com/redis/go-redis/v9
 
 # Build your binary
 RUN go build -o consumer main.go

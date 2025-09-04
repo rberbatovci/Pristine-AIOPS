@@ -33,9 +33,9 @@ var pathTopicMap = map[string]string{
 	"Cisco-IOS-XR-ipv4-bgp-oper:bgp/instances/instance/instance-active/default-vrf/neighbors":      "bgp-connections",
 	"Cisco-IOS-XR-clns-isis-oper:isis/instances/instance/statistics-global":                       "isis-statistics",
 
-	"/process-cpu-ios-xe-oper:cpu-utilization": "cpu-utilization",
-	"/memory-ios-xe-oper:memory-statistics":    "memory-statistics",
-	"/interfaces-ios-xe-oper:interface-statistics": "interface-statistics",
+	"Cisco-IOS-XE-process-cpu-oper:cpu-usage/cpu-utilization": "cpu-utilization",
+	"Cisco-IOS-XE-memory-oper:memory-statistics/memory-statistic":    "memory-statistics",
+	"Cisco-IOS-XE-interfaces-oper:interfaces/interface/statistics": "interface-statistics",
 }
 
 var (
@@ -264,7 +264,7 @@ func (s *grpcServer) MdtDialout(stream dialout.GRPCMdtDialout_MdtDialoutServer) 
 			nodeId = "unknown"
 		}
 
-		log.Printf("📥 Received telemetry data from %s, path: %s", nodeId, path, telemetryMsg)
+		log.Printf("📥 Received telemetry data from %s, path: %s", nodeId, path)
 
 		go sendToKafkaTopic(path, in.Data)
 
@@ -278,8 +278,10 @@ func (s *grpcServer) MdtDialout(stream dialout.GRPCMdtDialout_MdtDialoutServer) 
 func sendToKafkaTopic(path string, data []byte) {
 	topic, ok := pathTopicMap[path]
 	if !ok {
-		topic = "telemetry.unknown"
+		topic = "unknown"
 	}
+
+	log.Printf("📤 Sending data to Kafka topic: %s, size: %d bytes", topic, len(data))
 
 	batcher := getKafkaBatcher(topic)
 	batcher.AddMessage(kafka.Message{

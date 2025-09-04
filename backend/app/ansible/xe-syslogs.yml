@@ -15,5 +15,5 @@
     - name: Configure syslog host
       ios_config:
         lines:
-          - "logging host {{ syslog_host }} transport udp port {{ syslog_port }}"
+          - "logging host {{ receiver_ip }} transport udp port {{ receiver_port }}"
           - "logging trap {{ syslog_severity }}"

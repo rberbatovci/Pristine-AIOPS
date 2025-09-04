@@ -11,7 +11,6 @@ import (
     "strconv"
     "sync"
     "time"
-    "os"
 
 	telemetryBis "telemetry/protobuf/telemetry"
 
@@ -19,7 +18,7 @@ import (
 	"github.com/opensearch-project/opensearch-go"
     "github.com/opensearch-project/opensearch-go/opensearchapi"
 	"github.com/segmentio/kafka-go"
-    "github.com/joho/godotenv"
+    "github.com/redis/go-redis/v9"
 )
 
 
@@ -45,25 +44,20 @@ var (
 
 var kafkaWriter *kafka.Writer
 
-func extractCPUUtilization(fields []*telemetryBis.TelemetryField) map[string]interface{} {
-	for _, field := range fields {
-		for _, subField := range field.Fields {
-			if subField.Name == "content" {
-				result := make(map[string]interface{})
-				for _, cpuField := range subField.Fields {
-					switch cpuField.Name {
-					case "five-seconds", "five-seconds-intr", "one-minute", "five-minutes":
-						value := getValue(cpuField)
-						result[cpuField.Name] = value
-					}
-				}
-				if len(result) > 0 {
-					return result
-				}
-			}
-		}
-	}
-	return nil
+var redisClient *redis.Client
+
+func initRedis() {
+    redisClient = redis.NewClient(&redis.Options{
+        Addr:     "Redis:6379", // or your Redis host:port
+        Password: "",               // no password set
+        DB:       0,                // default DB
+    })
+
+    ctx := context.Background()
+    if err := redisClient.Ping(ctx).Err(); err != nil {
+        log.Fatalf("Failed to connect to Redis: %v", err)
+    }
+    log.Println("✅ Connected to Redis")
 }
 
 func getValue(field *telemetryBis.TelemetryField) interface{} {
@@ -277,79 +271,6 @@ func convertToFloat(v interface{}) (float64, bool) {
     }
 }
 
-func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensearch.Client) {
-    t := new(telemetryBis.Telemetry)
-    if err := proto.Unmarshal(m.Value, t); err != nil {
-        log.Printf("Failed to unmarshal protobuf message (Offset: %d): %v", m.Offset, err)
-        return
-    }
-
-    statsMap := extractCPUUtilization(t.DataGpbkv)
-
-	if len(statsMap) == 0 {
-        return
-    }
-
-	log.Printf("🔍 CPU stats: %+v", statsMap)
-
-    device := ""
-    if nodeID, ok := t.NodeId.(*telemetryBis.Telemetry_NodeIdStr); ok {
-        device = nodeID.NodeIdStr
-    }
-
-    // Create the full document
-    doc := map[string]interface{}{
-        "device":                device,
-        "collection_id":         t.CollectionId,
-        "collection_start_time": t.CollectionStartTime,
-        "collection_end_time":   t.CollectionEndTime,
-        "msg_timestamp":         t.MsgTimestamp,
-        "encoding_path":         t.EncodingPath,
-        "stats":                 statsMap,
-        "ingested_at":           time.Now().UTC(),
-    }
-
-    data, err := json.Marshal(doc)
-    if err != nil {
-        log.Printf("Failed to marshal document to JSON (Offset: %d): %v", m.Offset, err)
-        return
-    }
-
-    // Buffer doc into bulk buffer
-    bulkBufferLock.Lock()
-    bulkBuffer = append(bulkBuffer, doc)
-    currentSize := len(bulkBuffer)
-    bulkBufferLock.Unlock()
-
-    if currentSize >= bulkSize {
-        log.Printf("Bulk size limit reached (%d >= %d), flushing buffer...", currentSize, bulkSize)
-        if err := flushBulkToOpenSearch(ctx, osClient, opensearchIndex); err != nil {
-            log.Printf("Error flushing bulk buffer: %v", err)
-        }
-    }
-
-    // Determine current CPU status
-    highCPU := isHighCPU(statsMap)
-
-    stateLock.Lock()
-    alerting := deviceAlertState[device]
-    if highCPU {
-        if !alerting {
-            log.Printf("🚨 High CPU alert triggered for device [%s]", device)
-            deviceAlertState[device] = true
-        }
-        //  Send full doc JSON to Kafka topic
-        sendToKafkaSignalTopic(data, kafkaWriter)
-    } else {
-        if alerting {
-            log.Printf("CPU usage normalized for device [%s]", device)
-            deviceAlertState[device] = false
-        }
-    }
-    stateLock.Unlock()
-
-}
-
 func createIndexIfNotExists(client *opensearch.Client, indexName string) error {
 	// Check if index exists
 	existsReq := opensearchapi.IndicesExistsRequest{
@@ -425,27 +346,115 @@ func createIndexIfNotExists(client *opensearch.Client, indexName string) error {
 	return nil
 }
 
+func extractCPUUtilization(fields []*telemetryBis.TelemetryField) map[string]interface{} {
+	for _, field := range fields {
+		for _, subField := range field.Fields {
+			if subField.Name == "content" {
+				result := make(map[string]interface{})
+				for _, cpuField := range subField.Fields {
+					switch cpuField.Name {
+					case "five-seconds", "five-seconds-intr", "one-minute", "five-minutes":
+						value := getValue(cpuField)
+						result[cpuField.Name] = value
+					}
+				}
+				if len(result) > 0 {
+					return result
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensearch.Client) {
+    t := new(telemetryBis.Telemetry)
+    if err := proto.Unmarshal(m.Value, t); err != nil {
+        log.Printf("Failed to unmarshal protobuf message (Offset: %d): %v", m.Offset, err)
+        return
+    }
+
+    statsMap := extractCPUUtilization(t.DataGpbkv)
+
+	if len(statsMap) == 0 {
+        return
+    }
+
+    log.Printf("🔍 CPU stats: %+v", statsMap)
+
+    device := ""
+    if nodeID, ok := t.NodeId.(*telemetryBis.Telemetry_NodeIdStr); ok {
+        device = nodeID.NodeIdStr
+    }
+
+    // Save latest CPU stats in Redis
+    redisKey := fmt.Sprintf("telemetry:%s:cpu-util", device)
+    statsJSON, _ := json.Marshal(statsMap) // convert map to JSON
+    if err := redisClient.Set(ctx, redisKey, statsJSON, 0).Err(); err != nil {
+        log.Printf("Failed to save CPU stats to Redis for device %s: %v", device, err)
+    } else {
+        log.Printf("✅ Updated Redis key %s with latest CPU stats", redisKey)
+    }
+
+    // Create the full document
+    doc := map[string]interface{}{
+        "device":                device,
+        "collection_id":         t.CollectionId,
+        "collection_start_time": t.CollectionStartTime,
+        "collection_end_time":   t.CollectionEndTime,
+        "msg_timestamp":         t.MsgTimestamp,
+        "encoding_path":         t.EncodingPath,
+        "stats":                 statsMap,
+        "ingested_at":           time.Now().UTC(),
+    }
+
+    data, err := json.Marshal(doc)
+    if err != nil {
+        log.Printf("Failed to marshal document to JSON (Offset: %d): %v", m.Offset, err)
+        return
+    }
+
+    // Buffer doc into bulk buffer
+    bulkBufferLock.Lock()
+    bulkBuffer = append(bulkBuffer, doc)
+    currentSize := len(bulkBuffer)
+    bulkBufferLock.Unlock()
+
+    if currentSize >= bulkSize {
+        log.Printf("Bulk size limit reached (%d >= %d), flushing buffer...", currentSize, bulkSize)
+        if err := flushBulkToOpenSearch(ctx, osClient, opensearchIndex); err != nil {
+            log.Printf("Error flushing bulk buffer: %v", err)
+        }
+    }
+
+    // Determine current CPU status
+    highCPU := isHighCPU(statsMap)
+
+    stateLock.Lock()
+    alerting := deviceAlertState[device]
+    if highCPU {
+        if !alerting {
+            log.Printf("🚨 High CPU alert triggered for device [%s]", device)
+            deviceAlertState[device] = true
+        }
+        //  Send full doc JSON to Kafka topic
+        sendToKafkaSignalTopic(data, kafkaWriter)
+    } else {
+        if alerting {
+            log.Printf("CPU usage normalized for device [%s]", device)
+            deviceAlertState[device] = false
+        }
+    }
+    stateLock.Unlock()
+
+}
+
 func main() {
-	// Load .env file (optional, safe to ignore errors in production)
-	_ = godotenv.Load()
+    bulkSize = 1000                     
+    flushInterval := 1 * time.Second 
 
-	// Get bulk size and flush interval from env
-	bulkSizeEnv := os.Getenv("BULK_SIZE")
-	flushIntervalEnv := os.Getenv("FLUSH_INTERVAL_SECONDS")
+    initRedis()
 
-	var err error
-	bulkSize, err = strconv.Atoi(bulkSizeEnv)
-	if err != nil || bulkSize <= 0 {
-		bulkSize = 10 // default
-	}
-
-	flushIntervalSec, err := strconv.Atoi(flushIntervalEnv)
-	if err != nil || flushIntervalSec <= 0 {
-		flushIntervalSec = 5 // default
-	}
-	flushInterval := time.Duration(flushIntervalSec) * time.Second
-
-	// Init Kafka Writer and Reader
 	initKafkaWriter()
 
 	reader := kafka.NewReader(kafka.ReaderConfig{
@@ -468,7 +477,6 @@ func main() {
     ctx, cancel := context.WithCancel(context.Background())
     defer cancel()
 
-    // Start periodic flush every, say, 5 seconds
     startPeriodicFlush(ctx, osClient, flushInterval)
 
 	log.Println("Kafka consumer started. Waiting for telemetry messages...")
@@ -487,7 +495,6 @@ func main() {
 			time.Sleep(5 * time.Second) 
 			continue
 		}
-
 		processKafkaMessage(context.Background(), m, osClient)
 	}
 }

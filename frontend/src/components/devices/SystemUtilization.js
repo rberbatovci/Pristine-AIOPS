@@ -11,18 +11,18 @@ function SystemUtilization({ selectedDevice, onSuccess }) {
     // Memory
     useEffect(() => setDevice(selectedDevice), [selectedDevice]);
 
-return (
-  <div className="signalRightElementContainer" style={{ maxHeight: '450px' }}>
-    <div className="signalRightElementHeader">
-      <h2 className="signalRightElementHeaderTxt">System Utilization</h2>
+  return (
+    <div className="signalRightElementContainer" style={{ maxHeight: '450px' }}>
+      <div className="signalRightElementHeader">
+        <h2 className="signalRightElementHeaderTxt">System Utilization</h2>
+      </div>
+      <div style={{ display: "flex" }}>
+        <CpuUtilization selectedDevice={device} />
+        <MemoryStatistics selectedDevice={device} />
+      </div>
+      {error && <div style={{ color: "red", marginTop: "10px" }}>{error}</div>}
     </div>
-    <div style={{ display: "flex", justifyContent: "space-between", gap: "40px", padding: "12px" }}>
-      <CpuUtilization selectedDevice={device} />
-      <MemoryStatistics selectedDevice={device} />
-    </div>
-    {error && <div style={{ color: "red", marginTop: "10px" }}>{error}</div>}
-  </div>
-);
+  );
 }
 
 export default SystemUtilization;

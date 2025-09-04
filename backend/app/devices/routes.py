@@ -11,6 +11,20 @@ import asyncio
 router = APIRouter()
 import os
 
+default_features = {
+    "syslogs": False,
+    "snmp_traps": False,
+    "netflow": False,
+    "telemetry": {
+        "cpu_util": False,
+        "memory_stats": False,
+        "interface_stats": False,
+        "bgp_connections": False,
+        "isis_stats": False
+    }
+}
+
+
 @router.get("/devices/", response_model=List[dict])
 async def get_device_ids_names(db: AsyncSession = Depends(get_db)):
     """

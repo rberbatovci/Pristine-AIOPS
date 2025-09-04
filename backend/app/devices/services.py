@@ -69,28 +69,7 @@ async def delete_device(db: AsyncSession, device_id: int) -> bool:
         return True
     return False
 
-async def configureDevice(router_ip: str, playbook: str, extra_vars: dict):
-    cmd = [
-        "ansible-playbook",
-        playbook,
-        "-i", f"{router_ip},",
-        "--extra-vars", json.dumps(extra_vars)
-    ]
 
-    env = os.environ.copy()
-    env["ANSIBLE_HOST_KEY_CHECKING"] = "False"
-
-    process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
-
-    print(f"Ansible stdout:\n{process.stdout}")
-    print(f"Ansible stderr:\n{process.stderr}")
-    print(f"Ansible returncode: {process.returncode}")
-
-    return {
-        "stdout": process.stdout,
-        "stderr": process.stderr,
-        "returncode": process.returncode
-    }
 
 async def configureSyslogsXE(router_ip, severity):
     cmd = [
