@@ -26,12 +26,13 @@ const (
 	kafkaBroker     = "kafka:9092"
 	kafkaTopic      = "cpu-utilization"
 	opensearchURL   = "http://opensearch:9200"
-	opensearchIndex = "cpu-utilization"
 	kafkaGroupID    = "cpu-utilization-group"
+    kafkaSignalTopic = "telemetry-signals"
 
 	opensearch1 = "http://opensearch-node1:9200"
     opensearch2 = "http://opensearch-node2:9200"
     opensearch3 = "http://opensearch-node3:9200"
+    opensearchIndex = "cpu-utilization"
 )
 
 var (
@@ -198,6 +199,11 @@ func setupOpenSearchClient() (*opensearch.Client, error) {
     }
 
     log.Printf("Connected to OpenSearch cluster version: %s", version)
+
+    if err := createIndexIfNotExists(client, opensearchIndex); err != nil {
+        return nil, fmt.Errorf("failed to ensure index exists: %w", err)
+    }
+
     return client, nil
 }
 
@@ -242,7 +248,7 @@ func sendToKafkaSignalTopic(payload []byte, writer *kafka.Writer) {
 func initKafkaWriter() {
     kafkaWriter = &kafka.Writer{
         Addr:         kafka.TCP(kafkaBroker),
-        Topic:        "telemetry-signals",
+        Topic:        kafkaSignalTopic,
         Balancer:     &kafka.LeastBytes{},
         RequiredAcks: kafka.RequireAll,
         Async:        false,
@@ -271,10 +277,10 @@ func convertToFloat(v interface{}) (float64, bool) {
     }
 }
 
-func createIndexIfNotExists(client *opensearch.Client, indexName string) error {
+func createIndexIfNotExists(client *opensearch.Client, opensearchIndex string) error {
 	// Check if index exists
 	existsReq := opensearchapi.IndicesExistsRequest{
-		Index: []string{indexName},
+		Index: []string{opensearchIndex},
 	}
 	res, err := existsReq.Do(context.Background(), client)
 	if err != nil {
@@ -283,7 +289,7 @@ func createIndexIfNotExists(client *opensearch.Client, indexName string) error {
 	defer res.Body.Close()
 
 	if res.StatusCode == 200 {
-		log.Printf("ℹIndex [%s] already exists", indexName)
+		log.Printf("ℹIndex [%s] already exists", opensearchIndex)
 		return nil
 	}
 
@@ -327,7 +333,7 @@ func createIndexIfNotExists(client *opensearch.Client, indexName string) error {
 
 	// Create the index
 	createReq := opensearchapi.IndicesCreateRequest{
-		Index: indexName,
+		Index: opensearchIndex,
 		Body:  bytes.NewReader(body),
 	}
 
@@ -342,7 +348,7 @@ func createIndexIfNotExists(client *opensearch.Client, indexName string) error {
 		return fmt.Errorf("error creating index: %s", string(body))
 	}
 
-	log.Printf("Created OpenSearch index: %s", indexName)
+	log.Printf("Created OpenSearch index: %s", opensearchIndex)
 	return nil
 }
 
@@ -468,10 +474,6 @@ func main() {
 	osClient, err := setupOpenSearchClient()
 	if err != nil {
 		log.Fatalf("Application startup failed: %v", err)
-	}
-
-    if err := createIndexIfNotExists(osClient, opensearchIndex); err != nil {
-		log.Fatalf("Failed to create index: %v", err)
 	}
 
     ctx, cancel := context.WithCancel(context.Background())

@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.devices import models, schemas
-from app.devices.services import configureDevice, syslogXEPlaybook, trapsXEPlaybook, netflowXEPlaybook, cpuUtilXEPlaybook, configureSyslogsXR, memStatsXEPlaybook, interfaceStatsXEPlaybook, BGPConnectionsXEPlaybook, ribTablePlaybook, fibEntryPlaybook
 import asyncio
 router = APIRouter()
 import os

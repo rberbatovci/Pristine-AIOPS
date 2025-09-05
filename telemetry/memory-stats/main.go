@@ -7,8 +7,8 @@ import (
 	"io"
 	"log"
 	"fmt"
-    "strconv"
 	"time"
+	"sync"
 
 	telemetryBis "telemetry/protobuf/telemetry"
 
@@ -23,6 +23,7 @@ const (
 	kafkaBroker     = "kafka:9092"
 	kafkaTopic      = "memory-statistics"
 	kafkaGroupID    = "memory-statistics-group"
+	kafkaSignalTopic = "memory-alerts"
 
 	opensearch1 = "http://opensearch-node1:9200"
     opensearch2 = "http://opensearch-node2:9200"
@@ -32,8 +33,135 @@ const (
 
 var (
     flushInterval time.Duration
-    bulkSize      int
+    bulkSize        int
+	bulkBuffer      []map[string]interface{}
+	bulkBufferLock  sync.Mutex
+	deviceAlertState = make(map[string]bool)
+	stateLock       sync.Mutex
 )
+
+var kafkaWriter *kafka.Writer
+
+var redisClient *redis.Client
+
+func initRedis() {
+    redisClient = redis.NewClient(&redis.Options{
+        Addr:     "Redis:6379", // or your Redis host:port
+        Password: "",               // no password set
+        DB:       0,                // default DB
+    })
+
+    ctx := context.Background()
+    if err := redisClient.Ping(ctx).Err(); err != nil {
+        log.Fatalf("Failed to connect to Redis: %v", err)
+    }
+    log.Println("✅ Connected to Redis")
+}
+
+func initKafkaWriter() {
+    kafkaWriter = &kafka.Writer{
+        Addr:         kafka.TCP(kafkaBroker),
+        Topic:        kafkaSignalTopic,
+        Balancer:     &kafka.LeastBytes{},
+        RequiredAcks: kafka.RequireAll,
+        Async:        false,
+        Compression:  kafka.Snappy,
+        BatchSize:    100,
+        BatchTimeout: 100 * time.Millisecond,
+    }
+    log.Println("Kafka writer initialized")
+}
+
+func isHighMemory(stats map[string]interface{}) bool {
+    // Temporary mock: always return false
+    // Replace with real logic later
+    return false
+}
+
+func sendToKafkaSignalTopic(payload []byte, writer *kafka.Writer) {
+    if writer == nil {
+        log.Println("❌ kafkaWriter is nil, cannot write to Kafka topic")
+        return
+    }
+
+    err := writer.WriteMessages(context.Background(),
+        kafka.Message{
+            Value: payload,
+        },
+    )
+    if err != nil {
+        log.Printf("❌ Failed to write to Kafka: %v", err)
+    } else {
+        log.Println("✅ Memory signal written to Kafka")
+    }
+}
+
+func flushBulkToOpenSearch(ctx context.Context, osClient *opensearch.Client, index string) error {
+    bulkBufferLock.Lock()
+    defer bulkBufferLock.Unlock()
+
+    if len(bulkBuffer) == 0 {
+        return nil // nothing to do
+    }
+
+    var bulkBody bytes.Buffer
+    for _, doc := range bulkBuffer {
+        // Add metadata line for bulk API
+        meta := fmt.Sprintf(`{ "index": { "_index": "%s" } }%s`, index, "\n")
+        bulkBody.WriteString(meta)
+
+        // Add document JSON line
+        data, err := json.Marshal(doc)
+        if err != nil {
+            // skip bad docs but log error
+            log.Printf("Failed to marshal doc for bulk indexing: %v", err)
+            continue
+        }
+        bulkBody.Write(data)
+        bulkBody.WriteString("\n")
+    }
+
+    // Clear buffer since we copied data to bulkBody
+    bulkBuffer = nil
+
+    req := opensearchapi.BulkRequest{
+        Body:    bytes.NewReader(bulkBody.Bytes()),
+        Refresh: "true", // optional, can remove for performance
+    }
+
+    res, err := req.Do(ctx, osClient)
+    if err != nil {
+        return fmt.Errorf("bulk request failed: %w", err)
+    }
+    defer res.Body.Close()
+
+    body, _ := io.ReadAll(res.Body)
+	//log.Printf(" Bulk response: %s", body)
+
+	if res.IsError() {
+    	return fmt.Errorf("bulk request error: %s - %s", res.String(), string(body))
+	}
+
+    log.Printf(" Bulk indexed %d documents to OpenSearch", len(bulkBuffer))
+    return nil
+}
+
+func startPeriodicFlush(ctx context.Context, osClient *opensearch.Client, interval time.Duration) {
+    ticker := time.NewTicker(interval)
+    go func() {
+        for {
+            select {
+            case <-ticker.C:
+                if err := flushBulkToOpenSearch(ctx, osClient, opensearchIndex); err != nil {
+                    log.Printf("Periodic bulk flush failed: %v", err)
+                }
+            case <-ctx.Done():
+                ticker.Stop()
+                return
+            }
+        }
+    }()
+}
 
 func extractMemoryStats(fields []*telemetryBis.TelemetryField) map[string]interface{} {
 	for _, field := range fields {
@@ -86,29 +214,57 @@ func getValue(field *telemetryBis.TelemetryField) interface{} {
 	}
 }
 
-func checkOpenSearchConnection(ctx context.Context, client *opensearch.Client) error {
-	res, err := client.Info()
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
+func setupOpenSearchClient() (*opensearch.Client, error) {
+    client, err := opensearch.NewClient(opensearch.Config{
+        Addresses: []string{
+            opensearch1,
+            opensearch2,
+            opensearch3,
+        },
+        // Optional: set retry behavior
+        RetryOnStatus: []int{502, 503, 504, 429},
+        MaxRetries:    5,
+    })
+    if err != nil {
+        return nil, err
+    }
 
-	bodyBytes, err := io.ReadAll(res.Body)
-	if err != nil {
-		return err
-	}
+    // Check connection
+    res, err := client.Info()
+    if err != nil {
+        return nil, err
+    }
+    defer res.Body.Close()
 
-	var info map[string]interface{}
-	if err := json.Unmarshal(bodyBytes, &info); err != nil {
-		return err
-	}
+    if res.IsError() {
+        bodyBytes, _ := io.ReadAll(res.Body)
+        return nil, fmt.Errorf("OpenSearch connection error: %s - %s", res.Status(), string(bodyBytes))
+    }
 
-	if versionInfo, ok := info["version"].(map[string]interface{}); ok {
-		log.Printf("✅ Connected to OpenSearch version: %s", versionInfo["number"])
-	} else {
-		log.Printf("✅ Connected to OpenSearch")
-	}
-	return nil
+    bodyBytes, err := io.ReadAll(res.Body)
+    if err != nil {
+        return nil, err
+    }
+
+    var info map[string]interface{}
+    if err := json.Unmarshal(bodyBytes, &info); err != nil {
+        return nil, err
+    }
+
+    version := "unknown"
+    if vMap, ok := info["version"].(map[string]interface{}); ok {
+        if vStr, ok := vMap["number"].(string); ok {
+            version = vStr
+        }
+    }
+
+    log.Printf("Connected to OpenSearch cluster version: %s", version)
+
+    if err := createMemoryIndexIfNotExists(client, opensearchIndex); err != nil {
+        return nil, fmt.Errorf("failed to ensure index exists: %w", err)
+    }
+
+    return client, nil
 }
 
 func extractMemoryKey(fields []*telemetryBis.TelemetryField) string {
@@ -137,10 +293,10 @@ func printTelemetryFields(fields []*telemetryBis.TelemetryField, indent string) 
 	}
 }
 
-func createMemoryIndexIfNotExists(client *opensearch.Client, indexName string) error {
+func createMemoryIndexIfNotExists(client *opensearch.Client, opensearchIndex string) error {
 	// Check if index exists
 	existsReq := opensearchapi.IndicesExistsRequest{
-		Index: []string{indexName},
+		Index: []string{opensearchIndex},
 	}
 	res, err := existsReq.Do(context.Background(), client)
 	if err != nil {
@@ -149,7 +305,7 @@ func createMemoryIndexIfNotExists(client *opensearch.Client, indexName string) e
 	defer res.Body.Close()
 
 	if res.StatusCode == 200 {
-		log.Printf("ℹ️ Index [%s] already exists", indexName)
+		log.Printf("ℹ️ Index [%s] already exists", opensearchIndex)
 		return nil
 	}
 
@@ -192,7 +348,7 @@ func createMemoryIndexIfNotExists(client *opensearch.Client, indexName string) e
 	}
 
 	createReq := opensearchapi.IndicesCreateRequest{
-		Index: indexName,
+		Index: opensearchIndex,
 		Body:  bytes.NewReader(body),
 	}
 
@@ -207,58 +363,8 @@ func createMemoryIndexIfNotExists(client *opensearch.Client, indexName string) e
 		return fmt.Errorf("error creating memory index: %s", string(body))
 	}
 
-	log.Printf("✅ Created OpenSearch memory index: %s", indexName)
+	log.Printf("✅ Created OpenSearch memory index: %s", opensearchIndex)
 	return nil
-}
-
-func getEnvInt(key string, defaultVal int) int {
-    valStr := os.Getenv(key)
-    if valStr == "" {
-        return defaultVal
-    }
-    val, err := strconv.Atoi(valStr)
-    if err != nil {
-        log.Printf("⚠️ Invalid int for %s=%s, using default %d", key, valStr, defaultVal)
-        return defaultVal
-    }
-    return val
-}
-
-
-func bulkIndex(ctx context.Context, client *opensearch.Client, index string, docs []map[string]interface{}) error {
-    var buf bytes.Buffer
-    enc := json.NewEncoder(&buf)
-
-    for _, doc := range docs {
-        meta := map[string]interface{}{
-            "index": map[string]interface{}{
-                "_index": index,
-            },
-        }
-        if err := enc.Encode(meta); err != nil {
-            return fmt.Errorf("encode meta: %w", err)
-        }
-        if err := enc.Encode(doc); err != nil {
-            return fmt.Errorf("encode doc: %w", err)
-        }
-    }
-
-    req := opensearchapi.BulkRequest{
-        Body:    &buf,
-        Refresh: "false",
-    }
-
-    res, err := req.Do(ctx, client)
-    if err != nil {
-        return fmt.Errorf("bulk request: %w", err)
-    }
-    defer res.Body.Close()
-
-    if res.IsError() {
-        return fmt.Errorf("bulk error: %s", res.String())
-    }
-
-    return nil
 }
 
 func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensearch.Client) {
@@ -362,10 +468,6 @@ func main() {
 	osClient, err := setupOpenSearchClient()
 	if err != nil {
 		log.Fatalf("Application startup failed: %v", err)
-	}
-
-    if err := createMemoryIndexIfNotExists(osClient, opensearchIndex); err != nil {
-		log.Fatalf("Failed to create index: %v", err)
 	}
 
     ctx, cancel := context.WithCancel(context.Background())
