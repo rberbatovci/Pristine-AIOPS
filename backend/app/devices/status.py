@@ -49,63 +49,41 @@ def get_restconf_path(device_version: str, metric: str) -> str:
             return "ietf-interfaces:interfaces-state"
     raise ValueError(f"No RESTCONF path for {metric} on version {device_version}")
 
-@router.get("/devices/{hostname}/status/last/cpu-util/")
-def get_cpu_util(hostname: str):
-    value = r.get(f"telemetry:{hostname}:cpu-util")
+# ---------- Redis Fetcher ----------
+def fetch_last_status(hostname: str, metric: str):
+    """Fetch latest metric from Redis (telemetry)."""
+    redis_key = f"telemetry:{hostname}:{metric}"
+    value = r.get(redis_key)
     if value:
         return json.loads(value)
-    return {"error": "no data"}
+    return {"error": f"no {metric} data"}
 
-# CPU endpoint
-@router.get("/devices/{hostname}/status/live/cpu/")
-async def get_cpu(hostname: str, db: AsyncSession = Depends(get_db)):
+
+# ---------- RESTCONF Fetcher ----------
+async def fetch_live_status(hostname: str, metric: str, db: AsyncSession):
+    """Fetch live metric from RESTCONF on the device."""
     device = await get_device_by_hostname(hostname, db)
     username = os.getenv("SSH_USERNAME")
     password = os.getenv("SSH_PASSWORD")
-    path = get_restconf_path(device.version, "cpu")
-    url = f"https://{device.ip_address}/restconf/data/{path}"
-    print(f"Fetching CPU from {url}")
-    try:
-        response = requests.get(url, headers=HEADERS, auth=HTTPBasicAuth(username, password), verify=False)
-        if response.status_code == 200:
-            return {"cpu": response.json()}
-        else:
-            raise HTTPException(status_code=response.status_code, detail=response.text)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-# Memory endpoint
-@router.get("/devices/{hostname}/status/live/memory/")
-async def get_memory(hostname: str, db: AsyncSession = Depends(get_db)):
-    device = await get_device_by_hostname(hostname, db)
-    username = os.getenv("SSH_USERNAME")
-    password = os.getenv("SSH_PASSWORD")
-    path = get_restconf_path(device.version, "memory")
+    path = get_restconf_path(device.version, metric)
     url = f"https://{device.ip_address}/restconf/data/{path}"
 
     try:
         response = requests.get(url, headers=HEADERS, auth=HTTPBasicAuth(username, password), verify=False)
         if response.status_code == 200:
-            return {"memory": response.json()}
-        else:
-            raise HTTPException(status_code=response.status_code, detail=response.text)
+            return {metric: response.json()}
+        raise HTTPException(status_code=response.status_code, detail=response.text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/devices/{hostname}/status/live/interfaces/")
-async def get_interfaces(hostname: str, db: AsyncSession = Depends(get_db)):
-    device = await get_device_by_hostname(hostname, db)
-    username = os.getenv("SSH_USERNAME")
-    password = os.getenv("SSH_PASSWORD")
-    path = get_restconf_path(device.version, "interfaces")
-    url = f"https://{device.ip_address}/restconf/data/{path}"
-    print(f"Fetching CPU from {url}")
 
-    try:
-        response = requests.get(url, headers=HEADERS, auth=HTTPBasicAuth(username, password), verify=False)
-        if response.status_code == 200:
-            return {"interfaces": response.json()}  # <-- return interfaces, not memory
-        else:
-            raise HTTPException(status_code=response.status_code, detail=response.text)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# ---------- Redis "last" endpoints ----------
+@router.get("/devices/{hostname}/status/last/{metric}/")
+def get_last_status(hostname: str, metric: str):
+    return fetch_last_status(hostname, metric)
+
+
+# ---------- Live RESTCONF endpoints ----------
+@router.get("/devices/{hostname}/status/live/{metric}/")
+async def get_live_status(hostname: str, metric: str, db: AsyncSession = Depends(get_db)):
+    return await fetch_live_status(hostname, metric, db)

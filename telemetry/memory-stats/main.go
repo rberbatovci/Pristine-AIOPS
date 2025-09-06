@@ -389,7 +389,13 @@ func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensea
 
     // Save latest Memory stats in Redis
     redisKey := fmt.Sprintf("telemetry:%s:memory-stats", device)
-    statsJSON, _ := json.Marshal(statsMap) // convert map to JSON
+
+    redisValue := map[string]interface{}{
+        "msg_timestamp": t.MsgTimestamp, 
+        "stats":         statsMap,
+    }
+
+    statsJSON, _ := json.Marshal(redisValue) // convert map to JSON
     if err := redisClient.Set(ctx, redisKey, statsJSON, 0).Err(); err != nil {
         log.Printf("Failed to save Memory stats to Redis for device %s: %v", device, err)
     } else {

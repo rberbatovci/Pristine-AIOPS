@@ -393,9 +393,16 @@ func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensea
         device = nodeID.NodeIdStr
     }
 
-    // Save latest CPU stats in Redis
+    // Save latest CPU stats in Redis (include msg_timestamp)
     redisKey := fmt.Sprintf("telemetry:%s:cpu-util", device)
-    statsJSON, _ := json.Marshal(statsMap) // convert map to JSON
+
+    // Build a combined object
+    redisValue := map[string]interface{}{
+        "msg_timestamp": t.MsgTimestamp, // <- add msg_timestamp here
+        "stats":         statsMap,       // keep stats inside
+    }
+
+    statsJSON, _ := json.Marshal(redisValue)
     if err := redisClient.Set(ctx, redisKey, statsJSON, 0).Err(); err != nil {
         log.Printf("Failed to save CPU stats to Redis for device %s: %v", device, err)
     } else {

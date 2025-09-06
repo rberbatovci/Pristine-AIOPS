@@ -44,24 +44,24 @@ function InterfaceStatistics({ selectedDevice, onSuccess }) {
         }
     };
 
-const getInterfacesStatus = async (hostname) => {
-    setInterfacesLoading(true);
-    setError('');
-    try {
-        const response = await apiClient.get(`/devices/${hostname}/status/live/interfaces/`);
+    const getInterfacesStatus = async (hostname) => {
+        setInterfacesLoading(true);
+        setError('');
+        try {
+            const response = await apiClient.get(`/devices/${hostname}/status/live/interfaces/`);
 
-        // Drill down to actual interface list
-        const intfs =
-            response.data.interfaces?.["ietf-interfaces:interfaces-state"]?.interface || [];
+            // Drill down to actual interface list
+            const intfs =
+                response.data.interfaces?.["ietf-interfaces:interfaces-state"]?.interface || [];
 
-        setInterfaces(intfs);
-    } catch (err) {
-        console.error('Interfaces fetch failed:', err);
-        setError(err.response?.data?.detail || err.message || 'Unknown error');
-    } finally {
-        setInterfacesLoading(false);
-    }
-};
+            setInterfaces(intfs);
+        } catch (err) {
+            console.error('Interfaces fetch failed:', err);
+            setError(err.response?.data?.detail || err.message || 'Unknown error');
+        } finally {
+            setInterfacesLoading(false);
+        }
+    };
 
     return (
         <div className="signalRightElementContainer" style={{ maxHeight: '300px', overflowY: 'auto' }}>
@@ -98,20 +98,20 @@ const getInterfacesStatus = async (hostname) => {
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
                             <tr style={{ textAlign: 'left', borderBottom: '1px solid #ccc' }}>
-                                <th style={{ padding: '4px 8px' }}>Interface</th>
-                                <th style={{ padding: '4px 8px' }}>Admin Status</th>
-                                <th style={{ padding: '4px 8px' }}>Oper Status</th>
+                                <th style={{ padding: '10px 12px' }}>Interface</th>
+                                <th style={{ padding: '10px 12px' }}>Admin Status</th>
+                                <th style={{ padding: '10px 12px' }}>Oper Status</th>
                             </tr>
                         </thead>
                         <tbody>
-    {interfaces.map((intf, idx) => (
-        <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
-            <td style={{ padding: '4px 8px' }}>{intf.name}</td>
-            <td style={{ padding: '4px 8px' }}>{intf['admin-status']}</td>
-            <td style={{ padding: '4px 8px' }}>{intf['oper-status']}</td>
-        </tr>
-    ))}
-</tbody>
+                            {interfaces.map((intf, idx) => (
+                                <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
+                                    <td style={{ padding: '8px 10px' }}>{intf.name}</td>
+                                    <td style={{ padding: '8px 10px' }}>{intf['admin-status']}</td>
+                                    <td style={{ padding: '8px 10px' }}>{intf['oper-status']}</td>
+                                </tr>
+                            ))}
+                        </tbody>
 
                     </table>
                 )}

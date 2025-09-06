@@ -1,89 +1,129 @@
 import { useState, useEffect } from 'react';
 import apiClient from '../misc/AxiosConfig';
-import { TailSpin } from 'react-loader-spinner';
-import { RadialBarChart, RadialBar, PieChart, Pie, Cell, Tooltip as RechartsTooltip, Legend } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip as RechartsTooltip } from 'recharts';
 import { IoPushOutline, IoPushSharp, IoRefreshCircleSharp, IoRefreshCircleOutline } from "react-icons/io5";
 
 function MemoryStatistics({ selectedDevice, onSuccess }) {
-    const [device, setDevice] = useState(selectedDevice);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [totalMemory, setTotalMemory] = useState(0); 
-    const [usedMemory, setUsedMemory] = useState(0); 
-    const [freeMemory, setFreeMemory] = useState(0); 
-    const [memoryLoading, setMemoryLoading] = useState(false); 
-    const [memoryTimestamp, setMemoryTimestamp] = useState(null);
-    const [shouldSpin, setShouldSpin] = useState(true);
-    const [memoryChartData, setMemoryChartData] = useState([
-      { name: 'used-memory', value: 40, fill: 'green', opacity: 0.9 },
-      { name: 'free-memory', value: 60, fill: 'green', opacity: 0.8 },
-    ]);
+  const [device, setDevice] = useState(selectedDevice);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [totalMemory, setTotalMemory] = useState(0);
+  const [usedMemory, setUsedMemory] = useState(0);
+  const [freeMemory, setFreeMemory] = useState(0);
+  const [memoryLoading, setMemoryLoading] = useState(false);
+  const [memoryTimestamp, setMemoryTimestamp] = useState(null);
+  const [shouldSpin, setShouldSpin] = useState(true);
+  const [memoryChartData, setMemoryChartData] = useState([
+    { name: 'Used', value: 0, fill: '#0088FE', opacity: 0.9 },
+    { name: 'Free', value: 0, fill: '#00C49F', opacity: 0.8 },
+  ]);
 
-    // ✅ Sync state when selectedDevice changes
-    useEffect(() => {
-        setDevice(selectedDevice);
-    }, [selectedDevice]);
+  // ✅ Sync state when selectedDevice changes
+  useEffect(() => {
+    setDevice(selectedDevice);
+  }, [selectedDevice]);
 
-    const sendConfig = async () => {
-        setLoading(true); setError('');
-        try {
-            const response = await apiClient.post(`/devices/${device.hostname}/config/syslogs/`, {});
-            setDevice(prev => ({ ...prev, features: { ...prev.features, syslogs: true } }));
-            if (onSuccess) onSuccess(response.data);
-        } catch (err) {
-            setError(err.response?.data?.detail || err.message || 'Unknown error');
-        } finally { setLoading(false); }
-    };
+  const sendConfig = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await apiClient.post(`/devices/${device.hostname}/config/syslogs/`, {});
+      setDevice(prev => ({
+        ...prev,
+        features: { ...prev.features, syslogs: true },
+      }));
+      if (onSuccess) onSuccess(response.data);
+    } catch (err) {
+      setError(err.response?.data?.detail || err.message || 'Unknown error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        const getMemoryStatus = async () => {
-        setMemoryLoading(true); setError('');
-        try {
-            const response = await apiClient.get(`/devices/${device.hostname}/status/live/memory/`);
-            const stats = response.data.memory?.["Cisco-IOS-XE-memory-oper:memory-statistic"] || [];
-            const procMem = stats.find(m => m.name === "Processor");
-            if (procMem) {
-              const newData = [
-                { name: 'Used', value: Math.min(stats["used-memory"] ?? 0, 100), fill: 'green', opacity: 0.9 },
-                { name: 'Free', value: Math.min(stats["free-memory"] ?? 0, 100), fill: 'green', opacity: 0.8 },
-              ];
+  // 🔹 Fetch last memory stats from Redis
+const getLastMemoryStatus = async () => {
+  setMemoryLoading(true);
+  setError('');
+  try {
+    const response = await apiClient.get(
+      `/devices/${device.hostname}/status/last/memory-stats/`
+    );
 
-              setTotalMemory(Number(procMem["total-memory"]));
-              setUsedMemory(Number(procMem["used-memory"]));
-              setFreeMemory(Number(procMem["free-memory"]));
-              setMemoryTimestamp(new Date().toISOString());
-              setShouldSpin(false);
-            }
-        } catch (err) {
-            setError(err.response?.data?.detail || err.message || 'Unknown error');
-        } finally { setMemoryLoading(false); }
-    };
+    const data = response.data || {};
+    const stats = data.stats || {};   // <-- extract the nested stats object
 
-    const getLastMemoryStatus = async () => {
-        setMemoryLoading(true); setError('');
-        try {
-            const response = await apiClient.get("/telemetry/memory-statistics/", {
-                params: { device: device.hostname, limit: 1 }
-            });
-            const last = response.data.results?.[0];
-            if (last) {
-                setTotalMemory(Number(last.total_memory || 10));
-                setUsedMemory(Number(last.used_memory || 10));
-                setFreeMemory(Number(last.free_memory || 10));
-                setMemoryTimestamp(last.timestamp || null);
-            }
-        } catch (err) {
-            setError(err.response?.data?.detail || err.message || 'Unknown error');
-        } finally { setMemoryLoading(false); }
-    };
+    if (!data.error && Object.keys(stats).length > 0) {
+      const used = Number(stats["used-memory"] || 0);
+      const free = Number(stats["free-memory"] || 0);
+      const total = Number(stats["total-memory"] || used + free);
 
-    useEffect(() => {
-        if (device?.hostname) {
-            getLastMemoryStatus();
-            getMemoryStatus();
-        }
-    }, [device]);
+      setTotalMemory(total);
+      setUsedMemory(used);
+      setFreeMemory(free);
 
-    const colorPalette = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+      setMemoryChartData([
+        { name: 'Used', value: used, fill: '#0088FE', opacity: 0.9 },
+        { name: 'Free', value: free, fill: '#00C49F', opacity: 0.8 },
+      ]);
+
+      // ✅ Prefer backend timestamp (msg_timestamp) if available
+      if (data.msg_timestamp) {
+        setMemoryTimestamp(
+          new Date(data.msg_timestamp).toISOString()  // <-- already ms, no need /1000
+        );
+      } else {
+        setMemoryTimestamp(null);
+      }
+
+      setShouldSpin(false);
+    } else {
+      setError(data.error || "No memory data available");
+    }
+  } catch (err) {
+    setError(err.response?.data?.detail || err.message || 'Unknown error');
+  } finally {
+    setMemoryLoading(false);
+  }
+};
+
+  // 🔹 Fetch live memory stats via RESTCONF
+  const getLiveMemoryStatus = async () => {
+    setMemoryLoading(true);
+    setError('');
+    try {
+      const response = await apiClient.get(`/devices/${device.hostname}/status/live/memory/`);
+      const stats = response.data.memory?.["Cisco-IOS-XE-memory-oper:memory-statistic"] || [];
+      const procMem = stats.find(m => m.name === "Processor");
+
+      if (procMem) {
+        const used = Number(procMem["used-memory"]);
+        const free = Number(procMem["free-memory"]);
+        const total = Number(procMem["total-memory"]);
+
+        setTotalMemory(total);
+        setUsedMemory(used);
+        setFreeMemory(free);
+
+        setMemoryChartData([
+          { name: 'Used', value: used, fill: '#0088FE', opacity: 0.9 },
+          { name: 'Free', value: free, fill: '#00C49F', opacity: 0.8 },
+        ]);
+
+        setMemoryTimestamp(new Date().toISOString()); // live data = now
+        setShouldSpin(false);
+      }
+    } catch (err) {
+      setError(err.response?.data?.detail || err.message || 'Unknown error');
+    } finally {
+      setMemoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (device?.hostname) {
+      getLastMemoryStatus();
+    }
+  }, [device]);
 
   const rotatingChartStyle = `
     @keyframes rotate {
@@ -116,14 +156,11 @@ function MemoryStatistics({ selectedDevice, onSuccess }) {
             innerRadius="65%"
             outerRadius="85%"
             cornerRadius={10}
-            isAnimationActive={!shouldSpin} // animate after spin stops
+            isAnimationActive={!shouldSpin}
             animationDuration={800}
           >
             {memoryChartData.map((entry, index) => (
-              <Cell
-                key={`cell-${index}`}
-                fill={entry.fill}
-              />
+              <Cell key={`cell-${index}`} fill={entry.fill} />
             ))}
           </Pie>
           <RechartsTooltip />
@@ -152,14 +189,16 @@ function MemoryStatistics({ selectedDevice, onSuccess }) {
         </div>
         <div style={{ display: "flex", fontSize: "13px" }}>
           <p style={{ textAlign: "right", width: "50px", marginTop: "5px" }}>Source:</p>
-          <p style={{ textAlign: "left", width: "100px", marginLeft: "5px", marginTop: "5px" }}>Telemetry</p>
+          <p style={{ textAlign: "left", width: "100px", marginLeft: "5px", marginTop: "5px" }}>
+            {memoryTimestamp ? "Telemetry" : "Fetching..."}
+          </p>
         </div>
-        <div style={{ display: "flex", marginTop: "5px"}}>
-          <button className="iconButton">
+        <div style={{ display: "flex", marginTop: "5px" }}>
+          <button className="iconButton" onClick={getLastMemoryStatus}>
             <IoRefreshCircleOutline className="defaultIcon" />
             <IoRefreshCircleSharp className="hoverIcon" />
           </button>
-          <button className="iconButton">
+          <button className="iconButton" onClick={getLiveMemoryStatus}>
             <IoPushOutline className="defaultIcon" />
             <IoPushSharp className="hoverIcon" />
           </button>

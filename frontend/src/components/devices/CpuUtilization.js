@@ -21,34 +21,45 @@ function CpuUtilization({ selectedDevice, onSuccess }) {
     setDevice(selectedDevice);
   }, [selectedDevice]);
 
-  const getLastCpuStatus = async () => {
-    setCpuLoading(true);
-    setError('');
-    setShouldSpin(true);
+const getLastCpuStatus = async () => {
+  setCpuLoading(true);
+  setError('');
+  setShouldSpin(true);
 
-    try {
-      const response = await apiClient.get(`/devices/${device.hostname}/status/last/cpu-util/`);
-      const stats = response.data; // <-- use data directly
+  try {
+    const response = await apiClient.get(`/devices/${device.hostname}/status/last/cpu-util/`);
+    const data = response.data;
 
-      if (stats && Object.keys(stats).length > 0) {
-        const newData = [
-          { name: '5s Avg', value: Math.min(stats["five-seconds"] ?? 0, 100), fill: 'green', opacity: 1 },
-          { name: '1m Avg', value: Math.min(stats["one-minute"] ?? 0, 100), fill: 'green', opacity: 0.9 },
-          { name: '5m Avg', value: Math.min(stats["five-minutes"] ?? 0, 100), fill: 'green', opacity: 0.8 },
-        ];
+    if (data && data.stats && Object.keys(data.stats).length > 0) {
+      const stats = data.stats;
 
-        setCpuChartData(newData);
-        setCpuTimestamp(new Date().toISOString()); // if backend doesn't send ingested_at
-        setShouldSpin(false);
+      const newData = [
+        { name: '5s Avg', value: Math.min(stats["five-seconds"] ?? 0, 100), fill: 'green', opacity: 1 },
+        { name: '1m Avg', value: Math.min(stats["one-minute"] ?? 0, 100), fill: 'green', opacity: 0.9 },
+        { name: '5m Avg', value: Math.min(stats["five-minutes"] ?? 0, 100), fill: 'green', opacity: 0.8 },
+      ];
+
+      setCpuChartData(newData);
+
+      // Only set timestamp if backend provides it
+      if (data.msg_timestamp) {
+        setCpuTimestamp(new Date(data.msg_timestamp).toISOString());
       } else {
-        setError('No data available');
+        setCpuTimestamp(null);
       }
-    } catch (err) {
-      setError(err.response?.data?.detail || err.message || 'Unknown error');
-    } finally {
-      setCpuLoading(false);
+
+      setShouldSpin(false);
+    } else {
+      setError('No data available');
+      setCpuTimestamp(null);
     }
-  };
+  } catch (err) {
+    setError(err.response?.data?.detail || err.message || 'Unknown error');
+    setCpuTimestamp(null);
+  } finally {
+    setCpuLoading(false);
+  }
+};
 
   useEffect(() => {
     if (device?.hostname) {
