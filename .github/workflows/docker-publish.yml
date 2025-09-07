@@ -144,5 +144,20 @@ jobs:
           file: ./dockerfiles/Dockerfile.telemetry-interface-stats
           push: true
           tags: ghcr.io/rberbatovci/telemetry-interface-stats:latest
+      
+      - name: Build and push GoBGP Server image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.gobgp-server
+          push: true
+          tags: ghcr.io/rberbatovci/gobgp-server:latest
 
+      - name: Build and push topology producer image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.topology-producer
+          push: true
+          tags: ghcr.io/rberbatovci/telemetry-interface-stats:latest
 

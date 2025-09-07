@@ -1,0 +1,32 @@
+# --- Build stage ---
+FROM golang:1.25-alpine AS builder
+
+WORKDIR /src
+
+# Copy GoBGP source code
+COPY topology/gobgp /src
+
+# Install git (needed for go modules sometimes)
+RUN apk add --no-cache git
+
+# Build the GoBGP daemon with gRPC enabled
+RUN go build -tags grpc -o /usr/local/bin/gobgpd ./cmd/gobgpd
+
+# --- Runtime stage ---
+FROM alpine:latest
+
+# Install runtime dependencies
+RUN apk add --no-cache bash gettext ca-certificates
+
+# Copy GoBGP binary from builder
+COPY --from=builder /usr/local/bin/gobgpd /usr/local/bin/gobgpd
+
+# Copy your entrypoint and config template
+COPY topology/entrypoint.sh /app/entrypoint.sh
+COPY topology/gobgp.conf.template /app/gobgp.conf.template
+
+# Make entrypoint executable
+RUN chmod +x /app/entrypoint.sh
+
+# Set entrypoint
+ENTRYPOINT ["/app/entrypoint.sh"]

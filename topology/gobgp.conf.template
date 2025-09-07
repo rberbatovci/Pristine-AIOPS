@@ -1,0 +1,13 @@
+[global.config]
+  as = ${BGP_AS_NUMBER}
+  router-id = "${BGP_ROUTER_ID}"
+
+[[neighbors]]
+  [neighbors.config]
+    neighbor-address = "${BGP_NEIGHBOR_IP}"
+    peer-as = ${BGP_NEIGHBOR_AS}
+
+  [[neighbors.afi-safis]]
+    [neighbors.afi-safis.config]
+      afi-safi-name = "ls"
+      enabled = true

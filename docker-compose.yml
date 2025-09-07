@@ -64,7 +64,7 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_CREATE_TOPICS: "unknown:1:1,telemetry-signals:1:1,cpu-utilization:1:1,memory-statistics:1:1,interface-statistics:1:1,bgp-connections:1:1,isis-statistics:1:1,syslog-events:1:1,trap-events:1:1,netflow-events:1:1,syslog-signals:1:1,trap-signals:1:1"
+      KAFKA_CREATE_TOPICS: "unknown:1:1,topology-topic:1:1,telemetry-signals:1:1,cpu-utilization:1:1,memory-statistics:1:1,interface-statistics:1:1,bgp-connections:1:1,isis-statistics:1:1,syslog-events:1:1,trap-events:1:1,netflow-events:1:1,syslog-signals:1:1,trap-signals:1:1"
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_OFFSETS_TOPIC_NUM_PARTITIONS: 50
       KAFKA_BROKER_ID: 1
@@ -383,6 +383,38 @@ services:
       opensearch-node1:
         condition: service_healthy
     restart: unless-stopped
+    networks:
+      - aiops
+
+  gobgp:
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.gobgp-server
+    env_file:
+      - .env
+    ports:
+      - "179:179"
+      - "50051:50051"
+    networks:
+      - aiops
+    healthcheck:
+      test: ["CMD-SHELL", "grpc_health_probe -addr=gobgp:50051"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  topology-producer:
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.topology-producer
+    environment:
+      - KAFKA_BROKER=kafka:9092
+      - KAFKA_TOPIC=topology-topic
+    depends_on:
+      kafka:
+        condition: service_healthy
+      zookeeper:
+        condition: service_healthy
     networks:
       - aiops
 
