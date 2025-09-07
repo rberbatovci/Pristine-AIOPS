@@ -5,3 +5,4 @@ netconf/ydk-gen
 netconf
 venv
 yang
+topology/gobgp
