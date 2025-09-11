@@ -2,38 +2,78 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"log"
 
-	gobgpapi "github.com/osrg/gobgp/v3/api"
+	api "github.com/osrg/gobgp/v3/api"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 func main() {
+	// Connect to GoBGP gRPC
 	conn, err := grpc.Dial("gobgp:50051", grpc.WithInsecure())
 	if err != nil {
-		log.Fatalf("failed to connect: %v", err)
+		log.Fatalf("Failed to connect to GoBGP: %v", err)
 	}
 	defer conn.Close()
+	client := api.NewGobgpApiClient(conn)
 
-	client := gobgpapi.NewGobgpApiClient(conn)
-
-	// Monitor the global table for BGP-LS
-	// The EnableAdvertised field is not valid here.
-	stream, err := client.Monitor(context.Background(), &gobgpapi.MonitorRequest{
-        TableType: gobgpapi.TableType_GLOBAL,
-    })
-	if err != nil {
-		log.Fatalf("failed to start stream: %v", err)
+	// Request Link-State RIB
+	req := &api.ListPathRequest{
+		TableType: api.TableType_GLOBAL,
+		Family: &api.Family{
+			Afi:  api.Family_AFI_LS,
+			Safi: api.Family_SAFI_LS,
+		},
 	}
 
-	log.Println("Streaming BGP-LS updates...")
+	stream, err := client.ListPath(context.Background(), req)
+	if err != nil {
+		log.Fatalf("ListPath error: %v", err)
+	}
+
+	log.Println("Subscribed to GoBGP BGP-LS updates...")
+
 	for {
-		path, err := stream.Recv()
+		resp, err := stream.Recv()
 		if err != nil {
-			log.Fatalf("stream recv error: %v", err)
+			log.Fatalf("Stream error: %v", err)
+		}
+		if resp.Destination == nil {
+			continue
 		}
 
-		log.Printf("Received path: %+v\n", path)
-		// Here you can send the path info to Kafka
+		for _, path := range resp.Destination.Paths {
+			// Decode NLRI
+			nlriMsg, err := anypb.UnmarshalNew(path.Nlri, proto.UnmarshalOptions{})
+			if err != nil {
+				log.Printf("Failed to decode NLRI: %v", err)
+				continue
+			}
+
+			switch nlri := nlriMsg.(type) {
+			case *api.LsAddrPrefix:
+				fmt.Printf("📡 LS Prefix: %+v\n", nlri)
+			case *api.LsNodeNLRI:
+				fmt.Printf("📡 LS Node: %+v\n", nlri)
+			case *api.LsLinkNLRI:
+				fmt.Printf("📡 LS Link: %+v\n", nlri)
+			default:
+				fmt.Printf("❓ Unknown NLRI type: %T\n", nlri)
+			}
+
+			// Decode attributes
+			for _, attr := range path.Pattrs {
+				attrMsg, _ := anypb.UnmarshalNew(attr, proto.UnmarshalOptions{})
+				switch ls := attrMsg.(type) {
+				case *api.LsAttribute:
+					b, _ := json.MarshalIndent(ls, "", "  ")
+					fmt.Printf("🔧 LS Attributes: %s\n", string(b))
+				}
+			}
+		}
 	}
 }

@@ -3,11 +3,11 @@ FROM golang:1.25-alpine AS builder
 
 WORKDIR /src
 
-# Copy GoBGP source code
-COPY topology/gobgp /src
+# Install dependencies
+RUN apk add --no-cache git make bash
 
-# Install git (needed for go modules sometimes)
-RUN apk add --no-cache git
+# Clone GoBGP source from GitHub (use --branch to lock a version if you want)
+RUN git clone --depth 1 --branch v3.20.0 https://github.com/osrg/gobgp.git .
 
 # Build the GoBGP daemon with gRPC enabled
 RUN go build -tags grpc -o /usr/local/bin/gobgpd ./cmd/gobgpd
