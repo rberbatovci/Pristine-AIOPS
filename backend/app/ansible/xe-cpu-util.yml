@@ -15,9 +15,9 @@
     - name: Configure telemetry subscription 101 (CPU utilization)
       ios_config:
         lines:
-          - telemetry ietf subscription 101
-          -  encoding encode-kvgpb
-          -  filter xpath /process-cpu-ios-xe-oper:cpu-usage/cpu-utilization
-          -  stream yang-push
-          -  update-policy periodic {{ telemetry_period_seconds }}
-          -  receiver ip address {{ receiver_ip }} {{ receiver_port }} protocol grpc-tcp
+          - "telemetry ietf subscription 101"
+          - "encoding encode-kvgpb"
+          - "filter xpath /process-cpu-ios-xe-oper:cpu-usage/cpu-utilization"
+          - "stream yang-push"
+          - "update-policy periodic {{ telemetry_period_seconds }}"
+          - "receiver ip address {{ receiver_ip }} {{ receiver_port }} protocol grpc-tcp"

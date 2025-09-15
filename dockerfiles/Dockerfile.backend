@@ -18,15 +18,22 @@ RUN apt-get update && \
 
 # Copy requirements and install
 COPY backend/requirements.txt .
-RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Optional: compile protobufs if you didn’t pre-generate them
+# COPY backend/protos/ ./protos/
+# RUN python -m grpc_tools.protoc -I./protos --python_out=./app --grpc_python_out=./app gobgp.proto attribute.proto capability.proto
 
 # Copy the rest of the backend code
 COPY backend/ .
 
-# Set entrypoint
+# Make entrypoint executable
 COPY backend/entrypoint.sh .
 RUN chmod +x entrypoint.sh
-ENTRYPOINT ["/app/entrypoint.sh"]
 
 # Expose FastAPI port
 EXPOSE 8000
+
+# Entrypoint
+ENTRYPOINT ["/app/entrypoint.sh"]

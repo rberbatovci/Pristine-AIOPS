@@ -19,6 +19,15 @@ const CpuUtilsStats = ({ selectedDevice }) => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    if (!selectedDevice) {
+      setShowData(false);
+      setCpuData([]);
+    } else {
+      setShowData(true);
+    }
+  }, [selectedDevice]);
+
+  useEffect(() => {
     const fetchCpuStats = async () => {
       setLoading(true);
       setError(null);
@@ -51,62 +60,57 @@ const CpuUtilsStats = ({ selectedDevice }) => {
   return (
     <div className={`signalRightElementContainer ${showData ? "expanded" : "collapsed"}`}>
       <div className="signalRightElementHeader">
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-        <h2 className="signalRightElementHeaderTxt">
-         {selectedDevice || 'No device selected'}
-        </h2>
-        <span style={{ fontSize: '14px', color: 'var(--textColor)' }}>- CPU Utliization Statistics</span>
-        </div>
+        <span style={{ fontSize: '14px', color: 'var(--textColor)', paddingLeft: '10px' }}> {selectedDevice || ''} - CPU Utliization Statistics</span>
       </div>
 
-        <div style={{ paddingTop: "10px"}}>
-          {loading ? (
-            <div className="p-4 text-gray-500">Loading CPU stats...</div>
-          ) : error ? (
-            <div className="p-4 text-red-500">{error}</div>
-          ) : cpuData.length === 0 ? (
-            <div className="p-4">No CPU stats found for this device.</div>
-          ) : (
-            <div style={{ width: "100%", height: 200 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={cpuData}
-                  margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
-                >
-                  <CartesianGrid stroke="#ccc" strokeDasharray="5 5" />
-                  <XAxis dataKey="timestamp" reversed={true} />
-                  <YAxis domain={[0, 100]} />
-                  <Tooltip />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="fiveSeconds"
-                    stroke="#8884d8"
-                    dot={false}
-                    activeDot={{ r: 4 }}
-                    name="5 Seconds"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="oneMinute"
-                    stroke="#82ca9d"
-                    dot={false}
-                    activeDot={{ r: 4 }}
-                    name="1 Minute"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="fiveMinutes"
-                    stroke="#ffc658"
-                    dot={false}
-                    activeDot={{ r: 4 }}
-                    name="5 Minutes"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </div>
+      <div style={{ paddingTop: "10px" }}>
+        {loading ? (
+          <div className="p-4 text-gray-500">Loading CPU stats...</div>
+        ) : error ? (
+          <div className="p-4 text-red-500">{error}</div>
+        ) : cpuData.length === 0 ? (
+          <div className="p-4">No CPU stats found for this device.</div>
+        ) : (
+          <div style={{ width: "100%", height: 200 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={cpuData}
+                margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+              >
+                <CartesianGrid stroke="#ccc" strokeDasharray="5 5" />
+                <XAxis dataKey="timestamp" reversed={true} />
+                <YAxis domain={[0, 100]} />
+                <Tooltip />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="fiveSeconds"
+                  stroke="#8884d8"
+                  dot={false}
+                  activeDot={{ r: 4 }}
+                  name="5 Seconds"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="oneMinute"
+                  stroke="#82ca9d"
+                  dot={false}
+                  activeDot={{ r: 4 }}
+                  name="1 Minute"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="fiveMinutes"
+                  stroke="#ffc658"
+                  dot={false}
+                  activeDot={{ r: 4 }}
+                  name="5 Minutes"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

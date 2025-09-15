@@ -310,7 +310,7 @@ func createIndexIfNotExists(client *opensearch.Client, opensearchIndex string) e
 				"collection_id": map[string]interface{}{"type": "long"},
 				"collection_start_time": map[string]interface{}{"type": "date"},
 				"collection_end_time":   map[string]interface{}{"type": "date"},
-				"msg_timestamp":         map[string]interface{}{"type": "date"},
+				"timestamp":         map[string]interface{}{"type": "date"},
 				"encoding_path":         map[string]interface{}{"type": "keyword"},
 				"ingested_at":           map[string]interface{}{"type": "date"},
 				"stats": map[string]interface{}{
@@ -393,12 +393,12 @@ func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensea
         device = nodeID.NodeIdStr
     }
 
-    // Save latest CPU stats in Redis (include msg_timestamp)
+    // Save latest CPU stats in Redis (include timestamp)
     redisKey := fmt.Sprintf("telemetry:%s:cpu-util", device)
 
     // Build a combined object
     redisValue := map[string]interface{}{
-        "msg_timestamp": t.MsgTimestamp, // <- add msg_timestamp here
+        "timestamp": t.MsgTimestamp, // <- add timestamp here
         "stats":         statsMap,       // keep stats inside
     }
 
@@ -415,7 +415,7 @@ func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensea
         "collection_id":         t.CollectionId,
         "collection_start_time": t.CollectionStartTime,
         "collection_end_time":   t.CollectionEndTime,
-        "msg_timestamp":         t.MsgTimestamp,
+        "timestamp":         t.MsgTimestamp,
         "encoding_path":         t.EncodingPath,
         "stats":                 statsMap,
         "ingested_at":           time.Now().UTC(),

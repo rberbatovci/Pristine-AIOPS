@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	api "github.com/osrg/gobgp/v3/api"
 	"google.golang.org/grpc"
@@ -13,67 +14,79 @@ import (
 )
 
 func main() {
-	// Connect to GoBGP gRPC
+	for {
+		if err := watchBGP(); err != nil {
+			log.Printf("Watch error: %v, reconnecting in 3s...", err)
+			time.Sleep(3 * time.Second)
+		}
+	}
+}
+
+func watchBGP() error {
 	conn, err := grpc.Dial("gobgp:50051", grpc.WithInsecure())
 	if err != nil {
-		log.Fatalf("Failed to connect to GoBGP: %v", err)
+		return fmt.Errorf("failed to connect to GoBGP: %v", err)
 	}
 	defer conn.Close()
+
 	client := api.NewGobgpApiClient(conn)
 
-	// Request Link-State RIB
-	req := &api.ListPathRequest{
-		TableType: api.TableType_GLOBAL,
-		Family: &api.Family{
-			Afi:  api.Family_AFI_LS,
-			Safi: api.Family_SAFI_LS,
+	req := &api.WatchEventRequest{
+		Table: &api.WatchEventRequest_Table{
+			// Only specify Table if you want path events.
+			// No Type/Family fields here in v3!
 		},
 	}
 
-	stream, err := client.ListPath(context.Background(), req)
+	stream, err := client.WatchEvent(context.Background(), req)
 	if err != nil {
-		log.Fatalf("ListPath error: %v", err)
+		return fmt.Errorf("WatchEvent error: %v", err)
 	}
 
-	log.Println("Subscribed to GoBGP BGP-LS updates...")
+	log.Println("Subscribed to GoBGP updates...")
 
 	for {
-		resp, err := stream.Recv()
+		event, err := stream.Recv()
 		if err != nil {
-			log.Fatalf("Stream error: %v", err)
-		}
-		if resp.Destination == nil {
-			continue
+			return fmt.Errorf("stream closed: %v", err)
 		}
 
-		for _, path := range resp.Destination.Paths {
-			// Decode NLRI
-			nlriMsg, err := anypb.UnmarshalNew(path.Nlri, proto.UnmarshalOptions{})
-			if err != nil {
-				log.Printf("Failed to decode NLRI: %v", err)
-				continue
-			}
+		// WatchEventResponse has Path (not Paths) for Table events in v3
+		switch e := event.Event.(type) {
+		case *api.WatchEventResponse_TableEvent:
+			handlePath(e.TableEvent.Paths)
+		default:
+			log.Printf("Unknown event type: %T", e)
+		}
+	}
+}
 
-			switch nlri := nlriMsg.(type) {
-			case *api.LsAddrPrefix:
-				fmt.Printf("📡 LS Prefix: %+v\n", nlri)
-			case *api.LsNodeNLRI:
-				fmt.Printf("📡 LS Node: %+v\n", nlri)
-			case *api.LsLinkNLRI:
-				fmt.Printf("📡 LS Link: %+v\n", nlri)
-			default:
-				fmt.Printf("❓ Unknown NLRI type: %T\n", nlri)
-			}
+func handlePath(path *api.Path) {
+	if path == nil {
+		return
+	}
+	nlriMsg, err := anypb.UnmarshalNew(path.Nlri, proto.UnmarshalOptions{})
+	if err != nil {
+		log.Printf("Failed to decode NLRI: %v", err)
+		return
+	}
 
-			// Decode attributes
-			for _, attr := range path.Pattrs {
-				attrMsg, _ := anypb.UnmarshalNew(attr, proto.UnmarshalOptions{})
-				switch ls := attrMsg.(type) {
-				case *api.LsAttribute:
-					b, _ := json.MarshalIndent(ls, "", "  ")
-					fmt.Printf("🔧 LS Attributes: %s\n", string(b))
-				}
-			}
+	switch nlri := nlriMsg.(type) {
+	case *api.LsAddrPrefix:
+		fmt.Printf("📡 LS Prefix: %+v\n", nlri)
+	case *api.LsNodeNLRI:
+		fmt.Printf("📡 LS Node: %+v\n", nlri)
+	case *api.LsLinkNLRI:
+		fmt.Printf("📡 LS Link: %+v\n", nlri)
+	default:
+		fmt.Printf("❓ Unknown NLRI type: %T\n", nlri)
+	}
+
+	for _, attr := range path.Pattrs {
+		attrMsg, _ := anypb.UnmarshalNew(attr, proto.UnmarshalOptions{})
+		if ls, ok := attrMsg.(*api.LsAttribute); ok {
+			b, _ := json.MarshalIndent(ls, "", "  ")
+			fmt.Printf("🔧 LS Attributes: %s\n", string(b))
 		}
 	}
 }

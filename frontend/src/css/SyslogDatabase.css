@@ -25,7 +25,7 @@
     border-radius: 12px;
     color: var(--textColor);
     background: var(--contentBackground);
-    backdrop-filter: blur(25px);
+    backdrop-filter: blur(8px);
 }
 
 .mainContainerHeader {

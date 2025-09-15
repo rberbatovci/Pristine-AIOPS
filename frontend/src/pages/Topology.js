@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../components/misc/AxiosConfig';
 import GeolocationMap from '../components/geolocation/GeolocationMap';
-import '../css/Geolocation.css';
+import '../css/Topology.css';
 
-function Geolocation({ currentUser, setDashboardTitle }) {
+function Topology({ currentUser, setDashboardTitle }) {
   const [locations, setLocations] = useState([]);
 
   useEffect(() => {
-    setDashboardTitle("Geolocation");
+    setDashboardTitle("Topology");
     return () => setDashboardTitle(''); // Clean up when navigating away
   }, [setDashboardTitle]);
 
@@ -54,4 +54,4 @@ function Geolocation({ currentUser, setDashboardTitle }) {
   );
 }
 
-export default Geolocation;
+export default Topology;

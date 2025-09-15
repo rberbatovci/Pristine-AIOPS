@@ -22,7 +22,7 @@ def get_cpu_utilization(
         },
         "size": limit,
         "sort": [
-            {"msg_timestamp": {"order": "desc"}}
+            {"timestamp": {"order": "desc"}}
         ]
     }
 
@@ -43,9 +43,9 @@ def get_memory_statistics(
     must_clauses = []
 
     if device:
-        must_clauses.append({"term": {"device": device}})
+        must_clauses.append({"term": {"device.keyword": device}})
     if memory:
-        must_clauses.append({"term": {"memory": memory}})
+        must_clauses.append({"term": {"memory.keyword": memory}})
 
     query = {
         "query": {
@@ -55,7 +55,7 @@ def get_memory_statistics(
         },
         "size": limit,
         "sort": [
-            {"msg_timestamp": {"order": "desc"}}
+            {"timestamp": {"order": "desc"}}
         ]
     }
 
@@ -71,7 +71,7 @@ def get_memory_statistics(
             "device": doc["_source"]["device"],
             "memory": doc["_source"]["memory"],
             "stats": doc["_source"]["stats"],
-            "timestamp": doc["_source"]["msg_timestamp"],
+            "timestamp": doc["_source"]["timestamp"],
             "ingested_at": doc["_source"]["ingested_at"],
             "collection_id": doc["_source"]["collection_id"],
         }
@@ -135,7 +135,7 @@ def get_interface_statistics(
         },
         "size": limit,
         "sort": [
-            {"msg_timestamp": {"order": "desc"}}
+            {"timestamp": {"order": "desc"}}
         ]
     }
 
@@ -151,7 +151,135 @@ def get_interface_statistics(
             "device": doc["_source"]["device"],
             "interface": doc["_source"]["interface"],
             "stats": doc["_source"]["stats"],
-            "timestamp": doc["_source"]["msg_timestamp"],
+            "timestamp": doc["_source"]["timestamp"],
+            "ingested_at": doc["_source"]["ingested_at"],
+            "collection_id": doc["_source"]["collection_id"],
+            "subscription": doc["_source"].get("subscription", {}),
+        }
+        for doc in hits
+    ]
+
+    return {"results": results}
+
+@router.get("/telemetry/interface-oper-status/interfaces/")
+def get_device_interfaces(device: Optional[str] = Query(None)):
+    must_clauses = []
+    if device:
+        # Use the `.keyword` field to aggregate exact matches
+        must_clauses.append({"term": {"device": device}})
+
+    query = {
+        "size": 0,  # We only want aggregation results
+        "query": {
+            "bool": {
+                "must": must_clauses
+            }
+        },
+        "aggs": {
+            "unique_interfaces": {
+                "terms": {
+                    "field": "interface",
+                    "size": 1000  # max number of interfaces to return
+                }
+            }
+        }
+    }
+
+    try:
+        response = opensearch_client.search(index="interface-oper-status", body=query)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"OpenSearch query failed: {str(e)}")
+
+    buckets = response.get("aggregations", {}).get("unique_interfaces", {}).get("buckets", [])
+    interfaces = [bucket["key"] for bucket in buckets]
+
+    return {"interfaces": interfaces}
+
+@router.get("/telemetry/interface-oper-status/")
+def get_interface_statistics(
+    device: Optional[str] = Query(None),
+    interface: Optional[str] = Query(None),
+    limit: int = Query(100)
+):
+    must_clauses = []
+
+    if device:
+        must_clauses.append({"term": {"device": device}})
+    if interface:
+        must_clauses.append({"term": {"interface": interface}})
+
+    query = {
+        "query": {
+            "bool": {
+                "must": must_clauses
+            }
+        },
+        "size": limit,
+        "sort": [
+            {"timestamp": {"order": "desc"}}
+        ]
+    }
+
+    try:
+        response = opensearch_client.search(index="interface-oper-status", body=query)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"OpenSearch query failed: {str(e)}")
+
+    hits = response.get("hits", {}).get("hits", [])
+
+    results = [
+        {
+            "device": doc["_source"]["device"],
+            "interface": doc["_source"]["interface"],
+            "status": doc["_source"]["status"],
+            "timestamp": doc["_source"]["timestamp"],
+            "ingested_at": doc["_source"]["ingested_at"],
+            "collection_id": doc["_source"]["collection_id"],
+            "subscription": doc["_source"].get("subscription", {}),
+        }
+        for doc in hits
+    ]
+
+    return {"results": results}
+
+@router.get("/telemetry/bgp-statistics/")
+def get_interface_statistics(
+    device: Optional[str] = Query(None),
+    interface: Optional[str] = Query(None),
+    limit: int = Query(100)
+):
+    must_clauses = []
+
+    if device:
+        must_clauses.append({"term": {"device": device}})
+    if interface:
+        must_clauses.append({"term": {"neighbor": interface}})
+
+    query = {
+        "query": {
+            "bool": {
+                "must": must_clauses
+            }
+        },
+        "size": limit,
+        "sort": [
+            {"timestamp": {"order": "desc"}}
+        ]
+    }
+
+    try:
+        response = opensearch_client.search(index="bgp-connections", body=query)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"OpenSearch query failed: {str(e)}")
+
+    hits = response.get("hits", {}).get("hits", [])
+
+    results = [
+        {
+            "device": doc["_source"]["device"],
+            "neighbor": doc["_source"]["neighbor"],
+            "stats": doc["_source"]["stats"],
+            "timestamp": doc["_source"]["timestamp"],
             "ingested_at": doc["_source"]["ingested_at"],
             "collection_id": doc["_source"]["collection_id"],
             "subscription": doc["_source"].get("subscription", {}),

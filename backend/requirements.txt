@@ -45,3 +45,6 @@ urllib3==2.4.0
 uvicorn==0.34.2
 ncclient==0.6.15
 xmltodict==0.14.2
+grpcio
+grpcio-tools
+protobuf

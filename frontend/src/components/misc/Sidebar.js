@@ -38,12 +38,13 @@ const Sidebar = ({ toggleTheme, isDarkTheme, currentUser, onLogout }) => {
     <div style={{display: 'flex'}}>
       <div className="sidebarContainer">
         <ul className="sidebarMenu">
-          <li><NavLink to="/incidents" className={({ isActive }) => isActive ? 'selSidebarPage' : 'sidebarPage'}><GiLockedFortress style={{ top: '15px', fontSize: '16px'}}/>Main Dashboard</NavLink></li>
-          <li><NavLink to="/signalsdashboard" className={({ isActive }) => isActive ? 'selSidebarPage' : 'sidebarPage'}>Signals Dashboard</NavLink></li>
-          <li><NavLink to="/events" className={({ isActive }) => isActive ? 'selSidebarPage' : 'sidebarPage'}>Events Database</NavLink></li>
-          <li><NavLink to="/statistics" className={({ isActive }) => isActive ? 'selSidebarPage' : 'sidebarPage'}>Signals Summary</NavLink></li>
+          <li><NavLink to="/incidents" className={({ isActive }) => isActive ? 'selSidebarPage' : 'sidebarPage'}>Main Dashboard</NavLink></li>
           <li><NavLink to="/devices" className={({ isActive }) => isActive ? 'selSidebarPage' : 'sidebarPage'}>Devices</NavLink></li>
-          <li><NavLink to="/geolocation" className={({ isActive }) => isActive ? 'selSidebarPage' : 'sidebarPage'}><GiLockedFortress style={{ fontSize: '16px'}}/>Geolocation</NavLink></li>
+          <li><NavLink to="/signals" className={({ isActive }) => isActive ? 'selSidebarPage' : 'sidebarPage'}>Signals</NavLink></li>
+          <li><NavLink to="/faults" className={({ isActive }) => isActive ? 'selSidebarPage' : 'sidebarPage'}>Faults</NavLink></li>
+          <li><NavLink to="/traffic" className={({ isActive }) => isActive ? 'selSidebarPage' : 'sidebarPage'}>Traffic</NavLink></li>
+          <li><NavLink to="/performance" className={({ isActive }) => isActive ? 'selSidebarPage' : 'sidebarPage'}>Performance</NavLink></li>
+          <li><NavLink to="/topology" className={({ isActive }) => isActive ? 'selSidebarPage' : 'sidebarPage'}>Topology</NavLink></li>
         </ul>
       </div>
       <div className="brand"></div>

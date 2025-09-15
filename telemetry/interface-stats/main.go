@@ -152,7 +152,6 @@ func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensea
 		device = nodeID.NodeIdStr
 	}
 
-
 	interfaceStats := telemetryFieldsToMap(t.DataGpbkv, "")
 
 	interfaceName, _ := interfaceStats["keys.name"].(string)
@@ -161,7 +160,7 @@ func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensea
 		"device":        device,
 		"interface":	 interfaceName,
 		"collection_id": t.CollectionId,
-		"msg_timestamp": t.MsgTimestamp,
+		"timestamp": 	 t.MsgTimestamp,
 		"encoding_path": t.EncodingPath,
 		"ingested_at":   time.Now().UTC(),
 		"stats":		 interfaceStats,
@@ -269,7 +268,7 @@ func createIndexIfNotExists(client *opensearch.Client, indexName string) error {
 				"interface":     map[string]interface{}{"type": "keyword"},
 				"subscription":  map[string]interface{}{"type": "object"}, // can expand if you want nested
 				"collection_id": map[string]interface{}{"type": "long"},
-				"msg_timestamp": map[string]interface{}{"type": "date"},
+				"timestamp": map[string]interface{}{"type": "date"},
 				"encoding_path": map[string]interface{}{"type": "keyword"},
 				"ingested_at":   map[string]interface{}{"type": "date"},
 

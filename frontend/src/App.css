@@ -835,3 +835,29 @@ header {
   opacity: 1;
   transform: scale(1.2);
 }
+
+/* In your Signals.css or a new CSS file */
+
+.premium-dashboard-container {
+    display: flex;
+    justify-content: center; /* Center horizontally */
+    align-items: center;     /* Center vertically */
+    min-height: calc(100vh - var(--header-height)); /* Adjust based on your header height */
+    /* If your dashboard container already takes full height, you might not need min-height */
+    width: 100%;
+    text-align: center; /* Ensures text inside is centered too */
+    flex-direction: column; /* Stack logo and text vertically */
+}
+
+.premium-content {
+    /* You can add padding or max-width here if needed for the content block itself */
+    padding: 20px;
+    background-color: var(--background-color-variant); /* Example: a slightly different background */
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.dashboard-logo {
+    /* Additional styling for your logo if needed */
+    margin-bottom: 20px; /* Space between logo and text */
+}

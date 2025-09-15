@@ -1,0 +1,26 @@
+FROM golang:1.23-alpine AS builder
+
+WORKDIR /app/telemetry/interface-oper-status
+
+COPY telemetry/interface-oper-status/go.mod telemetry/interface-oper-status/go.sum ./
+
+COPY telemetry/protobuf /app/telemetry/protobuf
+
+COPY telemetry/interface-oper-status/. .
+
+RUN go mod download
+
+RUN go get github.com/redis/go-redis/v9
+
+# Build your binary
+RUN go build -o consumer main.go
+
+FROM alpine:3.18
+
+WORKDIR /app/telemetry/interface-oper-status
+
+COPY --from=builder /app/telemetry/interface-oper-status/consumer .
+
+RUN apk add --no-cache bash
+
+CMD ["./consumer"]

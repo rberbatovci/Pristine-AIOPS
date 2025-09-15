@@ -15,9 +15,9 @@
     - name: Configure telemetry subscription 102 (memory statistics)
       ios_config:
         lines:
-          - telemetry ietf subscription 102
-          -  encoding encode-kvgpb
-          -  filter xpath /memory-ios-xe-oper:memory-statistics/memory-statistic
-          -  stream yang-push
-          -  update-policy periodic {{ telemetry_period_seconds }}
-          -  receiver ip address {{ receiver_ip }} {{ receiver_port }} protocol grpc-tcp
+          - "telemetry ietf subscription 102"
+          - "encoding encode-kvgpb"
+          - "filter xpath /memory-ios-xe-oper:memory-statistics/memory-statistic"
+          - "stream yang-push"
+          - "update-policy periodic {{ telemetry_period_seconds }}"
+          - "receiver ip address {{ receiver_ip }} {{ receiver_port }} protocol grpc-tcp"

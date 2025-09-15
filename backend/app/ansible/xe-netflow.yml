@@ -34,7 +34,7 @@
       ios_config:
         lines:
           - "flow exporter EXPORTER"
-          - " destination {{ receiver_host }}"
+          - " destination {{ receiver_ip }}"
           - " source {{ netflow_export_source }}"
           - " transport udp {{ receiver_port }}"
           - " template data timeout 60"

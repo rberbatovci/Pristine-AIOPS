@@ -21,6 +21,14 @@ const InterfaceStats = ({ currentUser, selectedDevice }) => {
   const [interfaceStatistics, setInterfaceStatistics] = useState([]);
   const [availableInterfaces, setAvailableInterfaces] = useState([]); // New state for available interfaces
 
+  useEffect(() => {
+      if (!selectedDevice) {
+        setShowData(false);
+        setInterfaceStatistics([]);
+      } else {
+        setShowData(true);
+      }
+    }, [selectedDevice]);
 
   // Set default selected interface on mount or when availableInterfaces change
   useEffect(() => {
@@ -163,9 +171,7 @@ const InterfaceStats = ({ currentUser, selectedDevice }) => {
   return (
     <div className={`signalRightElementContainer ${showData ? 'expanded' : 'collapsed'}`}>
       <div className="signalRightElementHeader">
-        <h2 className="signalRightElementHeaderTxt" onClick={() => setShowData(!showData)}>
-          {showData ? '\u25CF' : '\u25CB'} Interface Statistics
-        </h2>
+        <span style={{ fontSize: '14px', color: 'var(--textColor)', paddingLeft: '10px' }}> {selectedDevice || ''} - Interface Statistics</span>
         {showData && (
           <div className="zoom-buttons-container">
             <div className="headerButtons" style={{ display: 'flex', gap: '10px' }}>

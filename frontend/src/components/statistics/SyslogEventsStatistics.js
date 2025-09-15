@@ -14,7 +14,7 @@ import { IoBarChartOutline } from "react-icons/io5";
 import { AiOutlinePieChart } from "react-icons/ai";
 
 
-function SyslogEventsStatistics({ selSyslogEventsTags }) {
+function SyslogEventsStatistics({ selEventsTags }) {
     const [chartDataMap, setChartDataMap] = useState({});
     const [loadingMap, setLoadingMap] = useState({});
     const [chartTypeMap, setChartTypeMap] = useState({});
@@ -26,9 +26,9 @@ function SyslogEventsStatistics({ selSyslogEventsTags }) {
         { value: 'BarChart', label: 'Bar Chart' },
     ];
 
-    // Fetch data when selSyslogEventsTags change
+    // Fetch data when selEventsTags change
     useEffect(() => {
-        selSyslogEventsTags.forEach(dataType => {
+        selEventsTags.forEach(dataType => {
             if (!chartDataMap[dataType] && !loadingMap[dataType]) {
                 setLoadingMap(prev => ({ ...prev, [dataType]: true }));
                 const endpoint = `/syslogs/statistics/${dataType}/`;
@@ -61,7 +61,7 @@ function SyslogEventsStatistics({ selSyslogEventsTags }) {
 
         // Clean up removed types
         Object.keys(chartDataMap).forEach(dataType => {
-            if (!selSyslogEventsTags.includes(dataType)) {
+            if (!selEventsTags.includes(dataType)) {
                 const newChartDataMap = { ...chartDataMap };
                 delete newChartDataMap[dataType];
                 setChartDataMap(newChartDataMap);
@@ -71,7 +71,7 @@ function SyslogEventsStatistics({ selSyslogEventsTags }) {
                 setLoadingMap(newLoadingMap);
             }
         });
-    }, [selSyslogEventsTags]);
+    }, [selEventsTags]);
 
     const handleChartTypeChange = (dataType, type) => {
         setChartTypeMap(prev => ({ ...prev, [dataType]: type }));
@@ -98,7 +98,7 @@ function SyslogEventsStatistics({ selSyslogEventsTags }) {
     return (
         <div>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-around' }}>
-                {selSyslogEventsTags.map(dataType => {
+                {selEventsTags.map(dataType => {
                     const chartType = chartTypeMap[dataType] || 'BarChart';
                     const chartData = chartDataMap[dataType] || [];
                     const isLoading = loadingMap[dataType];

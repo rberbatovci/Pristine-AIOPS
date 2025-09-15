@@ -28,6 +28,15 @@ const MemoryStats = ({ currentUser, selectedDevice }) => {
   ];
   const [selectedMemory, setSelectedMemory] = useState(memories[2]);
 
+  useEffect(() => {
+    if (!selectedDevice) {
+      setShowData(false);
+      setMemoryStatistics([]);
+    } else {
+      setShowData(true);
+    }
+  }, [selectedDevice]);
+
   // Fetch memory statistics when device or selected memory changes
   useEffect(() => {
     const fetchMemoryStatistics = async () => {
@@ -87,9 +96,7 @@ const MemoryStats = ({ currentUser, selectedDevice }) => {
   return (
     <div className={`signalRightElementContainer ${showData ? 'expanded' : 'collapsed'}`}>
       <div className="signalRightElementHeader">
-        <h2 className="signalRightElementHeaderTxt" onClick={() => setShowData(!showData)}>
-          {showData ? '\u25CF' : '\u25CB'} {selectedDevice || 'No device selected'} Memory Statistics
-        </h2>
+        <span style={{ fontSize: '14px', color: 'var(--textColor)', paddingLeft: '10px' }}> {selectedDevice || ''} - Memory Statistics</span>
         {showData && (
           <div className="zoom-buttons-container">
             <div className="headerButtons" style={{ display: 'flex', gap: '10px' }}>

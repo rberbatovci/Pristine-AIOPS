@@ -71,7 +71,6 @@
     text-align: center; /* To center the checkbox */
     padding: 0; /* Remove padding to prevent checkbox overflow */
     overflow: hidden; /* Ensure the content doesn't overflow */
-    background: var(--backgroundColor3);
     color: var(--tableDataHeaderColor);
     border-radius: 0px;
     box-shadow: 3px 3px 3px rgba(0, 0, 0, 0.5);

@@ -13,7 +13,7 @@ import customStyles from '../misc/SelectStyles.js';
 import { IoBarChartOutline } from "react-icons/io5";
 import { AiOutlinePieChart } from "react-icons/ai";
 
-function TrapEventsStatistics({ selTrapEventsTags }) {
+function TrapEventsStatistics({ selEventsTags }) {
     const [chartDataMap, setChartDataMap] = useState({});
     const [loadingMap, setLoadingMap] = useState({});
     const [chartTypeMap, setChartTypeMap] = useState({});
@@ -23,9 +23,9 @@ function TrapEventsStatistics({ selTrapEventsTags }) {
         { value: 'BarChart', label: 'Bar Chart' },
     ];
 
-    // Fetch data when selTrapEventsTags change
+    // Fetch data when selEventsTags change
     useEffect(() => {
-        selTrapEventsTags.forEach(dataType => {
+        selEventsTags.forEach(dataType => {
             if (!chartDataMap[dataType] && !loadingMap[dataType]) {
                 setLoadingMap(prev => ({ ...prev, [dataType]: true }));
                 const endpoint = `/traps/tags/statistics/${dataType}/`;
@@ -58,7 +58,7 @@ function TrapEventsStatistics({ selTrapEventsTags }) {
 
         // Clean up removed types
         Object.keys(chartDataMap).forEach(dataType => {
-            if (!selTrapEventsTags.includes(dataType)) {
+            if (!selEventsTags.includes(dataType)) {
                 const newChartDataMap = { ...chartDataMap };
                 delete newChartDataMap[dataType];
                 setChartDataMap(newChartDataMap);
@@ -68,7 +68,7 @@ function TrapEventsStatistics({ selTrapEventsTags }) {
                 setLoadingMap(newLoadingMap);
             }
         });
-    }, [selTrapEventsTags]);
+    }, [selEventsTags]);
 
     const handleChartTypeChange = (dataType, type) => {
         setChartTypeMap(prev => ({ ...prev, [dataType]: type }));
@@ -90,7 +90,7 @@ function TrapEventsStatistics({ selTrapEventsTags }) {
     return (
         <div>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-around' }}>
-                {selTrapEventsTags.map(dataType => {
+                {selEventsTags.map(dataType => {
                     const chartType = chartTypeMap[dataType] || 'BarChart';
                     const chartData = chartDataMap[dataType] || [];
                     const isLoading = loadingMap[dataType];

@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"time"
+	"strings"
 
 	// Ensure this path is correct for your protobuf definitions
 	telemetryBis "telemetry/protobuf/telemetry" // VERIFY THIS PATH IS CORRECT
@@ -22,60 +23,103 @@ const (
 	kafkaBroker     = "kafka:9092"
 	kafkaTopic      = "bgp-connections"
 	opensearchURL   = "http://opensearch:9200"
-	opensearchIndex = "bgp-connections-statistics"
+	opensearchIndex = "bgp-connections"
 	kafkaGroupID    = "bgp-connections-group"
+	opensearch1 = "http://opensearch-node1:9200"
+    opensearch2 = "http://opensearch-node2:9200"
+    opensearch3 = "http://opensearch-node3:9200"
 )
 
-
-// setupOpenSearchClient initializes and tests the connection to OpenSearch.
 func setupOpenSearchClient() (*opensearch.Client, error) {
-	client, err := opensearch.NewClient(opensearch.Config{
-		Addresses: []string{opensearchURL},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create OpenSearch client: %w", err)
-	}
+    client, err := opensearch.NewClient(opensearch.Config{
+        Addresses: []string{
+            opensearch1,
+            opensearch2,
+            opensearch3,
+        },
+        // Optional: set retry behavior
+        RetryOnStatus: []int{502, 503, 504, 429},
+        MaxRetries:    5,
+    })
+    if err != nil {
+        return nil, err
+    }
 
-	// Ping the OpenSearch cluster to verify connection
-	res, err := client.Info()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get OpenSearch info: %w", err)
-	}
-	defer res.Body.Close()
+    // Check connection
+    res, err := client.Info()
+    if err != nil {
+        return nil, err
+    }
+    defer res.Body.Close()
 
-	// Read the response body once to avoid issues with reading a consumed stream.
-	bodyBytes, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read OpenSearch info response body: %w", err)
-	}
+    if res.IsError() {
+        bodyBytes, _ := io.ReadAll(res.Body)
+        return nil, fmt.Errorf("OpenSearch connection error: %s - %s", res.Status(), string(bodyBytes))
+    }
 
-	if res.IsError() {
-		return nil, fmt.Errorf("❌ OpenSearch connection error: %s - %s", res.Status(), string(bodyBytes))
-	}
+    bodyBytes, err := io.ReadAll(res.Body)
+    if err != nil {
+        return nil, err
+    }
 
-	var info map[string]interface{}
-	if err := json.Unmarshal(bodyBytes, &info); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal OpenSearch info response: %w", err)
-	}
+    var info map[string]interface{}
+    if err := json.Unmarshal(bodyBytes, &info); err != nil {
+        return nil, err
+    }
 
-	version := "unknown"
-	if vMap, ok := info["version"].(map[string]interface{}); ok {
-		if vStr, ok := vMap["number"].(string); ok {
-			version = vStr
-		}
-	}
+    version := "unknown"
+    if vMap, ok := info["version"].(map[string]interface{}); ok {
+        if vStr, ok := vMap["number"].(string); ok {
+            version = vStr
+        }
+    }
 
-	log.Printf("✅ Connected to OpenSearch version: %s", version)
-	return client, nil
+    log.Printf("Connected to OpenSearch cluster version: %s", version)
+    return client, nil
 }
 
-func prettyPrintTelemetry(t *telemetryBis.Telemetry) {
-	data, err := json.MarshalIndent(t, "", "  ")
-	if err != nil {
-		log.Printf("❌ Failed to marshal telemetry for printing: %v", err)
-		return
+func extractInterfaceName(fields []*telemetryBis.TelemetryField) string {
+	for _, field := range fields {
+		if field.Name == "keys" {
+			for _, subfield := range field.Fields {
+				if subfield.Name == "name" {
+					if val, ok := getValue(subfield).(string); ok {
+						return val
+					}
+				}
+			}
+		}
 	}
-	log.Printf("📦 Full Telemetry Object:\n%s", string(data))
+	return ""
+}
+
+// getValue is a helper function to safely extract the actual value
+// from a TelemetryField based on its type.
+func getValue(field *telemetryBis.TelemetryField) interface{} {
+	switch v := field.ValueByType.(type) {
+	case *telemetryBis.TelemetryField_BytesValue:
+		return v.BytesValue
+	case *telemetryBis.TelemetryField_StringValue:
+		return v.StringValue
+	case *telemetryBis.TelemetryField_BoolValue:
+		return v.BoolValue
+	case *telemetryBis.TelemetryField_Uint32Value:
+		return v.Uint32Value
+	case *telemetryBis.TelemetryField_Uint64Value:
+		return v.Uint64Value
+	case *telemetryBis.TelemetryField_Sint32Value:
+		return v.Sint32Value
+	case *telemetryBis.TelemetryField_Sint64Value:
+		return v.Sint64Value
+	case *telemetryBis.TelemetryField_DoubleValue:
+		return v.DoubleValue
+	case *telemetryBis.TelemetryField_FloatValue:
+		return v.FloatValue
+	default:
+		// Log an unknown type for debugging purposes.
+		log.Printf("⚠️ Unknown field type for %s: %T", field.Name, v)
+		return nil
+	}
 }
 
 // processKafkaMessage unmarshals a Kafka message, extracts data, and indexes it into OpenSearch.
@@ -90,8 +134,6 @@ func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensea
 		log.Printf("Malformed protobuf message content (first %d bytes): %x...", min(100, len(m.Value)), m.Value[:min(100, len(m.Value))])
 		return
 	}
-
-	prettyPrintTelemetry(t)
 
 	log.Printf("SUCCESSFULLY Unmarshaled Protobuf. NodeID: %s, CollectionID: %d, DataGpbkv fields count: %d",
 		func() string { // Anonymous function to safely get NodeIdStr
@@ -108,13 +150,18 @@ func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensea
 		device = nodeID.NodeIdStr
 	}
 
+	interfaceStats := telemetryFieldsToMap(t.DataGpbkv, "")
+
+	interfaceName, _ := interfaceStats["keys.name"].(string)
+
 	doc := map[string]interface{}{
 		"device":        device,
-		"subscription":  t.Subscription,
+		"interface":	 interfaceName,
 		"collection_id": t.CollectionId,
-		"msg_timestamp": t.MsgTimestamp,
+		"timestamp": 	 t.MsgTimestamp,
 		"encoding_path": t.EncodingPath,
 		"ingested_at":   time.Now().UTC(),
+		"stats":		 interfaceStats,
 	}
 
 	data, err := json.Marshal(doc)
@@ -128,7 +175,7 @@ func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensea
 	req := opensearchapi.IndexRequest{
 		Index:   opensearchIndex,
 		Body:    bytes.NewReader(data),
-		Refresh: "true", // Refresh the index immediately to make the document searchable
+		Refresh: "true",
 	}
 
 	res, err := req.Do(ctx, osClient)
@@ -136,7 +183,7 @@ func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensea
 		log.Printf("❌ Failed to index document to OpenSearch (Offset: %d): %v", m.Offset, err)
 		return
 	}
-	defer res.Body.Close() // Ensure the response body is closed
+	defer res.Body.Close()
 
 	if res.IsError() {
 		errorBody, _ := io.ReadAll(res.Body)
@@ -155,19 +202,125 @@ func printTelemetryFields(fields []*telemetryBis.TelemetryField, indent string) 
 	}
 }
 
+func telemetryFieldsToMap(fields []*telemetryBis.TelemetryField, parentPath string) map[string]interface{} {
+	result := make(map[string]interface{})
 
+	cleanParentPath := parentPath
+	if cleanParentPath == "content" {
+		cleanParentPath = ""
+	} else if strings.HasPrefix(cleanParentPath, "content.") {
+		cleanParentPath = strings.TrimPrefix(cleanParentPath, "content.")
+	}
+
+	for _, field := range fields {
+		name := field.Name
+
+		fullPath := name
+		if cleanParentPath != "" {
+			fullPath = cleanParentPath + "." + name
+		}
+
+		if len(field.Fields) > 0 {
+			nested := telemetryFieldsToMap(field.Fields, fullPath)
+			for k, v := range nested {
+				result[k] = v
+			}
+		} else {
+			result[fullPath] = getValue(field)
+		}
+	}
+
+	return result
+}
+
+func createIndexIfNotExists(client *opensearch.Client, indexName string) error {
+	// Check if index exists
+	existsReq := opensearchapi.IndicesExistsRequest{
+		Index: []string{indexName},
+	}
+	res, err := existsReq.Do(context.Background(), client)
+	if err != nil {
+		return fmt.Errorf("failed to check if index exists: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode == 200 {
+		log.Printf("ℹ Index [%s] already exists", indexName)
+		return nil
+	}
+
+	if res.StatusCode != 404 {
+		body, _ := io.ReadAll(res.Body)
+		return fmt.Errorf("unexpected response checking index: %s", string(body))
+	}
+
+	// Define index settings and mappings
+	indexSettings := map[string]interface{}{
+		"settings": map[string]interface{}{
+			"number_of_shards":   1,
+			"number_of_replicas": 1,
+		},
+		"mappings": map[string]interface{}{
+			"properties": map[string]interface{}{
+				"device":        map[string]interface{}{"type": "keyword"},
+				"interface":     map[string]interface{}{"type": "keyword"},
+				"subscription":  map[string]interface{}{"type": "object"}, // can expand if you want nested
+				"collection_id": map[string]interface{}{"type": "long"},
+				"timestamp": map[string]interface{}{"type": "date"},
+				"encoding_path": map[string]interface{}{"type": "keyword"},
+				"ingested_at":   map[string]interface{}{"type": "date"},
+				"stats": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"neighbor_id":   map[string]interface{}{"type": "ip"},
+						"vrf_name":      map[string]interface{}{"type": "keyword"},
+						"afi_safi":      map[string]interface{}{"type": "keyword"},
+						"state":         map[string]interface{}{"type": "keyword"},
+						"mode":          map[string]interface{}{"type": "keyword"},
+						"last_reset":    map[string]interface{}{"type": "keyword"},
+						"reset_reason":  map[string]interface{}{"type": "keyword"},
+						"total_dropped": map[string]interface{}{"type": "long"},
+						"total_established": map[string]interface{}{"type": "long"},
+					},
+				},
+			},
+		},
+	}
+
+	body, err := json.Marshal(indexSettings)
+	if err != nil {
+		return fmt.Errorf("failed to marshal index settings: %w", err)
+	}
+
+	// Create index
+	createReq := opensearchapi.IndicesCreateRequest{
+		Index: indexName,
+		Body:  bytes.NewReader(body),
+	}
+
+	res, err = createReq.Do(context.Background(), client)
+	if err != nil {
+		return fmt.Errorf("failed to create index: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		body, _ := io.ReadAll(res.Body)
+		return fmt.Errorf("error creating index: %s", string(body))
+	}
+
+	log.Printf("✅ Created OpenSearch index: %s", indexName)
+	return nil
+}
 
 func main() {
-	// Initialize Kafka reader.
+	
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers: []string{kafkaBroker},
 		Topic:   kafkaTopic,
 		GroupID: kafkaGroupID,
-		// Start reading from the beginning of the topic if no offset is committed for the group.
 		StartOffset: kafka.FirstOffset,
-		// Set a commit interval to periodically commit offsets.
 		CommitInterval: 1 * time.Second,
-		// MaxBytes limits the maximum size of a batch of messages to read.
 		MaxBytes: 10e6, // 10MB
 	})
 	defer func() {
@@ -178,42 +331,35 @@ func main() {
 		}
 	}()
 
-	// Setup OpenSearch client and verify connection.
 	osClient, err := setupOpenSearchClient()
 	if err != nil {
-		log.Fatalf("❌ Application startup failed: %v", err) // Exit if OpenSearch connection fails
+		log.Fatalf("❌ Application startup failed: %v", err)
+	}
+
+	if err := createIndexIfNotExists(osClient, opensearchIndex); err != nil {
+		log.Fatalf("Failed to create index: %v", err)
 	}
 
 	log.Println("🚀 Kafka consumer started. Waiting for telemetry messages...")
 
-	// Main loop to consume messages from Kafka.
 	for {
-		// Create a context with a timeout for reading each message.
-		// This prevents the consumer from blocking indefinitely if no messages are available.
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		m, err := reader.ReadMessage(ctx)
-		cancel() // Ensure the context is cancelled to release resources
+		cancel() 
 
 		if err != nil {
 			if err == context.DeadlineExceeded {
 				log.Println("⏰ No new Kafka messages within timeout. Retrying...")
-				time.Sleep(5 * time.Second) // Wait before retrying to avoid busy-looping
+				time.Sleep(5 * time.Second) 
 				continue
 			}
-			// Handle other Kafka read errors
 			log.Printf("❌ Failed to read message from Kafka: %v", err)
-			time.Sleep(5 * time.Second) // Wait before retrying
+			time.Sleep(5 * time.Second) 
 			continue
 		}
 
-		// Process the received Kafka message.
-		// Using context.Background() for processing allows the processing to complete
-		// even if the Kafka read context times out. If processing itself needs a timeout,
-		// a new context with a specific timeout should be created here.
 		processKafkaMessage(context.Background(), m, osClient)
 
-		// Manually commit the offset after successful processing.
-		// This ensures that messages are only committed if they are successfully processed and indexed.
 		if err := reader.CommitMessages(context.Background(), m); err != nil {
 			log.Printf("❌ Failed to commit offset for message (Offset: %d): %v", m.Offset, err)
 		} else {
@@ -222,8 +368,6 @@ func main() {
 	}
 }
 
-// min is a helper function to find the minimum of two integers.
-// This is useful for slicing to prevent out-of-bounds errors.
 func min(a, b int) int {
 	if a < b {
 		return a

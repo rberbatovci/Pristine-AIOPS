@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import '../../css/SignalInfo.css';
 import apiClient from '../misc/AxiosConfig';
 import Select from 'react-select';
@@ -10,112 +10,176 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ResponsiveContainer
 } from 'recharts';
 import moment from 'moment';
 
-const BGPStats = ({ currentUser, selectedDevice }) => {
-  const [showData, setShowData] = useState(false);
+const InterfaceOper = ({ currentUser, selectedDevice }) => {
+  const [showData, setShowData] = useState(true);
   const [selectedInterface, setSelectedInterface] = useState(null);
-  const [interfaceStats, setInterfaceStats] = useState([]);
-  const [selectedKPI, setSelectedKPI] = useState({ value: 'in-octets', label: 'in-octets' });
+  const [interfaceStatistics, setInterfaceStatistics] = useState([]);
+  const [availableInterfaces, setAvailableInterfaces] = useState([]); // New state for available interfaces
 
-  const interfaces = [
-    { value: 'GigabitEthernet1', label: 'GigabitEthernet1' },
-    { value: 'GigabitEthernet2', label: 'GigabitEthernet2' },
-    { value: 'GigabitEthernet3', label: 'GigabitEthernet3' },
-    { value: 'GigabitEthernet4', label: 'GigabitEthernet4' },
-    { value: 'Loopback0', label: 'Loopback0' },
-  ];
+  useEffect(() => {
+      if (!selectedDevice) {
+        setShowData(false);
+        setInterfaceStatistics([]);
+      } else {
+        setShowData(true);
+      }
+    }, [selectedDevice]);
 
-  const kpiOptions = [
-    'in-octets',
-    'out-octets',
-    'in-unicast-pkts',
-    'out-unicast-pkts',
-    'in-errors',
-    'out-errors',
-    'rx-kbps',
-    'tx-kbps',
-    'in-crc-errors',
-    'in-discards'
-  ].map(kpi => ({ value: kpi, label: kpi }));
-
-  const fetchInterfaceStatistics = async (selectedOption) => {
-    setSelectedInterface(selectedOption);
-
-    try {
-      const response = await apiClient.get(`/telemetry/interface-statistics/`, {
-        params: {
-          device_id: selectedDevice.hostname,
-          interface_name: selectedOption.value,
-          size: 10,
-          from_: 0
-        }
-      });
-      setInterfaceStats(response.data);
-    } catch (err) {
-      console.error('Error fetching interface statistics:', err);
+  // Set default selected interface on mount or when availableInterfaces change
+  useEffect(() => {
+    if (availableInterfaces.length > 0 && !selectedInterface) {
+      setSelectedInterface(availableInterfaces[0]); // Default to the first available interface
     }
-  };
+  }, [availableInterfaces, selectedInterface]);
+
+
+  // Fetch interface statistics when device or selected interface changes
+  useEffect(() => {
+    const fetchInterfaceStatistics = async () => {
+      if (!selectedDevice || !selectedInterface) {
+        setInterfaceStatistics([]); // Clear data if no device or interface selected
+        return;
+      }
+
+      try {
+        const res = await apiClient.get(`/telemetry/bgp-statistics/`, {
+          params: {
+            device: selectedDevice,
+            interface: selectedInterface.value,
+          }
+        });
+
+        // Filter and map the data based on the provided statistics structure
+        const formatted = res.data.results.map((item) => ({
+          timestamp: moment(item.ingested_at).format("HH:mm:ss"),
+          ether_state: item.stats?.["ether-state"] ?? 0,
+          oper_status: item.stats?.["oper-status"] ?? 0,
+        }));
+
+        setInterfaceStatistics(formatted);
+        console.log('Interface statistics fetched:', formatted);
+      } catch (err) {
+        console.error('Error fetching interface statistics:', err);
+        setInterfaceStatistics([]);
+      }
+    };
+
+    fetchInterfaceStatistics();
+  }, [selectedDevice, selectedInterface]); // Dependency on selectedInterface now
+
+  useEffect(() => {
+    const fetchInterfaces = async () => {
+      if (!selectedDevice) {
+        setAvailableInterfaces([]);
+        setSelectedInterface(null);
+        return;
+      }
+
+      try {
+        // Assume your backend route supports a 'device' param to filter interfaces
+        const res = await apiClient.get('/telemetry/interface-statistics/interfaces/', {
+          params: { device: selectedDevice }
+        });
+
+        // res.data.interfaces expected to be an array of interface names (strings)
+        const options = res.data.interfaces.map(iface => ({
+          value: iface,
+          label: iface,
+        }));
+
+        setAvailableInterfaces(options);
+        // Optionally reset selected interface to first available or null
+        setSelectedInterface(options.length > 0 ? options[0] : null);
+      } catch (err) {
+        console.error('Error fetching interfaces:', err);
+        setAvailableInterfaces([]);
+        setSelectedInterface(null);
+      }
+    };
+
+    fetchInterfaces();
+  }, [selectedDevice]);
+
+  // Dynamically calculate yDomain based on the selected metric or all metrics
+  const yDomain = useMemo(() => {
+    if (interfaceStatistics.length === 0) return [0, 'auto']; // Start from 0 for counts
+
+    // Collect all relevant numeric values to determine the domain
+    const allValues = interfaceStatistics.flatMap(item => [
+      item.ether_state,
+      item.oper_status,
+    ]).filter(v => typeof v === 'number' && v >= 0); // Ensure values are numbers and non-negative
+
+    if (allValues.length === 0) return [0, 'auto'];
+
+    const min = Math.min(...allValues);
+    const max = Math.max(...allValues);
+
+    // Adjust domain to give a little padding, ensuring min is not negative
+    return [Math.max(0, Math.floor(min * 0.95)), Math.ceil(max * 1.05)];
+  }, [interfaceStatistics]);
 
   return (
     <div className={`signalRightElementContainer ${showData ? 'expanded' : 'collapsed'}`}>
       <div className="signalRightElementHeader">
-        <h2 className="signalRightElementHeaderTxt" onClick={() => setShowData(!showData)}>
-          {showData ? '\u25CF' : '\u25CB'} BGP Neighbor Statistics
-        </h2>
+        <span style={{ fontSize: '14px', color: 'var(--textColor)', paddingLeft: '10px' }}> {selectedDevice || ''} - BGP Connection Statistics</span>
         {showData && (
           <div className="zoom-buttons-container">
             <div className="headerButtons" style={{ display: 'flex', gap: '10px' }}>
               <Select
-                onChange={fetchInterfaceStatistics}
-                options={interfaces}
+                onChange={(option) => setSelectedInterface(option)}
+                options={availableInterfaces}
                 placeholder="Select interface"
-                styles={customStyles('190px')}
+                styles={{
+                  ...customStyles('190px'),
+                  menuPortal: base => ({ ...base, zIndex: 9999 }),
+                }}
                 value={selectedInterface}
-              />
-              <Select
-                onChange={setSelectedKPI}
-                options={kpiOptions}
-                placeholder="Select KPI"
-                styles={customStyles('190px')}
-                value={selectedKPI}
+                isClearable={true}
+                menuPortalTarget={document.body}
+                isDisabled={!selectedDevice}
               />
             </div>
           </div>
         )}
       </div>
 
-      {showData && (
+      {showData && selectedInterface && interfaceStatistics.length > 0 ? (
         <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '10px' }}>
-          <div style={{ width: '100%' }}>
-            {interfaceStats.length > 0 ? (
-              <div style={{ width: '100%', height: 300 }}>
-                <ResponsiveContainer>
-                  <LineChart
-                    data={interfaceStats.map(item => ({
-                      timestamp: moment(item.ingested_at).format('HH:mm:ss'),
-                      value: item.stats?.content?.[selectedKPI.value] || 0
-                    }))}
-                    margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
-                  >
-                    <CartesianGrid stroke="#ccc" strokeDasharray="5 5" />
-                    <XAxis dataKey="timestamp" />
-                    <YAxis />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="value" stroke="#8884d8" dot={{ r: 3 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <p>No data available for the selected interface.</p>
-            )}
+          <div style={{ width: '100%', height: 200 }}>
+            <ResponsiveContainer width="100%" height="100%" background="red">
+              <LineChart
+                data={interfaceStatistics}
+                margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+              >
+                <CartesianGrid stroke="#ccc" strokeDasharray="5 5" />
+                <XAxis dataKey="timestamp" reversed={true}/>
+                <YAxis domain={yDomain} />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="ether-state" stroke="#8884d8" dot={false} name="Ether State" />
+                <Line type="monotone" dataKey="oper-status" stroke="#ffc658" dot={false} name="Oper Status" />
+                {/* Add more lines for other relevant statistics if desired */}
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
-      )}
+      ) : showData && selectedInterface && interfaceStatistics.length === 0 ? (
+        <div className="no-data-message" style={{ padding: '20px', textAlign: 'center' }}>
+          No data available for the selected interface.
+        </div>
+      ) : showData && !selectedInterface ? (
+        <div className="no-data-message" style={{ padding: '20px', textAlign: 'center' }}>
+          Please select an interface to view statistics.
+        </div>
+      ) : null}
     </div>
   );
 };
 
-export default BGPStats;
+export default InterfaceOper;

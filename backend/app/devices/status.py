@@ -52,10 +52,22 @@ def get_restconf_path(device_version: str, metric: str) -> str:
 # ---------- Redis Fetcher ----------
 def fetch_last_status(hostname: str, metric: str):
     """Fetch latest metric from Redis (telemetry)."""
+    
+    if metric == "memory-stats":
+        # Use HGETALL for memory-stats hash
+        redis_key = f"telemetry:{hostname}:memory-state"
+        memory_data = r.hgetall(redis_key)
+        if memory_data:
+            # Redis returns bytes, convert keys and values to str/int
+            return {k.decode("utf-8"): int(v) for k, v in memory_data.items()}
+        return {"error": "no memory-stats data"}
+    
+    # For other metrics, use GET as before
     redis_key = f"telemetry:{hostname}:{metric}"
     value = r.get(redis_key)
     if value:
         return json.loads(value)
+    
     return {"error": f"no {metric} data"}
 
 

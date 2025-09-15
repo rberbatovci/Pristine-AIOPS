@@ -7,7 +7,7 @@ WORKDIR /src
 RUN apk add --no-cache git make bash
 
 # Clone GoBGP source from GitHub (use --branch to lock a version if you want)
-RUN git clone --depth 1 --branch v3.20.0 https://github.com/osrg/gobgp.git .
+RUN git clone --depth 1 --branch v3.37.0 https://github.com/osrg/gobgp.git .
 
 # Build the GoBGP daemon with gRPC enabled
 RUN go build -tags grpc -o /usr/local/bin/gobgpd ./cmd/gobgpd

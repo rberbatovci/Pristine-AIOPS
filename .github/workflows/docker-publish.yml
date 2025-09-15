@@ -144,6 +144,22 @@ jobs:
           file: ./dockerfiles/Dockerfile.telemetry-interface-stats
           push: true
           tags: ghcr.io/rberbatovci/telemetry-interface-stats:latest
+
+      - name: Build and push interface status consumer image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.telemetry-interface-oper-status
+          push: true
+          tags: ghcr.io/rberbatovci/telemetry-interface-stats:latest
+
+      - name: Build and push bgp connections consumer image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.telemetry-bgp-connection-stats
+          push: true
+          tags: ghcr.io/rberbatovci/telemetry-interface-stats:latest
       
       #- name: Build and push GoBGP Server image
       #  uses: docker/build-push-action@v5

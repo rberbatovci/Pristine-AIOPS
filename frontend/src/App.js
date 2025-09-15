@@ -9,12 +9,13 @@ import Header from './components/misc/Header';
 import UserProfile from './components/misc/UserProfile';
 import Incidents from './pages/Incidents';
 import Sidebar from './components/misc/Sidebar';
-import Statistics from './pages/Statistics';
 import Login from './components/misc/Login';
 import Signals from './pages/Signals';
-import Events from './pages/Events';
+import Faults from './pages/Faults';
+import Traffic from './pages/Traffic';
+import Performance from './pages/Performance';
 import ProtectedRoute from './components/misc/ProtectedRoute';
-import Geolocation from './pages/Geolocation';
+import Topology from './pages/Topology';
 import Devices from './pages/Devices';
 
 const App = () => {
@@ -145,33 +146,41 @@ const App = () => {
                     />
                   </ProtectedRoute>
                 } />
-                <Route path="/signalsdashboard" element={
-                  <ProtectedRoute isAuthenticated={isAuthenticated}>
-                    <Signals currentUser={currentUser} setDashboardTitle={setDashboardTitle}
-                    />
-                  </ProtectedRoute>
-                } />
-                <Route path="/statistics" element={
-                  <ProtectedRoute isAuthenticated={isAuthenticated}>
-                    <Statistics currentUser={currentUser} setDashboardTitle={setDashboardTitle} />
-                  </ProtectedRoute>
-                } />
                 <Route path="/devices" element={
                   <ProtectedRoute isAuthenticated={isAuthenticated}>
                     <Devices currentUser={currentUser} setDashboardTitle={setDashboardTitle} />
                   </ProtectedRoute>
                 } />
-                <Route path="/geolocation" element={
+                <Route path="/signals" element={
                   <ProtectedRoute isAuthenticated={isAuthenticated}>
-                    <Geolocation currentUser={currentUser} setDashboardTitle={setDashboardTitle} />
-                  </ProtectedRoute>
-                } />
-                <Route path="/events" element={
-                  <ProtectedRoute isAuthenticated={isAuthenticated}>
-                    <Events currentUser={currentUser} setDashboardTitle={setDashboardTitle}
+                    <Signals currentUser={currentUser} setDashboardTitle={setDashboardTitle}
                     />
                   </ProtectedRoute>
                 } />
+                <Route path="/faults" element={
+                  <ProtectedRoute isAuthenticated={isAuthenticated}>
+                    <Faults currentUser={currentUser} setDashboardTitle={setDashboardTitle}
+                    />
+                  </ProtectedRoute>
+                } />
+                <Route path="/traffic" element={
+                  <ProtectedRoute isAuthenticated={isAuthenticated}>
+                    <Traffic currentUser={currentUser} setDashboardTitle={setDashboardTitle}
+                    />
+                  </ProtectedRoute>
+                } />
+                <Route path="/performance" element={
+                  <ProtectedRoute isAuthenticated={isAuthenticated}>
+                    <Performance currentUser={currentUser} setDashboardTitle={setDashboardTitle}
+                    />
+                  </ProtectedRoute>
+                } />
+                <Route path="/topology" element={
+                  <ProtectedRoute isAuthenticated={isAuthenticated}>
+                    <Topology currentUser={currentUser} setDashboardTitle={setDashboardTitle} />
+                  </ProtectedRoute>
+                } />
+                
                 <Route path="*" element={<Navigate to="/login" />} />
               </Routes>
             </div>

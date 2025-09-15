@@ -21,45 +21,70 @@ function CpuUtilization({ selectedDevice, onSuccess }) {
     setDevice(selectedDevice);
   }, [selectedDevice]);
 
-const getLastCpuStatus = async () => {
-  setCpuLoading(true);
-  setError('');
-  setShouldSpin(true);
+  const getLastCpuStatus = async () => {
+    setCpuLoading(true);
+    setError('');
+    setShouldSpin(true);
 
-  try {
-    const response = await apiClient.get(`/devices/${device.hostname}/status/last/cpu-util/`);
-    const data = response.data;
+    try {
+      const response = await apiClient.get(`/devices/${device.hostname}/status/last/cpu-util/`);
+      const data = response.data;
 
-    if (data && data.stats && Object.keys(data.stats).length > 0) {
-      const stats = data.stats;
+      if (data && data.stats && Object.keys(data.stats).length > 0) {
+        const stats = data.stats;
 
-      const newData = [
-        { name: '5s Avg', value: Math.min(stats["five-seconds"] ?? 0, 100), fill: 'green', opacity: 1 },
-        { name: '1m Avg', value: Math.min(stats["one-minute"] ?? 0, 100), fill: 'green', opacity: 0.9 },
-        { name: '5m Avg', value: Math.min(stats["five-minutes"] ?? 0, 100), fill: 'green', opacity: 0.8 },
-      ];
+        const newData = [
+          { name: '5s Avg', value: Math.min(stats["five-seconds"] ?? 0, 100), fill: 'green', opacity: 1 },
+          { name: '1m Avg', value: Math.min(stats["one-minute"] ?? 0, 100), fill: 'green', opacity: 0.9 },
+          { name: '5m Avg', value: Math.min(stats["five-minutes"] ?? 0, 100), fill: 'green', opacity: 0.8 },
+        ];
 
-      setCpuChartData(newData);
+        setCpuChartData(newData);
 
-      // Only set timestamp if backend provides it
-      if (data.msg_timestamp) {
-        setCpuTimestamp(new Date(data.msg_timestamp).toISOString());
+        // Only set timestamp if backend provides it
+        if (data.msg_timestamp) {
+          setCpuTimestamp(new Date(data.msg_timestamp).toISOString());
+        } else {
+          setCpuTimestamp(null);
+        }
+
+        setShouldSpin(false);
       } else {
+        setError('No data available');
         setCpuTimestamp(null);
       }
-
-      setShouldSpin(false);
-    } else {
-      setError('No data available');
+    } catch (err) {
+      setError(err.response?.data?.detail || err.message || 'Unknown error');
       setCpuTimestamp(null);
+    } finally {
+      setCpuLoading(false);
     }
-  } catch (err) {
-    setError(err.response?.data?.detail || err.message || 'Unknown error');
-    setCpuTimestamp(null);
-  } finally {
-    setCpuLoading(false);
-  }
-};
+  };
+
+  const pushConfiguration = () => async () => {
+    if (!selectedDevice?.hostname) {
+      console.error("No device selected");
+      return;
+    }
+
+    try {
+      const response = await apiClient.post(
+        `/devices/${selectedDevice.hostname}/configure/cpu_util/`,
+        {} // empty body
+      );
+
+      const updatedDevice = response.data;
+      console.log("Updated device:", updatedDevice);
+
+      // Optionally update state
+      // setSelectedDevice(updatedDevice);
+
+    } catch (err) {
+      console.error("Request error:", err);
+      const message = err.response?.data?.detail || err.message || err;
+      alert(`Error configuring CPU utilization: ${message}`);
+    }
+  };
 
   useEffect(() => {
     if (device?.hostname) {
@@ -119,38 +144,45 @@ const getLastCpuStatus = async () => {
           />
         </RadialBarChart>
       </div>
-
+      {cpuLoading ? (
+        <div style={{ fontSize: "16px", color: "var(--textColor)", opacity: 0.8 }}>
+          Loading CPU data...
+        </div>
+      ) : (
+        <><div
+          style={{
+            fontSize: "14px",
+            color: "var(--textColor)",
+            opacity: 0.9,
+            width: "200px",
+          }}
+        >
+          <div><b>CPU Utilization</b></div>
+          <div style={{ display: "flex" }}>
+            <p style={{ marginTop: "5px" }}>5s: {cpuChartData[0]?.value ?? "--"}%</p>
+            <p style={{ marginTop: "5px", marginLeft: "10px" }}>1m: {cpuChartData[1]?.value ?? "--"}%</p>
+            <p style={{ marginTop: "5px", marginLeft: "10px" }}>5m: {cpuChartData[2]?.value ?? "--"}%</p>
+          </div>
+          <div style={{ display: "flex", fontSize: "13px" }}>
+            <p style={{ textAlign: "left", width: "100px", marginLeft: "5px", marginTop: "5px" }}>
+              {cpuTimestamp ? "No Timestamp" : "Loading..."}
+            </p>
+          </div>
+          <div style={{ display: "flex", marginTop: "5px" }}>
+            <button className="iconButton">
+              <IoRefreshCircleOutline className="defaultIcon" />
+              <IoRefreshCircleSharp className="hoverIcon" />
+            </button>
+            <button className="iconButton"
+              onClick={pushConfiguration()}>
+              <IoPushOutline className="defaultIcon" />
+              <IoPushSharp className="hoverIcon" />
+            </button>
+          </div>
+        </div></>
+      )}
       {/* Info Section */}
-      <div
-        style={{
-          fontSize: "14px",
-          color: "var(--textColor)",
-          opacity: 0.9,
-          width: "200px",
-        }}
-      >
-        <div><b>CPU Utilization</b></div>
-        <div style={{ display: "flex" }}>
-          <p style={{ marginTop: "5px" }}>5s: {cpuChartData[0]?.value ?? "--"}%</p>
-          <p style={{ marginTop: "5px", marginLeft: "10px" }}>1m: {cpuChartData[1]?.value ?? "--"}%</p>
-          <p style={{ marginTop: "5px", marginLeft: "10px" }}>5m: {cpuChartData[2]?.value ?? "--"}%</p>
-        </div>
-        <div style={{ display: "flex", fontSize: "13px" }}>
-          <p style={{ textAlign: "left", width: "100px", marginLeft: "5px", marginTop: "5px" }}>
-            {cpuTimestamp ? new Date(cpuTimestamp).toLocaleString() : "Loading..."}
-          </p>
-        </div>
-        <div style={{ display: "flex", marginTop: "5px" }}>
-          <button className="iconButton">
-            <IoRefreshCircleOutline className="defaultIcon" />
-            <IoRefreshCircleSharp className="hoverIcon" />
-          </button>
-          <button className="iconButton">
-            <IoPushOutline className="defaultIcon" />
-            <IoPushSharp className="hoverIcon" />
-          </button>
-        </div>
-      </div>
+
     </div>
   );
 }

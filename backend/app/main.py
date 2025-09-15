@@ -6,6 +6,7 @@ from app.traps import events as trapEvents, signals as trapSignals, snmptrapoids
 from app.netflow import routes as netflow
 from app.devices import status
 from app.devices import config
+from app.geolocation import routes as geolocation
 from app.telemetry import routes as telemetry
 from app.db.session import engine
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -76,6 +77,7 @@ app.include_router(trapStatistics.router)
 app.include_router(trapRules.router)
 app.include_router(mibs.router)
 app.include_router(trapSignals.router)
+app.include_router(geolocation.router)
 
 app.include_router(netflow.router)
 app.include_router(status.router)

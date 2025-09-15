@@ -11,14 +11,6 @@ function InterfaceStatistics({ selectedDevice, onSuccess }) {
     const [interfaces, setInterfaces] = useState([]);
     const [interfacesLoading, setInterfacesLoading] = useState(false);
 
-    // Sync state when selectedDevice changes
-    useEffect(() => {
-        setDevice(selectedDevice);
-        if (selectedDevice?.hostname) {
-            getInterfacesStatus(selectedDevice.hostname);
-        }
-    }, [selectedDevice]);
-
     const getSyslogEndpoint = () => {
         if (!device?.version) throw new Error('Device version not provided');
         if (device.version === 'ios-xe') return `/devices/${device.hostname}/syslogs-xe-config/`;
@@ -26,21 +18,28 @@ function InterfaceStatistics({ selectedDevice, onSuccess }) {
         throw new Error(`Unsupported device version: ${device.version}`);
     };
 
-    const sendConfig = async () => {
-        setLoading(true);
-        setError('');
+    const pushConfiguration = () => async () => {
+        if (!selectedDevice?.hostname) {
+            console.error("No device selected");
+            return;
+        }
+
         try {
-            const response = await apiClient.post(getSyslogEndpoint(), {});
-            setDevice(prev => ({
-                ...prev,
-                features: { ...prev.features, syslogs: true }
-            }));
-            if (onSuccess) onSuccess(response.data);
-        } catch (error) {
-            console.error('Syslog config failed:', error);
-            setError(error.response?.data?.detail || error.message || 'Unknown error');
-        } finally {
-            setLoading(false);
+            const response = await apiClient.post(
+                `/devices/${selectedDevice.hostname}/configure/interface_stats/`,
+                {} // empty body
+            );
+
+            const updatedDevice = response.data;
+            console.log("Updated device:", updatedDevice);
+
+            // Optionally update state
+            // setSelectedDevice(updatedDevice);
+
+        } catch (err) {
+            console.error("Request error:", err);
+            const message = err.response?.data?.detail || err.message || err;
+            alert(`Error configuring Interface Statistics: ${message}`);
         }
     };
 
@@ -70,14 +69,10 @@ function InterfaceStatistics({ selectedDevice, onSuccess }) {
                 {!device?.features?.syslogs && (
                     <div className="zoom-buttons-container">
                         <div className="headerButtons">
-                            {loading ? (
-                                <TailSpin height="20" width="20" color="#ffffff" ariaLabel="loading" />
-                            ) : (
-                                <button className="iconButton" onClick={sendConfig}>
-                                    <IoPushOutline className="defaultIcon" />
-                                    <IoPushSharp className="hoverIcon" />
-                                </button>
-                            )}
+                            <button className="iconButton" onClick={pushConfiguration()}>
+                                <IoPushOutline className="defaultIcon" />
+                                <IoPushSharp className="hoverIcon" />
+                            </button>
                         </div>
                     </div>
                 )}

@@ -165,17 +165,37 @@ func startPeriodicFlush(ctx context.Context, osClient *opensearch.Client, interv
 
 func extractMemoryStats(fields []*telemetryBis.TelemetryField) map[string]interface{} {
 	for _, field := range fields {
-		// This is the top-level anonymous wrapper (name == "")
 		for _, subField := range field.Fields {
 			if subField.Name == "content" {
 				result := make(map[string]interface{})
+				var totalMemory, usedMemory uint64
+
 				for _, memField := range subField.Fields {
 					switch memField.Name {
 					case "total-memory", "used-memory", "free-memory", "lowest-usage", "highest-usage":
 						value := getValue(memField)
 						result[memField.Name] = value
+
+						// Save total and used memory for percentage calculation
+						if memField.Name == "total-memory" {
+							if v, ok := value.(uint64); ok {
+								totalMemory = v
+							}
+						}
+						if memField.Name == "used-memory" {
+							if v, ok := value.(uint64); ok {
+								usedMemory = v
+							}
+						}
 					}
 				}
+
+				// Calculate usage percentage and add to result
+				if totalMemory > 0 {
+					usage := int((float64(usedMemory) / float64(totalMemory)) * 100)
+					result["usage"] = usage
+				}
+
 				if len(result) > 0 {
 					return result
 				}
@@ -268,21 +288,27 @@ func setupOpenSearchClient() (*opensearch.Client, error) {
 }
 
 func extractMemoryKey(fields []*telemetryBis.TelemetryField) string {
-	for _, field := range fields {
-		for _, subField := range field.Fields {
-			if subField.Name == "keys" {
-				for _, keyField := range subField.Fields {
-					if keyField.Name == "name" {
-						if val, ok := getValue(keyField).(string); ok {
-							return val
-						}
-					}
-				}
-			}
-		}
-	}
-	return ""
+    for _, field := range fields {
+        if field.Name == "keys" {
+            for _, subField := range field.Fields {
+                if subField.Name == "name" {
+                    if val, ok := getValue(subField).(string); ok {
+                        return val
+                    }
+                }
+            }
+        }
+
+        // recurse deeper in case "keys" is nested further
+        if len(field.Fields) > 0 {
+            if key := extractMemoryKey(field.Fields); key != "" {
+                return key
+            }
+        }
+    }
+    return ""
 }
+
 
 func printTelemetryFields(fields []*telemetryBis.TelemetryField, indent string) {
 	for _, field := range fields {
@@ -324,7 +350,7 @@ func createMemoryIndexIfNotExists(client *opensearch.Client, opensearchIndex str
 			"properties": map[string]interface{}{
 				"device":          map[string]interface{}{"type": "keyword"},
 				"collection_id":   map[string]interface{}{"type": "long"},
-				"msg_timestamp":   map[string]interface{}{"type": "date"},
+				"timestamp":   map[string]interface{}{"type": "date"},
 				"encoding_path":   map[string]interface{}{"type": "keyword"},
 				"ingested_at":     map[string]interface{}{"type": "date"},
 				"memory":          map[string]interface{}{"type": "keyword"}, // assuming memoryKey is string
@@ -374,6 +400,15 @@ func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensea
         return
     }
 
+    log.Printf("📦 Full Telemetry message (Offset %d): %+v", m.Offset, t)
+
+    memory := extractMemoryKey(t.DataGpbkv)
+    if memory == "" {
+        log.Printf("No memory key found in message (Offset: %d), skipping", m.Offset)
+        return
+    }
+    log.Printf("💡 Memory pool name: %s", memory)
+
     statsMap := extractMemoryStats(t.DataGpbkv)
 
 	if len(statsMap) == 0 {
@@ -387,19 +422,20 @@ func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensea
         device = nodeID.NodeIdStr
     }
 
-    // Save latest Memory stats in Redis
-    redisKey := fmt.Sprintf("telemetry:%s:memory-stats", device)
+    redisKey := fmt.Sprintf("telemetry:%s:memory-state", device)
 
-    redisValue := map[string]interface{}{
-        "msg_timestamp": t.MsgTimestamp, 
-        "stats":         statsMap,
+    usage, _ := statsMap["usage"].(int)
+
+    if err := redisClient.HSet(ctx, redisKey, memory, usage).Err(); err != nil {
+        log.Printf("Failed to update memory usage in Redis for device %s, memory %s: %v", device, memory, err)
+    } else {
+        log.Printf("✅ Redis updated: %s -> %s = %d%%", redisKey, memory, usage)
     }
 
-    statsJSON, _ := json.Marshal(redisValue) // convert map to JSON
-    if err := redisClient.Set(ctx, redisKey, statsJSON, 0).Err(); err != nil {
-        log.Printf("Failed to save Memory stats to Redis for device %s: %v", device, err)
+    if err := redisClient.HSet(ctx, redisKey, "timestamp", t.MsgTimestamp).Err(); err != nil {
+        log.Printf("Failed to update timestamp in Redis for device %s: %v", device, err)
     } else {
-        log.Printf("✅ Updated Redis key %s with latest Memory stats", redisKey)
+        log.Printf("⏱️ Redis updated: %s -> timestamp = %d", redisKey, t.MsgTimestamp)
     }
 
     // Create the full document
@@ -408,8 +444,9 @@ func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensea
         "collection_id":         t.CollectionId,
         "collection_start_time": t.CollectionStartTime,
         "collection_end_time":   t.CollectionEndTime,
-        "msg_timestamp":         t.MsgTimestamp,
+        "timestamp":             t.MsgTimestamp,
         "encoding_path":         t.EncodingPath,
+        "memory":                memory,
         "stats":                 statsMap,
         "ingested_at":           time.Now().UTC(),
     }

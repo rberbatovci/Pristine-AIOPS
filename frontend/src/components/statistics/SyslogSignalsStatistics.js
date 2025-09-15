@@ -13,7 +13,7 @@ import customStyles from '../misc/SelectStyles';
 import { IoBarChartOutline } from "react-icons/io5";
 import { AiOutlinePieChart } from "react-icons/ai";
 
-function SyslogSignalsStatistics({ selSyslogSignalsTags }) {
+function SyslogSignalsStatistics({ selSignalsTags }) {
     const [chartDataMap, setChartDataMap] = useState({});
     const [loadingMap, setLoadingMap] = useState({});
     const [chartTypeMap, setChartTypeMap] = useState({});
@@ -23,9 +23,9 @@ function SyslogSignalsStatistics({ selSyslogSignalsTags }) {
         { value: 'BarChart', label: 'Bar Chart' },
     ];
 
-    // Fetch data when selSyslogSignalsTags change
+    // Fetch data when selSignalsTags change
     useEffect(() => {
-        selSyslogSignalsTags.forEach(dataType => {
+        selSignalsTags.forEach(dataType => {
             if (!chartDataMap[dataType] && !loadingMap[dataType]) {
                 setLoadingMap(prev => ({ ...prev, [dataType]: true }));
 
@@ -73,7 +73,7 @@ function SyslogSignalsStatistics({ selSyslogSignalsTags }) {
 
         // Clean up removed types
         Object.keys(chartDataMap).forEach(dataType => {
-            if (!selSyslogSignalsTags.includes(dataType)) {
+            if (!selSignalsTags.includes(dataType)) {
                 const newChartDataMap = { ...chartDataMap };
                 delete newChartDataMap[dataType];
                 setChartDataMap(newChartDataMap);
@@ -83,7 +83,7 @@ function SyslogSignalsStatistics({ selSyslogSignalsTags }) {
                 setLoadingMap(newLoadingMap);
             }
         });
-    }, [selSyslogSignalsTags]);
+    }, [selSignalsTags]);
 
     const handleChartTypeChange = (dataType, type) => {
         setChartTypeMap(prev => ({ ...prev, [dataType]: type }));
@@ -104,8 +104,9 @@ function SyslogSignalsStatistics({ selSyslogSignalsTags }) {
 
     return (
         <div>
+            <div>SS</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-around' }}>
-                {selSyslogSignalsTags.map(dataType => {
+                {selSignalsTags.map(dataType => {
                     const chartType = chartTypeMap[dataType] || 'BarChart';
                     const chartData = chartDataMap[dataType] || [];
                     const isLoading = loadingMap[dataType];

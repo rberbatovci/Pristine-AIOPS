@@ -36,6 +36,8 @@ var pathTopicMap = map[string]string{
 	"Cisco-IOS-XE-process-cpu-oper:cpu-usage/cpu-utilization": "cpu-utilization",
 	"Cisco-IOS-XE-memory-oper:memory-statistics/memory-statistic":    "memory-statistics",
 	"Cisco-IOS-XE-interfaces-oper:interfaces/interface/statistics": "interface-statistics",
+	"Cisco-IOS-XE-interfaces-oper:interfaces/interface": "interface-oper-status",
+	"Cisco-IOS-XE-bgp-oper:bgp-state-data/neighbors/neighbor/connection": "bgp-connections",
 }
 
 var (

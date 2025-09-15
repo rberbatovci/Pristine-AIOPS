@@ -13,7 +13,7 @@ import customStyles from '../misc/SelectStyles';
 import { IoBarChartOutline } from "react-icons/io5";
 import { AiOutlinePieChart } from "react-icons/ai";
 
-function TrapSignalsStatistics({ selTrapSignalsTags }) {
+function TrapSignalsStatistics({ selSignalsTags }) {
     const [chartDataMap, setChartDataMap] = useState({});
     const [loadingMap, setLoadingMap] = useState({});
     const [chartTypeMap, setChartTypeMap] = useState({});
@@ -23,9 +23,9 @@ function TrapSignalsStatistics({ selTrapSignalsTags }) {
         { value: 'BarChart', label: 'Bar Chart' },
     ];
 
-    // Fetch data when selTrapSignalsTags change
+    // Fetch data when selSignalsTags change
     useEffect(() => {
-        selTrapSignalsTags.forEach(dataType => {
+        selSignalsTags.forEach(dataType => {
             if (!chartDataMap[dataType] && !loadingMap[dataType]) {
                 setLoadingMap(prev => ({ ...prev, [dataType]: true }));
 
@@ -73,7 +73,7 @@ function TrapSignalsStatistics({ selTrapSignalsTags }) {
 
         // Clean up removed types
         Object.keys(chartDataMap).forEach(dataType => {
-            if (!selTrapSignalsTags.includes(dataType)) {
+            if (!selSignalsTags.includes(dataType)) {
                 const newChartDataMap = { ...chartDataMap };
                 delete newChartDataMap[dataType];
                 setChartDataMap(newChartDataMap);
@@ -83,7 +83,7 @@ function TrapSignalsStatistics({ selTrapSignalsTags }) {
                 setLoadingMap(newLoadingMap);
             }
         });
-    }, [selTrapSignalsTags]);
+    }, [selSignalsTags]);
 
     const handleChartTypeChange = (dataType, type) => {
         setChartTypeMap(prev => ({ ...prev, [dataType]: type }));
@@ -105,7 +105,7 @@ function TrapSignalsStatistics({ selTrapSignalsTags }) {
     return (
         <div>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-around' }}>
-                {selTrapSignalsTags.map(dataType => {
+                {selSignalsTags.map(dataType => {
                     const chartType = chartTypeMap[dataType] || 'BarChart';
                     const chartData = chartDataMap[dataType] || [];
                     const isLoading = loadingMap[dataType];
