@@ -1,8 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import '../../css/SignalInfo.css';
 import apiClient from '../misc/AxiosConfig';
-import Select from 'react-select';
-import customStyles from '../misc/SelectStyles';
 import {
   LineChart,
   Line,
@@ -17,52 +15,48 @@ import moment from 'moment';
 
 const InterfaceOper = ({ currentUser, selectedDevice }) => {
   const [showData, setShowData] = useState(true);
-  const [selectedInterface, setSelectedInterface] = useState(null);
   const [interfaceStatistics, setInterfaceStatistics] = useState([]);
-  const [availableInterfaces, setAvailableInterfaces] = useState([]); // New state for available interfaces
+  const [availableInterfaces, setAvailableInterfaces] = useState([]);
 
-  useEffect(() => {
-      if (!selectedDevice) {
-        setShowData(false);
-        setInterfaceStatistics([]);
-      } else {
-        setShowData(true);
-      }
-    }, [selectedDevice]);
+  // Map status strings → numeric
+  const statusMap = {
+    'if-oper-state-ready': 1,
+    'if-oper-state-no-pass': 0,
+    '': null
+  };
 
-  // Set default selected interface on mount or when availableInterfaces change
+  // Init state when device changes
   useEffect(() => {
-    if (availableInterfaces.length > 0 && !selectedInterface) {
-      setSelectedInterface(availableInterfaces[0]); // Default to the first available interface
+    if (!selectedDevice) {
+      setShowData(false);
+      setInterfaceStatistics([]);
+    } else {
+      setShowData(true);
     }
-  }, [availableInterfaces, selectedInterface]);
+  }, [selectedDevice]);
 
-
-  // Fetch interface statistics when device or selected interface changes
+  // Fetch statistics
   useEffect(() => {
     const fetchInterfaceStatistics = async () => {
-      if (!selectedDevice || !selectedInterface) {
-        setInterfaceStatistics([]); // Clear data if no device or interface selected
-        return;
-      }
+      if (!selectedDevice) return;
 
       try {
-        // This is the time series data for the selected interface on the selected device
         const res = await apiClient.get(`/telemetry/interface-oper-status/`, {
-          params: {
-            device: selectedDevice,
-            interface: selectedInterface.value,
-          }
+          params: { device: selectedDevice }
         });
 
-        // Filter and map the data based on the provided statistics structure
-        const formatted = res.data.results.map((item) => ({
-          timestamp: moment(item.ingested_at).format("HH:mm:ss"),
-          ether_state: item.stats?.["ether-state"] ?? 0,
-          oper_status: item.stats?.["oper-status"] ?? 0,
-        }));
+        // Pivot long format → wide format for chart
+        const grouped = {};
+        res.data.results.forEach(item => {
+          const ts = moment(item.ingested_at).format('HH:mm:ss');
+          if (!grouped[ts]) grouped[ts] = { timestamp: ts };
 
+          grouped[ts][item.interface] = statusMap[item.status] ?? null;
+        });
+
+        const formatted = Object.values(grouped);
         setInterfaceStatistics(formatted);
+
         console.log('Interface statistics fetched:', formatted);
       } catch (err) {
         console.error('Error fetching interface statistics:', err);
@@ -71,99 +65,113 @@ const InterfaceOper = ({ currentUser, selectedDevice }) => {
     };
 
     fetchInterfaceStatistics();
-  }, [selectedDevice, selectedInterface]); // Dependency on selectedInterface now
+  }, [selectedDevice]);
 
+  // Fetch available interfaces
   useEffect(() => {
     const fetchInterfaces = async () => {
       if (!selectedDevice) {
         setAvailableInterfaces([]);
-        setSelectedInterface(null);
         return;
       }
 
       try {
-        // This is the list of all interfaces for the selected device
-        const res = await apiClient.get('/telemetry/interface-oper-stats/interfaces/', {
-          params: { device: selectedDevice }
-        });
+        const res = await apiClient.get(
+          '/telemetry/interface-oper-status/interfaces/',
+          { params: { device: selectedDevice } }
+        );
 
-        // res.data.interfaces expected to be an array of interface names (strings)
-        const options = res.data.interfaces.map(iface => ({
-          value: iface,
-          label: iface,
-        }));
-
-        setAvailableInterfaces(options);
-        // Optionally reset selected interface to first available or null
-        setSelectedInterface(options.length > 0 ? options[0] : null);
+        const ifaceList = res.data.interfaces.filter(
+          iface => iface && iface.trim() !== ''
+        );
+        setAvailableInterfaces(ifaceList);
       } catch (err) {
         console.error('Error fetching interfaces:', err);
         setAvailableInterfaces([]);
-        setSelectedInterface(null);
       }
     };
 
     fetchInterfaces();
   }, [selectedDevice]);
 
-  // Dynamically calculate yDomain based on the selected metric or all metrics
-  const yDomain = useMemo(() => {
-    if (interfaceStatistics.length === 0) return [0, 'auto']; // Start from 0 for counts
-
-    // Collect all relevant numeric values to determine the domain
-    const allValues = interfaceStatistics.flatMap(item => [
-      item.ether_state,
-      item.oper_status,
-    ]).filter(v => typeof v === 'number' && v >= 0); // Ensure values are numbers and non-negative
-
-    if (allValues.length === 0) return [0, 'auto'];
-
-    const min = Math.min(...allValues);
-    const max = Math.max(...allValues);
-
-    // Adjust domain to give a little padding, ensuring min is not negative
-    return [Math.max(0, Math.floor(min * 0.95)), Math.ceil(max * 1.05)];
-  }, [interfaceStatistics]);
+  // Y-axis tick formatter (0 = No-Pass, 1 = Ready)
+  const formatStatus = tick => {
+    if (tick === 1) return 'Ready';
+    if (tick === 0) return 'No-Pass';
+    return '';
+  };
 
   return (
-    <div className={`signalRightElementContainer ${showData ? 'expanded' : 'collapsed'}`}>
+    <div
+      className={`signalRightElementContainer ${
+        showData ? 'expanded' : 'collapsed'
+      }`}
+    >
       <div className="signalRightElementHeader">
-        <span style={{ fontSize: '14px', color: 'var(--textColor)', paddingLeft: '10px' }}> {selectedDevice || ''} - Interface Operational Statistics</span>
-        {showData && (
-          <div className="zoom-buttons-container">
-            <div className="headerButtons" style={{ display: 'flex', gap: '10px' }}>
-            </div>
-          </div>
-        )}
+        <span
+          style={{
+            fontSize: '14px',
+            color: 'var(--textColor)',
+            paddingLeft: '10px'
+          }}
+        >
+          {selectedDevice || ''} - Interfaces
+        </span>
       </div>
 
-      {showData && selectedInterface && interfaceStatistics.length > 0 ? (
-        <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '10px' }}>
+      {showData && interfaceStatistics.length > 0 ? (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            paddingTop: '10px'
+          }}
+        >
           <div style={{ width: '100%', height: 200 }}>
-            <ResponsiveContainer width="100%" height="100%" background="red">
+            <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={interfaceStatistics}
                 margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
               >
                 <CartesianGrid stroke="#ccc" strokeDasharray="5 5" />
-                <XAxis dataKey="timestamp" reversed={true}/>
-                <YAxis domain={yDomain} />
-                <Tooltip />
+                <XAxis dataKey="timestamp" reversed={true} />
+                <YAxis
+                  domain={[0, 1]}
+                  ticks={[0, 1]}
+                  tickFormatter={formatStatus}
+                />
+                <Tooltip
+                  formatter={(value, name) =>
+                    value === 1 ? 'Ready' : 'No-Pass'
+                  }
+                />
                 <Legend />
-                <Line type="monotone" dataKey="ether-state" stroke="#8884d8" dot={false} name="Ether State" />
-                <Line type="monotone" dataKey="oper-status" stroke="#ffc658" dot={false} name="Oper Status" />
-                {/* Add more lines for other relevant statistics if desired */}
+                {availableInterfaces.map((iface, idx) => (
+                  <Line
+                    key={iface}
+                    type="monotone"
+                    dataKey={iface}
+                    stroke={[
+                      '#8884d8',
+                      '#82ca9d',
+                      '#ff7300',
+                      '#0088FE',
+                      '#00C49F'
+                    ][idx % 5]}
+                    dot={false}
+                    connectNulls={true}
+                  />
+                ))}
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
-      ) : showData && selectedInterface && interfaceStatistics.length === 0 ? (
-        <div className="no-data-message" style={{ padding: '20px', textAlign: 'center' }}>
-          No data available for the selected interface.
-        </div>
-      ) : showData && !selectedInterface ? (
-        <div className="no-data-message" style={{ padding: '20px', textAlign: 'center' }}>
-          Please select an interface to view statistics.
+      ) : showData && interfaceStatistics.length === 0 ? (
+        <div
+          className="no-data-message"
+          style={{ padding: '20px', textAlign: 'center' }}
+        >
+          No data available for this device.
         </div>
       ) : null}
     </div>

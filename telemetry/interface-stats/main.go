@@ -17,6 +17,7 @@ import (
 	"github.com/opensearch-project/opensearch-go"
 	"github.com/opensearch-project/opensearch-go/opensearchapi"
 	"github.com/segmentio/kafka-go"
+	"github.com/redis/go-redis/v9"
 )
 
 const (
@@ -29,6 +30,22 @@ const (
     opensearch2 = "http://opensearch-node2:9200"
     opensearch3 = "http://opensearch-node3:9200"
 )
+
+var redisClient *redis.Client
+
+func initRedis() {
+    redisClient = redis.NewClient(&redis.Options{
+        Addr:     "Redis:6379", // or your Redis host:port
+        Password: "",               // no password set
+        DB:       0,                // default DB
+    })
+
+    ctx := context.Background()
+    if err := redisClient.Ping(ctx).Err(); err != nil {
+        log.Fatalf("Failed to connect to Redis: %v", err)
+    }
+    log.Println("✅ Connected to Redis")
+}
 
 func setupOpenSearchClient() (*opensearch.Client, error) {
     client, err := opensearch.NewClient(opensearch.Config{
@@ -155,6 +172,23 @@ func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensea
 	interfaceStats := telemetryFieldsToMap(t.DataGpbkv, "")
 
 	interfaceName, _ := interfaceStats["keys.name"].(string)
+
+    // Save latest interface statistics in Redis (hash fields)
+    redisKey := fmt.Sprintf("telemetry:%s:interface:%s", device, interfaceName)
+
+    fields := map[string]interface{}{
+        "timestamp": t.MsgTimestamp,
+        "rx-kbps":   interfaceStats["rx-kbps"],
+        "tx-kbps":   interfaceStats["tx-kbps"],
+        "rx-pps":    interfaceStats["rx-pps"],
+        "tx-pps":    interfaceStats["tx-pps"],
+    }
+
+    if err := redisClient.HSet(ctx, redisKey, fields).Err(); err != nil {
+        log.Printf("❌ Failed to save interface statistics to Redis for %s: %v", redisKey, err)
+    } else {
+        log.Printf("✅ Updated Redis key %s with latest interface statistics", redisKey)
+    }
 
 	doc := map[string]interface{}{
 		"device":        device,
@@ -353,6 +387,8 @@ func main() {
 			log.Println("✅ Kafka reader closed successfully.")
 		}
 	}()
+
+	initRedis()
 
 	osClient, err := setupOpenSearchClient()
 	if err != nil {

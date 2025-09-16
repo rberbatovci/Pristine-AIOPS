@@ -1,5 +1,5 @@
 ---
-- name: Configure BGP connections on Cisco IOS device
+- name: Configure Interface Statistics Monitoring on Cisco IOS XE device
   hosts: all
   gather_facts: no
   connection: network_cli
@@ -12,12 +12,12 @@
     ansible_host: "{{ router_ip }}"
 
   tasks:
-    - name: Configure telemetry subscription 105 (BGP neighbor connection)
+    - name: Configure telemetry subscription 103 (interfaces statistics)
       ios_config:
         lines:
-          - telemetry ietf subscription 105
+          - telemetry ietf subscription 103
           -  encoding encode-kvgpb
-          -  filter xpath /bgp-state-data/neighbors/neighbor/connection
+          -  filter xpath /interfaces/interface/oper-status
           -  stream yang-push
           -  update-policy periodic {{ telemetry_period_seconds }}
           -  receiver ip address {{ receiver_ip }} {{ receiver_port }} protocol grpc-tcp

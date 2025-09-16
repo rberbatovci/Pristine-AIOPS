@@ -54,20 +54,56 @@ def fetch_last_status(hostname: str, metric: str):
     """Fetch latest metric from Redis (telemetry)."""
     
     if metric == "memory-stats":
-        # Use HGETALL for memory-stats hash
         redis_key = f"telemetry:{hostname}:memory-state"
         memory_data = r.hgetall(redis_key)
         if memory_data:
-            # Redis returns bytes, convert keys and values to str/int
-            return {k.decode("utf-8"): int(v) for k, v in memory_data.items()}
+            return {k.decode("utf-8") if isinstance(k, bytes) else k: int(v) for k, v in memory_data.items()}
         return {"error": "no memory-stats data"}
-    
+
+    if metric == "interfaces":
+        # Fetch all interface keys
+        pattern = f"telemetry:{hostname}:interface:*"
+        keys = r.keys(pattern)
+        if not keys:
+            return {"error": "no interfaces data"}
+
+        interfaces_data = {}
+        for key in keys:
+            iface_name = key.decode("utf-8").split(":")[-1] if isinstance(key, bytes) else key.split(":")[-1]
+            
+            # Determine type: hash or string
+            if r.type(key) == b"hash" or r.type(key) == "hash":
+                data = r.hgetall(key)
+                # decode and parse numeric values where possible
+                parsed = {}
+                for k, v in data.items():
+                    k_str = k.decode("utf-8") if isinstance(k, bytes) else k
+                    try:
+                        v_num = int(v) if isinstance(v, (int, bytes, str)) and str(v).isdigit() else v
+                    except:
+                        v_num = v
+                    parsed[k_str] = v_num
+                interfaces_data[iface_name] = parsed
+            else:
+                # GET string/JSON
+                raw = r.get(key)
+                try:
+                    parsed = json.loads(raw) if raw else {}
+                except json.JSONDecodeError:
+                    parsed = {"raw": raw}
+                interfaces_data[iface_name] = parsed
+
+        return interfaces_data
+
     # For other metrics, use GET as before
     redis_key = f"telemetry:{hostname}:{metric}"
     value = r.get(redis_key)
     if value:
-        return json.loads(value)
-    
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:
+            return {"raw": value}
+
     return {"error": f"no {metric} data"}
 
 

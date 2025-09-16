@@ -12,10 +12,10 @@
     ansible_host: "{{ router_ip }}"
 
   tasks:
-    - name: Configure telemetry subscription 103 (interfaces statistics)
+    - name: Configure telemetry subscription 104 (interfaces statistics)
       ios_config:
         lines:
-          - telemetry ietf subscription 103
+          - telemetry ietf subscription 104
           -  encoding encode-kvgpb
           -  filter xpath /interfaces/interface/statistics
           -  stream yang-push

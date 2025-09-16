@@ -17,6 +17,7 @@ import (
 	"github.com/opensearch-project/opensearch-go"
 	"github.com/opensearch-project/opensearch-go/opensearchapi"
 	"github.com/segmentio/kafka-go"
+	"github.com/redis/go-redis/v9"
 )
 
 const (
@@ -29,6 +30,22 @@ const (
     opensearch2 = "http://opensearch-node2:9200"
     opensearch3 = "http://opensearch-node3:9200"
 )
+
+var redisClient *redis.Client
+
+func initRedis() {
+    redisClient = redis.NewClient(&redis.Options{
+        Addr:     "Redis:6379", // or your Redis host:port
+        Password: "",               // no password set
+        DB:       0,                // default DB
+    })
+
+    ctx := context.Background()
+    if err := redisClient.Ping(ctx).Err(); err != nil {
+        log.Fatalf("Failed to connect to Redis: %v", err)
+    }
+    log.Println("✅ Connected to Redis")
+}
 
 func setupOpenSearchClient() (*opensearch.Client, error) {
     client, err := opensearch.NewClient(opensearch.Config{
@@ -144,6 +161,18 @@ func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensea
 	interfaceName, _ := interfaceStats["keys.name"].(string)
 
 	interfaceStatus, _ := interfaceStats["oper-status"].(string)
+
+    // Save latest interface status in Redis (hash field)
+    redisKey := fmt.Sprintf("telemetry:%s:interface:%s", device, interfaceName)
+
+    if err := redisClient.HSet(ctx, redisKey, map[string]interface{}{
+        "timestamp": t.MsgTimestamp,
+        "status":    interfaceStatus,
+    }).Err(); err != nil {
+        log.Printf("❌ Failed to save interface status to Redis for %s: %v", redisKey, err)
+    } else {
+        log.Printf("✅ Updated Redis key %s with latest interface status", redisKey)
+    }
 
 	doc := map[string]interface{}{
 		"device":        device,
@@ -308,6 +337,8 @@ func main() {
 			log.Println("✅ Kafka reader closed successfully.")
 		}
 	}()
+
+	initRedis()
 
 	osClient, err := setupOpenSearchClient()
 	if err != nil {
