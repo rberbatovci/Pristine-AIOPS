@@ -3,7 +3,7 @@ import apiClient from '../misc/AxiosConfig';
 import { RadialBarChart, PolarAngleAxis, RadialBar, Cell, Tooltip as RechartsTooltip } from 'recharts';
 import { IoPushOutline, IoPushSharp, IoRefreshCircleSharp, IoRefreshCircleOutline } from "react-icons/io5";
 
-function CpuUtilization({ selectedDevice, onSuccess }) {
+function CpuUtilization({ selectedDevice, onSuccess, showNotification }) {
   const [device, setDevice] = useState(selectedDevice);
   const [error, setError] = useState('');
   const [cpuLoading, setCpuLoading] = useState(false);
@@ -25,6 +25,7 @@ function CpuUtilization({ selectedDevice, onSuccess }) {
     setCpuLoading(true);
     setError('');
     setShouldSpin(true);
+    
 
     try {
       const response = await apiClient.get(`/devices/${device.hostname}/status/last/cpu-util/`);
@@ -40,7 +41,7 @@ function CpuUtilization({ selectedDevice, onSuccess }) {
         ];
 
         setCpuChartData(newData);
-
+        
         // Only set timestamp if backend provides it
         if (data.msg_timestamp) {
           setCpuTimestamp(new Date(data.msg_timestamp).toISOString());
@@ -66,7 +67,7 @@ function CpuUtilization({ selectedDevice, onSuccess }) {
       console.error("No device selected");
       return;
     }
-
+    showNotification(`Pushing CPU Utilization telemetry on ${selectedDevice.hostname}...`, "loading");
     try {
       const response = await apiClient.post(
         `/devices/${selectedDevice.hostname}/configure/cpu_util/`,
@@ -74,7 +75,7 @@ function CpuUtilization({ selectedDevice, onSuccess }) {
       );
 
       const updatedDevice = response.data;
-      console.log("Updated device:", updatedDevice);
+      showNotification(`CPU Utilization telemetry configured on ${selectedDevice.hostname}`, "info");
 
       // Optionally update state
       // setSelectedDevice(updatedDevice);
@@ -82,7 +83,7 @@ function CpuUtilization({ selectedDevice, onSuccess }) {
     } catch (err) {
       console.error("Request error:", err);
       const message = err.response?.data?.detail || err.message || err;
-      alert(`Error configuring CPU utilization: ${message}`);
+      showNotification(`Error configuring CPU Utilization telemetry on ${selectedDevice.hostname}`, "error");
     }
   };
 

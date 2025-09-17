@@ -13,7 +13,7 @@ import SyslogConfig from './SyslogConfig';
 import SnmpTrapConfig from './SnmpTrapConfig';
 import TelemetryConfig from './TelemetryConfig';
 
-const Info = ({ currentUser, selectedDevice, onDeviceDeselect, onConfigClick, onDeviceDelete }) => {
+const Info = ({ currentUser, selectedDevice, onDeviceDeselect, onConfig, onDeviceDelete, showNotification }) => {
   const [editedHostname, setEditedHostname] = useState(selectedDevice.hostname);
   const [isEditing, setIsEditing] = useState(false);
   const [dropdowns, setDropdowns] = useState({
@@ -56,30 +56,37 @@ const Info = ({ currentUser, selectedDevice, onDeviceDeselect, onConfigClick, on
     }
   };
 
-const pushConfiguration = (featureName) => async () => {
-  if (!selectedDevice?.hostname) {
-    console.error("No device selected");
-    return;
-  }
+  const pushConfiguration = (featureName) => async () => {
+    if (!selectedDevice?.hostname) {
+      showNotification("No device selected", "error");
+      return;
+    }
 
-  try {
-    const response = await apiClient.post(
-      `/devices/${selectedDevice.hostname}/configure/${featureName}/`,
-      {} // empty body
-    );
+    // Show loading notification
+    showNotification(`Pushing ${featureName} configuration...`, "loading");
 
-    const updatedDevice = response.data;
-    console.log("Updated device:", updatedDevice);
+    try {
+      const response = await apiClient.post(
+        `/devices/${selectedDevice.hostname}/configure/${featureName}/`,
+        {}
+      );
 
-    // Optionally update state
-    // setSelectedDevice(updatedDevice);
+      const updatedDevice = response.data;
+      console.log("Updated device:", updatedDevice);
 
-  } catch (err) {
-    console.error("Request error:", err);
-    const message = err.response?.data?.detail || err.message || err;
-    alert(`Error configuring ${featureName}: ${message}`);
-  }
-};
+      showNotification(
+        `Successfully pushed configuration for ${featureName}`,
+        "info"
+      );
+
+    } catch (err) {
+      const message = err.response?.data?.detail || err.message || err;
+      showNotification(
+        `Error configuring ${featureName}: ${message}`,
+        "error"
+      );
+    }
+  };
 
   return (
     <div className="signalRightElementContainer" style={{ maxHeight: '180px' }}>

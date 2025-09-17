@@ -14,7 +14,7 @@ import { MdDeleteForever, MdOutlineDeleteForever } from "react-icons/md";
 import apiClient from '../components/misc/AxiosConfig';
 import { RiAddCircleLine, RiAddCircleFill } from "react-icons/ri";
 
-function Devices({ currentUser, setDashboardTitle }) {
+function Devices({ currentUser, setDashboardTitle, showNotification }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [devices, setDevices] = useState([]);
@@ -189,9 +189,10 @@ function Devices({ currentUser, setDashboardTitle }) {
                                     onDeviceDeselect={handleDeviceDeselect}
                                     onConfigClick={handleConfigClick}
                                     onDeviceDelete={handleDeviceDelete}
+                                    showNotification={showNotification} 
                                 />
-                                <SystemUtilization selectedDevice={selectedDevice} onSuccess={fetchDevices} />
-                                <InterfaceStatistics selectedDevice={selectedDevice} onSuccess={fetchDevices} />                               
+                                <SystemUtilization selectedDevice={selectedDevice} onSuccess={fetchDevices} showNotification={showNotification}/>
+                                <InterfaceStatistics selectedDevice={selectedDevice} onSuccess={fetchDevices} showNotification={showNotification}/>                               
                             </>
                         )}
 

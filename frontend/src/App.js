@@ -17,6 +17,7 @@ import Performance from './pages/Performance';
 import ProtectedRoute from './components/misc/ProtectedRoute';
 import Topology from './pages/Topology';
 import Devices from './pages/Devices';
+import Notification from "./components/misc/Notification";
 
 const App = () => {
   const [isDarkTheme, setIsDarkTheme] = useState(false);
@@ -28,6 +29,7 @@ const App = () => {
   const [init, setInit] = useState(false);
   const [dashboardTitle, setDashboardTitle] = useState('');
   const [showUserProfile, setShowUserProfile] = useState(false);
+  const [notification, setNotification] = useState({ message: "ssssssss", type: "ssssssss" });
 
   useEffect(() => {
     const storedUser = localStorage.getItem("currentUser");
@@ -110,6 +112,10 @@ const App = () => {
 
   const toggleUserProfile = () => setShowUserProfile(prev => !prev);
 
+  const showNotification = (message, type = "info") => {
+    setNotification({ message, type });
+  };
+
   return (
     <BrowserRouter>
       {isAuthenticated ? (
@@ -138,6 +144,11 @@ const App = () => {
             <div className="sidebar-container">
               <Sidebar />
             </div>
+            <Notification
+              message={notification.message}
+              type={notification.type}
+              onClose={() => setNotification({ message: "", type: "" })}
+            />
             <div className="content">
               <Routes>
                 <Route path="/incidents" element={
@@ -148,7 +159,7 @@ const App = () => {
                 } />
                 <Route path="/devices" element={
                   <ProtectedRoute isAuthenticated={isAuthenticated}>
-                    <Devices currentUser={currentUser} setDashboardTitle={setDashboardTitle} />
+                    <Devices currentUser={currentUser} setDashboardTitle={setDashboardTitle} showNotification={showNotification}/>
                   </ProtectedRoute>
                 } />
                 <Route path="/signals" element={
@@ -180,7 +191,7 @@ const App = () => {
                     <Topology currentUser={currentUser} setDashboardTitle={setDashboardTitle} />
                   </ProtectedRoute>
                 } />
-                
+
                 <Route path="*" element={<Navigate to="/login" />} />
               </Routes>
             </div>
