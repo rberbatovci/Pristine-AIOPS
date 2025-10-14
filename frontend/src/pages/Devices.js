@@ -2,12 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import '../css/Devices.css';
 import AddNew from '../components/devices/AddNew';
 import List from '../components/devices/List';
-import SyslogConfig from '../components/devices/SyslogConfig';
-import SnmpTrapConfig from '../components/devices/SnmpTrapConfig';
-import NetflowConfig from '../components/devices/NetflowConfig';
-import CpuUtilization from '../components/devices/CpuUtilization';
-import MemoryStatistics from '../components/devices/MemoryStatistics';
 import InterfaceStatistics from '../components/devices/InterfaceStatistics';
+import RibTable from '../components/devices/RibTable';
+import FibEntry from '../components/devices/FibEntry';
+import BgpConnections from '../components/devices/BgpConnections';
+import IsisStats from '../components/devices/IsisStats';
+import OspfStats from '../components/devices/OspfStats';
+import LldpEntries from '../components/devices/LldpEntries';
 import SystemUtilization from '../components/devices/SystemUtilization';
 import Info from '../components/devices/Info';
 import { MdDeleteForever, MdOutlineDeleteForever } from "react-icons/md";
@@ -192,7 +193,13 @@ function Devices({ currentUser, setDashboardTitle, showNotification }) {
                                     showNotification={showNotification} 
                                 />
                                 <SystemUtilization selectedDevice={selectedDevice} onSuccess={fetchDevices} showNotification={showNotification}/>
-                                <InterfaceStatistics selectedDevice={selectedDevice} onSuccess={fetchDevices} showNotification={showNotification}/>                               
+                                <InterfaceStatistics selectedDevice={selectedDevice} onSuccess={fetchDevices} showNotification={showNotification}/>
+                                <RibTable selectedDevice={selectedDevice} onSuccess={fetchDevices} showNotification={showNotification}/>
+                                <LldpEntries selectedDevice={selectedDevice} onSuccess={fetchDevices} showNotification={showNotification}/>
+                                <OspfStats selectedDevice={selectedDevice} onSuccess={fetchDevices} showNotification={showNotification}/>
+                                <FibEntry selectedDevice={selectedDevice} onSuccess={fetchDevices} showNotification={showNotification}/>
+                                <IsisStats selectedDevice={selectedDevice} onSuccess={fetchDevices} showNotification={showNotification}/>
+                                <BgpConnections selectedDevice={selectedDevice} onSuccess={fetchDevices} showNotification={showNotification}/>                               
                             </>
                         )}
 

@@ -10,7 +10,11 @@
     ansible_network_os: ios
     ansible_connection: network_cli
     ansible_host: "{{ router_ip }}"
-    netflow_interfaces: []
+    netflow_interfaces:
+      - "GigabitEthernet1"              # Interface used as source for exporting
+      - "GigabitEthernet2"              # Add the interfaces where traffic flows
+      - "GigabitEthernet3"
+      - "GigabitEthernet4"
     netflow_export_source: "GigabitEthernet1"
 
   tasks:

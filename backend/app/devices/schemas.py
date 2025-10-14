@@ -2,11 +2,14 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 
 class TelemetryFeatures(BaseModel):
-    cpu_util: Optional[bool] = False
-    memory_stats: Optional[bool] = False
+    system_util: Optional[bool] = False
+    rib_table: Optional[bool] = False
+    fib_entry: Optional[bool] = False
     interface_stats: Optional[bool] = False
     bgp_connections: Optional[bool] = False
     isis_stats: Optional[bool] = False
+    ospf_stats: Optional[bool] = False
+    lldp_stats: Optional[bool] = False
 
 class DeviceFeatures(BaseModel):
     syslogs: Optional[bool] = False

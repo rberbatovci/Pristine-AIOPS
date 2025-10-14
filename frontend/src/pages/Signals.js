@@ -250,7 +250,7 @@ const SignalsDashboard = ({ currentUser, setDashboardTitle }) => {
     }, [showSearchInput]);
 
     return (
-        <div className="signals-container" style={{ display: 'flex', width: showComponents ? '80%' : '40%', transition: 'width 1s ease' }}>
+        <div className="signals-container" style={{ display: 'flex', width: showComponents ? '90%' : '40%', transition: 'width 1s ease' }}>
             <div
                 style={{
                     width: showComponents ? '40%' : '100%',

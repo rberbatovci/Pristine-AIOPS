@@ -56,37 +56,56 @@ const Info = ({ currentUser, selectedDevice, onDeviceDeselect, onConfig, onDevic
     }
   };
 
-  const pushConfiguration = (featureName) => async () => {
-    if (!selectedDevice?.hostname) {
-      showNotification("No device selected", "error");
-      return;
-    }
+const pushConfiguration = (featureName) => async () => {
+  if (!selectedDevice?.hostname) {
+    showNotification("No device selected", "error");
+    return;
+  }
 
-    // Show loading notification
-    showNotification(`Pushing ${featureName} configuration...`, "loading");
-
-    try {
-      const response = await apiClient.post(
-        `/devices/${selectedDevice.hostname}/configure/${featureName}/`,
-        {}
-      );
-
-      const updatedDevice = response.data;
-      console.log("Updated device:", updatedDevice);
-
-      showNotification(
-        `Successfully pushed configuration for ${featureName}`,
-        "info"
-      );
-
-    } catch (err) {
-      const message = err.response?.data?.detail || err.message || err;
-      showNotification(
-        `Error configuring ${featureName}: ${message}`,
-        "error"
-      );
-    }
+  // Define messages for different features
+  const messages = {
+    syslogs: {
+      loading: `Configuring syslogs on ${selectedDevice.hostname}...`,
+      success: `Syslogs configuration applied successfully on ${selectedDevice.hostname}.`,
+      error: `Failed to apply syslogs configuration on ${selectedDevice.hostname}.`,
+    },
+    snmp_traps: {
+      loading: `Configuring SNMP Traps on ${selectedDevice.hostname}...`,
+      success: `SNMP Traps configuration applied successfully on ${selectedDevice.hostname}.`,
+      error: `Failed to apply SNMP Traps configuration on ${selectedDevice.hostname}.`,
+    },
+    netflow: {
+      loading: `Configuring Netflow/IPFIX on ${selectedDevice.hostname}...`,
+      success: `Netflow/IPFIX configuration applied successfully on ${selectedDevice.hostname}.`,
+      error: `Failed to apply Netflow/IPFIX configuration on ${selectedDevice.hostname}.`,
+    },
+    default: {
+      loading: `Configuring ${featureName} on ${selectedDevice.hostname}...`,
+      success: `Successfully pushed configuration for ${featureName} on ${selectedDevice.hostname}.`,
+      error: `Error configuring ${featureName} on ${selectedDevice.hostname}.`,
+    },
   };
+
+  const msg = messages[featureName] || messages.default;
+
+  // Show loading notification
+  showNotification(msg.loading, "loading");
+
+  try {
+    const response = await apiClient.post(
+      `/devices/${selectedDevice.hostname}/configure/${featureName}/`,
+      {}
+    );
+
+    console.log("Updated device:", response.data);
+
+    showNotification(msg.success, "success");
+
+  } catch (err) {
+    const message = err.response?.data?.detail || err.message || err;
+    showNotification(`${msg.error} ${message}`, "error");
+  }
+};
 
   return (
     <div className="signalRightElementContainer" style={{ maxHeight: '180px' }}>

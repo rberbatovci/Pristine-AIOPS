@@ -188,27 +188,28 @@ void create_netflow_index() {
 
     const char *mapping_json =
         "{"
-        "  \"settings\": {"
-        "    \"number_of_shards\": 1,"
-        "    \"number_of_replicas\": 1"
-        "  },"
-        "  \"mappings\": {"
-        "    \"dynamic\": false,"
-        "    \"properties\": {"
-        "      \"@timestamp\":     {\"type\": \"date\",}"
-        "      \"source_addr\":     {\"type\": \"ip\"},"
-        "      \"dest_addr\":       {\"type\": \"ip\"},"
-        "      \"protocol\":        {\"type\": \"integer\"},"
-        "      \"source_port\":     {\"type\": \"integer\"},"
-        "      \"dest_port\":       {\"type\": \"integer\"},"
-        "      \"input_snmp\":      {\"type\": \"long\"},"
-        "      \"output_snmp\":     {\"type\": \"long\"},"
-        "      \"bytes_count\":     {\"type\": \"long\"},"
-        "      \"packets_count\":   {\"type\": \"long\"},"
-        "      \"first_timestamp\": {\"type\": \"keyword\"},"
-        "      \"last_timestamp\":  {\"type\": \"keyword\"}"
+        "    \"settings\": {"
+        "      \"number_of_shards\": 1,"
+        "      \"number_of_replicas\": 1"
+        "    },"
+        "    \"mappings\": {"
+        "      \"dynamic\": false,"
+        "      \"properties\": {"
+        "        \"@timestamp\":        {\"type\": \"date\"},"
+        "        \"exporter_ip\":       {\"type\": \"ip\"},"
+        "        \"source_addr\":       {\"type\": \"ip\"},"
+        "        \"dest_addr\":         {\"type\": \"ip\"},"
+        "        \"protocol\":          {\"type\": \"long\"}," // Changed to long to be safe
+        "        \"source_port\":       {\"type\": \"long\"}," // Changed to long to be safe
+        "        \"dest_port\":         {\"type\": \"long\"}," // Changed to long to be safe
+        "        \"input_snmp\":        {\"type\": \"long\"},"
+        "        \"output_snmp\":       {\"type\": \"long\"},"
+        "        \"bytes_count\":       {\"type\": \"long\"},"
+        "        \"packets_count\":     {\"type\": \"long\"},"
+        "        \"first_switched\":    {\"type\": \"long\"}," 
+        "        \"last_switched\":     {\"type\": \"long\"}"  
+        "      }"
         "    }"
-        "  }"
         "}";
 
     int max_retries = 10;
@@ -271,6 +272,69 @@ void print_banner() {
     printf("║           Thanks for using our tool          ║\n");
     printf("╚══════════════════════════════════════════════╝\n");
     printf("\n");
+}
+
+void set_current_timestamp(json_t *root) {
+    time_t now = time(NULL);
+    struct tm gmt;
+    gmtime_r(&now, &gmt);
+    char iso_time[30];
+    // Use a standard millisecond-precision ISO format for OpenSearch date type
+    strftime(iso_time, sizeof(iso_time), "%Y-%m-%dT%H:%M:%S.000Z", &gmt); 
+
+    // Overwrite or create the @timestamp field
+    json_object_set_new(root, "@timestamp", json_string(iso_time));
+}
+
+char *trim_json_payload(const char *raw_payload, size_t len) {
+    if (!raw_payload || len == 0)
+        return NULL;
+
+    // Allocate copy
+    char *trimmed = malloc(len + 1);
+    if (!trimmed)
+        return NULL;
+
+    memcpy(trimmed, raw_payload, len);
+    trimmed[len] = '\0';
+
+    int brace_count = 0;
+    int last_closing_brace = -1;
+    bool in_string = false;
+
+    for (size_t i = 0; i < len; i++) {
+        char c = trimmed[i];
+
+        if (c == '"' && (i == 0 || trimmed[i - 1] != '\\')) {
+            in_string = !in_string;
+        } else if (!in_string) {
+            if (c == '{') {
+                brace_count++;
+            } else if (c == '}') {
+                brace_count--;
+                if (brace_count == 0) {
+                    last_closing_brace = i;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (last_closing_brace != -1) {
+        // Keep only up to the closing brace
+        trimmed[last_closing_brace + 1] = '\0';
+
+        // Remove any trailing whitespace after }
+        for (int j = last_closing_brace + 1; j < (int)len; j++) {
+            if (trimmed[j] != '\0')
+                trimmed[j] = '\0';
+        }
+    } else {
+        // If malformed, keep as-is for debugging
+        fprintf(stderr, "[WARN] No valid JSON object found in payload.\n");
+    }
+
+    return trimmed;
 }
 
 int main() {
@@ -339,9 +403,20 @@ int main() {
         if (rkmessage->err) {
             fprintf(stderr, "⚠️ Kafka error: %s\n", rd_kafka_message_errstr(rkmessage));
         } else {
-            printf("📥 Received raw message: %.*s\n", (int)rkmessage->len, (char *)rkmessage->payload);
+            printf("📥 Received raw message (len %zu): %.*s\n", rkmessage->len, (int)rkmessage->len, (char *)rkmessage->payload);
 
-            char *preprocessed = preprocess_large_integers((char *)rkmessage->payload, rkmessage->len);
+            char *trimmed_payload = trim_json_payload((char *)rkmessage->payload, rkmessage->len);
+
+            if (!trimmed_payload) {
+                fprintf(stderr, "❌ Dropping message: Invalid or incomplete JSON payload (len %zu).\n", rkmessage->len);
+                rd_kafka_message_destroy(rkmessage);
+                continue;
+            }
+
+            // 2. Preprocess large integers on the *trimmed* payload
+            char *preprocessed = preprocess_large_integers(trimmed_payload, strlen(trimmed_payload));
+            free(trimmed_payload); // Free the trimmed copy
+
             if (!preprocessed) {
                 fprintf(stderr, "❌ Failed to allocate memory for preprocessing\n");
                 rd_kafka_message_destroy(rkmessage);
@@ -349,6 +424,7 @@ int main() {
             }
 
             json_error_t error;
+            // 3. Load the preprocessed, trimmed JSON string
             json_t *root = json_loads(preprocessed, JSON_REJECT_DUPLICATES, &error);
             free(preprocessed);
 
@@ -359,6 +435,7 @@ int main() {
             }
 
             if (json_is_object(root)) {
+                set_current_timestamp(root);
                 char *json_str = json_dumps(root, 0);
                 if (json_str) {
                     json_buffer[buffer_count++] = json_str;

@@ -16,8 +16,7 @@ default_features = {
     "snmp_traps": False,
     "netflow": False,
     "telemetry": {
-        "cpu_util": False,
-        "memory_stats": False,
+        "system_util": False,
         "interface_stats": False
     }
 }
@@ -26,8 +25,10 @@ telemetry_playbook_map = {
     "syslogs": os.path.join(BASE_DIR, '..', 'ansible', 'xe-syslogs.yml'),
     "snmp_traps": os.path.join(BASE_DIR, '..', 'ansible', 'xe-snmptraps.yml'),
     "netflow": os.path.join(BASE_DIR, '..', 'ansible', 'xe-netflow.yml'),
-    "cpu_util": os.path.join(BASE_DIR, '..', 'ansible', 'xe-cpu-util.yml'),
-    "memory_stats": os.path.join(BASE_DIR, '..', 'ansible', 'xe-memory-stats.yml'),
+    "system_util": os.path.join(BASE_DIR, '..', 'ansible', 'xe-system-util.yml'),
+    "isis_stats": os.path.join(BASE_DIR, '..', 'ansible', 'xe-isis-statistics.yml'),
+    "ospf_stats": os.path.join(BASE_DIR, '..', 'ansible', 'xe-ospf-statistics.yml'),
+    "lldp_stats": os.path.join(BASE_DIR, '..', 'ansible', 'xe-lldp-statistics.yml'),
     "interface_stats": os.path.join(BASE_DIR, '..', 'ansible', 'xe-interface-stats.yml'),
     "bgp_connections": os.path.join(BASE_DIR, '..', 'ansible', 'xe-bgp-connections.yml'),
     "rib_table": os.path.join(BASE_DIR, '..', 'ansible', 'rib-table.yml'),

@@ -25,6 +25,29 @@ const StatisticTags = ({ dataSource, source, selTags, setSelTags }) => {
     return ['device', 'mnemonic', 'severity'];
   };
 
+  const defaultSelectedTags = () => {
+    if (source === 'events') {
+      if (dataSource === 'syslogs') {
+        return ['device', 'mnemonic', 'severity'];
+      } else if (dataSource === 'snmptraps') {
+        return ['device', 'rules', 'severity'];
+      }
+    } else if (source === 'signals') {
+      if (dataSource === 'syslogs') {
+        return ['device', 'mnemonic', 'rule'];
+      } else if (dataSource === 'snmptraps') {
+        return ['device', 'oid', 'agent_address'];
+      }
+    }
+  };
+
+  useEffect(() => {
+    const defaults = defaultSelectedTags();
+    if (defaults && defaults.length) {
+      setSelTags(defaults.slice(0, 3)); // ensure only 3 are set
+    }
+  }, [dataSource, source]);
+
   const fetchSyslogTags = async () => {
     try {
       const response = await apiClient.get('/syslogs/tags/');

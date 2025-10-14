@@ -95,7 +95,7 @@ void load_signal_rules(PGconn *conn)
     }
 
     PQclear(res);
-    //printf("[INFO] Loaded %d signal rules\n", signal_rule_count);
+    printf("[INFO] Loaded %d signal rules\n", signal_rule_count);
 }
 
 

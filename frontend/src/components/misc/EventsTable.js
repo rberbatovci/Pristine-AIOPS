@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FaSortUp, FaSortDown, FaArrowsAltH, FaFilter } from 'react-icons/fa';
+import { FaSortUp, FaSortDown, FaArrowsAltH } from 'react-icons/fa';
 import { FormatDate } from './FormatDate';
 import '../../css/EventsTable.css';
 
@@ -16,50 +16,47 @@ const EventsTable = ({ currentUser, data, columns, signalSource, onDownload, onR
 
   useEffect(() => {
     const defaultWidths = {};
-    columns.forEach((column) => {
-      if (column === 'message' || column === 'content') {
-        defaultWidths[column] = 1000;
-      } else {
-        defaultWidths[column] = 200;
-      }
+    columns.forEach(({ value }) => {
+      defaultWidths[value] = (value === 'message' || value === 'content') ? 1000 : 200;
     });
     setColumnWidths(defaultWidths);
+
     const visibility = {};
-    columns.forEach((column) => (visibility[column] = false));
+    columns.forEach(({ value }) => (visibility[value] = false));
     setFilterVisible(visibility);
+    console.log("Received columns:", columns);
   }, [columns]);
 
-  const handleFilterChange = (column, value) => {
-    setFilterValues({ ...filterValues, [column]: value });
+  const handleFilterChange = (columnValue, value) => {
+    setFilterValues({ ...filterValues, [columnValue]: value });
   };
 
-  const toggleFilterVisibility = (column) => {
+  const toggleFilterVisibility = (columnValue) => {
     setFilterVisible((prev) => ({
       ...prev,
-      [column]: !prev[column],
+      [columnValue]: !prev[columnValue],
     }));
   };
 
-  const handleSort = (column) => {
+  const handleSort = (columnValue) => {
     let direction = 'asc';
-    if (sortConfig.key === column && sortConfig.direction === 'asc') {
+    if (sortConfig.key === columnValue && sortConfig.direction === 'asc') {
       direction = 'desc';
     }
-    setSortConfig({ key: column, direction });
+    setSortConfig({ key: columnValue, direction });
   };
 
   // Start column resizing
-  const startResize = (column, e) => {
+  const startResize = (columnValue, e) => {
     setIsResizing(true);
     setResizeData({
-      column,
+      column: columnValue,
       startX: e.clientX,
-      startWidth: columnRefs.current[column].offsetWidth,
+      startWidth: columnRefs.current[columnValue].offsetWidth,
     });
-    document.body.style.userSelect = 'none'; // Prevent text selection
+    document.body.style.userSelect = 'none';
   };
 
-  // Perform resizing based on mouse movement
   const handleMouseMove = (e) => {
     if (!isResizing) return;
 
@@ -72,10 +69,9 @@ const EventsTable = ({ currentUser, data, columns, signalSource, onDownload, onR
     }));
   };
 
-  // Stop resizing when the mouse button is released
   const stopResize = () => {
     setIsResizing(false);
-    document.body.style.userSelect = ''; // Re-enable text selection
+    document.body.style.userSelect = '';
   };
 
   useEffect(() => {
@@ -93,24 +89,20 @@ const EventsTable = ({ currentUser, data, columns, signalSource, onDownload, onR
     };
   }, [isResizing]);
 
-  const getValue = (row, columnName, signalSource) => {
-    if (columnName === 'timestamp') {
+  const getValue = (row, columnValue, signalSource) => {
+    if (columnValue === 'timestamp') {
       return row['@timestamp'] || row['timestamp'] || '';
     }
 
-    if (signalSource === 'syslogs') {
-      if (row.tags && columnName in row.tags) {
-        return row.tags[columnName];
-      }
+    if (signalSource === 'syslogs' && row.tags && columnValue in row.tags) {
+      return row.tags[columnValue];
     }
 
-    if (signalSource === 'snmptraps') {
-      if (row.content && columnName in row.content) {
-        return row.content[columnName];
-      }
+    if (signalSource === 'snmptraps' && row.content && columnValue in row.content) {
+      return row.content[columnValue];
     }
 
-    return row?.[columnName] ?? '';
+    return row?.[columnValue] ?? '';
   };
 
   // Handle row selection
@@ -119,60 +111,51 @@ const EventsTable = ({ currentUser, data, columns, signalSource, onDownload, onR
       const newSelectedRows = prevSelectedRows.includes(index)
         ? prevSelectedRows.filter((rowIndex) => rowIndex !== index)
         : [...prevSelectedRows, index];
-
-      // Notify the parent component about the selected rows
       onRowSelectChange(newSelectedRows);
       return newSelectedRows;
     });
   };
 
-  // Apply filtering and sorting to data
-  let filteredData = data.filter((row) => {
-    return columns.every((column) => {
-      if (!filterValues[column]) return true;
-      return row[column]?.toString().toLowerCase().includes(filterValues[column].toLowerCase());
-    });
-  });
+  // Apply filtering and sorting
+  let filteredData = data.filter((row) =>
+    columns.every(({ value }) => {
+      if (!filterValues[value]) return true;
+      const val = getValue(row, value, signalSource);
+      return val?.toString().toLowerCase().includes(filterValues[value].toLowerCase());
+    })
+  );
 
   if (sortConfig.key) {
     filteredData = filteredData.sort((a, b) => {
-      if (a[sortConfig.key] < b[sortConfig.key]) {
-        return sortConfig.direction === 'asc' ? -1 : 1;
-      }
-      if (a[sortConfig.key] > b[sortConfig.key]) {
-        return sortConfig.direction === 'asc' ? 1 : -1;
-      }
+      const valA = getValue(a, sortConfig.key, signalSource);
+      const valB = getValue(b, sortConfig.key, signalSource);
+      if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
   }
 
-  // Function to convert selected rows to CSV format and trigger download
+  // CSV download
   const downloadSelectedRows = () => {
-    const header = [...columns];
+    const header = columns.map((col) => col.label);
     const csvContent = [
-      header.join(','), // Header row
+      header.join(','),
       ...selectedRows.map((rowIndex) => {
         const row = data[rowIndex];
-        return [
-          ...columns.map((column) => {
-            let value;
-            if (column === 'timestamp') {
-              value = FormatDate(row[column], currentUser.timezone); // Format timestamp
-            } else if (column === 'content' && typeof row[column] === 'object') {
-              // If the column is 'content' and contains a JSON object, stringify it
-              value = JSON.stringify(row[column]).replace(/"/g, '""');
-            } else {
-              value = row[column] || '';
+        return columns
+          .map(({ value }) => {
+            let cellValue = getValue(row, value, signalSource);
+            if (value === 'timestamp') {
+              cellValue = FormatDate(cellValue, currentUser.timezone);
+            } else if (typeof cellValue === 'object') {
+              cellValue = JSON.stringify(cellValue);
             }
-
-            // Wrap the value in double quotes if it contains a comma or double quotes
-            if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
-              value = `"${value}"`;
+            if (typeof cellValue === 'string' && (cellValue.includes(',') || cellValue.includes('"'))) {
+              cellValue = `"${cellValue.replace(/"/g, '""')}"`;
             }
-
-            return value;
-          }),
-        ].join(',');
+            return cellValue;
+          })
+          .join(',');
       }),
     ].join('\n');
 
@@ -190,52 +173,58 @@ const EventsTable = ({ currentUser, data, columns, signalSource, onDownload, onR
     <div className="tableContainer">
       <table className="evenTable">
         <thead className="tableHeader3">
-          <tr style={{ width: 'auto', minWidth: '100px', maxWidth: '140px' }}>
+          <tr>
             <th className="selectHeader">Select</th>
-            {columns.map((column) => (
+            {columns.map(({ label, value }) => (
               <th
-                key={column}
-                ref={(el) => (columnRefs.current[column] = el)}
+                key={value}
+                ref={(el) => (columnRefs.current[value] = el)}
                 style={{
-                  width: columnWidths[column] || 'auto',
+                  width: columnWidths[value] || 'auto',
                   whiteSpace: 'nowrap',
-                  minWidth: columnWidths[column] || 'auto',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   height: '45px',
                   background: 'var(--tableDataHeaderBackground)',
-                  borderRadius: '0',
-                  justifyContent: 'flex-start',
-                  borderRight: '1px solid var(--tableHeaderRowRightBorderColor)'
+                  borderRight: '1px solid var(--tableHeaderRowRightBorderColor)',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center' }}>
-                  {filterVisible[column] ? (
+                  {filterVisible[value] ? (
                     <input
                       type="text"
-                      placeholder={`Filter ${column}`}
-                      value={filterValues[column] || ''}
-                      onChange={(e) => handleFilterChange(column, e.target.value)}
-                      onBlur={() => toggleFilterVisibility(column)} // Hide input when it loses focus
-                      style={{ width: 'calc(100% - 60px)', background: 'var(--contentBackground)', outline: 'none', border: 'none', padding: '6px 4px', borderRadius: '6px', paddingLeft: '12px', marginLeft: '10px' }}
+                      placeholder={`Filter ${label}`}
+                      value={filterValues[value] || ''}
+                      onChange={(e) => handleFilterChange(value, e.target.value)}
+                      onBlur={() => toggleFilterVisibility(value)}
+                      style={{
+                        width: 'calc(100% - 60px)',
+                        background: 'var(--contentBackground)',
+                        border: 'none',
+                        padding: '6px 4px',
+                        borderRadius: '6px',
+                        paddingLeft: '12px',
+                        marginLeft: '10px',
+                      }}
                     />
                   ) : (
-                    <span onClick={() => toggleFilterVisibility(column)} className="headerText">{column}</span>
+                    <span onClick={() => toggleFilterVisibility(value)} className="headerText">
+                      {label}
+                    </span>
                   )}
                   <div className="headerIcons">
-                    <span onClick={() => handleSort(column)}>
-                      {sortConfig.key === column && sortConfig.direction === 'asc' ? <FaSortUp /> : <FaSortDown />}
+                    <span onClick={() => handleSort(value)}>
+                      {sortConfig.key === value && sortConfig.direction === 'asc' ? <FaSortUp /> : <FaSortDown />}
                     </span>
                     <span
                       className="resizeHandle"
                       style={{ marginRight: '10px' }}
-                      onMouseDown={(e) => startResize(column, e)}
+                      onMouseDown={(e) => startResize(value, e)}
                     >
                       <FaArrowsAltH />
                     </span>
                   </div>
                 </div>
-
               </th>
             ))}
           </tr>
@@ -247,50 +236,29 @@ const EventsTable = ({ currentUser, data, columns, signalSource, onDownload, onR
               onClick={() => handleRowSelect(index)}
               className={selectedRows.includes(index) ? 'selectedRow' : ''}
             >
-              <td
-                className="checkbox-column"
-                style={{
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  height: '34px',
-                  opacity: '.7',
-                  color: 'blue',
-                  borderRight: '1px solid var(--tableDataRowRightBorderColor)',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  alignContent: 'center',
-                  textAlign: 'center',
-                  textSize: '12px',
-                }}
-              >
+              <td className="checkbox-column" style={{ textAlign: 'center' }}>
                 <input
                   type="checkbox"
                   checked={selectedRows.includes(index)}
                   onChange={() => handleRowSelect(index)}
                 />
               </td>
-              {columns.map((column) => (
+              {columns.map(({ value }) => (
                 <td
-                  key={column}
+                  key={value}
                   style={{
-                    width: columnWidths[column] || 'auto',
+                    width: columnWidths[value] || 'auto',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
-                    height: '22px',
+                    height: '28px',
                     borderRight: '1px solid var(--tableDataRowRightBorderColor)',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    alignContent: 'center',
                     textAlign: 'center',
-                    minWidth: '150px',
-                    maxWidth: '400px',
                     fontSize: '14px',
                   }}
                 >
-                  {column === 'content' && typeof getValue(row, column, signalSource) === 'object'
-                    ? JSON.stringify(getValue(row, column))
-                    : getValue(row, column, signalSource)}
+                  {value === 'content' && typeof getValue(row, value, signalSource) === 'object'
+                    ? JSON.stringify(getValue(row, value))
+                    : getValue(row, value, signalSource)}
                 </td>
               ))}
             </tr>

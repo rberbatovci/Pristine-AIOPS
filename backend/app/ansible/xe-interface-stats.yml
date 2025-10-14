@@ -12,12 +12,22 @@
     ansible_host: "{{ router_ip }}"
 
   tasks:
-    - name: Configure telemetry subscription 104 (interfaces statistics)
+    - name: Configure telemetry subscription 103
       ios_config:
         lines:
-          - telemetry ietf subscription 104
-          -  encoding encode-kvgpb
-          -  filter xpath /interfaces/interface/statistics
-          -  stream yang-push
-          -  update-policy periodic {{ telemetry_period_seconds }}
-          -  receiver ip address {{ receiver_ip }} {{ receiver_port }} protocol grpc-tcp
+          - encoding encode-kvgpb
+          - filter xpath /interfaces/interface/oper-status
+          - stream yang-push
+          - update-policy periodic {{ telemetry_period_seconds }}
+          - receiver ip address {{ receiver_ip }} {{ receiver_port }} protocol grpc-tcp
+        parents: telemetry ietf subscription 103
+
+    - name: Configure telemetry subscription 104
+      ios_config:
+        lines:
+          - encoding encode-kvgpb
+          - filter xpath /interfaces/interface/statistics
+          - stream yang-push
+          - update-policy periodic {{ telemetry_period_seconds }}
+          - receiver ip address {{ receiver_ip }} {{ receiver_port }} protocol grpc-tcp
+        parents: telemetry ietf subscription 104

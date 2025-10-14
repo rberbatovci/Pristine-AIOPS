@@ -231,6 +231,8 @@ services:
     ports:
       - "6380:6379"
     command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - ./data:/data
     networks:
       - aiops
 

@@ -7,18 +7,54 @@ from . import gobgp_pb2, gobgp_pb2_grpc, attribute_pb2
 
 router = APIRouter()
 
+# Map type_urls to protobuf classes
+CLASS_MAP = {
+    "LsAddrPrefix": attribute_pb2.LsAddrPrefix,
+    "LsAttribute": attribute_pb2.LsAttribute,
+    "MpReachNLRIAttribute": attribute_pb2.MpReachNLRIAttribute,
+    "OriginAttribute": attribute_pb2.OriginAttribute,
+    "AsPathAttribute": attribute_pb2.AsPathAttribute,
+    "MultiExitDiscAttribute": attribute_pb2.MultiExitDiscAttribute,
+    "LocalPrefAttribute": attribute_pb2.LocalPrefAttribute,
+    # add others you want to decode
+}
+
+def unpack_any(any_msg):
+    type_url = any_msg.type_url
+    short_name = type_url.split(".")[-1]  # e.g. "LsAddrPrefix"
+    print("DEBUG type_url:", short_name)
+    if short_name in CLASS_MAP:
+        msg_cls = CLASS_MAP[short_name]
+        msg = msg_cls()
+        msg.ParseFromString(any_msg.value)
+        return short_name, MessageToDict(msg)
+    return short_name, {}
+
+def classify_entry(type_url, nlri_dict, ls_attrs):
+    # If NLRI is LsAddrPrefix, it’s a prefix
+    if type_url == "LsAddrPrefix":
+        return "prefix"
+
+    # If we have LsAttribute, inspect it
+    if "LsAttribute" in ls_attrs:
+        la = ls_attrs["LsAttribute"]
+        if "node" in la:
+            return "node"
+        if "link" in la:
+            return "link"
+        if "prefix" in la:
+            return "prefix"
+
+    return None
+
 
 @router.get("/geolocation/lsdb")
 def get_lsdb():
-    """
-    Return parsed BGP-LS LSDB (nodes, links, prefixes) from GoBGP via gRPC
-    """
     try:
         with grpc.insecure_channel("gobgp:50051") as channel:
             stub = gobgp_pb2_grpc.GobgpApiStub(channel)
-
             req = gobgp_pb2.ListPathRequest(
-                table_type=gobgp_pb2.TableType.Value("GLOBAL"),
+                table_type=gobgp_pb2.TableType.GLOBAL,
                 family=gobgp_pb2.Family(
                     afi=gobgp_pb2.Family.AFI_LS,
                     safi=gobgp_pb2.Family.SAFI_LS,
@@ -26,8 +62,6 @@ def get_lsdb():
             )
 
             res_stream = stub.ListPath(req)
-
-            # Collect LSDB objects
             nodes, links, prefixes = [], [], []
 
             for resp in res_stream:
@@ -35,59 +69,33 @@ def get_lsdb():
                     continue
 
                 for path in resp.destination.paths:
-                    nlri_dict, nlri_type = None, None
+                    # Decode NLRI
+                    type_url, nlri_dict = (
+                        unpack_any(path.nlri) if path.HasField("nlri") else (None, {})
+                    )
 
-                    if path.HasField("nlri"):
-                        any_nlri = AnyPB()
-                        any_nlri.CopyFrom(path.nlri)
-
-                        # Debug: log incoming type_url
-                        # print("Incoming NLRI type_url:", any_nlri.type_url)
-
-                        # Try each LS NLRI type
-                        for tname, tmsg, ttype in [
-                            ("node", attribute_pb2.LsNodeNLRI, "node"),
-                            ("link", attribute_pb2.LsLinkNLRI, "link"),
-                            ("prefix", attribute_pb2.LsPrefixV4NLRI, "prefix"),
-                        ]:
-                            try:
-                                msg = tmsg()
-                                msg.ParseFromString(any_nlri.value)
-                                nlri_dict = MessageToDict(msg)
-                                nlri_type = ttype
-                                break
-                            except Exception:
-                                continue
-
-                    # Path attributes (optional, not strictly needed for LSDB topology)
-                    attrs = []
+                    # Decode attributes
+                    ls_attrs = {}
                     for pattr in path.pattrs:
-                        any_attr = AnyPB()
-                        any_attr.CopyFrom(pattr)
-                        try:
-                            ls_attr = attribute_pb2.LsAttribute()
-                            ls_attr.ParseFromString(any_attr.value)
-                            attrs.append(MessageToDict(ls_attr))
-                        except Exception:
-                            attrs.append(str(pattr))
+                        turl, parsed = unpack_any(pattr)
+                        if parsed:
+                            ls_attrs[turl] = parsed
 
-                    # Append to proper group
                     entry = {
+                        "nlri_type": type_url,
                         "nlri": nlri_dict,
-                        "attrs": attrs,
+                        "attributes": ls_attrs,
                         "is_withdraw": path.is_withdraw,
                     }
-                    if nlri_type == "node":
-                        nodes.append(entry)
-                    elif nlri_type == "link":
-                        links.append(entry)
-                    elif nlri_type == "prefix":
-                        prefixes.append(entry)
-                    else:
-                        # Could add to "unknowns" if you want
-                        pass
 
-            # Return grouped results
+                    category = classify_entry(type_url, nlri_dict, ls_attrs)
+                    if category == "node":
+                        nodes.append(entry)
+                    elif category == "link":
+                        links.append(entry)
+                    elif category == "prefix":
+                        prefixes.append(entry)
+
             return {"nodes": nodes, "links": links, "prefixes": prefixes}
 
     except RpcError as e:

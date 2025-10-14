@@ -15,11 +15,12 @@ default_features = {
     "snmp_traps": False,
     "netflow": False,
     "telemetry": {
-        "cpu_util": False,
-        "memory_stats": False,
+        "system_util": False,
         "interface_stats": False,
         "bgp_connections": False,
-        "isis_stats": False
+        "isis_stats": False,
+        "rib_table": False,
+        "fib_entry": False,
     }
 }
 

@@ -49,7 +49,7 @@ function MemoryStatistics({ selectedDevice, onSuccess }) {
       const data = response.data || {};
 
       if (!data.error && Object.keys(data).length > 0) {
-        
+
         const newData = [
           { name: 'Processor', value: data["Processor"], fill: 'green', opacity: 1 },
           { name: 'Reserve Processor', value: data["reserve Processor"], fill: 'green', opacity: 0.9 },
@@ -107,32 +107,6 @@ function MemoryStatistics({ selectedDevice, onSuccess }) {
     }
   };
 
-  const pushConfiguration = () => async () => {
-    if (!selectedDevice?.hostname) {
-      console.error("No device selected");
-      return;
-    }
-
-    try {
-      const response = await apiClient.post(
-        `/devices/${selectedDevice.hostname}/configure/memory_stats/`,
-        {} // empty body
-      );
-
-      const updatedDevice = response.data;
-      console.log("Updated device:", updatedDevice);
-
-      // Optionally update state
-      // setSelectedDevice(updatedDevice);
-
-    } catch (err) {
-      console.error("Request error:", err);
-      const message = err.response?.data?.detail || err.message || err;
-      alert(`Error configuring Memory Statistics: ${message}`);
-    }
-  };
-
-
   useEffect(() => {
     if (device?.hostname) {
       getLastMemoryStatus();
@@ -155,13 +129,13 @@ function MemoryStatistics({ selectedDevice, onSuccess }) {
       <style>{rotatingChartStyle}</style>
 
       {/* CPU Section */}
-      <div>
+      <div style={{ position: "relative", width: "150px", height: "150px" }}>
         <RadialBarChart
           width={150}
           height={150}
           cx="50%"
           cy="50%"
-          innerRadius="40%"
+          innerRadius="50%"
           outerRadius="100%"
           barSize={15}
           data={memoryChartData}
@@ -172,7 +146,7 @@ function MemoryStatistics({ selectedDevice, onSuccess }) {
             clockWise
             dataKey="value"
             cornerRadius={10}
-            isAnimationActive={!shouldSpin} // animate bars only after spin stops
+            isAnimationActive={!shouldSpin}
             animationDuration={800}
             background={{ fill: "#eee", opacity: 0.1 }}
           >
@@ -184,12 +158,32 @@ function MemoryStatistics({ selectedDevice, onSuccess }) {
               />
             ))}
           </RadialBar>
-          <PolarAngleAxis
-            type="number"
-            domain={[0, 100]} // ✅ Fixes scaling so 4 → 4%, 8 → 8%
-            tick={false}
-          />
+          <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
         </RadialBarChart>
+
+        {/* ✅ Center Circle Button */}
+        <button
+          onClick={getLiveMemoryStatus}
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: "50px",
+            height: "50px",
+            borderRadius: "50%",
+            border: "none",
+            backgroundColor: "#00C49F",
+            color: "white",
+            cursor: "pointer",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.3)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "22px"
+          }}
+        >
+        </button>
       </div>
 
       {/* Info Section */}
@@ -205,10 +199,10 @@ function MemoryStatistics({ selectedDevice, onSuccess }) {
           <b>Memory statistics</b>
         </div>
         <div style={{ display: "flex" }}>
-            <p style={{ marginTop: "5px" }}>Main: {memoryChartData[0]?.value ?? "--"}%</p>
-            <p style={{ marginTop: "5px", marginLeft: "10px" }}>Res: {memoryChartData[1]?.value ?? "--"}%</p>
-            <p style={{ marginTop: "5px", marginLeft: "10px" }}>LSMP: {memoryChartData[2]?.value ?? "--"}%</p>
-          </div>
+          <p style={{ marginTop: "5px" }}>Main: {memoryChartData[0]?.value ?? "--"}%</p>
+          <p style={{ marginTop: "5px", marginLeft: "10px" }}>Res: {memoryChartData[1]?.value ?? "--"}%</p>
+          <p style={{ marginTop: "5px", marginLeft: "10px" }}>LSMP: {memoryChartData[2]?.value ?? "--"}%</p>
+        </div>
         <div style={{ display: "flex", fontSize: "13px" }}>
           <p style={{ textAlign: "right", width: "50px", marginTop: "5px" }}>Time:</p>
           <p style={{ textAlign: "left", width: "100px", marginLeft: "5px", marginTop: "5px" }}>
@@ -216,16 +210,6 @@ function MemoryStatistics({ selectedDevice, onSuccess }) {
               ? new Date(memoryTimestamp).toLocaleString()
               : "Loading..."}
           </p>
-        </div>
-        <div style={{ display: "flex", marginTop: "5px" }}>
-          <button className="iconButton" onClick={getLastMemoryStatus}>
-            <IoRefreshCircleOutline className="defaultIcon" />
-            <IoRefreshCircleSharp className="hoverIcon" />
-          </button>
-          <button className="iconButton" onClick={pushConfiguration()}>
-            <IoPushOutline className="defaultIcon" />
-            <IoPushSharp className="hoverIcon" />
-          </button>
         </div>
       </div>
     </div>

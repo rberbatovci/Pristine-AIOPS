@@ -6,11 +6,12 @@ WORKDIR /src
 # Install dependencies
 RUN apk add --no-cache git make bash
 
-# Clone GoBGP source from GitHub (use --branch to lock a version if you want)
+# Clone GoBGP source from GitHub
 RUN git clone --depth 1 --branch v3.37.0 https://github.com/osrg/gobgp.git .
 
-# Build the GoBGP daemon with gRPC enabled
-RUN go build -tags grpc -o /usr/local/bin/gobgpd ./cmd/gobgpd
+# Build GoBGP daemon and CLI with gRPC enabled
+RUN go build -tags grpc -o /usr/local/bin/gobgpd ./cmd/gobgpd \
+ && go build -tags grpc -o /usr/local/bin/gobgp ./cmd/gobgp
 
 # --- Runtime stage ---
 FROM alpine:latest
@@ -18,15 +19,14 @@ FROM alpine:latest
 # Install runtime dependencies
 RUN apk add --no-cache bash gettext ca-certificates
 
-# Copy GoBGP binary from builder
+# Copy GoBGP binaries from builder
 COPY --from=builder /usr/local/bin/gobgpd /usr/local/bin/gobgpd
+COPY --from=builder /usr/local/bin/gobgp  /usr/local/bin/gobgp
 
 # Copy your entrypoint and config template
 COPY topology/entrypoint.sh /app/entrypoint.sh
 COPY topology/gobgp.conf.template /app/gobgp.conf.template
 
-# Make entrypoint executable
 RUN chmod +x /app/entrypoint.sh
 
-# Set entrypoint
 ENTRYPOINT ["/app/entrypoint.sh"]

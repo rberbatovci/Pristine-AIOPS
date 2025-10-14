@@ -7,7 +7,12 @@ import { RiDownloadCloudLine, RiDownloadCloudFill } from "react-icons/ri";
 import { HiOutlineViewColumns, HiViewColumns } from "react-icons/hi2";
 import SearchTime from '../components/misc/SearchTime.js';
 import Pagination from '@mui/material/Pagination';
+import FilterTraffic from '../components/netflow/FilterTraffic.js';
+import NetflowChart from '../components/netflow/Chart.js';
 
+import { RiFilterLine, RiFilterFill } from "react-icons/ri";
+import { IoPieChartOutline, IoPieChartSharp } from "react-icons/io5";
+import { TfiLayoutListThumb, TfiLayoutListThumbAlt } from "react-icons/tfi";
 
 function Traffic({ currentUser, setDashboardTitle }) {
     const [loading, setLoading] = useState(false);
@@ -26,27 +31,28 @@ function Traffic({ currentUser, setDashboardTitle }) {
     });
     const [devices, setDevices] = useState([]);
     const [page, setPage] = useState(1);
-    const [pageSize, setPageSize] = useState(20);
+    const [pageSize, setPageSize] = useState(24);
     const [totalEvents, setTotalEvents] = useState(0);
-    const baseColumns =  [
-            'timestamp',
-            'device',
-            'source_addr',
-            'source_port',
-            'dest_addr',
-            'dest_port',
-            'protocol',
-            'input_snmp',
-            'output_snmp',
-            'bytes_count',
-            'packets_count',
-        ];
+    const baseColumns = [
+        { label: 'Timestamp', value: 'timestamp' },
+        { label: 'Exporter IP', value: 'exporter_ip' },
+        { label: 'Source IP', value: 'source_ip' },
+        { label: 'Source Port', value: 'source_port' },
+        { label: 'Destination IP', value: 'dest_ip' },
+        { label: 'Destination Port', value: 'dest_port' },
+        { label: 'Protocol', value: 'protocol' },
+        { label: 'Input SNMP', value: 'input_snmp' },
+        { label: 'Output SNMP', value: 'output_snmp' },
+        { label: 'Bytes', value: 'bytes' },
+        { label: 'Packets', value: 'packets' },
+    ];
 
     const [selectedDevice, setSelectedDevice] = useState(null);
     const [columnConfigs, setColumnConfigs] = useState(baseColumns);
     const [startTime, setStartTime] = useState(() => new Date(Date.now() - 60 * 60 * 1000));
     const [endTime, setEndTime] = useState(() => new Date());
     const [filters, setFilters] = useState({});
+    const [view, setView] = useState("list");
     const totalPages = Math.ceil(totalEvents / pageSize);
 
     const handleButtonClick = (event, dropdownKey) => {
@@ -64,7 +70,7 @@ function Traffic({ currentUser, setDashboardTitle }) {
         });
     };
 
-    const loadNetflowData = ( page = 1, pageSize = 20, startTime = startTime, endTime = endTime, filters = {}) => {
+    const loadNetflowData = (page = 1, pageSize = 20, startTime = startTime, endTime = endTime, filters = {}) => {
         setEventsData(null);
         setLoading(true);
 
@@ -84,29 +90,29 @@ function Traffic({ currentUser, setDashboardTitle }) {
             url += `&${query.toString()}`;
         }
 
-    apiClient
-        .get(url)
-        .then(response => {
-            let results = [];
-            if (response.data && response.data.results) {
-                results = response.data.results.map(item => item._source || item);
-                setTotalEvents(response.data.total || 0);
-            } else if (Array.isArray(response.data)) {
-                results = response.data.map(item => item._source || item);
-                setTotalEvents(response.data.length);
-            } else {
-                console.warn('Unexpected response data structure:', response.data);
-            }
-            setEventsData(results);
-        })
-        .catch(error => {
-            console.error('Error fetching netflow data:', error);
-            setError('Error fetching netflow data');
-        })
-        .finally(() => {
-            setLoading(false);
-        });
-};
+        apiClient
+            .get(url)
+            .then(response => {
+                let results = [];
+                if (response.data && response.data.results) {
+                    results = response.data.results.map(item => item._source || item);
+                    setTotalEvents(response.data.total || 0);
+                } else if (Array.isArray(response.data)) {
+                    results = response.data.map(item => item._source || item);
+                    setTotalEvents(response.data.length);
+                } else {
+                    console.warn('Unexpected response data structure:', response.data);
+                }
+                setEventsData(results);
+            })
+            .catch(error => {
+                console.error('Error fetching netflow data:', error);
+                setError('Error fetching netflow data');
+            })
+            .finally(() => {
+                setLoading(false);
+            });
+    };
 
     useEffect(() => {
         loadNetflowData(page, pageSize, startTime?.toISOString(), endTime?.toISOString(), filters);
@@ -178,6 +184,9 @@ function Traffic({ currentUser, setDashboardTitle }) {
         setPageSize(isNaN(value) || value < 1 ? 1 : value);
     };
 
+    const handleSyslogTagsChange = (selectedTags) => {
+        console.log('Selected tags:', selectedTags)
+    };
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -212,18 +221,33 @@ function Traffic({ currentUser, setDashboardTitle }) {
                     </h2>
                 </div>
                 <div className="mainContainerButtons">
+                    {view === "list" ? (
+                        <button
+                            className="iconButton"
+                            onClick={() => setView("chart")}
+                        >
+                            <TfiLayoutListThumb className="defaultIcon" />
+                            <IoPieChartSharp className="hoverIcon" />
+                        </button>
+                    ) : (
+                        <button
+                            className="iconButton"
+                            onClick={() => setView("list")}
+                        >
+                            <IoPieChartOutline className="defaultIcon" />
+                            <TfiLayoutListThumbAlt className="hoverIcon" />
+                        </button>
+                    )}
                     <button
                         className={`iconButton ${dropdowns.search.visible ? 'active' : ''} `}
                         onClick={(event) => handleButtonClick(event, 'search')}
                     >
-                        <HiOutlineViewColumns
-                            className={`defaultIcon ${selectedTags.length > 0 ? 'hasFilters' : 'noFilters'} `}
-                        />
-                        <HiViewColumns className="hoverIcon" />
+                        <RiFilterLine className="defaultIcon" />
+                        <RiFilterFill className="hoverIcon" />
                     </button>
                     <button
                         className="iconButton"
-                        onClick={(event) => handleButtonClick(event, 'searchTime')}
+                        onClick={(event) => handleButtonClick(event, 'time')}
                     >
                         <FaRegClock className="defaultIcon hasFilters" />
                         <FaClock className="hoverIcon" />
@@ -234,6 +258,7 @@ function Traffic({ currentUser, setDashboardTitle }) {
                         <RiDownloadCloudLine className="defaultIcon" />
                         <RiDownloadCloudFill className="hoverIcon" />
                     </button>
+                    
                 </div>
             </div>
 
@@ -241,6 +266,7 @@ function Traffic({ currentUser, setDashboardTitle }) {
                 {loading && <div className="loadingMessage">Loading...</div>}
                 {error && <div className="errorMessage">{error}</div>}
                 {!loading && !error && (
+                    view === "list" ? (
                         <div>
                             <div className="syslogsTableContainer">
                                 <EventsTable
@@ -299,6 +325,9 @@ function Traffic({ currentUser, setDashboardTitle }) {
                                 </div>
                             </div>
                         </div>
+                    ) : (
+                        <NetflowChart />
+                    )
                 )}
 
             </div>
@@ -313,7 +342,17 @@ function Traffic({ currentUser, setDashboardTitle }) {
                         onTimeRangeChange={handleTimeRangeChange}
                     />
                 </div>
-
+                <div
+                    className={`dropdownMenu ${dropdowns.search.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
+                    style={{ width: '420px' }}
+                >
+                    <FilterTraffic
+                        columns={baseColumns}
+                        devices={devices}
+                        onSelectedTagsChange={handleSyslogTagsChange}
+                        onSelectedTagsSearch={handleSearchAndCloseDropdown}
+                    />
+                </div>
             </div>
         </div>
     );

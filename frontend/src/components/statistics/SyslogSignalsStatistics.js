@@ -104,7 +104,6 @@ function SyslogSignalsStatistics({ selSignalsTags }) {
 
     return (
         <div>
-            <div>SS</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-around' }}>
                 {selSignalsTags.map(dataType => {
                     const chartType = chartTypeMap[dataType] || 'BarChart';

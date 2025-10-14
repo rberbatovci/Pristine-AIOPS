@@ -11,9 +11,9 @@ function CpuUtilization({ selectedDevice, onSuccess, showNotification }) {
   const [shouldSpin, setShouldSpin] = useState(true);
 
   const [cpuChartData, setCpuChartData] = useState([
-    { name: '5s Avg', value: 20, fill: '#ababab', opacity: 0.6 },
-    { name: '1m Avg', value: 40, fill: '#ababab', opacity: 0.5 },
     { name: '5m Avg', value: 60, fill: '#ababab', opacity: 0.4 },
+    { name: '1m Avg', value: 40, fill: '#ababab', opacity: 0.5 },
+    { name: '5s Avg', value: 20, fill: '#ababab', opacity: 0.6 },
   ]);
 
   // keep device in sync
@@ -35,9 +35,9 @@ function CpuUtilization({ selectedDevice, onSuccess, showNotification }) {
         const stats = data.stats;
 
         const newData = [
+          { name: '5m Avg', value: Math.min(stats["five-minutes"] ?? 0, 100), fill: 'green', opacity: 0.8 },
           { name: '5s Avg', value: Math.min(stats["five-seconds"] ?? 0, 100), fill: 'green', opacity: 1 },
           { name: '1m Avg', value: Math.min(stats["one-minute"] ?? 0, 100), fill: 'green', opacity: 0.9 },
-          { name: '5m Avg', value: Math.min(stats["five-minutes"] ?? 0, 100), fill: 'green', opacity: 0.8 },
         ];
 
         setCpuChartData(newData);
@@ -62,28 +62,30 @@ function CpuUtilization({ selectedDevice, onSuccess, showNotification }) {
     }
   };
 
-  const pushConfiguration = () => async () => {
-    if (!selectedDevice?.hostname) {
-      console.error("No device selected");
-      return;
-    }
-    showNotification(`Pushing CPU Utilization telemetry on ${selectedDevice.hostname}...`, "loading");
+    const getLiveCPUStatus = async () => {
+    setCpuLoading(true);
+    setError('');
     try {
-      const response = await apiClient.post(
-        `/devices/${selectedDevice.hostname}/configure/cpu_util/`,
-        {} // empty body
-      );
+      const response = await apiClient.get(`/devices/${device.hostname}/status/live/memory/`);
+      const stats = response.data.memory?.["Cisco-IOS-XE-memory-oper:memory-statistic"] || [];
+      const procMem = stats.find(m => m.name === "Processor");
 
-      const updatedDevice = response.data;
-      showNotification(`CPU Utilization telemetry configured on ${selectedDevice.hostname}`, "info");
+      if (procMem) {
+        const newData = [
+          { name: '5m Avg', value: Math.min(stats["five-minutes"] ?? 0, 100), fill: 'green', opacity: 0.8 },
+          { name: '5s Avg', value: Math.min(stats["five-seconds"] ?? 0, 100), fill: 'green', opacity: 1 },
+          { name: '1m Avg', value: Math.min(stats["one-minute"] ?? 0, 100), fill: 'green', opacity: 0.9 },
+        ];
 
-      // Optionally update state
-      // setSelectedDevice(updatedDevice);
+        setCpuChartData(newData);
 
+        setCpuTimestamp(new Date().toISOString()); // live data = now
+        setShouldSpin(false);
+      }
     } catch (err) {
-      console.error("Request error:", err);
-      const message = err.response?.data?.detail || err.message || err;
-      showNotification(`Error configuring CPU Utilization telemetry on ${selectedDevice.hostname}`, "error");
+      setError(err.response?.data?.detail || err.message || 'Unknown error');
+    } finally {
+      setCpuLoading(false);
     }
   };
 
@@ -109,13 +111,13 @@ function CpuUtilization({ selectedDevice, onSuccess, showNotification }) {
       <style>{rotatingChartStyle}</style>
 
       {/* CPU Section */}
-      <div>
+      <div style={{ position: "relative", width: "150px", height: "150px" }}>
         <RadialBarChart
           width={150}
           height={150}
           cx="50%"
           cy="50%"
-          innerRadius="40%"
+          innerRadius="50%"
           outerRadius="100%"
           barSize={15}
           data={cpuChartData}
@@ -144,6 +146,28 @@ function CpuUtilization({ selectedDevice, onSuccess, showNotification }) {
             tick={false}
           />
         </RadialBarChart>
+                <button
+          onClick={getLiveCPUStatus}
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: "50px",
+            height: "50px",
+            borderRadius: "50%",
+            border: "none",
+            backgroundColor: "#00C49F",
+            color: "white",
+            cursor: "pointer",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.3)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "22px"
+          }}
+        >
+        </button>
       </div>
       {cpuLoading ? (
         <div style={{ fontSize: "16px", color: "var(--textColor)", opacity: 0.8 }}>
@@ -168,17 +192,6 @@ function CpuUtilization({ selectedDevice, onSuccess, showNotification }) {
             <p style={{ textAlign: "left", width: "100px", marginLeft: "5px", marginTop: "5px" }}>
               {cpuTimestamp ? "No Timestamp" : "Loading..."}
             </p>
-          </div>
-          <div style={{ display: "flex", marginTop: "5px" }}>
-            <button className="iconButton">
-              <IoRefreshCircleOutline className="defaultIcon" />
-              <IoRefreshCircleSharp className="hoverIcon" />
-            </button>
-            <button className="iconButton"
-              onClick={pushConfiguration()}>
-              <IoPushOutline className="defaultIcon" />
-              <IoPushSharp className="hoverIcon" />
-            </button>
           </div>
         </div></>
       )}

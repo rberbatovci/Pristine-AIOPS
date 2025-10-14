@@ -1,0 +1,33 @@
+---
+- name: Configure System Utilization Monitoring on Cisco IOS XE device
+  hosts: all
+  gather_facts: no
+  connection: network_cli
+
+  vars:
+    ansible_user: "{{ username }}"
+    ansible_password: "{{ password }}"
+    ansible_network_os: ios
+    ansible_connection: network_cli
+    ansible_host: "{{ router_ip }}"
+
+  tasks:
+    - name: Configure telemetry subscription 101
+      ios_config:
+        lines:
+          - encoding encode-kvgpb
+          - filter xpath /process-cpu-ios-xe-oper:cpu-usage/cpu-utilization
+          - stream yang-push
+          - update-policy periodic {{ telemetry_period_seconds }}
+          - receiver ip address {{ receiver_ip }} {{ receiver_port }} protocol grpc-tcp
+        parents: telemetry ietf subscription 101
+
+    - name: Configure telemetry subscription 102
+      ios_config:
+        lines:
+          - encoding encode-kvgpb
+          - filter xpath /memory-ios-xe-oper:memory-statistics/memory-statistic
+          - stream yang-push
+          - update-policy periodic {{ telemetry_period_seconds }}
+          - receiver ip address {{ receiver_ip }} {{ receiver_port }} protocol grpc-tcp
+        parents: telemetry ietf subscription 102

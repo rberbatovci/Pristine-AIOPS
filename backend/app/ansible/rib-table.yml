@@ -12,10 +12,10 @@
     ansible_host: "{{ router_ip }}"
 
   tasks:
-    - name: Configure telemetry subscription 108 (Routing Information Base)
+    - name: Configure telemetry subscription 105 (Routing Information Base)
       ios_config:
         lines:
-          - telemetry ietf subscription 108
+          - telemetry ietf subscription 105
           -  encoding encode-kvgpb
           -  filter xpath /Cisco-IOS-XE-rib-oper:rib/rib-table
           -  stream yang-push

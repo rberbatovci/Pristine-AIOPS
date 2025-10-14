@@ -2,91 +2,98 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
-	"time"
 
 	api "github.com/osrg/gobgp/v3/api"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/proto"
 )
 
 func main() {
-	for {
-		if err := watchBGP(); err != nil {
-			log.Printf("Watch error: %v, reconnecting in 3s...", err)
-			time.Sleep(3 * time.Second)
-		}
-	}
-}
-
-func watchBGP() error {
 	conn, err := grpc.Dial("gobgp:50051", grpc.WithInsecure())
 	if err != nil {
-		return fmt.Errorf("failed to connect to GoBGP: %v", err)
+		log.Fatalf("failed to connect to GoBGP: %v", err)
 	}
 	defer conn.Close()
 
 	client := api.NewGobgpApiClient(conn)
 
+	// 🔎 Subscribe to table (path) events
 	req := &api.WatchEventRequest{
-		Table: &api.WatchEventRequest_Table{
-			// Only specify Table if you want path events.
-			// No Type/Family fields here in v3!
+		Event: &api.WatchEventRequest_Table{
+			Table: &api.WatchEventRequest_Table{
+				Filters: []*api.WatchEventRequest_Table_Filter{
+					{
+						Init: true, // include initial dump
+						// Type: api.WatchEventRequest_Table_Filter_ADVERTISED, // optional
+					},
+				},
+			},
 		},
 	}
 
 	stream, err := client.WatchEvent(context.Background(), req)
 	if err != nil {
-		return fmt.Errorf("WatchEvent error: %v", err)
+		log.Fatalf("failed to watch events: %v", err)
 	}
 
-	log.Println("Subscribed to GoBGP updates...")
+	log.Println("✅ Subscribed to BGP Table updates...")
 
 	for {
 		event, err := stream.Recv()
 		if err != nil {
-			return fmt.Errorf("stream closed: %v", err)
+			log.Fatalf("stream error: %v", err)
 		}
 
-		// WatchEventResponse has Path (not Paths) for Table events in v3
-		switch e := event.Event.(type) {
-		case *api.WatchEventResponse_TableEvent:
-			handlePath(e.TableEvent.Paths)
+		switch msg := event.Event.(type) {
+		case *api.WatchEventResponse_Table:
+			for _, path := range msg.Table.Paths {
+				raw, _ := protojson.Marshal(path)
+				log.Printf("📥 PATH UPDATE: %s", raw)
+
+				if path.IsWithdraw {
+					log.Printf("❌ Withdraw: %+v", path)
+				} else {
+					handlePath(path)
+				}
+			}
+
+		case *api.WatchEventResponse_Peer:
+			log.Printf("👥 Peer event: %+v", msg.Peer)
+
 		default:
-			log.Printf("Unknown event type: %T", e)
+			log.Printf("⚠️ Unhandled event type: %T", msg)
 		}
 	}
 }
 
 func handlePath(path *api.Path) {
-	if path == nil {
-		return
-	}
-	nlriMsg, err := anypb.UnmarshalNew(path.Nlri, proto.UnmarshalOptions{})
-	if err != nil {
-		log.Printf("Failed to decode NLRI: %v", err)
+	if path == nil || path.Nlri == nil {
 		return
 	}
 
-	switch nlri := nlriMsg.(type) {
-	case *api.LsAddrPrefix:
-		fmt.Printf("📡 LS Prefix: %+v\n", nlri)
+	// Only process BGP-LS (AFI=16388, SAFI=71)
+	if path.Family.Afi != 16388 || path.Family.Safi != 71 {
+		return
+	}
+
+	nlri, err := anypb.UnmarshalNew(path.Nlri, proto.UnmarshalOptions{})
+	if err != nil {
+		log.Printf("❌ Failed to decode NLRI: %v", err)
+		return
+	}
+
+	switch nlri := nlri.(type) {
 	case *api.LsNodeNLRI:
-		fmt.Printf("📡 LS Node: %+v\n", nlri)
+		fmt.Printf("📡 Node: %+v\n", nlri)
 	case *api.LsLinkNLRI:
-		fmt.Printf("📡 LS Link: %+v\n", nlri)
+		fmt.Printf("🔗 Link: %+v\n", nlri)
+	case *api.LsPrefixNLRI:
+		fmt.Printf("📍 Prefix: %+v\n", nlri)
 	default:
 		fmt.Printf("❓ Unknown NLRI type: %T\n", nlri)
-	}
-
-	for _, attr := range path.Pattrs {
-		attrMsg, _ := anypb.UnmarshalNew(attr, proto.UnmarshalOptions{})
-		if ls, ok := attrMsg.(*api.LsAttribute); ok {
-			b, _ := json.MarshalIndent(ls, "", "  ")
-			fmt.Printf("🔧 LS Attributes: %s\n", string(b))
-		}
 	}
 }

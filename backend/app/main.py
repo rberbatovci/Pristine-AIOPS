@@ -3,7 +3,7 @@ from app.users import routes as users
 from app.devices import routes as devices
 from app.syslogs import events as syslogEvents, signals as syslogSignals, mnemonics, regex, rules as syslogRules, tags as syslogTags, statistics as syslogStatistics
 from app.traps import events as trapEvents, signals as trapSignals, snmptrapoids, tags as trapTags, statistics as trapStatistics, rules as trapRules, mibs
-from app.netflow import routes as netflow
+from app.netflow import routes as netflow, statistics as netflowStatistics
 from app.devices import status
 from app.devices import config
 from app.geolocation import routes as geolocation
@@ -79,7 +79,9 @@ app.include_router(mibs.router)
 app.include_router(trapSignals.router)
 app.include_router(geolocation.router)
 
+app.include_router(netflowStatistics.router)
 app.include_router(netflow.router)
+
 app.include_router(status.router)
 app.include_router(config.router)
 #app.include_router(signals.router)

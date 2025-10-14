@@ -51,22 +51,39 @@ function Faults({ currentUser, setDashboardTitle }) {
     const [selEventTags, setSelEventTags] = useState([]);
     const [selSignalTags, setSelSignalTags] = useState([]);
     const [page, setPage] = useState(1);
-    const [pageSize, setPageSize] = useState(20);
+    const [pageSize, setPageSize] = useState(24);
     const [totalEvents, setTotalEvents] = useState(0);
     const baseColumns = {
-        syslogs: ['timestamp', 'device', 'severity', 'mnemonic', 'message'],
-        snmptraps: ['timestamp', 'device', 'sysUpTime', 'snmpTrapOid', 'content'],
+        syslogs: [
+            { label: 'Timestamp', value: 'timestamp' },
+            { label: 'Device', value: 'device' },
+            { label: 'Severity', value: 'severity' },
+            { label: 'Mnemonic', value: 'mnemonic' },
+            { label: 'Message', value: 'message' },
+        ],
+        snmptraps: [
+            { label: 'Timestamp', value: 'timestamp' },
+            { label: 'Device', value: 'device' },
+            { label: 'SysUpTime', value: 'sysUpTime' },
+            { label: 'Trap OID', value: 'snmpTrapOid' },
+            { label: 'Content', value: 'content' },
+        ],
     };
-
     const [selectedDevice, setSelectedDevice] = useState(null);
     const [columnConfigs, setColumnConfigs] = useState(baseColumns);
 
     useEffect(() => {
         setColumnConfigs(prev => ({
             ...prev,
-            [dataSource]: [...(baseColumns[dataSource] || []), ...selectedTags],
+            [dataSource]: [
+                ...(baseColumns[dataSource] || []),
+                ...(selectedTags || []).map(tag => ({
+                    label: tag,      // label shown in table header
+                    value: tag,      // field key in data
+                })),
+            ],
         }));
-    }, [selectedTags]);
+    }, [selectedTags, dataSource]);
 
     const [mnemonics, setMnemonics] = useState([]);
     const [regExpressions, setRegExpressions] = useState([]);

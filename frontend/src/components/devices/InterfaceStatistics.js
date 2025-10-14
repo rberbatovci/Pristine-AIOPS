@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import apiClient from '../misc/AxiosConfig';
 import { IoPushOutline, IoPushSharp } from "react-icons/io5";
 
-function InterfaceStatistics({ selectedDevice, onSuccess }) {
+function InterfaceStatistics({ selectedDevice, onSuccess, showNotification }) {
     const [device, setDevice] = useState(selectedDevice);
     const [interfaces, setInterfaces] = useState([]);
     const [interfacesLoading, setInterfacesLoading] = useState(false);
@@ -13,17 +13,15 @@ function InterfaceStatistics({ selectedDevice, onSuccess }) {
             console.error("No device selected");
             return;
         }
-
+        showNotification(`Configuring interface statistics telemetry on ${selectedDevice.hostname}...`, "loading");
         try {
             const response = await apiClient.post(
                 `/devices/${selectedDevice.hostname}/configure/interface_stats/`,
                 {}
             );
-            console.log("Updated device:", response.data);
+            showNotification(`Interface statistics telemetry applied successfully on ${selectedDevice.hostname}`, "success");
         } catch (err) {
-            console.error("Request error:", err);
-            const message = err.response?.data?.detail || err.message || err;
-            alert(`Error configuring Interface Statistics: ${message}`);
+            showNotification(`Failed to apply interface statistics telemetry on ${selectedDevice.hostname}`, "error");
         }
     };
 
@@ -73,13 +71,25 @@ function InterfaceStatistics({ selectedDevice, onSuccess }) {
         displayedInterfaces.push({ name: '', 'admin-status': '', 'oper-status': '' });
     }
 
-        return (
+    return (
         <div className="signalRightElementContainer" style={{ maxHeight: '400px', overflowY: 'auto' }}>
             <div className="signalRightElementHeader">
                 <h2 className="signalRightElementHeaderTxt">Interface Statistics</h2>
+                <div className="zoom-buttons-container">
+                    <div className="headerButtons">
+                        <button
+                            className={`iconButton ${selectedDevice.features?.telemetry?.interface_stats ? 'active' : ''}`}
+                            onClick={pushConfiguration()}>
+                            <IoPushOutline className="defaultIcon" />
+                            <IoPushSharp className="hoverIcon" />
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <div style={{ padding: '8px', marginLeft: '15px', fontSize: '14px', color: 'var(--textColor)', opacity: '0.9' }}>
+                {selectedDevice?.features?.telemetry?.system_util ? (
+          <>
                 {error && (
                     <div style={{ color: 'red', marginBottom: '10px' }}>
                         {typeof error === 'string' ? error : JSON.stringify(error)}
@@ -99,18 +109,65 @@ function InterfaceStatistics({ selectedDevice, onSuccess }) {
                             </tr>
                         </thead>
                         <tbody>
-                            {displayedInterfaces.map((intf, idx) => (
-                                <tr key={idx} style={{ borderBottom: '1px solid #eee', height: '36px' }}>
-                                    <td style={{ padding: '8px 10px' }}>{intf.name}</td>
-                                    <td style={{ padding: '8px 10px' }}>{intf.status}</td>
-                                    <td style={{ padding: '8px 10px' }}>{intf.rx_kbps}</td>
-                                    <td style={{ padding: '8px 10px' }}>{intf.rx_pps}</td>
-                                    <td style={{ padding: '8px 10px' }}>{intf.tx_kbps}</td>
-                                    <td style={{ padding: '8px 10px' }}>{intf.tx_pps}</td>
-                                </tr>
-                            ))}
+                            {interfaces
+                                .filter(intf => intf.name && intf.name.trim() !== "") // 🔹 remove blank interface rows
+                                .map((intf, idx) => {
+                                    const isReady = intf.status?.toLowerCase() === "if-oper-state-ready";
+
+                                    return (
+                                        <tr
+                                            key={idx}
+                                            style={{
+                                                borderBottom: "1px solid #eee",
+                                                height: "42px",
+                                                transition: "background 0.2s ease-in-out",
+                                            }}
+                                            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(0,0,0,0.05)")}
+                                            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                                        >
+                                            
+
+                                            {/* Oper Status Badge */}
+                                            <td style={{ padding: "8px 10px" }}>
+                                                <span
+                                                    style={{
+                                                        display: "inline-block",
+                                                        padding: "4px 10px",
+                                                        borderRadius: "20px",
+                                                        fontSize: "12px",
+                                                        fontWeight: "600",
+                                                        color: "white",
+                                                        backgroundColor: isReady ? "#4CAF50" : "#E74C3C",
+                                                        boxShadow: isReady
+                                                            ? "0 0 8px rgba(76,175,80,0.6)"
+                                                            : "0 0 8px rgba(231,76,60,0.6)",
+                                                        transition: "transform 0.2s",
+                                                    }}
+                                                >
+                                                    {isReady ? "READY" : "DOWN"}
+                                                </span>
+                                            </td>
+                                            {/* Interface Name */}
+                                            <td style={{ padding: "8px 10px", fontWeight: "500" }}>
+                                                {intf.name}
+                                            </td>
+
+                                            {/* Rx/Tx columns */}
+                                            <td style={{ padding: "8px 10px" }}>{intf.rx_kbps || "--"} kbps</td>
+                                            <td style={{ padding: "8px 10px" }}>{intf.rx_pps || "--"} pps</td>
+                                            <td style={{ padding: "8px 10px" }}>{intf.tx_kbps || "--"} kbps</td>
+                                            <td style={{ padding: "8px 10px" }}>{intf.tx_pps || "--"} pps</td>
+                                        </tr>
+                                    );
+                                })}
                         </tbody>
                     </table>
+                )}
+            </>
+                ) : (
+                    <div style={{ padding: "10px", color: "gray" }}>
+                        Interface statistics telemetry not enabled for this device.
+                    </div>
                 )}
             </div>
         </div>

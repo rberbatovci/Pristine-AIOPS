@@ -29,7 +29,7 @@ const App = () => {
   const [init, setInit] = useState(false);
   const [dashboardTitle, setDashboardTitle] = useState('');
   const [showUserProfile, setShowUserProfile] = useState(false);
-  const [notification, setNotification] = useState({ message: "ssssssss", type: "ssssssss" });
+  const [notification, setNotification] = useState({ message: "", type: "" });
 
   useEffect(() => {
     const storedUser = localStorage.getItem("currentUser");
