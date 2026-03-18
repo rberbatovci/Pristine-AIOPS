@@ -9,10 +9,15 @@ import requests
 from requests.auth import HTTPBasicAuth
 import redis
 import json
+from app.auth.keycloak import get_current_user, require_admin
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/api/devices/status",
+    tags=["devices,status"],
+)
+
 
 HEADERS = {
     "Accept": "application/yang-data+json",
@@ -126,12 +131,11 @@ async def fetch_live_status(hostname: str, metric: str, db: AsyncSession):
 
 
 # ---------- Redis "last" endpoints ----------
-@router.get("/devices/{hostname}/status/last/{metric}/")
-def get_last_status(hostname: str, metric: str):
+@router.get("/{hostname}/{metric}/")
+def get_last_status(hostname: str, metric: str, user: dict = Depends(get_current_user)):
     return fetch_last_status(hostname, metric)
 
-
 # ---------- Live RESTCONF endpoints ----------
-@router.get("/devices/{hostname}/status/live/{metric}/")
-async def get_live_status(hostname: str, metric: str, db: AsyncSession = Depends(get_db)):
+@router.get("/{hostname}/{metric}/")
+async def get_live_status(hostname: str, metric: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
     return await fetch_live_status(hostname, metric, db)

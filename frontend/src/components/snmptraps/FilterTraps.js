@@ -1,146 +1,196 @@
-import React, { useState, useEffect } from 'react';
-import Select from 'react-select';
-import axios from 'axios';
-import '../../css/SearchSyslogs.css';
-import customStyles from '../misc/SelectStyles';
+import React, { useState, useEffect, useCallback } from "react";
+import Select from "react-select";
+import customStyles from "../misc/SelectStyles";
+import "../../css/SearchElement.css";
+import { useMnemonics } from "../../hooks/useMnemonics";
+import { useDevices } from "../../hooks/useDevices";
+import { useSyslogTags } from "../../hooks/useSyslogTags";
+import { useStatefulSyslogRules } from "../../hooks/useStatefulSyslogRules";
 
-const FilterTraps = ({ tags, hostnames, snmpTrapOids, onSelectedTagsChange, onSelectedTagsSearch }) => {
-    const [selectedTags, setSelectedTags] = useState({});
-    const [tagOptions, setTagOptions] = useState({});
-    const [fetchedTags, setFetchedTags] = useState({});
-    const [agentOptions, setAgentOptions] = useState([]);
-    const [mnemonicOptions, setMnemonicOptions] = useState([]);
-    const baseUrl = `http://${process.env.REACT_APP_SERVER_IP}:${process.env.REACT_APP_SERVER_PORT}`;
+const severityOptions = [
+  { value: "emergency", label: "Emergency" },
+  { value: "alert", label: "Alert" },
+  { value: "critical", label: "Critical" },
+  { value: "error", label: "Error" },
+  { value: "warning", label: "Warning" },
+  { value: "notice", label: "Notice" },
+  { value: "info", label: "Info" },
+  { value: "debug", label: "Debug" }
+];
 
-    const fetchTagOptions = async (tag) => {
-        if (fetchedTags[tag]) return; // Avoid fetching if already fetched
+const FilterTraps = ({
+  keycloak,
+  onSelectedSyslogFiltersChange,
+  initialSelectedTags = {}
+}) => {
+  /* -------------------- data hooks -------------------- */
+  const { mnemonics = [], loading: mnemonicsLoading } = useMnemonics(keycloak, false);
+  const { rules = [], loading: rulesLoading } = useStatefulSyslogRules(keycloak, false);
+  const { tags = [], loading: tagsLoading } = useSyslogTags(keycloak);
+  const { devices = [] } = useDevices(keycloak, false);
 
-        try {
-            const response = await axios.get(`${baseUrl}/snmptraps/api/getTrapTags/${tag}/`);
-            const optionsArray = response.data[tag];
-            if (optionsArray) {
-                setTagOptions((prevOptions) => ({
-                    ...prevOptions,
-                    [tag]: optionsArray.map((option) => ({
-                        value: option,
-                        label: option,
-                    })),
-                }));
-                setFetchedTags((prevFetchedTags) => ({
-                    ...prevFetchedTags,
-                    [tag]: true,
-                }));
-            }
-        } catch (error) {
-            console.error(`Error fetching options for ${tag}:`, error);
+  /* -------------------- local state -------------------- */
+  const [selectedTags, setSelectedTags] = useState(initialSelectedTags);
+  const [tagOptions, setTagOptions] = useState({});
+
+  /* -------------------- derived options -------------------- */
+  const deviceOptions = devices.map(d => ({
+    value: d.hostname,
+    label: d.hostname
+  }));
+
+  /* -------------------- init selected tags -------------------- */
+  useEffect(() => {
+    if (!tags.length) return;
+
+    setSelectedTags(prev => {
+      const initialized = { ...prev };
+
+      tags.forEach(tag => {
+        if (!initialized[tag.name]) {
+          initialized[tag.name] = [];
         }
-    };
+      });
 
-    const handleFocus = (tag) => {
-        fetchTagOptions(tag); // Fetch options when input is focused
-    };
+      onSelectedSyslogFiltersChange(initialized);
+      return initialized;
+    });
+  }, [tags, onSelectedSyslogFiltersChange]);
 
-    const handleChange = (selectedValues, tag) => {
-        const updatedSelectedTags = {
-            ...selectedTags,
-            [tag]: selectedValues
-        };
-        setSelectedTags(updatedSelectedTags);
-        onSelectedTagsChange(updatedSelectedTags);
-    };
+  /* -------------------- generic change handler -------------------- */
+  const handleChange = useCallback((values, tagName) => {
+    setSelectedTags(prev => {
+      const updated = {
+        ...prev,
+        [tagName]: values || []
+      };
 
-    const handleAgentChange = (selectedValues) => {
-        const updatedSelectedTags = {
-            ...selectedTags,
-            agent: selectedValues
-        };
-        setSelectedTags(updatedSelectedTags);
-        onSelectedTagsChange(updatedSelectedTags);
-    };
+      onSelectedSyslogFiltersChange(updated);
+      return updated;
+    });
+  }, [onSelectedSyslogFiltersChange]);
 
-    const handleMnemonicChange = (selectedValues) => {
-        const updatedSelectedTags = {
-            ...selectedTags,
-            mnemonic: selectedValues
-        };
-        setSelectedTags(updatedSelectedTags);
-        onSelectedTagsChange(updatedSelectedTags);
-    };
+  /* -------------------- focus handler (lazy load) -------------------- */
+  const handleFocus = useCallback((tagName) => {
+    if (tagOptions[tagName]) return;
 
-    const handleSearchClick = () => {
-        const filters = {
-            agent: selectedTags.agent ? selectedTags.agent.map(opt => opt.value) : [],
-            mnemonic: selectedTags.mnemonic ? selectedTags.mnemonic.map(opt => opt.value) : [],
-            tags: Object.keys(selectedTags).reduce((acc, key) => {
-                if (key !== 'agent' && key !== 'mnemonic') {
-                    acc[key] = selectedTags[key].map(opt => opt.value);
-                }
-                return acc;
-            }, {})
-        };
-        onSelectedTagsSearch(filters);
-    };
+    if (tagName === "mnemonic") {
+      setTagOptions(prev => ({
+        ...prev,
+        mnemonic: mnemonics.map(m => ({
+          value: m.name,
+          label: m.label
+        }))
+      }));
+      return;
+    }
 
-    console.log('hostnames in searchSnmpTraps component:', hostnames);
+    if (tagName === "rule") {
+      setTagOptions(prev => ({
+        ...prev,
+        rule: rules.map(r => ({
+          value: r.name,
+          label: r.label
+        }))
+      }));
+      return;
+    }
 
-    return (
-        <div className="searchSyslogsContainer">
-            {tags.length === 0 ? (
-                <p style={{ textAlign: 'center' }}>Loading syslog tags...</p>
-            ) : (
-                <div className="searchSyslogsFilterEntries">
-                    {/* Agent Field */}
-                    <div className="searchSyslogsFilterEntry" style={{ marginTop: '0px' }}>
-                        <span className="searchSignalFilterText">Agent:</span>
-                        <div style={{ marginTop: '4px' }}>
-                            <Select
-                                options={hostnames}
-                                isMulti
-                                value={selectedTags.agent}
-                                onChange={handleAgentChange}
-                                styles={customStyles('360px')}
-                            />
-                        </div>
-                    </div>
+    // Future dynamic loader here
+  }, [tagOptions, mnemonics, rules]);
 
-                    {/* Mnemonic Field */}
-                    <div className="searchSyslogsFilterEntry">
-                        <span className="searchSignalFilterText">SNMP Trap OID:</span>
-                        <div style={{ marginTop: '4px' }}>
-                            <Select
-                                options={snmpTrapOids}
-                                isMulti
-                                value={selectedTags.mnemonic}
-                                onChange={handleMnemonicChange}
-                                styles={customStyles('360px')}
-                            />
-                        </div>
-                    </div>
+  /* -------------------- render -------------------- */
+  if (tagsLoading) {
+    return <p style={{ textAlign: "center" }}>Loading Syslog Tags…</p>;
+  }
 
-                    {/* Dynamic Syslog Tags */}
-                    {tags.map((tag, index) => (
-                        <div key={index} className="searchSyslogsFilterEntry">
-                            <span className="searchSignalFilterText">{tag}:</span>
-                            <div style={{ marginTop: '4px' }}>
-                                <Select
-                                    options={tagOptions[tag] || []}
-                                    isMulti
-                                    value={selectedTags[tag]}
-                                    onChange={(selectedValues) => handleChange(selectedValues, tag)}
-                                    name={tag}
-                                    onFocus={() => handleFocus(tag)}
-                                    styles={customStyles('360px')}
-                                />
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-            <div className="searchButtonContainer">
-                <button onClick={handleSearchClick} className="searchButton">Search</button>
-            </div>
+  return (
+    <div className="searchSyslogsContainer">
+      <div className="searchSyslogsFilterEntries">
+
+        {/* Devices */}
+        <div className="searchSyslogsFilterEntry">
+          <span className="searchSignalFilterText">Device:</span>
+          <div style={{ marginTop: '6px' }}>
+            <Select
+              options={deviceOptions}
+              isMulti
+              value={selectedTags.device || []}
+              onChange={(v) => handleChange(v, "device")}
+              styles={{
+                ...customStyles('375px'),
+                menuPortal: base => ({ ...base, zIndex: 9999 })
+              }}
+              menuPortalTarget={document.body}
+              placeholder="Select devices"
+            />
+          </div>
         </div>
-    );
+
+        {/* Mnemonics */}
+        <div className="searchSyslogsFilterEntry">
+          <span className="searchSignalFilterText">Mnemonic:</span>
+          <div style={{ marginTop: '6px' }}>
+            <Select
+              options={tagOptions.mnemonic || []}
+              isMulti
+              value={selectedTags.mnemonic || []}
+              onChange={(v) => handleChange(v, 'mnemonic')}
+              onFocus={() => handleFocus("mnemonic")}
+              styles={{
+                ...customStyles('375px'),
+                menuPortal: base => ({ ...base, zIndex: 9999 })
+              }}
+              menuPortalTarget={document.body}
+              placeholder="Select mnemonics"
+            />
+          </div>
+        </div>
+
+        {/* Severity */}
+        <div className="searchSyslogsFilterEntry">
+          <span className="searchSignalFilterText">Severity:</span>
+          <div style={{ marginTop: '6px' }}>
+            <Select
+              options={severityOptions}
+              isMulti
+              value={selectedTags.severity || []}
+              onChange={(v) => handleChange(v, "severity")}
+              styles={{
+                ...customStyles('375px'),
+                menuPortal: base => ({ ...base, zIndex: 9999 })
+              }}
+              menuPortalTarget={document.body}
+              placeholder="Select severity"
+            />
+          </div>
+        </div>
+
+        {/* Dynamic Tags (optional) */}
+        {tags.map((tag) => (
+          <div key={tag.name} className="searchSyslogsFilterEntry">
+            <span className="searchSignalFilterText">{tag.label}:</span>
+            <div style={{ marginTop: '6px' }}>
+              <Select
+                options={tagOptions[tag.name] || []}
+                isMulti
+                value={selectedTags[tag.name] || []}
+                onChange={(v) => handleChange(v, tag.name)}
+                onFocus={() => handleFocus(tag.name)}
+                styles={{
+                  ...customStyles('375px'),
+                  menuPortal: base => ({ ...base, zIndex: 9999 })
+                }}
+                menuPortalTarget={document.body}
+                placeholder={`Select ${tag.label}`}
+              />
+            </div>
+          </div>
+        ))}
+
+      </div>
+    </div>
+  );
 };
 
 export default FilterTraps;

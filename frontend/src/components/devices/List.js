@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import apiClient from '../misc/AxiosConfig';
 import '../../css/SignalsList.css';
 import { PiTerminalDuotone, PiTerminalFill } from "react-icons/pi";
 import { RiStackshareLine, RiStackshareFill } from "react-icons/ri";
@@ -17,8 +16,6 @@ function List({ devices, onDeviceSelect }) {
         onDeviceSelect(device);
     };
 
-
-    
     console.log("Devices in List component:", devices);
 
     return (

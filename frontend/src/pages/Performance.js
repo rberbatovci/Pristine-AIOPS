@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import '../css/SyslogDatabase.css';
-import apiClient from '../components/misc/AxiosConfig.js';
 import { FaClock, FaRegClock } from "react-icons/fa";
 import { RiFilterLine, RiFilterFill } from "react-icons/ri";
 import { RiDownloadCloudLine, RiDownloadCloudFill } from "react-icons/ri";
@@ -10,9 +9,9 @@ import CPUUtilsStats from '../components/telemetry/CPUUtilsStats.js';
 import InterfaceStats from '../components/telemetry/InterfaceStats.js';
 import InterfaceOper from '../components/telemetry/InterfaceOper.js';
 import MemoryStats from '../components/telemetry/MemoryStats.js';
-import BGPStats from '../components/telemetry/BGPStats.js';
+import kcFetch from '../components/misc/kcFetch';
 
-function Performance({ currentUser, setDashboardTitle }) {
+function Performance({ currentUser, setDashboardTitle, keycloak }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(false);
     const dropdownWrapperRef = useRef(null);
@@ -45,8 +44,11 @@ function Performance({ currentUser, setDashboardTitle }) {
     useEffect(() => {
         const fetchDevices = async () => {
             try {
-                const response = await apiClient.get('/devices');
-                const devices = response.data.map((device) => ({
+                const response = await kcFetch(
+                                keycloak,
+                                "/devices/"
+                            );
+                const devices = response.map((device) => ({
                     id: device.id,
                     hostname: device.hostname,
                     ip_address: device.ip_address,
@@ -130,11 +132,10 @@ function Performance({ currentUser, setDashboardTitle }) {
                 {!loading && !error && (
                     <div style={{ height: 'calc(100vh - 140px)', overflowY: 'auto', width: '100%' }}
                     >
-                        <CPUUtilsStats selectedDevice={selectedDevice} />
-                        <MemoryStats selectedDevice={selectedDevice} />
-                        <InterfaceOper selectedDevice={selectedDevice} />
-                        <InterfaceStats selectedDevice={selectedDevice} />
-                        <BGPStats selectedDevice={selectedDevice} />
+                        <CPUUtilsStats selectedDevice={selectedDevice} keycloak={keycloak} />
+                        <MemoryStats selectedDevice={selectedDevice} keycloak={keycloak} />
+                        <InterfaceOper selectedDevice={selectedDevice} keycloak={keycloak} />
+                        <InterfaceStats selectedDevice={selectedDevice} keycloak={keycloak} />
                     </div>
                 )}
             </div>

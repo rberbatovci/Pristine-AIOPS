@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import apiClient from '../misc/AxiosConfig';
+import kcFetch from '../misc/kcFetch';
 import { RadialBarChart, PolarAngleAxis, RadialBar, Cell, Tooltip as RechartsTooltip } from 'recharts';
 import { IoPushOutline, IoPushSharp, IoRefreshCircleSharp, IoRefreshCircleOutline } from "react-icons/io5";
+import { pushConfiguration } from '../../hooks/pushConfiguration';
 
-function CpuUtilization({ selectedDevice, onSuccess, showNotification }) {
+function CpuUtilization({ keycloak, selectedDevice, onSuccess, showNotification }) {
   const [device, setDevice] = useState(selectedDevice);
   const [error, setError] = useState('');
   const [cpuLoading, setCpuLoading] = useState(false);
@@ -25,26 +26,18 @@ function CpuUtilization({ selectedDevice, onSuccess, showNotification }) {
     setCpuLoading(true);
     setError('');
     setShouldSpin(true);
-    
-
     try {
-      const response = await apiClient.get(`/devices/${device.hostname}/status/last/cpu-util/`);
-      const data = response.data;
-
-      if (data && data.stats && Object.keys(data.stats).length > 0) {
-        const stats = data.stats;
-
+      const response = await kcFetch(keycloak, `/devices/status/${device.hostname}/cpu-util/`);
+      if (response && response.stats && Object.keys(response.stats).length > 0) {
+        const stats = response.stats;
         const newData = [
           { name: '5m Avg', value: Math.min(stats["five-minutes"] ?? 0, 100), fill: 'green', opacity: 0.8 },
           { name: '5s Avg', value: Math.min(stats["five-seconds"] ?? 0, 100), fill: 'green', opacity: 1 },
           { name: '1m Avg', value: Math.min(stats["one-minute"] ?? 0, 100), fill: 'green', opacity: 0.9 },
         ];
-
         setCpuChartData(newData);
-        
-        // Only set timestamp if backend provides it
-        if (data.msg_timestamp) {
-          setCpuTimestamp(new Date(data.msg_timestamp).toISOString());
+        if (response.msg_timestamp) {
+          setCpuTimestamp(new Date(response.msg_timestamp).toISOString());
         } else {
           setCpuTimestamp(null);
         }
@@ -66,7 +59,7 @@ function CpuUtilization({ selectedDevice, onSuccess, showNotification }) {
     setCpuLoading(true);
     setError('');
     try {
-      const response = await apiClient.get(`/devices/${device.hostname}/status/live/memory/`);
+      const response = await kcFetch(keycloak, `/devices/${device.hostname}/status/live/memory/`);
       const stats = response.data.memory?.["Cisco-IOS-XE-memory-oper:memory-statistic"] || [];
       const procMem = stats.find(m => m.name === "Processor");
 
@@ -76,10 +69,8 @@ function CpuUtilization({ selectedDevice, onSuccess, showNotification }) {
           { name: '5s Avg', value: Math.min(stats["five-seconds"] ?? 0, 100), fill: 'green', opacity: 1 },
           { name: '1m Avg', value: Math.min(stats["one-minute"] ?? 0, 100), fill: 'green', opacity: 0.9 },
         ];
-
         setCpuChartData(newData);
-
-        setCpuTimestamp(new Date().toISOString()); // live data = now
+        setCpuTimestamp(new Date().toISOString());
         setShouldSpin(false);
       }
     } catch (err) {
@@ -128,7 +119,7 @@ function CpuUtilization({ selectedDevice, onSuccess, showNotification }) {
             clockWise
             dataKey="value"
             cornerRadius={10}
-            isAnimationActive={!shouldSpin} // animate bars only after spin stops
+            isAnimationActive={!shouldSpin}
             animationDuration={800}
             background={{ fill: "#eee", opacity: 0.1 }}
           >
@@ -142,7 +133,7 @@ function CpuUtilization({ selectedDevice, onSuccess, showNotification }) {
           </RadialBar>
           <PolarAngleAxis
             type="number"
-            domain={[0, 100]} // ✅ Fixes scaling so 4 → 4%, 8 → 8%
+            domain={[0, 100]}
             tick={false}
           />
         </RadialBarChart>
@@ -195,8 +186,6 @@ function CpuUtilization({ selectedDevice, onSuccess, showNotification }) {
           </div>
         </div></>
       )}
-      {/* Info Section */}
-
     </div>
   );
 }

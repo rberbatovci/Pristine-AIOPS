@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import '../../css/SignalInfo.css';
-import apiClient from '../misc/AxiosConfig';
+import kcFetch from '../misc/kcFetch';
 import Select from 'react-select';
 import customStyles from '../misc/SelectStyles';
 import {
@@ -15,7 +15,7 @@ import {
 } from 'recharts';
 import moment from 'moment';
 
-const MemoryStats = ({ currentUser, selectedDevice }) => {
+const MemoryStats = ({ currentUser, selectedDevice, keycloak }) => {
   const [showData, setShowData] = useState(true);
   const [memoryStatistics, setMemoryStatistics] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -37,44 +37,46 @@ const MemoryStats = ({ currentUser, selectedDevice }) => {
     }
   }, [selectedDevice]);
 
-  // Fetch memory statistics when device or selected memory changes
-  useEffect(() => {
-    const fetchMemoryStatistics = async () => {
-      if (!selectedDevice || !selectedMemory) return;
+useEffect(() => {
+  const fetchMemoryStatistics = async () => {
+    if (!selectedDevice || !selectedMemory || !keycloak?.authenticated) return;
 
-      setLoading(true); // Add this
-      setError(null);   // Add this
+    setLoading(true);
+    setError(null);
 
-      try {
-        const res = await apiClient.get(`/telemetry/memory-statistics/`, {
-          params: {
-            device: selectedDevice,
-            memory: selectedMemory.value,
-          }
-        });
+    try {
+      const query = new URLSearchParams({
+        device: selectedDevice,
+        memory: selectedMemory.value,
+      }).toString();
 
-        const formatted = res.data.results.map((item) => ({
-          timestamp: moment(item.ingested_at).format("HH:mm:ss"),
-          freeMemory: item.stats?.["free-memory"] ?? 0,
-          highestUsage: item.stats?.["highest-usage"] ?? 0,
-          lowestUsage: item.stats?.["lowest-usage"] ?? 0,
-          totalMemory: item.stats?.["total-memory"] ?? 0,
-          usedMemory: item.stats?.["used-memory"] ?? 0,
-        }));
+      const data = await kcFetch(
+        keycloak,
+        `/telemetry/memory-statistics/?${query}`
+      );
 
-        setMemoryStatistics(formatted);
-      } catch (err) {
-        console.error('Error fetching memory statistics:', err);
-        setError("Failed to fetch memory statistics.");
-      } finally {
-        setLoading(false);
-      }
-    };
+      const formatted = data.results.map((item) => ({
+        timestamp: moment(item.ingested_at).format("HH:mm:ss"),
+        freeMemory: item.stats?.["free-memory"] ?? 0,
+        highestUsage: item.stats?.["highest-usage"] ?? 0,
+        lowestUsage: item.stats?.["lowest-usage"] ?? 0,
+        totalMemory: item.stats?.["total-memory"] ?? 0,
+        usedMemory: item.stats?.["used-memory"] ?? 0,
+      }));
 
-    if (selectedDevice && selectedMemory) {
-      fetchMemoryStatistics();
+      setMemoryStatistics(formatted);
+
+    } catch (err) {
+      console.error("Error fetching memory statistics:", err);
+      setError("Failed to fetch memory statistics.");
+    } finally {
+      setLoading(false);
     }
-  }, [selectedDevice, selectedMemory]);
+  };
+
+  fetchMemoryStatistics();
+
+}, [selectedDevice, selectedMemory, keycloak]);
 
   const yDomain = useMemo(() => {
     if (memoryStatistics.length === 0) return ['auto', 'auto'];

@@ -1,0 +1,57 @@
+{
+    "realm": "pristine-aiops",
+    "enabled": true,
+    "roles": {
+        "realm": [
+            {
+                "name": "aiops-admin"
+            },
+            {
+                "name": "engineer"
+            },
+            {
+                "name": "viewer"
+            }
+        ]
+    },
+    "clients": [
+        {
+            "clientId": "app",
+            "name": "app",
+            "protocol": "openid-connect",
+            "publicClient": true,
+            "standardFlowEnabled": true,
+            "implicitFlowEnabled": false,
+            "directAccessGrantsEnabled": false,
+            "serviceAccountsEnabled": false,
+            "rootUrl": "https://app.pristine-aiops.local",
+            "baseUrl": "https://app.pristine-aiops.local",
+            "adminUrl": "https://app.pristine-aiops.local",
+            "redirectUris": [
+                "https://app.pristine-aiops.local/*"
+            ],
+            "attributes": {
+                "post.logout.redirect.uris": "https://app.pristine-aiops.local/*"
+            },
+            "webOrigins": [
+                "https://app.pristine-aiops.local"
+            ]
+        }
+    ],
+    "users": [
+        {
+            "username": "engineer1",
+            "enabled": true,
+            "credentials": [
+                {
+                    "type": "password",
+                    "value": "Password123!",
+                    "temporary": false
+                }
+            ],
+            "realmRoles": [
+                "aiops-admin"
+            ]
+        }
+    ]
+}

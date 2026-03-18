@@ -1,0 +1,48 @@
+# =====================================================================
+# FreeRADIUS 3.2 + LDAP authentication
+# =====================================================================
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install FreeRADIUS + LDAP support
+RUN apt-get update && apt-get install -y \
+    freeradius \
+    freeradius-utils \
+    freeradius-ldap \
+    ldap-utils \
+    libldap-2.5-0 \
+    libcurl4 \
+    libjansson4 \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy configuration
+COPY freeradius/config/radiusd.conf /etc/freeradius/3.0/radiusd.conf
+COPY freeradius/config/clients.conf /etc/freeradius/3.0/clients.conf
+COPY freeradius/config/sites-enabled/default /etc/freeradius/3.0/sites-enabled/default
+COPY freeradius/config/sites-enabled/inner-tunnel /etc/freeradius/3.0/sites-enabled/inner-tunnel
+COPY freeradius/config/mods-available/ldap /etc/freeradius/3.0/mods-available/ldap
+
+# Ensure logs and run directories exist
+RUN mkdir -p /var/log/freeradius /var/run/freeradius \
+    && chown -R freerad:freerad /var/log/freeradius /var/run/freeradius
+
+# Enable LDAP module
+RUN ln -sf /etc/freeradius/3.0/mods-available/ldap /etc/freeradius/3.0/mods-enabled/ldap
+
+RUN ln -sf /etc/freeradius/3.0/mods-available/pap /etc/freeradius/3.0/mods-enabled/pap
+
+RUN ln -s /etc/freeradius/3.0/mods-available/ad /etc/freeradius/3.0/mods-enabled/ad
+
+# Optionally remove REST/OAuth2 if not needed anymore
+RUN rm -f /etc/freeradius/3.0/mods-enabled/rest
+
+# Optional: disable EAP/MSCHAP if not needed
+RUN rm -f /etc/freeradius/3.0/mods-enabled/mschap \
+    && rm -f /etc/freeradius/3.0/mods-enabled/eap \
+    && rm -f /etc/freeradius/3.0/mods-enabled/ntlm_auth
+
+EXPOSE 1812/udp 1813/udp
+
+CMD ["freeradius", "-X"]

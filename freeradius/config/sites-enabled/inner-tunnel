@@ -1,0 +1,21 @@
+server inner-tunnel {
+    authorize {
+        update control {
+            Cleartext-Password := &User-Password
+        }
+        
+        ldap
+        
+        if (ok || updated) {
+            update control {
+                Auth-Type := LDAP
+            }
+        }
+    }
+
+    authenticate {
+        Auth-Type LDAP {
+            ldap
+        }
+    }
+}

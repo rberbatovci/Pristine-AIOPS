@@ -1,21 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import '../css/Devices.css';
 import AddNew from '../components/devices/AddNew';
+import Nmap from '../components/devices/Nmap';
 import List from '../components/devices/List';
 import InterfaceStatistics from '../components/devices/InterfaceStatistics';
-import RibTable from '../components/devices/RibTable';
-import FibEntry from '../components/devices/FibEntry';
-import BgpConnections from '../components/devices/BgpConnections';
-import IsisStats from '../components/devices/IsisStats';
-import OspfStats from '../components/devices/OspfStats';
-import LldpEntries from '../components/devices/LldpEntries';
 import SystemUtilization from '../components/devices/SystemUtilization';
 import Info from '../components/devices/Info';
-import { MdDeleteForever, MdOutlineDeleteForever } from "react-icons/md";
-import apiClient from '../components/misc/AxiosConfig';
+import { RiSearchEyeLine, RiSearchEyeFill } from "react-icons/ri";
+import kcFetch from '../components/misc/kcFetch';
 import { RiAddCircleLine, RiAddCircleFill } from "react-icons/ri";
 
-function Devices({ currentUser, setDashboardTitle, showNotification }) {
+function Devices({ currentUser, setDashboardTitle, showNotification, keycloak }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [devices, setDevices] = useState([]);
@@ -38,13 +33,11 @@ function Devices({ currentUser, setDashboardTitle, showNotification }) {
 
     const fetchDevices = async () => {
         try {
-            const response = await apiClient.get('/devices/');
-            const devices = response.data.map((device) => ({
+            const response = await kcFetch(keycloak, `/devices/`);
+            const devices = response.map(device => ({
                 id: device.id,
                 hostname: device.hostname,
                 ip_address: device.ip_address,
-                version: device.version,
-                vendor: device.vendor,
                 label: device.hostname,
             }));
             setDevices(devices);
@@ -64,11 +57,12 @@ function Devices({ currentUser, setDashboardTitle, showNotification }) {
     const handleDeviceSelect = async (device) => {
         console.log('Selected device:', device);
         try {
-            const response = await apiClient.get(`/devices/${device.hostname}/`);
-            setSelectedDevice(response.data);
+            const data = await kcFetch(keycloak, `/devices/${device.hostname}`);
+            setSelectedDevice(data);
             setShowComponents(true);
         } catch (error) {
             console.error('Error fetching device details:', error);
+            showNotification("Failed to fetch device details", "error");
         }
     };
 
@@ -133,76 +127,42 @@ function Devices({ currentUser, setDashboardTitle, showNotification }) {
 
     return (
         <div className="signals-container" style={{ display: 'flex', width: showComponents ? '80%' : '40%', transition: 'width 1s ease' }}>
-            <div
-                style={{
-                    width: showComponents ? '40%' : '100%',
-                    transition: 'width 1s ease-in-out, opacity 1s ease-in-out',
-                    overflow: 'hidden',
-                    height: '100vh',
-                }}
-            >
-
-                {/* Buttons and dropdown */}
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <div></div>
-                    <div style={{ right: '10px', paddingRight: '10px', paddingTop: '10px', display: 'flex', alignItems: 'center' }}>
-                        <button
-                            className={`iconButton ${activeDropdown === 'addNew' ? 'active' : ''}`}
-                            onClick={() => toggleDropdown('addNew')}
-                        >
+            <div style={{ width: showComponents ? '40%' : '100%', transition: 'width 1s ease-in-out, opacity 1s ease-in-out', overflow: 'hidden', height: 'calc(100vh - 60px)' }} >
+                <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <button className={`iconButton ${activeDropdown === 'scan' ? 'active' : ''}`} onClick={() => toggleDropdown('scan')}>
+                            <RiSearchEyeLine className="defaultIcon" />
+                            <RiSearchEyeFill className="hoverIcon" />
+                        </button>
+                        <button className={`iconButton ${activeDropdown === 'addNew' ? 'active' : ''}`} onClick={() => toggleDropdown('addNew')}>
                             <RiAddCircleLine className="defaultIcon" />
                             <RiAddCircleFill className="hoverIcon" />
                         </button>
                     </div>
                 </div>
                 {activeDropdown === 'addNew' && (
-                    <div ref={dropdownRef} className="dropdownMenu dropdownVisible" style={{ width: '370px', height: '410px' }}>
-                        <AddNew onDeviceAdded={handleNewDevice} />
+                    <div ref={dropdownRef} className="dropdownMenu dropdownVisible" style={{ width: '370px', height: '260px' }}>
+                        <AddNew onDeviceAdded={handleNewDevice} keycloak={keycloak} />
                     </div>
                 )}
 
-                <div style={{
-                    margin: '10px',
-                    background: 'var(--backgroundColor3)',
-                    padding: '10px',
-                    borderRadius: '10px',
-                    height: 'calc(100vh - 185px)',
-                    overflowY: 'auto',
-                }}>
+                {activeDropdown === 'scan' && (
+                    <div ref={dropdownRef} className="dropdownMenu dropdownVisible" style={{ width: '370px', height: '170px' }}>
+                        <Nmap onDeviceAdded={handleNewDevice} keycloak={keycloak} />
+                    </div>
+                )}
+                <div style={{ margin: '10px', background: 'var(--backgroundColor3)', padding: '10px', borderRadius: '10px', height: 'calc(100vh - 170px)', overflowY: 'auto' }}>
                     <List devices={devices} onDeviceSelect={handleDeviceSelect} />
                 </div>
             </div>
-            <div
-                className="right-column"
-                style={{
-                    width: showComponents ? '60%' : '0',
-                    transition: 'width 1s ease-in-out',
-                    overflow: 'auto',
-                }}
-            >
+            <div className="right-column" style={{ width: showComponents ? '60%' : '0', transition: 'width 1s ease-in-out', overflow: 'auto' }}>
                 <div className="right-content-wrapper">
-                    <div className="right-content" style={{transition: 'transition 1s ease-in-out'}}>
-                        {showComponents && selectedDevice && (
-                            <>
-                                <Info
-                                    currentUser={currentUser}
-                                    selectedDevice={selectedDevice}
-                                    onDeviceDeselect={handleDeviceDeselect}
-                                    onConfigClick={handleConfigClick}
-                                    onDeviceDelete={handleDeviceDelete}
-                                    showNotification={showNotification} 
-                                />
-                                <SystemUtilization selectedDevice={selectedDevice} onSuccess={fetchDevices} showNotification={showNotification}/>
-                                <InterfaceStatistics selectedDevice={selectedDevice} onSuccess={fetchDevices} showNotification={showNotification}/>
-                                <RibTable selectedDevice={selectedDevice} onSuccess={fetchDevices} showNotification={showNotification}/>
-                                <LldpEntries selectedDevice={selectedDevice} onSuccess={fetchDevices} showNotification={showNotification}/>
-                                <OspfStats selectedDevice={selectedDevice} onSuccess={fetchDevices} showNotification={showNotification}/>
-                                <FibEntry selectedDevice={selectedDevice} onSuccess={fetchDevices} showNotification={showNotification}/>
-                                <IsisStats selectedDevice={selectedDevice} onSuccess={fetchDevices} showNotification={showNotification}/>
-                                <BgpConnections selectedDevice={selectedDevice} onSuccess={fetchDevices} showNotification={showNotification}/>                               
-                            </>
+                    <div className="right-content" style={{ transition: 'width 1s ease-in-out' }}>
+                        {showComponents && selectedDevice && (<>
+                            <Info currentUser={currentUser} selectedDevice={selectedDevice} onDeviceDeselect={handleDeviceDeselect} onConfigClick={handleConfigClick} onDeviceDelete={handleDeviceDelete} showNotification={showNotification} keycloak={keycloak} />
+                            <SystemUtilization keycloak={keycloak} selectedDevice={selectedDevice} onSuccess={fetchDevices} showNotification={showNotification} />
+                            <InterfaceStatistics keycloak={keycloak} selectedDevice={selectedDevice} onSuccess={fetchDevices} showNotification={showNotification} /> </>
                         )}
-
                     </div>
                 </div>
             </div>

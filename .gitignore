@@ -7,3 +7,6 @@ venv
 yang
 topology/gobgp
 topology/gobgp
+data/
+*.aof
+*.rdb

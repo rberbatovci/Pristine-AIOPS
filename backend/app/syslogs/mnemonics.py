@@ -15,8 +15,12 @@ from pydantic import BaseModel
 from .rules import StatefulSyslogRuleBase
 from app.syslogs.events import Syslog
 from app.syslogs.regex import RegEx, RegExBrief  
+from app.auth.keycloak import get_current_user, require_admin
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/api/syslogs/mnemonics",
+    tags=["syslogs,mnemonics"],
+)
 
 # ======================
 # SQLAlchemy Model
@@ -80,38 +84,61 @@ class MnemonicBase(BaseModel):
 # Routes
 # ======================
 
-@router.get("/syslogs/mnemonics/", response_model=list[MnemonicBrief])
-async def read_mnemonics_light(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
+@router.get("/", response_model=list[MnemonicBrief])
+async def read_mnemonics(
+    skip: int = 0,
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    require_admin(user)
+
     result = await db.execute(
-        select(Mnemonic.id, Mnemonic.name).offset(skip).limit(limit)
+        select(Mnemonic.id, Mnemonic.name)
+        .offset(skip)
+        .limit(limit)
     )
-    mnemonics = result.all() 
+    mnemonics = result.all()
 
     return [MnemonicBrief(id=m[0], name=m[1]) for m in mnemonics]
 
+@router.get("/{mnemonic_name}/", response_model=MnemonicBase)
+async def read_mnemonic_by_name(
+    mnemonic_name: str,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    require_admin(user)
 
-@router.get("/syslogs/mnemonics/{mnemonic_name}/", response_model=MnemonicBase)
-async def read_mnemonic_by_name(mnemonic_name: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(Mnemonic)
         .where(Mnemonic.name == mnemonic_name)
         .options(selectinload(Mnemonic.regexes))
     )
     db_mnemonic = result.scalars().first()
+
     if not db_mnemonic:
         raise HTTPException(status_code=404, detail="Mnemonic not found")
-    
+
     return MnemonicBase.from_orm(db_mnemonic)
 
 
-@router.put("/syslogs/update/mnemonics/{mnemonic_name}", response_model=MnemonicBase)
-async def update_mnemonic_by_name(mnemonic_name: str, mnemonic_update: MnemonicBase, db: AsyncSession = Depends(get_db)):
+@router.put("/{mnemonic_name}", response_model=MnemonicBase)
+async def update_mnemonic_by_name(
+    mnemonic_name: str,
+    mnemonic_update: MnemonicBase,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    require_admin(user)
+
     result = await db.execute(
         select(Mnemonic)
         .where(Mnemonic.name == mnemonic_name)
         .options(selectinload(Mnemonic.regexes))
     )
     db_mnemonic = result.scalars().first()
+
     if db_mnemonic is None:
         raise HTTPException(status_code=404, detail="Mnemonic not found")
 
@@ -121,6 +148,7 @@ async def update_mnemonic_by_name(mnemonic_name: str, mnemonic_update: MnemonicB
             select(RegEx).where(RegEx.name.in_(mnemonic_update.regexes))
         )
         regexes = result_regex.scalars().all()
+
         db_mnemonic.regexes.clear()
         db_mnemonic.regexes.extend(regexes)
 

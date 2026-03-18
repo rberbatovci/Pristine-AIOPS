@@ -1,18 +1,39 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import './index.css';
-import App from './App';
-import reportWebVitals from './reportWebVitals';
-import 'rsuite/dist/rsuite.min.css';
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App";
+import keycloak from "./components/misc/Keycloak";
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(
-  //<React.StrictMode>
-    <App />
-  //</React.StrictMode>
-);
+const root = ReactDOM.createRoot(document.getElementById("root"));
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-reportWebVitals();
+async function initApp() {
+  try {
+    const authenticated = await keycloak.init({
+      onLoad: "login-required",
+      pkceMethod: "S256",
+      silentCheckSsoRedirectUri: window.location.origin + "/silent-check-sso.html",
+      checkLoginIframe: false,
+    });
+
+    // If not logged in silently → force real login
+    if (!authenticated) {
+      keycloak.login();
+      return;
+    }
+
+    // Tokens now include preferred_username
+    localStorage.setItem("accessToken", keycloak.token);
+    localStorage.setItem("refreshToken", keycloak.refreshToken);
+
+    setInterval(() => {
+      keycloak
+        .updateToken(30)
+        .catch(() => console.warn("Token refresh failed"));
+    }, 10000);
+
+    root.render(<App keycloak={keycloak} />);
+  } catch (err) {
+    console.error("Keycloak init error:", err);
+  }
+}
+
+initApp();

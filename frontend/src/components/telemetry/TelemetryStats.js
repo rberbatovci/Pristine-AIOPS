@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Select from 'react-select';
-import apiClient from '../misc/AxiosConfig';
 import '../../css/SearchSyslogs.css';
 import customStyles from '../misc/SelectStyles';
 

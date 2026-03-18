@@ -1,28 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import Select from 'react-select';
-import apiClient from '../misc/AxiosConfig';
 import customStyles from '../misc/SelectStyles';
 import { TailSpin } from 'react-loader-spinner';
+import kcFetch from '../misc/kcFetch';
 
-const vendorOptions = [
-  { value: 'cisco', label: 'Cisco' },
-  { value: 'juniper', label: 'Juniper' },
-  { value: 'arista', label: 'Arista' },
-  // Add more as needed
-];
-
-const versionOptions = [
-  { value: 'ios-xe', label: 'IOS XE' },
-  { value: 'ios-xr', label: 'IOS XR' },
-  { value: 'junos', label: 'JUNOS' },
-  // Add more as needed
-];
-
-function AddNewDevice({ onDeviceAdded }) {
+function AddNewDevice({ onDeviceAdded, keycloak }) {
   const [ipAddress, setIpAddress] = useState('');
   const [hostname, setHostname] = useState('');
-  const [vendor, setVendor] = useState(null);
-  const [version, setVersion] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, SetLoading] = useState(false);
@@ -30,24 +14,18 @@ function AddNewDevice({ onDeviceAdded }) {
   const handleClear = () => {
     setIpAddress('');
     setHostname('');
-    setVendor(null);
-    setVersion(null);
     setError('');
     setSuccess(false);
   };
-
-  useEffect(() => {
-    setVendor(vendorOptions.find(option => option.value === 'cisco'));
-    setVersion(versionOptions.find(option => option.value === 'ios-xe'));
-  }, []);
 
   const handleSubmit = async () => {
     SetLoading(true);
     setError('');
     setSuccess(false);
 
-    if (!ipAddress || !hostname || !vendor) {
+    if (!ipAddress || !hostname ) {
       setError('Please fill in all required fields.');
+      SetLoading(false); // important to stop loading
       return;
     }
 
@@ -55,19 +33,19 @@ function AddNewDevice({ onDeviceAdded }) {
       const payload = {
         ip_address: ipAddress,
         hostname: hostname,
-        vendor: vendor.value,
-        version: version?.value || null,
       };
 
-      const res = await apiClient.post('/devices/', payload);
+      const res = await kcFetch(keycloak, "/devices/", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
 
       setSuccess(true);
-      if (onDeviceAdded) {
-        onDeviceAdded(res.data);
-      }
+      if (onDeviceAdded) onDeviceAdded(res);
 
-      handleClear(); // Optionally clear form after submit
+      handleClear();
     } catch (err) {
+      console.error(err);
       setError('Failed to add device. Make sure the hostname is unique.');
     } finally {
       SetLoading(false);
@@ -103,33 +81,6 @@ function AddNewDevice({ onDeviceAdded }) {
             />
           </div>
         </div>
-
-        <div className="searchSyslogsFilterEntry">
-          <span className="searchSignalFilterText">Agent vendor:</span>
-          <div style={{ marginTop: '6px' }}>
-            <Select
-              placeholder="Vendor"
-              options={vendorOptions}
-              value={vendor}
-              onChange={setVendor}
-              styles={customStyles('325px')}
-              isDisabled={true}
-            />
-          </div>
-        </div>
-
-        <div className="searchSyslogsFilterEntry">
-          <span className="searchSignalFilterText">Agent version:</span>
-          <div style={{ marginTop: '6px' }}>
-            <Select
-              placeholder="Version"
-              options={versionOptions}
-              value={version}
-              onChange={setVersion}
-              styles={customStyles('325px')}
-            />
-          </div>
-        </div>
       </div>
 
       <div className="searchButtonContainer">
@@ -142,7 +93,7 @@ function AddNewDevice({ onDeviceAdded }) {
               ? 'green'
               : error
                 ? 'red'
-                : '', // default color from CSS class
+                : '',
           }}
         >
           {loading ? (

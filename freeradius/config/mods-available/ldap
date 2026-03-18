@@ -1,0 +1,29 @@
+ldap ldap {
+    server = "ldaps://WinServer01.pristine-aiops.local"   # <- important
+    identity = "svc_freeradius@pristine-aiops.local"
+    password = "Testing123!"
+    base_dn = "DC=pristine-aiops,DC=local"
+
+    user {
+        base_dn = "DC=pristine-aiops,DC=local"
+        filter = "(sAMAccountName=%{%{Stripped-User-Name}:-%{User-Name}})"
+    }
+
+    group {
+        base_dn = "DC=pristine-aiops,DC=local"
+        filter = "(member=%{control:Ldap-UserDn})"
+        name_attribute = cn
+        membership_attribute = member
+    }
+
+    tls {
+        start_tls = no                 # LDAPS uses direct TLS
+        ca_file = "/etc/ssl/certs/win-server01.pristine-aiops.local.pem"
+        check_cert = yes
+        require_cert = "demand"
+    }
+
+    timeout = 10
+    timelimit = 3
+    net_timeout = 3
+}

@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import apiClient from '../misc/AxiosConfig';
+import kcFetch from '../misc/kcFetch';
 import { RadialBarChart, PolarAngleAxis, RadialBar, Cell, Tooltip as RechartsTooltip } from 'recharts';
 import { IoPushOutline, IoPushSharp, IoRefreshCircleSharp, IoRefreshCircleOutline } from "react-icons/io5";
 
-function MemoryStatistics({ selectedDevice, onSuccess }) {
+function MemoryStatistics({ keycloak, selectedDevice, onSuccess }) {
   const [device, setDevice] = useState(selectedDevice);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -15,53 +15,27 @@ function MemoryStatistics({ selectedDevice, onSuccess }) {
     { name: 'Free', value: 0, fill: '#00C49F', opacity: 0.8 },
   ]);
 
-  // ✅ Sync state when selectedDevice changes
   useEffect(() => {
     setDevice(selectedDevice);
   }, [selectedDevice]);
 
-  const sendConfig = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const response = await apiClient.post(`/devices/${device.hostname}/config/syslogs/`, {});
-      setDevice(prev => ({
-        ...prev,
-        features: { ...prev.features, syslogs: true },
-      }));
-      if (onSuccess) onSuccess(response.data);
-    } catch (err) {
-      setError(err.response?.data?.detail || err.message || 'Unknown error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 🔹 Fetch last memory stats from Redis
   const getLastMemoryStatus = async () => {
     setMemoryLoading(true);
     setError('');
     try {
-      const response = await apiClient.get(
-        `/devices/${device.hostname}/status/last/memory-stats/`
+      const response = await kcFetch(keycloak,
+        `/devices/status/${device.hostname}/memory-stats/`
       );
-
-      const data = response.data || {};
-
-      if (!data.error && Object.keys(data).length > 0) {
-
+      if (!response.error && Object.keys(response).length > 0) {
         const newData = [
-          { name: 'Processor', value: data["Processor"], fill: 'green', opacity: 1 },
-          { name: 'Reserve Processor', value: data["reserve Processor"], fill: 'green', opacity: 0.9 },
-          { name: 'lsmpi_io', value: data["lsmpi_io"], fill: 'green', opacity: 0.8 },
+          { name: 'Processor', value: response["Processor"], fill: 'green', opacity: 1 },
+          { name: 'Reserve Processor', value: response["reserve Processor"], fill: 'green', opacity: 0.9 },
+          { name: 'lsmpi_io', value: response["lsmpi_io"], fill: 'green', opacity: 0.8 },
         ];
-
         setMemoryChartData(newData);
-
-        // ✅ Prefer backend timestamp (msg_timestamp) if available
-        if (data.msg_timestamp) {
+        if (response.msg_timestamp) {
           setMemoryTimestamp(
-            new Date(data.msg_timestamp).toISOString()  // <-- already ms, no need /1000
+            new Date(response.msg_timestamp).toISOString() 
           );
         } else {
           setMemoryTimestamp(null);
@@ -69,22 +43,21 @@ function MemoryStatistics({ selectedDevice, onSuccess }) {
 
         setShouldSpin(false);
       } else {
-        setError(data.error || "No memory data available");
+        setError(response.error || "No memory data available");
       }
     } catch (err) {
-      setError(err.response?.data?.detail || err.message || 'Unknown error');
+      setError(err.response?.response?.detail || err.message || 'Unknown error');
     } finally {
       setMemoryLoading(false);
     }
   };
 
-  // 🔹 Fetch live memory stats via RESTCONF
   const getLiveMemoryStatus = async () => {
     setMemoryLoading(true);
     setError('');
     try {
-      const response = await apiClient.get(`/devices/${device.hostname}/status/live/memory/`);
-      const stats = response.data.memory?.["Cisco-IOS-XE-memory-oper:memory-statistic"] || [];
+      const response = await kcFetch(keycloak, `/devices/${device.hostname}/status/live/memory/`);
+      const stats = response.memory?.["Cisco-IOS-XE-memory-oper:memory-statistic"] || [];
       const procMem = stats.find(m => m.name === "Processor");
 
       if (procMem) {
@@ -97,11 +70,11 @@ function MemoryStatistics({ selectedDevice, onSuccess }) {
           { name: 'Free', value: free, fill: '#00C49F', opacity: 0.8 },
         ]);
 
-        setMemoryTimestamp(new Date().toISOString()); // live data = now
+        setMemoryTimestamp(new Date().toISOString());
         setShouldSpin(false);
       }
     } catch (err) {
-      setError(err.response?.data?.detail || err.message || 'Unknown error');
+      setError(err.response?.detail || err.message || 'Unknown error');
     } finally {
       setMemoryLoading(false);
     }

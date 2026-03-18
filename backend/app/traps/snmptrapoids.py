@@ -3,7 +3,7 @@ from sqlalchemy import Column, Integer, String, Boolean
 from sqlalchemy.orm import relationship, selectinload
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Body, Query, Request         
 from typing import Optional, List, Dict, Any
 import redis
 import psycopg2
@@ -12,9 +12,13 @@ from psycopg2.extras import RealDictCursor
 from app.traps.services import trap_oid_tags, trap_rules_association
 from app.traps.tags import OIDTag
 from datetime import datetime
+from app.auth.keycloak import get_current_user, require_admin
 
 # Router instance
-router = APIRouter()
+router = APIRouter(
+    prefix="/api/traps/trapOids",
+    tags=["traps,trapOids"],
+)
 
 # ======================
 # SQLAlchemy Model
@@ -112,8 +116,8 @@ def sync_snmp_trap_oids_to_redis():
 # ======================
 # Routes
 # ======================
-@router.post("/snmptraps/snmpTrapOids/syncToRedis/")
-def sync_snmpTrapOids():
+@router.post("/syncToRedis")
+def sync_snmpTrapOids(user: dict = Depends(get_current_user)):
     try:
         sync_snmp_trap_oids_to_redis()
         return {"message": "SNMP Trap OIDs synchronized successfully to Redis"}
@@ -122,8 +126,8 @@ def sync_snmpTrapOids():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/traps/trapOids/", response_model=list[TrapOidBrief])
-async def read_snmpTrapOids(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
+@router.get("/", response_model=list[TrapOidBrief])
+async def read_snmpTrapOids(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
     result = await db.execute(
         select(TrapOid)
         .options(selectinload(TrapOid.tags))
@@ -134,8 +138,8 @@ async def read_snmpTrapOids(skip: int = 0, limit: int = 100, db: AsyncSession = 
     
     return snmpTrapOids
 
-@router.get("/traps/trapOids/{trap_oid_name}", response_model=dict)
-async def get_trap_oid_by_name(trap_oid_name: str, db: AsyncSession = Depends(get_db)):
+@router.get("/{trap_oid_name}", response_model=dict)
+async def get_trap_oid_by_name(trap_oid_name: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
     result = await db.execute(
         select(TrapOid)
         .options(
@@ -156,11 +160,12 @@ async def get_trap_oid_by_name(trap_oid_name: str, db: AsyncSession = Depends(ge
         "tags": [tag.name for tag in trap_oid.tags],
     }
 
-@router.patch("/traps/trapOids/{trap_oid_name}", response_model=TrapOidBrief)
+@router.patch("/{trap_oid_name}", response_model=TrapOidBrief)
 async def update_trap_oid_by_name(
     trap_oid_name: str,
     trap_oid_update: TrapOidUpdate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user)  
 ):
     result = await db.execute(
         select(TrapOid)

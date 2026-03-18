@@ -1,51 +1,26 @@
 from typing import List
-from fastapi import APIRouter, status, HTTPException, Query
+from fastapi import APIRouter, status, HTTPException, Query, Depends
 from app.db.session import opensearch_client
+from app.auth.keycloak import get_current_user, require_admin
 
 # Router instance
-router = APIRouter()
+router = APIRouter(
+    prefix="/api/traps/statistics",
+    tags=["traps,statistics"],
+)
+
+signalsRouter = APIRouter(
+    prefix="/api/signals/traps/statistics",
+    tags=["traps,signals,statistics"],
+)
 
 TOP_LEVEL_FIELDS = [ "snmpTrapOid", "device"]
 
 # ======================
 # SQLAlchemy Model
 # ======================
-def get_unique_terms(index: str, field: str, size: int = 1000) -> List[str]:
-    try:
-        response = opensearch_client.search(
-            index=index,
-            size=0,
-            body={
-                "aggs": {
-                    "unique_terms": {
-                        "terms": {
-                            "field": field,
-                            "size": size
-                        }
-                    }
-                }
-            }
-        )
-        buckets = response["aggregations"]["unique_terms"]["buckets"]
-        return [bucket["key"] for bucket in buckets]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting terms: {str(e)}")
-
-@router.get("/traps/tags/unique-values", response_model=List[str])
-def get_dynamic_unique_values(field: str = Query(..., description="Field to aggregate")):
-    # Determine actual field path for aggregation
-    if field in TOP_LEVEL_FIELDS:
-        field_path = field
-    else:
-        field_path = f"content.{field}"
-
-    try:
-        return get_unique_terms(index="traps", field=field_path)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/traps/tags/statistics/{tag_key}")
-def get_tag_statistics(tag_key: str):
+@router.get("/{tag_key}")
+def get_tag_statistics(tag_key: str, user: dict = Depends(get_current_user)):
     query = {
         "size": 0,
         "aggs": {
@@ -65,8 +40,8 @@ def get_tag_statistics(tag_key: str):
     ]
     return {"tag_key": tag_key, "statistics": stats}
 
-@router.get("/signals/traps/devices/statistics")
-def get_device_statistics():
+@signalsRouter.get("/devices")
+def get_device_statistics(user: dict = Depends(get_current_user)):
     query = {
         "size": 0,
         "aggs": {
@@ -87,10 +62,8 @@ def get_device_statistics():
         ]
     }
 
-
-
-@router.get("/signals/traps/snmpTrapOid/statistics")
-def get_snmp_oid_statistics():
+@signalsRouter.get("/snmpTrapOid")
+def get_snmp_oid_statistics(user: dict = Depends(get_current_user)):
     query = {
         "size": 0,
         "aggs": {
@@ -112,8 +85,8 @@ def get_snmp_oid_statistics():
     }
 
 
-@router.get("/signals/traps/rules/statistics")
-def get_rule_statistics():
+@signalsRouter.get("/rules")
+def get_rule_statistics(user: dict = Depends(get_current_user)):
     query = {
         "size": 0,
         "aggs": {
@@ -135,8 +108,8 @@ def get_rule_statistics():
     }
 
 
-@router.get("/signals/traps/status/statistics")
-def get_trap_status_statistics():
+@signalsRouter.get("/status")
+def get_trap_status_statistics(user: dict = Depends(get_current_user)):
     query = {
         "size": 0,
         "aggs": {
@@ -157,8 +130,8 @@ def get_trap_status_statistics():
         ]
     }
 
-@router.get("/signals/traps/severity/statistics")
-def get_trap_severity_statistics():
+@signalsRouter.get("/severity")
+def get_trap_severity_statistics(user: dict = Depends(get_current_user)):
     query = {
         "size": 0,
         "aggs": {
@@ -180,8 +153,8 @@ def get_trap_severity_statistics():
     }
 
 
-@router.get("/signals/traps/affected-entities/statistics/{entity_key}")
-def get_affected_entity_statistics(entity_key: str):
+@signalsRouter.get("/affected-entities/{entity_key}")
+def get_affected_entity_statistics(entity_key: str, user: dict = Depends(get_current_user)):
     index_name = "trap-signals"
     field_path = f"affectedEntities.{entity_key}"
 

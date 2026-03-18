@@ -1,203 +1,141 @@
-import React, { useState, useEffect } from 'react';
-import apiClient from '../../misc/AxiosConfig';
-import customStyles from '../../misc/SelectStyles';
-import Select from 'react-select';
-import './SignalConfigElement.css';
+import React, { useState, useEffect } from "react";
+import Select from "react-select";
+import customStyles from "../../misc/SelectStyles";
+import "./SignalConfigElement.css";
 
-const SyslogMnemonicUpdater = ({ mnemonics }) => {
-    const [selectedMnemonic, setSelectedMnemonic] = useState(null);
-    const [description, setDescription] = useState('');
-    const [createSignal, setCreateSignal] = useState(false);
-    const [muteSignal, setMuteSignal] = useState(false);
-    const [warmUp, setWarmUp] = useState('');
-    const [coolDown, setCoolDown] = useState('');
-    const [tags, setTags] = useState([]);
-    const [selectedTags, setSelectedTags] = useState([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const [syslogMnemonicName, setSyslogMnemonicName] = useState([]);
+import { useMnemonics } from "../../../hooks/useMnemonics";
+import { useSyslogTags } from "../../../hooks/useSyslogTags";
+import { useMnemonicDetails } from "../../../hooks/useMnemonicDetails";
 
-    const fetchTagNames = async () => {
-        try {
-            const response = await apiClient.get('/syslogs/tagnames/');
-            const formattedTagNames = response.data.tagNames.map((tagName) => ({
-                value: tagName,
-                label: tagName,
-            }));
-            setTags(formattedTagNames);
-        } catch (error) {
-            console.error('Error fetching tag names:', error);
-        }
-    };
+const SyslogMnemonicUpdater = ({ keycloak }) => {
+  const { mnemonics, loading: mnemonicsLoading } = useMnemonics(keycloak);
+  const { tags } = useSyslogTags(keycloak, false);
+  const {
+    details,
+    loading: detailsLoading,
+    loadMnemonic,
+    updateMnemonic
+  } = useMnemonicDetails(keycloak);
 
-    const fetchMnemonicDetails = async (id) => {
-        try {
-            const response = await apiClient.get(`/syslogsignals/mnemonics/${id}/`);
-            const { name, description, create_signal, warm_up, cool_down } = response.data;
-            setSyslogMnemonicName(name);
-            setDescription(description || '');
-            setCreateSignal(create_signal || false);
-            setWarmUp(warm_up !== null ? warm_up.toString() : '');
-            setCoolDown(cool_down !== null ? cool_down.toString() : '');
-        } catch (error) {
-            console.error('Error fetching mnemonic details:', error);
-        }
-    };
+  const [selectedMnemonic, setSelectedMnemonic] = useState(null);
+  const [description, setDescription] = useState("");
+  const [createSignal, setCreateSignal] = useState(false);
+  const [muteSignal, setMuteSignal] = useState(false);
+  const [warmUp, setWarmUp] = useState("");
+  const [coolDown, setCoolDown] = useState("");
+  const [selectedTags, setSelectedTags] = useState([]);
 
-    const handleMnemonicClick = (mnemonic) => {
-        setSelectedMnemonic(mnemonic);
-        fetchMnemonicDetails(mnemonic.id);
-    };
+  /** Load mnemonic details into form */
+  useEffect(() => {
+    if (!details) return;
 
-    const handleSubmit = async () => {
-        if (!selectedMnemonic) {
-            console.log('Please select a mnemonic.');
-            return;
-        }
-
-        try {
-            await apiClient.patch(`/syslogsignals/mnemonic/${selectedMnemonic.id}/`, {
-                description,
-                create_signal: createSignal,
-                warm_up: warmUp ? parseInt(warmUp, 10) : null,
-                cool_down: coolDown ? parseInt(coolDown, 10) : null,
-                tags: selectedTags.map(tag => tag.value), // Send selected tags as values
-            });
-            console.log('Mnemonic updated successfully!');
-        } catch (error) {
-            console.error('Error updating mnemonic:', error);
-        }
-    };
-
-    return (
-        <div className="signalConfigRuleContainer">
-            {isLoading ? (
-                <div className="signalConfigRuleMessage">Loading mnemonics. Please wait......</div>
-            ) : error ? (
-                <div className="signalConfigRuleMessage">{error}</div>
-            ) : (
-                <>
-                    <div className="signalConfigRuleContent">
-                        <div className="signalConfigRulesList" style={{height: '320px', width: '300px'}}>
-                            <ul>
-                                {mnemonics.map((mnemonic) => (
-                                    <li
-                                        key={mnemonic.id}
-                                        className={`button ${selectedMnemonic && selectedMnemonic.id === mnemonic.id ? 'button-active' : ''}`}
-                                        onClick={() => handleMnemonicClick(mnemonic)}
-                                    >
-                                        {mnemonic.name}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                        <div style={{ width: '75%', margin: '10px' }}>
-                            <div style={{ marginTop: '10px' }}>
-                                <div style={{ marginBottom: '20px' }}>
-                                    Syslog Mnemonic: <strong>{syslogMnemonicName}</strong>
-                                </div>
-                                <div style={{ display: 'flex', width: '340px', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                                        <input
-                                            type="checkbox"
-                                            checked={createSignal}
-                                            onChange={(e) => setCreateSignal(e.target.checked)}
-                                            style={{ marginRight: '5px' }}
-                                        />
-                                        <span>Create Signal</span>
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                                        <input
-                                            type="checkbox"
-                                            checked={muteSignal}
-                                            onChange={(e) => setMuteSignal(e.target.checked)}
-                                            style={{ marginRight: '5px' }}
-                                        />
-                                        <span>Mute Signal</span>
-                                    </div>
-                                </div>
-                                <div style={{ marginBottom: '10px' }}>
-                                    <span>Affected Entities:</span>
-                                    <Select
-                                        name="affectedEntities"
-                                        isMulti
-                                        styles={customStyles}
-                                        options={tags}
-                                        onMenuOpen={fetchTagNames} // Load tags when Select is clicked
-                                        value={selectedTags}
-                                        onChange={(selectedOptions) => setSelectedTags(selectedOptions)}
-                                    />
-                                </div>
-                                <div style={{ display: 'flex' }}>
-                                    <div style={{ marginBottom: '10px', width: '40%' }}>
-                                        <span>Warm Up (seconds):</span>
-                                        <input
-                                            type="number"
-                                            value={warmUp}
-                                            onChange={(e) => setWarmUp(e.target.value)}
-                                            placeholder="Enter warm-up time..."
-                                            style={{
-                                                width: '100%',
-                                                padding: '10px',
-                                                marginTop: '5px',
-                                                borderRadius: '5px',
-                                                border: '1px solid var(--borderColor)',
-                                                background: 'var(--buttonBackground)',
-                                            }}
-                                        />
-                                    </div>
-                                    <div style={{ paddingLeft: '40px', marginBottom: '10px', width: '40%' }}>
-                                        <span>Cool Down (seconds):</span>
-                                        <input
-                                            type="number"
-                                            value={coolDown}
-                                            onChange={(e) => setCoolDown(e.target.value)}
-                                            placeholder="Enter cool-down time..."
-                                            style={{
-                                                width: '100%',
-                                                padding: '10px',
-                                                marginTop: '5px',
-                                                borderRadius: '5px',
-                                                border: '1px solid var(--borderColor)',
-                                                background: 'var(--buttonBackground)',
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-                                <div style={{ marginBottom: '10px' }}>
-                                    <span>Description:</span>
-                                    <input
-                                        type="text"
-                                        value={description}
-                                        onChange={(e) => setDescription(e.target.value)}
-                                        placeholder="Enter description..."
-                                        style={{
-                                            width: '540px',
-                                            padding: '10px',
-                                            marginTop: '5px',
-                                            borderRadius: '5px',
-                                            border: '1px solid var(--borderColor)',
-                                            background: 'var(--buttonBackground)',
-                                        }}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </>
-            )}
-            {!isLoading && !error && (
-                <div className="signalConfigButtonContainer">
-                    <button
-                        onClick={handleSubmit}
-                        className="update-button"
-                    >
-                        Update Mnemonic
-                    </button>
-                </div>
-            )}
-        </div>
+    setDescription(details.description || "");
+    setCreateSignal(details.create_signal || false);
+    setWarmUp(details.warm_up !== null ? String(details.warm_up) : "");
+    setCoolDown(details.cool_down !== null ? String(details.cool_down) : "");
+    setSelectedTags(
+      (details.tags || []).map(tag => ({
+        value: tag,
+        label: tag
+      }))
     );
+  }, [details]);
+
+  const handleMnemonicClick = (mnemonic) => {
+    setSelectedMnemonic(mnemonic);
+    loadMnemonic(mnemonic.id);
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedMnemonic) return;
+
+    await updateMnemonic(selectedMnemonic.id, {
+      description,
+      create_signal: createSignal,
+      warm_up: warmUp ? parseInt(warmUp, 10) : null,
+      cool_down: coolDown ? parseInt(coolDown, 10) : null,
+      tags: selectedTags.map(t => t.value)
+    });
+  };
+
+  if (mnemonicsLoading || detailsLoading) {
+    return <div className="signalConfigRuleMessage">Loading…</div>;
+  }
+
+  return (
+    <div className="signalConfigRuleContainer">
+      <div className="signalConfigRuleContent">
+        <div className="signalConfigRulesList" style={{ height: 320 }}>
+          <ul>
+            {mnemonics.map(mnemonic => (
+              <li
+                key={mnemonic.id}
+                className={`button ${
+                  selectedMnemonic?.id === mnemonic.id
+                    ? "button-active"
+                    : ""
+                }`}
+                onClick={() => handleMnemonicClick(mnemonic)}
+              >
+                {mnemonic.name}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div style={{ width: "75%", margin: 10 }}>
+          <div style={{ marginBottom: 20 }}>
+            Syslog Mnemonic: <strong>{details?.name}</strong>
+          </div>
+
+          <label>
+            <input
+              type="checkbox"
+              checked={createSignal}
+              onChange={e => setCreateSignal(e.target.checked)}
+            />
+            Create Signal
+          </label>
+
+          <Select
+            isMulti
+            styles={customStyles}
+            options={tags}
+            value={selectedTags}
+            onMenuOpen={() => {}}
+            onChange={setSelectedTags}
+          />
+
+          <input
+            type="number"
+            value={warmUp}
+            onChange={e => setWarmUp(e.target.value)}
+            placeholder="Warm up (seconds)"
+          />
+
+          <input
+            type="number"
+            value={coolDown}
+            onChange={e => setCoolDown(e.target.value)}
+            placeholder="Cool down (seconds)"
+          />
+
+          <input
+            type="text"
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            placeholder="Description"
+          />
+        </div>
+      </div>
+
+      <div className="signalConfigButtonContainer">
+        <button onClick={handleSubmit} className="update-button">
+          Update Mnemonic
+        </button>
+      </div>
+    </div>
+  );
 };
 
 export default SyslogMnemonicUpdater;

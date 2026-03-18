@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import '../../css/SignalInfo.css';
-import apiClient from '../misc/AxiosConfig';
+import kcFetch from '../misc/kcFetch';
 import {
   LineChart,
   Line,
@@ -13,101 +13,137 @@ import {
 } from 'recharts';
 import moment from 'moment';
 
-const InterfaceOper = ({ currentUser, selectedDevice }) => {
+const InterfaceOper = ({ keycloak, currentUser, selectedDevice }) => {
+
   const [showData, setShowData] = useState(true);
   const [interfaceStatistics, setInterfaceStatistics] = useState([]);
   const [availableInterfaces, setAvailableInterfaces] = useState([]);
 
-  // Map status strings → numeric
   const statusMap = {
     'if-oper-state-ready': 1,
     'if-oper-state-no-pass': 0,
     '': null
   };
 
-  // Init state when device changes
+  // Handle device change
   useEffect(() => {
     if (!selectedDevice) {
       setShowData(false);
       setInterfaceStatistics([]);
+      setAvailableInterfaces([]);
     } else {
       setShowData(true);
     }
   }, [selectedDevice]);
 
-  // Fetch statistics
+  // Fetch interface statistics
   useEffect(() => {
+
     const fetchInterfaceStatistics = async () => {
-      if (!selectedDevice) return;
+
+      if (!selectedDevice || !keycloak?.authenticated) return;
 
       try {
-        const res = await apiClient.get(`/telemetry/interface-oper-status/`, {
-          params: { device: selectedDevice }
-        });
 
-        // Pivot long format → wide format for chart
+        const query = new URLSearchParams({
+          device: selectedDevice
+        }).toString();
+
+        const data = await kcFetch(
+          keycloak,
+          `/telemetry/interface-oper-status/?${query}`
+        );
+
         const grouped = {};
-        res.data.results.forEach(item => {
+
+        data.results.forEach(item => {
+
           const ts = moment(item.ingested_at).format('HH:mm:ss');
-          if (!grouped[ts]) grouped[ts] = { timestamp: ts };
+
+          if (!grouped[ts]) {
+            grouped[ts] = { timestamp: ts };
+          }
 
           grouped[ts][item.interface] = statusMap[item.status] ?? null;
+
         });
 
         const formatted = Object.values(grouped);
+
         setInterfaceStatistics(formatted);
 
         console.log('Interface statistics fetched:', formatted);
+
       } catch (err) {
+
         console.error('Error fetching interface statistics:', err);
         setInterfaceStatistics([]);
+
       }
     };
 
     fetchInterfaceStatistics();
-  }, [selectedDevice]);
+
+  }, [selectedDevice, keycloak]);
 
   // Fetch available interfaces
   useEffect(() => {
+
     const fetchInterfaces = async () => {
-      if (!selectedDevice) {
+
+      if (!selectedDevice || !keycloak?.authenticated) {
         setAvailableInterfaces([]);
         return;
       }
 
       try {
-        const res = await apiClient.get(
-          '/telemetry/interface-oper-status/interfaces/',
-          { params: { device: selectedDevice } }
+
+        const query = new URLSearchParams({
+          device: selectedDevice
+        }).toString();
+
+        const data = await kcFetch(
+          keycloak,
+          `/telemetry/interface-oper-status/interfaces/?${query}`
         );
 
-        const ifaceList = res.data.interfaces.filter(
+        const ifaceList = (data.interfaces || []).filter(
           iface => iface && iface.trim() !== ''
         );
+
         setAvailableInterfaces(ifaceList);
+
       } catch (err) {
+
         console.error('Error fetching interfaces:', err);
         setAvailableInterfaces([]);
+
       }
     };
 
     fetchInterfaces();
-  }, [selectedDevice]);
 
-  // Y-axis tick formatter (0 = No-Pass, 1 = Ready)
-  const formatStatus = tick => {
+  }, [selectedDevice, keycloak]);
+
+  const formatStatus = (tick) => {
+
     if (tick === 1) return 'Ready';
     if (tick === 0) return 'No-Pass';
+
     return '';
+
   };
 
   return (
+
     <div
       className={`signalRightElementContainer ${
         showData ? 'expanded' : 'collapsed'
       }`}
     >
+
       <div className="signalRightElementHeader">
+
         <span
           style={{
             fontSize: '14px',
@@ -117,9 +153,11 @@ const InterfaceOper = ({ currentUser, selectedDevice }) => {
         >
           {selectedDevice || ''} - Interfaces
         </span>
+
       </div>
 
       {showData && interfaceStatistics.length > 0 ? (
+
         <div
           style={{
             display: 'flex',
@@ -127,26 +165,39 @@ const InterfaceOper = ({ currentUser, selectedDevice }) => {
             paddingTop: '10px'
           }}
         >
+
           <div style={{ width: '100%', height: 200 }}>
+
             <ResponsiveContainer width="100%" height="100%">
+
               <LineChart
                 data={interfaceStatistics}
                 margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
               >
+
                 <CartesianGrid stroke="#ccc" strokeDasharray="5 5" />
-                <XAxis dataKey="timestamp" reversed={true} />
+
+                <XAxis
+                  dataKey="timestamp"
+                  reversed={true}
+                />
+
                 <YAxis
                   domain={[0, 1]}
                   ticks={[0, 1]}
                   tickFormatter={formatStatus}
                 />
+
                 <Tooltip
-                  formatter={(value, name) =>
+                  formatter={(value) =>
                     value === 1 ? 'Ready' : 'No-Pass'
                   }
                 />
+
                 <Legend />
+
                 {availableInterfaces.map((iface, idx) => (
+
                   <Line
                     key={iface}
                     type="monotone"
@@ -161,21 +212,35 @@ const InterfaceOper = ({ currentUser, selectedDevice }) => {
                     dot={false}
                     connectNulls={true}
                   />
+
                 ))}
+
               </LineChart>
+
             </ResponsiveContainer>
+
           </div>
+
         </div>
+
       ) : showData && interfaceStatistics.length === 0 ? (
+
         <div
           className="no-data-message"
-          style={{ padding: '20px', textAlign: 'center' }}
+          style={{
+            padding: '20px',
+            textAlign: 'center'
+          }}
         >
           No data available for this device.
         </div>
+
       ) : null}
+
     </div>
+
   );
+
 };
 
 export default InterfaceOper;

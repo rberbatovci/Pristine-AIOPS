@@ -1,0 +1,4 @@
+pap {
+    auto_header = yes
+    normalise = yes
+}

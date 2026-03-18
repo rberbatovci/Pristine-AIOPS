@@ -1,0 +1,43 @@
+server default {
+
+    listen {
+        type = auth
+        ipaddr = *
+        port = 18120
+    }
+
+    listen {
+        type = acct
+        ipaddr = *
+        port = 18130
+    }
+
+    authorize {
+        preprocess
+        suffix
+        files
+        expiration
+        logintime
+        ldap
+
+        if (ok) {
+            update control {
+                Auth-Type := LDAP
+            }
+        }
+    }
+
+    authenticate {
+        Auth-Type ldap {
+            ldap
+        }
+    }
+
+    post-auth {
+        if (ok) {
+            update reply {
+                Reply-Message := "Authentication successful"
+            }
+        }
+    }
+}

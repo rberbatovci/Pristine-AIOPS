@@ -1,0 +1,16 @@
+configure terminal
+!
+radius server FREERADIUS
+ address ipv4 192.168.10.10 auth-port 1812 acct-port 1813
+ key D3nv3r.C0
+ exit
+!
+aaa group server radius RAD-GRP
+ server name FREERADIUS
+!
+aaa authentication login default group RAD-GRP local
+aaa authorization exec default group RAD-GRP local
+aaa accounting exec default start-stop group RAD-GRP
+!
+end
+write memory

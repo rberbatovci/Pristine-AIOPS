@@ -5,7 +5,6 @@ import EventsTable from '../misc/EventsTable.js';
 import Select from 'react-select';
 import '../../css/SignalEvents.css';
 import TagColumns from '../syslogs/TagColumns.js';
-import apiClient from '../misc/AxiosConfig.js';
 
 function Events({ currentUser, events, source, rule}) {
   const [signalEvents, setSignalEvents] = useState([]);

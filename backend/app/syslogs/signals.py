@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy import Column, String, Integer, ForeignKey, JSON 
 from app.db.session import Base, get_db, opensearch_client
 from sqlalchemy import Column, Integer, String, ForeignKey, JSON, DateTime, Text
@@ -7,8 +7,12 @@ from datetime import datetime
 from pydantic import BaseModel
 from typing import Optional
 from app.syslogs.services import syslog_signal_events
+from app.auth.keycloak import get_current_user, require_admin
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/api/syslogs/signals",
+    tags=["syslogs,signals"],
+)
 
 # ======================
 # SQLAlchemy Model
@@ -64,8 +68,8 @@ class SyslogSignalRead(SyslogSignalBase):
 # ======================
 # API Routes
 # ======================
-@router.get("/signals/syslogsignals/")
-async def get_all_syslog_signals():
+@router.get("/")
+async def get_all_syslog_signals(user: dict = Depends(get_current_user)):
     body = {
         "query": {"match_all": {}},
         "size": 10000
@@ -83,8 +87,8 @@ async def get_all_syslog_signals():
         "total": total
     }
 
-@router.get("/signals/syslogsignals/{signal_id}")
-def get_signal(signal_id: int):
+@router.get("/{signal_id}")
+def get_signal(signal_id: int, user: dict = Depends(get_current_user)):
     key = f"sig:sys:{signal_id}"
     val = redis_client.get(key)
     if val is None:
@@ -94,8 +98,8 @@ def get_signal(signal_id: int):
     signal = json.loads(val)
     return signal
 
-@router.get("/signals/syslogs/devices/options")
-def get_devices():
+@router.get("/devices/options")
+def get_devices(user: dict = Depends(get_current_user)):
     query = {
         "size": 0,
         "aggs": {
@@ -110,8 +114,8 @@ def get_devices():
     response = opensearch_client.search(index="syslog-signals", body=query)
     return [bucket["key"] for bucket in response["aggregations"]["devices"]["buckets"]]
 
-@router.get("/signals/syslogs/rules/options")
-def get_rules():
+@router.get("/rules/options")
+def get_rules(user: dict = Depends(get_current_user)):
     query = {
         "size": 0,
         "aggs": {
@@ -126,8 +130,8 @@ def get_rules():
     response = opensearch_client.search(index="syslog-signals", body=query)
     return [bucket["key"] for bucket in response["aggregations"]["rules"]["buckets"]]
 
-@router.get("/signals/syslogs/mnemonics/options")
-def get_mnemonics():
+@router.get("/mnemonics/options")
+def get_mnemonics(user: dict = Depends(get_current_user)):
     query = {
         "size": 0,
         "aggs": {
@@ -142,8 +146,8 @@ def get_mnemonics():
     response = opensearch_client.search(index="syslog-signals", body=query)
     return [bucket["key"] for bucket in response["aggregations"]["mnemonics"]["buckets"]]
 
-@router.get("/signals/syslogs/affected-entities/options/{entity_key}")
-def get_affected_entity_values(entity_key: str):
+@router.get("/affected-entities/options/{entity_key}")
+def get_affected_entity_values(entity_key: str, user: dict = Depends(get_current_user)):
     index_name = "syslog-signals"
     
     # Build the aggregation path dynamically

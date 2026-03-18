@@ -6,12 +6,15 @@ from sqlalchemy import Column, Integer, String, ForeignKey, JSON, Text, select
 from sqlalchemy.orm import relationship, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
+from app.auth.keycloak import get_current_user, require_admin
 
 from app.db.session import Base, get_db
 from app.traps.services import trap_rules_association
 
-router = APIRouter()
-
+router = APIRouter(
+    prefix="/api/traps/signals/rules/stateful",
+    tags=["traps, signals, rules", "stateful"],
+)
 
 # ======================
 # SQLAlchemy Model
@@ -88,14 +91,14 @@ class StatefulTrapRuleBrief(BaseModel):
 # Routes
 # ======================
 
-@router.get("/traps/statefulrules/", response_model=List[StatefulTrapRuleBrief])
-async def get_stateful_trap_rules(db: AsyncSession = Depends(get_db)):
+@router.get("/", response_model=List[StatefulTrapRuleBrief])
+async def get_stateful_trap_rules(db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
     result = await db.execute(select(StatefulTrapRule.id, StatefulTrapRule.name))
     return [{"id": r[0], "name": r[1]} for r in result.all()]
 
 
-@router.get("/traps/statefulrules/{rule_name}", response_model=StatefulTrapRuleResponse)
-async def get_stateful_trap_rule(rule_name: str, db: AsyncSession = Depends(get_db)):
+@router.get("/{rule_name}", response_model=StatefulTrapRuleResponse)
+async def get_stateful_trap_rule(rule_name: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
     stmt = (
         select(StatefulTrapRule)
         .options(
@@ -113,8 +116,8 @@ async def get_stateful_trap_rule(rule_name: str, db: AsyncSession = Depends(get_
     return db_rule
 
 
-@router.post("/traps/statefulrules/", response_model=StatefulTrapRuleResponse, status_code=201)
-async def create_stateful_trap_rule(rule: StatefulTrapRuleCreate, db: AsyncSession = Depends(get_db)):
+@router.post("/", response_model=StatefulTrapRuleResponse, status_code=201)
+async def create_stateful_trap_rule(rule: StatefulTrapRuleCreate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
     # Validate referenced trap OIDs
     open_trap = None
     close_trap = None
@@ -154,8 +157,8 @@ async def create_stateful_trap_rule(rule: StatefulTrapRuleCreate, db: AsyncSessi
     return db_rule
 
 
-@router.delete("/traps/statefulrules/{rule_name}", status_code=204)
-async def delete_stateful_trap_rule(rule_name: str, db: AsyncSession = Depends(get_db)):
+@router.delete("/{rule_name}", status_code=204)
+async def delete_stateful_trap_rule(rule_name: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
     result = await db.execute(
         select(StatefulTrapRule).where(StatefulTrapRule.name == rule_name)
     )

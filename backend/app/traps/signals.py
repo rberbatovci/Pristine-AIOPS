@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from typing import Optional
 from datetime import datetime
 from fastapi import APIRouter
@@ -6,8 +6,12 @@ from app.db.session import Base, opensearch_client
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, JSON
 from pydantic import BaseModel
 from sqlalchemy.orm import relationship
+from app.auth.keycloak import get_current_user, require_admin
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/api/traps/signals",
+    tags=["traps,signals"],
+)
 
 # ======================
 # SQLAlchemy Model
@@ -52,7 +56,7 @@ class TrapSignalRead(TrapSignalBase):
 # ======================
 # Routes
 # ======================
-@router.get("/signals/trapsignals/")
+@router.get("/")
 async def get_all_trap_signals():
     body = {
         "query": {"match_all": {}},
@@ -71,7 +75,7 @@ async def get_all_trap_signals():
         "total": total
     }
 
-@router.get("/signals/traps/devices/options")
+@router.get("/devices/options")
 def get_devices():
     query = {
         "size": 0,
@@ -87,7 +91,7 @@ def get_devices():
     response = opensearch_client.search(index="trap-signals", body=query)
     return [bucket["key"] for bucket in response["aggregations"]["devices"]["buckets"]]
 
-@router.get("/signals/traps/rules/options")
+@router.get("/rules/options")
 def get_rules():
     query = {
         "size": 0,
@@ -103,7 +107,7 @@ def get_rules():
     response = opensearch_client.search(index="trap-signals", body=query)
     return [bucket["key"] for bucket in response["aggregations"]["rules"]["buckets"]]
 
-@router.get("/signals/traps/snmpTrapOid/options")
+@router.get("/snmpTrapOid/options")
 def get_mnemonics():
     query = {
         "size": 0,
@@ -119,7 +123,7 @@ def get_mnemonics():
     response = opensearch_client.search(index="trap-signals", body=query)
     return [bucket["key"] for bucket in response["aggregations"]["snmpTrapOid"]["buckets"]]
 
-@router.get("/signals/traps/affected-entities/options/{entity_key}")
+@router.get("/affected-entities/options/{entity_key}")
 def get_affected_entity_values(entity_key: str):
     index_name = "trap-signals"
     

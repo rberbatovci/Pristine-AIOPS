@@ -1,13 +1,18 @@
 import os
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, status
 from app.devices import models, schemas
 from app.db.session import get_db
+from app.auth.keycloak import get_current_user
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import json
 import subprocess
+from app.auth.keycloak import require_admin
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/api/devices",
+    tags=["devices"],
+)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # Points to app/devices
 
@@ -58,17 +63,26 @@ async def configureDevice(router_ip: str, playbook: str, extra_vars: dict):
         "returncode": process.returncode
     }
 
-@router.post("/devices/{hostname}/configure/{feature_name}/", response_model=schemas.DeviceResponse)
+@router.post(
+    "/{hostname}/configure/{feature_name}/",
+    response_model=schemas.DeviceResponse,
+)
 async def configure_telemetry_feature(
     hostname: str,
     feature_name: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(require_admin),
 ):
     playbook = telemetry_playbook_map.get(feature_name)
     if not playbook:
-        raise HTTPException(status_code=400, detail=f"Unsupported telemetry feature: {feature_name}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported telemetry feature: {feature_name}"
+        )
 
-    result = await db.execute(select(models.Device).where(models.Device.hostname == hostname))
+    result = await db.execute(
+        select(models.Device).where(models.Device.hostname == hostname)
+    )
     device = result.scalars().first()
 
     if not device:
@@ -82,17 +96,22 @@ async def configure_telemetry_feature(
     }
 
     if feature_name == "syslogs":
-        vars.update({"receiver_port": os.getenv("SYSLOG_PORT"), 
-                     "syslog_severity": os.getenv("SYSLOG_SEVERITY", 
-                                                  "notifications")})
+        vars.update({
+            "receiver_port": os.getenv("SYSLOG_PORT"),
+            "syslog_severity": os.getenv("SYSLOG_SEVERITY", "notifications"),
+        })
     elif feature_name == "snmp_traps":
-        vars.update({"receiver_port": os.getenv("SNMP_TRAP_PORT"), 
-                     "snmp_user": os.getenv("SNMP_USERNAME"),
-                     "snmp_engine_id": os.getenv("SNMP_ENGINE_ID"),
-                     "snmp_priv_pass": os.getenv("SNMP_PRIV_PASS"),
-                     "snmp_auth_pass": os.getenv("SNMP_AUTH_PASS")})
+        vars.update({
+            "receiver_port": os.getenv("SNMP_TRAP_PORT"),
+            "snmp_user": os.getenv("SNMP_USERNAME"),
+            "snmp_engine_id": os.getenv("SNMP_ENGINE_ID"),
+            "snmp_priv_pass": os.getenv("SNMP_PRIV_PASS"),
+            "snmp_auth_pass": os.getenv("SNMP_AUTH_PASS"),
+        })
     elif feature_name == "netflow":
-        vars.update({"receiver_port": os.getenv("NETFLOW_PORT")})
+        vars.update({
+            "receiver_port": os.getenv("NETFLOW_PORT"),
+        })
     else:
         vars.update({
             "receiver_port": os.getenv("TELEMETRY_PORT"),
@@ -110,7 +129,7 @@ async def configure_telemetry_feature(
             status_code=500,
             detail={
                 "error": ansible_result["stderr"],
-                "output": ansible_result["stdout"]
+                "output": ansible_result["stdout"],
             },
         )
 

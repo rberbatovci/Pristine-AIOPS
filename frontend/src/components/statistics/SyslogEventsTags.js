@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import '../../css/SyslogTagsList.css';
-import apiClient from '../misc/AxiosConfig';
+import kcFetch from '../misc/kcFetch';
 
 
-const SyslogComponents = ({ selSyslogEventsTags, setSelSyslogEventsTags }) => {
+const SyslogComponents = ({ keycloak, selSyslogEventsTags, setSelSyslogEventsTags }) => {
   const [searchValue, setSearchValue] = useState('');
   const [tags, setTags] = useState([]);
 
@@ -11,16 +11,23 @@ const SyslogComponents = ({ selSyslogEventsTags, setSelSyslogEventsTags }) => {
 
   const fetchSyslogTags = async () => {
     try {
-      const response = await apiClient.get('/syslogs/tags/');
-      const apiTags = response.data.map(tag => tag.name);
-      const combinedTags = Array.from(new Set([...defaultTags, ...apiTags]));
+      const data = await kcFetch(keycloak, "/syslogs/tags/");
+
+      const apiTags = Array.isArray(data)
+        ? data.map(tag => tag.name)
+        : [];
+
+      const combinedTags = Array.from(
+        new Set([...defaultTags, ...apiTags])
+      );
+
       setTags(combinedTags);
 
       if (selSyslogEventsTags.length === 0) {
         setSelSyslogEventsTags(defaultTags);
       }
     } catch (error) {
-      console.error('Error fetching syslog tag names:', error);
+      console.error("Error fetching syslog tag names:", error);
     }
   };
 

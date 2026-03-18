@@ -1,34 +1,35 @@
-import React from 'react';
+import { useEffect } from 'react';
 import SyslogSignalsStatistics from '../statistics/SyslogSignalsStatistics';
 import SyslogEventsStatistics from '../statistics/SyslogEventsStatistics';
 import TrapSignalsStatistics from '../statistics/TrapSignalsStatistics';
 import TrapEventsStatistics from '../statistics/TrapEventsStatistics';
 
 const ChartView = ({
+  keycloak,
   currentUser,
+  source,
   dataSource,
-  selSignalsTags,
-  selEventsTags,
+  selectedTags,
 }) => {
+
+  useEffect(() => {
+    console.log("Selected Tags changed:", selectedTags);
+  }, [selectedTags]);
+
   return (
     <div>
-      <div>
-        {dataSource === 'syslogs' && (
-          <SyslogSignalsStatistics selSignalsTags={selSignalsTags} />
-        )}
-        {dataSource === 'snmptraps' && (
-          <TrapSignalsStatistics selSignalsTags={selSignalsTags} />
-        )}
-      </div>
-
-      <div>
-        {dataSource === 'syslogs' && (
-          <SyslogEventsStatistics selEventsTags={selEventsTags} />
-        )}
-        {dataSource === 'snmptraps' && (
-          <TrapEventsStatistics selEventsTags={selEventsTags} />
-        )}
-      </div>
+      {dataSource === 'syslogs' && source === 'signals' && (
+        <SyslogSignalsStatistics keycloak={keycloak} selectedTags={selectedTags} />
+      )}
+      {dataSource === 'snmptraps' && source === 'signals' && (
+        <TrapSignalsStatistics keycloak={keycloak} selectedTags={selectedTags} />
+      )}
+      {dataSource === 'syslogs' && source === 'events' && (
+        <SyslogEventsStatistics keycloak={keycloak} selectedTags={selectedTags} />
+      )}
+      {dataSource === 'snmptraps' && source === 'events' && (
+        <TrapEventsStatistics keycloak={keycloak} selectedTags={selectedTags} />
+      )}
     </div>
   );
 };

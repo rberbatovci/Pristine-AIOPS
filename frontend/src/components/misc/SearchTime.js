@@ -40,11 +40,6 @@ const SearchTime = ({ startTime, endTime, onTimeRangeChange }) => {
         value: dateRange,
         onChange: (newValue) => {
             setDateRange(newValue);
-            if (onTimeRangeChange) {
-                const startDate = newValue.start ? newValue.start.toDate(getLocalTimeZone()) : null;
-                const endDate = newValue.end ? newValue.end.toDate(getLocalTimeZone()) : null;
-                onTimeRangeChange(startDate, endDate);
-            }
         },
     });
     const [hoveredDate, setHoveredDate] = useState(null);
@@ -91,6 +86,17 @@ const SearchTime = ({ startTime, endTime, onTimeRangeChange }) => {
 
         if (onTimeRangeChange) {
             onTimeRangeChange(newStart.toDate(), newEnd.toDate());
+        }
+    };
+
+    const handleSearch = () => {
+        if (!dateRange?.start || !dateRange?.end) return;
+
+        const startDate = dateRange.start.toDate(getLocalTimeZone());
+        const endDate = dateRange.end.toDate(getLocalTimeZone());
+
+        if (onTimeRangeChange) {
+            onTimeRangeChange(startDate, endDate);
         }
     };
 
@@ -161,6 +167,7 @@ const SearchTime = ({ startTime, endTime, onTimeRangeChange }) => {
                                             <button
                                                 style={{ padding: '12px 42px', marginLeft: '10px' }}
                                                 className='button save-button'
+                                                onClick={handleSearch}
                                             >
                                                 Search
                                             </button>

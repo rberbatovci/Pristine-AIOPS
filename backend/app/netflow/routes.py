@@ -10,8 +10,12 @@ from .models import IPFIXHeader as IPFIXHeaderModel, FlowRecord as FlowRecordMod
 from .schemas import NetFlowPacket, IPFIXHeader as IPFIXHeaderSchema, FlowRecord as FlowRecordSchema
 from opensearchpy import OpenSearch
 from collections import defaultdict
+from app.auth.keycloak import get_current_user, require_admin
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/api/netflow",
+    tags=["netflow,events"],
+)
 
 def ns_to_datetime(ns_timestamp: int) -> datetime:
     seconds = ns_timestamp / 1_000_000_000
@@ -19,13 +23,14 @@ def ns_to_datetime(ns_timestamp: int) -> datetime:
 
 client = OpenSearch([{'host': 'localhost', 'port': 9200}])
 
-@router.get("/netflow/")
+@router.get("/")
 async def get_netflow(
     request: Request,
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(10, ge=1, le=100, description="Number of items per page"),
     start_time: Optional[datetime] = Query(None, description="Filter start timestamp"),
-    end_time: Optional[datetime] = Query(None, description="Filter end timestamp")
+    end_time: Optional[datetime] = Query(None, description="Filter end timestamp"),
+    user: dict = Depends(get_current_user)
 ):
     start = (page - 1) * page_size
     must_clauses = []
@@ -51,12 +56,7 @@ async def get_netflow(
         filter_dict[k].append(v)
 
     for field, values in filter_dict.items():
-        # Decide whether it's a top-level or nested field
-        if field in TOP_LEVEL_FIELDS:   # reuse same constant if applicable
-            es_field = field
-        else:
-            es_field = f"tags.{field}"
-
+        es_field = field
         if len(values) == 1:
             must_clauses.append({"term": {es_field: values[0]}})
         else:
@@ -82,3 +82,41 @@ async def get_netflow(
         "page": page,
         "page_size": page_size
     }
+
+@router.get("/options")
+async def get_netflow_field_values(
+    fields: str = Query(..., description="Comma-separated list of fields (e.g. source_ip,dest_ip,protocol)"),
+    size: int = Query(100, ge=1, le=10000, description="Number of unique values per field"),
+    user: dict = Depends(get_current_user)
+):
+    """
+    Return unique values for given NetFlow fields from OpenSearch.
+    """
+    field_list = [f.strip() for f in fields.split(",") if f.strip()]
+    if not field_list:
+        raise HTTPException(status_code=400, detail="No fields provided")
+
+    # Build the aggregations for each field
+    aggs = {
+        field: {
+            "terms": {
+                "field": field,
+                "size": size
+            }
+        }
+        for field in field_list
+    }
+
+    body = {
+        "size": 0,  # we only want aggregation results, not documents
+        "aggs": aggs
+    }
+
+    response = opensearch_client.search(index="netflow", body=body)
+
+    results = {}
+    for field in field_list:
+        buckets = response["aggregations"][field]["buckets"]
+        results[field] = [bucket["key"] for bucket in buckets]
+
+    return results

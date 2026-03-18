@@ -1,168 +1,150 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import '../../css/SyslogTagsList.css';
-import apiClient from '../misc/AxiosConfig';
 
-const StatisticTags = ({ dataSource, source, selTags, setSelTags }) => {
+import { useSyslogTags } from '../../hooks/useSyslogTags';
+import { useSnmpTrapTags } from '../../hooks/useSnmpTrapTags';
+
+const StatisticTags = ({ dataSource, source, selTags, setSelTags, keycloak }) => {
   const [searchValue, setSearchValue] = useState('');
-  const [tags, setTags] = useState([]);
 
-  // Define default tags for each scenario
+  // --------------------------------------------------
+  // Defaults
+  // --------------------------------------------------
   const getDefaultTags = () => {
     if (source === 'events') {
       if (dataSource === 'syslogs') {
         return ['device', 'mnemonic', 'severity'];
-      } else if (dataSource === 'snmptraps') {
-        return ['device', 'rules', 'severity', 'enterprise', 'specific_trap'];
       }
-    } else if (source === 'signals') {
-      if (dataSource === 'syslogs') {
-        return ['device', 'mnemonic', 'rule', 'severity'];
-      } else if (dataSource === 'snmptraps') {
-        return ['device', 'oid', 'agent_address', 'trap_type'];
-      }
+      return ['device', 'rules', 'severity', 'enterprise', 'specific_trap'];
     }
-    // Fallback defaults
-    return ['device', 'mnemonic', 'severity'];
+
+    // signals
+    if (dataSource === 'syslogs') {
+      return ['device', 'mnemonic', 'rule', 'severity'];
+    }
+    return ['device', 'oid', 'agent_address', 'trap_type'];
   };
 
   const defaultSelectedTags = () => {
     if (source === 'events') {
-      if (dataSource === 'syslogs') {
-        return ['device', 'mnemonic', 'severity'];
-      } else if (dataSource === 'snmptraps') {
-        return ['device', 'rules', 'severity'];
-      }
-    } else if (source === 'signals') {
-      if (dataSource === 'syslogs') {
-        return ['device', 'mnemonic', 'rule'];
-      } else if (dataSource === 'snmptraps') {
-        return ['device', 'oid', 'agent_address'];
-      }
+      return dataSource === 'syslogs'
+        ? ['device', 'mnemonic', 'severity']
+        : ['device', 'rules', 'severity'];
     }
+
+    return dataSource === 'syslogs'
+      ? ['device', 'mnemonic', 'rule']
+      : ['device', 'oid', 'agent_address'];
   };
 
+  // --------------------------------------------------
+  // Hooks (ONLY data sources)
+  // --------------------------------------------------
+  const {
+    tags: syslogTags,
+    loading: syslogLoading,
+    error: syslogError
+  } = useSyslogTags(keycloak, dataSource === 'syslogs');
+
+  const {
+    tags: snmpTags,
+    loading: snmpLoading,
+    error: snmpError
+  } = useSnmpTrapTags(keycloak, dataSource === 'snmptraps');
+
+  // --------------------------------------------------
+  // Merge defaults + API tags
+  // --------------------------------------------------
+  const tags = useMemo(() => {
+    const defaults = getDefaultTags();
+
+    const apiTags =
+      dataSource === 'syslogs'
+        ? syslogTags.map(t => t.value)
+        : snmpTags.map(t => t.value);
+
+    return Array.from(new Set([...defaults, ...apiTags]));
+  }, [dataSource, source, syslogTags, snmpTags]);
+
+  // --------------------------------------------------
+  // Set default selected tags
+  // --------------------------------------------------
   useEffect(() => {
-    const defaults = defaultSelectedTags();
-    if (defaults && defaults.length) {
-      setSelTags(defaults.slice(0, 3)); // ensure only 3 are set
-    }
+    setSelTags(defaultSelectedTags().slice(0, 3));
   }, [dataSource, source]);
 
-  const fetchSyslogTags = async () => {
-    try {
-      const response = await apiClient.get('/syslogs/tags/');
-      const apiTags = response.data.map(tag => tag.name);
-      const defaultTags = getDefaultTags();
-      const combinedTags = Array.from(new Set([...defaultTags, ...apiTags]));
-      setTags(combinedTags);
-    } catch (error) {
-      console.error('Error fetching syslog tag names:', error);
-    }
-  };
-
-  const fetchSnmpTrapTags = async () => {
-    try {
-      const response = await apiClient.get('/snmptraps/tags/');
-      const apiTags = response.data.map(tag => tag.name);
-      const defaultTags = getDefaultTags();
-      const combinedTags = Array.from(new Set([...defaultTags, ...apiTags]));
-      setTags(combinedTags);
-    } catch (error) {
-      console.error('Error fetching snmp trap tag names:', error);
-    }
-  };
-
-  useEffect(() => {
-    if (dataSource === 'syslogs') {
-      fetchSyslogTags();
-    } else if (dataSource === 'snmptraps') {
-      fetchSnmpTrapTags();
-    }
-  }, [dataSource, source]);
-
+  // --------------------------------------------------
+  // Filtering
+  // --------------------------------------------------
   const filteredTags = tags.filter(tag =>
-    typeof tag === 'string' && tag.toLowerCase().includes(searchValue.toLowerCase())
+    tag.toLowerCase().includes(searchValue.toLowerCase())
   );
 
+  // --------------------------------------------------
+  // Selection logic (max 3)
+  // --------------------------------------------------
   const handleTagCheckboxChange = (tag) => {
-    // FIXED: Use selTags (state value) instead of setSelTags (setter function)
-    if (selTags.includes(tag)) {
-      // Do nothing if tag is already selected (to prevent going below 3)
-      return;
-    }
+    if (selTags.includes(tag)) return;
 
-    let newTags = [...selTags]; // Copy the current state array
+    const next = [...selTags];
+    if (next.length >= 3) next.shift();
+    next.push(tag);
 
-    if (newTags.length >= 3) {
-      // Remove the first (oldest) selected tag
-      newTags.shift();
-    }
-
-    // Add the newly selected tag
-    newTags.push(tag);
-
-    // Use the setter function to update the state
-    setSelTags(newTags);
+    setSelTags(next);
   };
 
+  // --------------------------------------------------
+  // Loading & error handling
+  // --------------------------------------------------
+  const loading = syslogLoading || snmpLoading;
+  const error = syslogError || snmpError;
+
+  if (loading) {
+    return <p>Loading tags...</p>;
+  }
+
+  if (error) {
+    return <p style={{ color: 'red' }}>Failed to load tags</p>;
+  }
+
+  // --------------------------------------------------
+  // Render
+  // --------------------------------------------------
   return (
     <div className="signalTagContainer">
-      {!tags.length && <p>Loading tags...</p>}
-      {tags.length > 0 && (
-        <div
-          style={{
-            padding: '10px',
-            height: '350px',
-            overflowY: 'auto',
-            background: 'var(--backgroundColor3)',
-            borderRadius: '8px',
-            display: 'block',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <input
-              type="text"
-              placeholder="Search tags..."
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              className="searchTagListElement"
-              style={{
-                background: 'var(--buttonBackground)',
-                padding: '6px 8px',
-                borderRadius: '4px',
-                border: 'none',
-                outline: 'none',
-                width: '220px',
-              }}
-            />
-          </div>
+      <div
+        style={{
+          padding: '10px',
+          height: '350px',
+          overflowY: 'auto',
+          background: 'var(--backgroundColor3)',
+          borderRadius: '8px'
+        }}
+      >
+        <input
+          type="text"
+          placeholder="Search tags..."
+          value={searchValue}
+          onChange={(e) => setSearchValue(e.target.value)}
+          className="searchTagListElement"
+        />
 
-          <div style={{ marginTop: '10px' }}>
-            <ul>
-              {filteredTags.map((tag, index) => {
-                const isSelected = selTags.includes(tag); // Use selTags here too
-                return (
-                  <li
-                    key={index}
-                    onClick={() => handleTagCheckboxChange(tag)}
-                    className={`signalTagItem ${isSelected ? 'selected' : ''}`}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        readOnly
-                        style={{ marginRight: '8px' }}
-                      />
-                      <span>{tag}</span>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </div>
-      )}
+        <ul>
+          {filteredTags.map(tag => {
+            const isSelected = selTags.includes(tag);
+            return (
+              <li
+                key={tag}
+                onClick={() => handleTagCheckboxChange(tag)}
+                className={`signalTagItem ${isSelected ? 'selected' : ''}`}
+              >
+                <input type="checkbox" checked={isSelected} readOnly />
+                <span>{tag}</span>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </div>
   );
 };

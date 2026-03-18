@@ -1,17 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Select from 'react-select';
 import customStyles from '../misc/SelectStyles';
 import '../../css/SyslogTagsList.css';
-import apiClient from '../misc/AxiosConfig';
 import { TailSpin } from 'react-loader-spinner';
 
-function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onSave }) {
-  const [selectedRegEx, setSelectedRegEx] = useState(null);
-  const [editedData, setEditedData] = useState({});
-  const [isAddNewRegEx, setIsAddNewRegEx] = useState(true);
-  const [syslogTags, setSyslogTags] = useState([]);
-  const [regExData, setRegExData] = useState([]);
-  const [newRegEx, setNewRegEx] = useState({
+import { useSyslogRegEx } from '../../hooks/useSyslogRegEx';
+
+function RegExConfig({ keycloak }) {
+  const {
+    regExRules,
+    loading,
+    error,
+    get,
+    create,
+    update,
+    remove,
+  } = useSyslogRegEx({ keycloak });
+
+  const [selectedRegex, setSelectedRegex] = useState(null);
+  const [isAddNew, setIsAddNew] = useState(true);
+  const [loadingState, setLoadingState] = useState(null);
+
+  const emptyForm = {
     name: '',
     tag: '',
     pattern: '',
@@ -19,26 +29,9 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
     matchnumber: '',
     groupnumber: '',
     nomatch: null,
-  })
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [alert, setAlert] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadingState, setLoadingState] = useState(null);
-
-  const handleOptionChange = (regEx) => {
-    setSelectedRegEx(regEx);
-    setIsAddNewRegEx(false);
-    setEditedData(regEx);
-    apiClient.get(`/syslogs/regex/${regEx.name}/`)
-      .then((response) => {
-        setNewRegEx(response.data);
-        console.log('Fetched Syslog Reg Ex Details:', response.data);
-      })
-      .catch((error) => {
-        console.error('Error fetching Reg Ex details:', error);
-      });
   };
+
+  const [form, setForm] = useState(emptyForm);
 
   const functionOptions = [
     { value: 'search', label: 'Search' },
@@ -46,300 +39,299 @@ function RegExConfig({ currentUser, regExpressions, onAdd, onDelete, onEdit, onS
     { value: 'finditer', label: 'Finditer' },
   ];
 
-  const handleAddRule = async () => {
-    setLoadingState('adding');
-    setAlert('');
-    setError('');
-
-    try {
-      const payload = {
-        name: newRegEx.name,
-        pattern: newRegEx.pattern,
-        matchfunction: newRegEx.matchfunction,
-        matchnumber: newRegEx.matchnumber,
-        groupnumber: newRegEx.groupnumber,
-        nomatch: newRegEx.nomatch,
-        tag: newRegEx.tag,
-      };
-
-      const response = await apiClient.post('/syslogs/regex/', payload);
-      const addedRegEx = response.data;
-
-      setAlert('Tag added successfully');
-      setRegExData((prev) => [...prev, addedRegEx]);
-      setNewRegEx({
-        name: '',
-        pattern: '',
-        matchfunction: '',
-        matchnumber: '',
-        groupnumber: '',
-        nomatch: null,
-        tag: '',
-      });
-      setIsAddNewRegEx(true);
-
-      if (onAdd) onAdd(addedRegEx); // ✅ call parent callback
-
-      setTimeout(() => setAlert(''), 3000);
-    } catch (error) {
-      setError('Error adding tag. Please try again.');
-      console.error('Error adding tag:', error);
-      setNewRegEx({
-        name: '',
-        pattern: '',
-        matchfunction: '',
-        matchnumber: '',
-        groupnumber: '',
-        nomatch: null,
-        tag: '',
-      });
-      setTimeout(() => setError(''), 3000);
-    } finally {
-      setLoadingState(null);
-    }
+  const handleSelect = async (regex) => {
+    const full = await get(regex.name);
+    setSelectedRegex(full);
+    setForm(full);
+    setIsAddNew(false);
   };
 
+  const handleAdd = async () => {
+    setLoadingState('adding');
+    await create(form);
+    setForm(emptyForm);
+    setIsAddNew(true);
+    setLoadingState(null);
+  };
 
   const handleSave = async () => {
     setLoadingState('saving');
-    setAlert('');
-    setError('');
-
-    try {
-      const { name } = newRegEx;
-      const response = await apiClient.put(`/syslogs/regex/${name}/`, newRegEx);
-      const updatedRegEx = response.data;
-
-      setSelectedRegEx(updatedRegEx);
-      setAlert("Tag updated successfully!");
-      setNewRegEx({
-        name: '',
-        pattern: '',
-        matchfunction: '',
-        matchnumber: '',
-        groupnumber: '',
-        nomatch: null,
-        tag: '',
-      });
-      setIsAddNewRegEx(true);
-
-      if (onEdit) onEdit(updatedRegEx); // ✅ call parent callback
-    } catch (error) {
-      console.error('Error updating tag:', error);
-      setAlert("Failed to update tag. Please try again.");
-    } finally {
-      setLoadingState(null);
-    }
+    await update(form.name, form);
+    setSelectedRegex(null);
+    setForm(emptyForm);
+    setIsAddNew(true);
+    setLoadingState(null);
   };
 
   const handleDelete = async () => {
     setLoadingState('deleting');
-    try {
-      await apiClient.delete(`/syslogs/regex/${editedData.name}/`);
-
-      const updatedList = syslogTags.filter(tag => tag.id !== editedData.id);
-      setRegExData(updatedList);
-      setSelectedRegEx(null);
-      setIsAddNewRegEx(true);
-      setNewRegEx({
-        name: '',
-        pattern: '',
-        matchfunction: '',
-        matchnumber: '',
-        groupnumber: '',
-        nomatch: null,
-        tag: '',
-      });
-      setAlert("Tag deleted successfully!");
-
-      if (onDelete) onDelete(editedData); // ✅ call parent callback
-    } catch (error) {
-      setAlert("Failed to delete tag. Please try again.");
-    } finally {
-      setLoadingState(null);
-    }
-  };
-
-  const handleSyncToRedis = async () => {
-    try {
-      await apiClient.post(`/syslogs/regex/handleSyncToRedis/`);
-      setAlert("Regex rules synchronized successfully!");
-    } catch (error) {
-      console.error('Error syncing regex rules:', error);
-      setAlert("Failed to sync regex rules. Please try again.");
-    }
+    await remove(selectedRegex.name);
+    setSelectedRegex(null);
+    setForm(emptyForm);
+    setIsAddNew(true);
+    setLoadingState(null);
   };
 
   return (
-    <div className="signalTagContainer" >
-      <div style={{ marginTop: '2px' }}>Regular Expressions Configuration:</div>
-      {isLoading ? (
-        <div className="signalConfigRuleMessage" style={{background: 'var(--backgroundColor3)', padding: '10px', marginTop: '10px', borderRadius: '8px'}}>Loading Regular Expressions. Please wait...</div>
+    <div className="signalTagContainer">
+      <div style={{ marginTop: '2px' }}>
+        Regular Expressions Configuration:
+      </div>
+
+      {loading ? (
+        <div
+          className="signalConfigRuleMessage"
+          style={{
+            background: 'var(--backgroundColor3)',
+            padding: '10px',
+            marginTop: '10px',
+            borderRadius: '8px'
+          }}
+        >
+          Loading Regular Expressions. Please wait...
+        </div>
       ) : error ? (
-        <div className="signalConfigRuleMessage" style={{background: 'var(--backgroundColor3)', padding: '10px', marginTop: '10px', borderRadius: '8px'}}>{error}</div>
+        <div
+          className="signalConfigRuleMessage"
+          style={{
+            background: 'var(--backgroundColor3)',
+            padding: '10px',
+            marginTop: '10px',
+            borderRadius: '8px'
+          }}
+        >
+          {error}
+        </div>
       ) : (
         <>
           <div style={{ display: 'flex', gap: '10px' }}>
-            <div style={{ width: '240px', padding: '8px', background: 'var(--backgroundColor3)', height: '280px', borderRadius: '8px', overflowY: 'auto' }}>
-              <ul style={{ padding: 0, listStyle: 'none', margin: 0, marginBottom: '10px' }}>
+
+            {/* LEFT PANEL */}
+            <div
+              style={{
+                width: '240px',
+                padding: '8px',
+                background: 'var(--backgroundColor3)',
+                height: '280px',
+                borderRadius: '8px',
+                overflowY: 'auto'
+              }}
+            >
+              <ul style={{ padding: 0, listStyle: 'none', margin: 0 }}>
                 <li
-                  className={`signalTagItem ${isAddNewRegEx ? 'selected' : ''}`}
+                  className={`signalTagItem ${isAddNew ? 'selected' : ''}`}
                   onClick={() => {
-                    setIsAddNewRegEx(true);
-                    setSelectedRegEx(null);
-                    setNewRegEx({
-                      name: '',
-                      pattern: '',
-                      matchfunction: '',
-                      matchnumber: '',
-                      groupnumber: '',
-                      nomatch: null,
-                      tag: '',
-                    });
+                    setIsAddNew(true);
+                    setSelectedRegex(null);
+                    setForm(emptyForm);
                   }}
                 >
                   Add New Rule
                 </li>
-                {regExpressions.map((regex) => (
+
+                {regExRules.map((regex) => (
                   <li
-                    key={regex.id}
-                    className={`signalTagItem ${selectedRegEx && selectedRegEx.id === regex.id ? 'selected' : ''}`}
-                    onClick={() => handleOptionChange(regex)}
+                    key={regex.name}
+                    className={`signalTagItem ${selectedRegex?.name === regex.name ? 'selected' : ''
+                      }`}
+                    onClick={async () => {
+                      const full = await get(regex.name);
+                      setSelectedRegex(full);
+                      setForm(full);
+                      setIsAddNew(false);
+                    }}
                   >
                     {regex.name}
                   </li>
                 ))}
               </ul>
             </div>
-            <div style={{ padding: '8px', background: 'var(--backgroundColor3)', color: 'var(--textColor)', borderRadius: '8px', height: '280px', overflowY: 'auto', width: '400px' }}>
+
+            {/* RIGHT PANEL */}
+            <div
+              style={{
+                padding: '8px',
+                background: 'var(--backgroundColor3)',
+                color: 'var(--textColor)',
+                borderRadius: '8px',
+                height: '280px',
+                overflowY: 'auto',
+                width: '400px'
+              }}
+            >
               <div style={{ marginBottom: '5px' }}>
                 <span>Name:</span>
                 <input
                   type="text"
-                  name="name"
-                  value={newRegEx.name}
+                  value={form.name}
+                  disabled={!isAddNew}
                   className="inputText"
                   style={{ width: '375px' }}
-                  onChange={(e) => setNewRegEx({ ...newRegEx, name: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, name: e.target.value })
+                  }
                 />
               </div>
+
               <div style={{ marginBottom: '5px' }}>
                 <span>Tag:</span>
                 <input
                   type="text"
-                  name="tag"
-                  value={newRegEx.tag}
+                  value={form.tag}
                   className="inputText"
                   style={{ width: '375px' }}
-                  onChange={(e) => setNewRegEx({ ...newRegEx, tag: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, tag: e.target.value })
+                  }
                 />
               </div>
+
               <div style={{ marginBottom: '5px' }}>
                 <span>Pattern:</span>
                 <input
                   type="text"
-                  name="name"
-                  value={newRegEx.pattern}
+                  value={form.pattern}
                   className="inputText"
                   style={{ width: '375px' }}
                   onChange={(e) =>
-                    setNewRegEx({ ...newRegEx, pattern: e.target.value })
+                    setForm({ ...form, pattern: e.target.value })
                   }
                 />
               </div>
+
               <div style={{ marginBottom: '5px' }}>
-                <span>Match function:</span>
+                <span>Match Function:</span>
                 <Select
-                  name="matchfunction"
-                  value={functionOptions.find(option => option.value === newRegEx.matchfunction)}
+                  value={functionOptions.find(
+                    (option) => option.value === form.matchfunction
+                  )}
                   options={functionOptions}
                   onChange={(selectedOption) =>
-                    setNewRegEx({ ...newRegEx, matchfunction: selectedOption.value })}
-                  styles={{
-                    ...customStyles('375px'),
-                    menuPortal: base => ({ ...base, zIndex: 9999 })
-                  }}
+                    setForm({
+                      ...form,
+                      matchfunction: selectedOption.value
+                    })
+                  }
+                  styles={customStyles('375px')}
                   menuPortalTarget={document.body}
-                  isMulti={false}
                 />
               </div>
+
               <div style={{ display: "flex", marginBottom: '5px' }}>
                 <div style={{ width: '50%' }}>
                   <span>Match Number:</span>
                   <input
                     type="number"
-                    name="matchnumber"
-                    value={newRegEx.matchnumber}
+                    value={form.matchnumber}
                     className="inputText"
                     style={{ width: '170px' }}
                     onChange={(e) =>
-                      setNewRegEx({ ...newRegEx, matchnumber: e.target.value })
+                      setForm({
+                        ...form,
+                        matchnumber: e.target.value
+                      })
                     }
                   />
                 </div>
+
                 <div style={{ width: '50%', marginLeft: '15px' }}>
                   <span>Group Number:</span>
                   <input
                     type="number"
-                    name="groupnumber"
-                    value={newRegEx.groupnumber}
+                    value={form.groupnumber}
                     className="inputText"
                     style={{ width: '170px' }}
                     onChange={(e) =>
-                      setNewRegEx({ ...newRegEx, groupnumber: e.target.value })
+                      setForm({
+                        ...form,
+                        groupnumber: e.target.value
+                      })
                     }
                   />
                 </div>
               </div>
-              <div className="tag-detail-row" style={{ marginTop: '6px' }}>
-                <span>No match:</span>
+
+              <div style={{ marginTop: '6px' }}>
+                <span>No Match:</span>
                 <input
-                  type="text"
-                  name="nomatch"
-                  value={newRegEx.nomatch}
-                  className="inputText"
-                  style={{ width: '375px' }}
+                  type="checkbox"
+                  checked={!!form.nomatch}
                   onChange={(e) =>
-                    setNewRegEx({ ...newRegEx, nomatch: e.target.value })
+                    setForm({
+                      ...form,
+                      nomatch: e.target.checked
+                    })
                   }
                 />
               </div>
             </div>
           </div>
-        </>
-      )
-      }
-      {
-        !isLoading && !error && (
-          <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-end' }}>
-            {isAddNewRegEx ? (
+
+          {/* ACTION BUTTONS */}
+          <div
+            style={{
+              marginTop: '10px',
+              display: 'flex',
+              justifyContent: 'flex-end'
+            }}
+          >
+            {isAddNew ? (
               <>
+                <button
+                  onClick={() => {
+                    setForm(emptyForm);
+                  }}
+                  className="button cancel-button"
+                >
+                  Cancel
+                </button>
 
-                <button onClick={() => setIsAddNewRegEx(false)} className="button cancel-button">Cancel</button>
-
-                <button onClick={handleAddRule} disabled={loadingState === 'adding'} className="button add-button">
-                  {loadingState === 'adding' ? <TailSpin height={16} width={16} color="#fff" /> : 'Add Rule'}
+                <button
+                  onClick={handleAdd}
+                  disabled={loadingState === 'adding'}
+                  className="button add-button"
+                >
+                  {loadingState === 'adding' ? (
+                    <TailSpin height={16} width={16} color="#fff" />
+                  ) : (
+                    'Add Rule'
+                  )}
                 </button>
               </>
             ) : (
-              selectedRegEx && (
+              selectedRegex && (
                 <>
-
-                  <button onClick={handleDelete} disabled={loadingState === 'removing'} className="button delete-button">
-                    {loadingState === 'removing' ? <TailSpin height={16} width={16} color="#fff" /> : 'Delete'}
+                  <button
+                    onClick={handleDelete}
+                    disabled={loadingState === 'deleting'}
+                    className="button delete-button"
+                  >
+                    {loadingState === 'deleting' ? (
+                      <TailSpin height={16} width={16} color="#fff" />
+                    ) : (
+                      'Delete'
+                    )}
                   </button>
-                  <button onClick={handleSave} disabled={loadingState === 'editing'} className="button save-button">
-                    {loadingState === 'editing' ? <TailSpin height={16} width={16} color="#fff" /> : 'Save'}
+
+                  <button
+                    onClick={handleSave}
+                    disabled={loadingState === 'saving'}
+                    className="button save-button"
+                  >
+                    {loadingState === 'saving' ? (
+                      <TailSpin height={16} width={16} color="#fff" />
+                    ) : (
+                      'Save'
+                    )}
                   </button>
                 </>
               )
             )}
           </div>
-        )
-      }
-    </div >
+        </>
+      )}
+    </div>
   );
-
 }
 
 export default RegExConfig;

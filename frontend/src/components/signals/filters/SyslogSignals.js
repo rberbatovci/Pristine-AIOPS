@@ -1,165 +1,94 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Select from 'react-select';
-import apiClient from '../../misc/AxiosConfig';
 import '../../../css/SearchElement.css';
 import customStyles from '../../misc/SelectStyles';
 
-const SyslogSignalFilters = ({ onSelectedSyslogFiltersChange, initialSelectedTags = {} }) => {
-    const [tags, setTags] = useState([]);
-    const [selectedTags, setSelectedTags] = useState(initialSelectedTags);
-    const [tagOptions, setTagOptions] = useState({});
-    const [loadingTags, setLoadingTags] = useState({});
-    const [dropdownOpenState, setDropdownOpenState] = useState({});
-    const [isLoading, setIsLoading] = useState(false);
+import { useSyslogTags } from "../../../hooks/useSyslogTags";
+import { useSyslogSignalsTagOptions } from "../../../hooks/useSyslogSignalsTagOptions";
 
-    useEffect(() => {
-        fetchSyslogTags();
-    }, []);
+const SyslogSignalFilters = ({
+  keycloak,
+  onSelectedSyslogFiltersChange,
+  initialSelectedTags = {}
+}) => {
+  const [selectedTags, setSelectedTags] = useState(initialSelectedTags);
 
-    const fetchSyslogTags = async () => {
-        setIsLoading(true);
-        try {
-            const response = await apiClient.get('/syslogs/tags/');
-            const fetchedTags = response.data || [];
-            setTags(fetchedTags);
+  const {
+    tags,
+    loading: tagsLoading,
+    error: tagsError
+  } = useSyslogTags(keycloak);
 
-            const initial = { ...selectedTags };
-            fetchedTags.forEach(tag => {
-                if (!initial[tag.name]) {
-                    initial[tag.name] = [];
-                }
-            });
+  const {
+    options,
+    loading,
+    fetchOptions
+  } = useSyslogSignalsTagOptions(keycloak);
 
-            setSelectedTags(initial);
-            onSelectedSyslogFiltersChange(initial);
-        } catch (error) {
-            console.error('Error fetching Syslog Tags:', error);
-        } finally {
-            setIsLoading(false);
-        }
+  const handleChange = (values, tagName) => {
+    const updated = {
+      ...selectedTags,
+      [tagName]: values
     };
+    setSelectedTags(updated);
+    onSelectedSyslogFiltersChange(updated);
+  };
 
-    const fetchTagOptions = async (tagName, endpoint) => {
-        setLoadingTags(prev => ({ ...prev, [tagName]: true }));
-        try {
-            const response = await apiClient.get(endpoint);
-            const options = response.data.map((item) => ({
-                value: item,
-                label: item
-            }));
-            setTagOptions(prev => ({ ...prev, [tagName]: options }));
-        } catch (error) {
-            console.error(`Error fetching ${tagName} options:`, error);
-        } finally {
-            setLoadingTags(prev => ({ ...prev, [tagName]: false }));
-        }
-    };
+  if (tagsLoading) {
+    return <p>Loading Syslog Tags...</p>;
+  }
 
-    const handleFocus = (tagName) => {
-        if (tagOptions[tagName]) return;
+  if (tagsError) {
+    return <p>Failed to load tags</p>;
+  }
 
-        if (tagName === 'mnemonic') {
-            fetchTagOptions(tagName, '/signals/syslogs/mnemonics/options');
-        } else if (tagName === 'rule') {
-            fetchTagOptions(tagName, '/signals/syslogs/rules/options');
-        } else if (tagName === 'device') {
-            fetchTagOptions(tagName, '/signals/syslogs/devices/options');
-        } else {
-            fetchAffectedEntityOptions(tagName); // fallback for affected entities
-        }
-    };
+  return (
+    <div className="dropdownConfigContainer" style={{ padding: '10px', width: '400px' }}>
+      <span>Filter Syslog Signals:</span>
 
-    const fetchAffectedEntityOptions = async (tagName) => {
-        setLoadingTags((prev) => ({ ...prev, [tagName]: true }));
-        try {
-            const response = await apiClient.get(`/signals/syslogs/affected-entities/options/${tagName}`);
-            const valuesArray = response.data.values || [];
+      <div className="searchSyslogsFilterEntries" style={{ marginTop: '8px', padding: '10px' }}>
+        {['device', 'mnemonic', 'rule'].map(tagName => (
+          <div key={tagName} className="searchSyslogsFilterEntry">
+            <span className="searchSignalFilterText">
+              {tagName.charAt(0).toUpperCase() + tagName.slice(1)}:
+            </span>
+            <Select
+              isMulti
+              name={tagName}
+              options={options[tagName] || []}
+              value={selectedTags[tagName] || []}
+              onChange={(v) => handleChange(v, tagName)}
+              onFocus={() => fetchOptions(tagName)}
+              isLoading={loading[tagName]}
+              styles={customStyles('370px')}
+            />
+          </div>
+        ))}
 
-            setTagOptions((prevOptions) => ({
-                ...prevOptions,
-                [tagName]: valuesArray.map((value) => ({
-                    value: value,
-                    label: value,
-                })),
-            }));
-        } catch (error) {
-            console.error(`Error fetching values for entity ${tagName}:`, error);
-        } finally {
-            setLoadingTags((prev) => ({ ...prev, [tagName]: false }));
-        }
-    };
+        {tags.map(tag => (
+          <div key={tag.name} className="searchSyslogsFilterEntry">
+            <span className="searchSignalFilterText">{tag.name}:</span>
+            <Select
+              isMulti
+              name={tag.name}
+              options={options[tag.name] || []}
+              value={selectedTags[tag.name] || []}
+              onChange={(v) => handleChange(v, tag.name)}
+              onFocus={() => fetchOptions(tag.name)}
+              isLoading={loading[tag.name]}
+              styles={customStyles('370px')}
+            />
+          </div>
+        ))}
+      </div>
 
-    const handleChange = (selectedValues, tagName) => {
-        const updatedSelectedTags = {
-            ...selectedTags,
-            [tagName]: selectedValues
-        };
-        setSelectedTags(updatedSelectedTags);
-        onSelectedSyslogFiltersChange(updatedSelectedTags);
-    };
-
-    const handleMenuOpen = (tagName) => {
-        setDropdownOpenState(prev => ({ ...prev, [tagName]: true }));
-    };
-
-    const handleMenuClose = (tagName) => {
-        setDropdownOpenState(prev => ({ ...prev, [tagName]: false }));
-    };
-
-    return (
-        <div className="dropdownConfigContainer" style={{  color: 'var(--textColor)', padding: '10px', width: '400px' }}>
-            {isLoading ? (
-                <p style={{ textAlign: 'center' }}>Loading Syslog Tags...</p>
-            ) : (
-                <>
-                    <span >Filter Syslog Signals:</span>
-                    <div className="searchSyslogsFilterEntries" style={{ marginTop: '8px', padding: '10px' }}>
-                        {['device', 'mnemonic', 'rule'].map((tagName) => (
-                            <div className="searchSyslogsFilterEntry">
-                                <span className="searchSignalFilterText">{tagName.charAt(0).toUpperCase() + tagName.slice(1)}:</span>
-                                <div style={{ marginTop: '6px' }}>
-                                <Select
-                                    options={tagOptions[tagName] || []}
-                                    isMulti
-                                    value={selectedTags[tagName] || []}
-                                    onChange={(selected) => handleChange(selected, tagName)}
-                                    name={tagName}
-                                    styles={customStyles('370px')}
-                                    onFocus={() => handleFocus(tagName)}
-                                    isLoading={loadingTags[tagName]}
-                                    onMenuOpen={() => handleMenuOpen(tagName)}
-                                    onMenuClose={() => handleMenuClose(tagName)}
-                                />
-                                </div>
-                            </div>
-                        ))}
-                        {tags.map((tag) => (
-                            <div className="searchSyslogsFilterEntry">
-                                <span className="searchSignalFilterText">{tag.name}:</span>
-                                <div style={{ marginTop: '6px' }}>
-                                <Select
-                                    options={tagOptions[tag.name] || []}
-                                    isMulti
-                                    value={selectedTags[tag.name]}
-                                    onChange={(selectedValues) => handleChange(selectedValues, tag.name)}
-                                    name={tag.name}
-                                    onFocus={() => handleFocus(tag.name)}
-                                    styles={customStyles('370px')}
-                                    isLoading={loadingTags[tag.name]}
-                                    onMenuOpen={() => handleMenuOpen(tag.name)}
-                                    onMenuClose={() => handleMenuClose(tag.name)}
-                                />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                    <div style={{ justifyContent: 'center' }}>
-                        <button style={{ padding: '8px 60px', color: 'green' }}>Search</button>
-                    </div>
-                </>
-            )}
-        </div>
-    );
+      <div style={{ textAlign: 'center' }}>
+        <button style={{ padding: '8px 60px', color: 'green' }}>
+          Search
+        </button>
+      </div>
+    </div>
+  );
 };
 
 export default SyslogSignalFilters;

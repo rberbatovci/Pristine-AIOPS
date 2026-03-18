@@ -1,67 +1,68 @@
-import React, { useState, useEffect } from 'react';
-import '../../css/SyslogTagsList.css';
-import apiClient from '../misc/AxiosConfig';
+import React, { useState, useEffect, useMemo } from "react";
+import "../../css/SyslogTagsList.css";
+import { useSyslogTags } from "../../hooks/useSyslogTags";
+import { useSnmpTrapTags } from "../../hooks/useSnmpTrapTags";
 
-const SyslogTags = ({ dataSource, selectedTags = [], onTagChange }) => {
-  const [searchValue, setSearchValue] = useState('');
-  const [tags, setTags] = useState([]);
+const SyslogTags = ({
+  keycloak,
+  dataSource,
+  selectedTags = [],
+  onTagChange
+}) => {
+  const [searchValue, setSearchValue] = useState("");
   const [selTags, setSelTags] = useState(selectedTags);
 
-  useEffect(() => {
-    if (dataSource === 'syslogs') fetchSyslogTags();
-    else if (dataSource === 'snmptraps') fetchTrapTags();
-  }, [dataSource]);
+  // Load tags using hooks
+  const {
+    tags: syslogTags,
+    loading: syslogLoading,
+    error: syslogError
+  } = useSyslogTags(keycloak, dataSource === "syslogs");
 
+  const {
+    tags: trapTags,
+    loading: trapLoading,
+    error: trapError
+  } = useSnmpTrapTags(keycloak, dataSource === "snmptraps");
+
+  // Pick correct tag source
+  const activeTags = useMemo(() => {
+    if (dataSource === "syslogs") {
+      return ["lsn", ...syslogTags.map(t => t.value)];
+    }
+    if (dataSource === "snmptraps") {
+      return trapTags.map(t => t.value);
+    }
+    return [];
+  }, [dataSource, syslogTags, trapTags]);
+
+  // Notify parent when selection changes
   useEffect(() => {
     onTagChange && onTagChange(selTags);
   }, [selTags, onTagChange]);
 
-  const fetchTrapTags = async () => {
-    try {
-      const response = await apiClient.get('/traps/tags/');
-      const tagNames = response.data.map((tag) => tag.name);
-      setTags(tagNames);
-    } catch (error) {
-      console.error('Error fetching trap tag names:', error);
-    }
-  };
-
-  const fetchSyslogTags = async () => {
-    try {
-      const response = await apiClient.get('/syslogs/tags/');
-      const tagNames = ['lsn', ...response.data.map((tag) => tag.name)];
-      setTags(tagNames);
-    } catch (error) {
-      console.error('Error fetching syslog tag names:', error);
-    }
-  };
-
+  // Toggle selection
   const handleTagSelection = (tag) => {
     const updated = selTags.includes(tag)
       ? selTags.filter((t) => t !== tag)
       : [...selTags, tag];
+
     setSelTags(updated);
   };
 
-  const handleDeleteTag = async (tagName) => {
-    if (!window.confirm(`Are you sure you want to delete "${tagName}"?`)) return;
-    try {
-      await apiClient.delete(`/syslogs/tags/${tagName}`);
-      dataSource === 'syslogs' ? fetchSyslogTags() : fetchTrapTags();
-    } catch (error) {
-      const errorMessage = error.response?.data?.detail || 'Failed to delete tag';
-      alert(`Error: ${errorMessage}`);
-    }
-  };
-
-  const filteredTags = tags.filter(tag =>
+  const filteredTags = activeTags.filter(tag =>
     tag.toLowerCase().includes(searchValue.toLowerCase())
   );
 
+  const loading = syslogLoading || trapLoading;
+  const error = syslogError || trapError;
+
   return (
     <div className="signalTagContainer">
-      {!tags.length && <p>Loading tags...</p>}
-      {!!tags.length && (
+      {loading && <p>Loading tags...</p>}
+      {error && <p style={{ color: "red" }}>{error.message || "Error loading tags"}</p>}
+
+      {!loading && !error && (
         <div className="signalTagList">
           <input
             type="text"
@@ -69,25 +70,30 @@ const SyslogTags = ({ dataSource, selectedTags = [], onTagChange }) => {
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
             className="signalSearchItem"
-            style={{ width: '220px', outline: 'none' }}
+            style={{ width: "220px", outline: "none" }}
           />
+
           <ul>
             {filteredTags.map((tag, index) => (
               <li
                 key={index}
-                className={`signalTagItem ${selTags.includes(tag) ? 'selected' : ''}`}
+                className={`signalTagItem ${
+                  selTags.includes(tag) ? "selected" : ""
+                }`}
                 onClick={() => handleTagSelection(tag)}
               >
-                <div style={{ display: 'flex', alignItems: 'center' }}>
+                <div style={{ display: "flex", alignItems: "center" }}>
                   <input
                     type="checkbox"
                     checked={selTags.includes(tag)}
                     readOnly
-                    style={{ marginRight: '6px', accentColor: '#2196f3' }}
+                    style={{
+                      marginRight: "6px",
+                      accentColor: "#2196f3"
+                    }}
                   />
-                  <span style={{ paddingLeft: '8px' }}>{tag}</span>
+                  <span style={{ paddingLeft: "8px" }}>{tag}</span>
                 </div>
-                
               </li>
             ))}
           </ul>

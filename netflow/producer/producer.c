@@ -16,9 +16,9 @@
 #define MAX_BATCH_SIZE 6
 #define FLUSH_INTERVAL_SEC 5
 
-#define EXPIRATION_YEAR 2025
-#define EXPIRATION_MONTH 11
-#define EXPIRATION_DAY 3
+#define EXPIRATION_YEAR 2026
+#define EXPIRATION_MONTH 4
+#define EXPIRATION_DAY 18
 #define EXPIRATION_HOUR 17
 #define EXPIRATION_MINUTE 38
 
@@ -325,7 +325,7 @@ char* flow_record_to_json(const FlowRecord *r, const char *sender_ip) {
     char buf[512];
     int len = snprintf(buf, sizeof(buf),
         "{"
-        "\"exporter_ip\":\"%s\","
+        "\"device\":\"%s\","
         "\"protocol\":%u,"
         "\"source_ip\":\"%s\","
         "\"source_port\":%u,"
@@ -435,11 +435,11 @@ int is_expired() {
 }
 
 void print_banner() {
+    printf("\n");
     printf("╔══════════════════════════════════════════════╗\n");
-    printf("║         Welcome to Pristine-AIOPS          ║\n");
-    printf("║                v1.1 beta                 ║\n");
+    printf("║        Welcome to Pristine-AIOPS v1.2        ║\n");
     printf("║           Thanks for using our tool          ║\n");
-    printf("╚══════════════════════════════════════════════╝\n\n");
+    printf("╚══════════════════════════════════════════════╝\n");
 }
 
 int setup_kafka_producer(const char *brokers, const char *topic) {
@@ -494,7 +494,7 @@ int setup_udp_socket() {
 
 int main() {
     if (is_expired()) {
-        fprintf(stderr, "⛔ Pristine-AIOPS license expired. Please update.\n");
+        fprintf(stderr, "⛔ Pristine-AIOPS v1.2 is out of date.\n Please contact the developer to get Pristine-AIOPS v1.3.\n");
         return 1;
     }
 

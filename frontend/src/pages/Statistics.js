@@ -14,7 +14,7 @@ import TrapEventsTags from '../components/statistics/TrapEventsTags.js';
 import TrapSignalsTags from '../components/statistics/TrapSignalsTags.js';
 import { PiAlignTopSimpleDuotone, PiAlignTopSimpleFill, PiAlignBottomSimpleDuotone, PiAlignBottomSimpleFill } from "react-icons/pi";
 
-function Statistics({ setDashboardTitle }) {
+function Statistics({ keycloak, setDashboardTitle, keycloak }) {
   const [dataSource, setDataSource] = useState('syslogs'); // default view
   const [selectedTags, setSelectedTags] = useState([]);
   const [selSyslogEventsTags, setSelSyslogEventsTags] = useState([]);
@@ -112,10 +112,10 @@ function Statistics({ setDashboardTitle }) {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0px' }}>
-        {dataSource === 'syslogs' && <SyslogSignalsStatistics selSyslogSignalsTags={selSyslogSignalsTags} />}
-        {dataSource === 'syslogs' && <SyslogEventsStatistics selSyslogEventsTags={selSyslogEventsTags} />}
-        {dataSource === 'snmptraps' && <TrapSignalsStatistics selTrapSignalsTags={selTrapSignalsTags} />}
-        {dataSource === 'snmptraps' && <TrapEventsStatistics selTrapEventsTags={selTrapEventsTags} />}
+        {dataSource === 'syslogs' && <SyslogSignalsStatistics keycloak={keycloak} selSyslogSignalsTags={selSyslogSignalsTags} />}
+        {dataSource === 'syslogs' && <SyslogEventsStatistics keycloak={keycloak} selSyslogEventsTags={selSyslogEventsTags} />}
+        {dataSource === 'snmptraps' && <TrapSignalsStatistics keycloak={keycloak} selTrapSignalsTags={selTrapSignalsTags} />}
+        {dataSource === 'snmptraps' && <TrapEventsStatistics keycloak={keycloak} selTrapEventsTags={selTrapEventsTags} />}
       </div>
       <div className="dropdownsContainer">
         {dataSource === 'syslogs' && (

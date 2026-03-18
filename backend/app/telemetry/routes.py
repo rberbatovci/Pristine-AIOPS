@@ -1,18 +1,23 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import Optional, Dict, Any, List
 from app.db.session import get_db, opensearch_client
+from app.auth.keycloak import get_current_user, require_admin
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/api/telemetry",
+    tags=["telemetry"],
+)
 
-@router.get("/telemetry/cpu-utilization/")
+@router.get("/cpu-utilization/")
 def get_cpu_utilization(
     device: Optional[str] = Query(None),
-    limit: int = Query(100)
+    limit: int = Query(100),
+    user: dict = Depends(get_current_user)
 ):
     must_clauses = []
 
     if device:
-        must_clauses.append({"term": {"device": device}})  # changed here
+        must_clauses.append({"term": {"device": device}})
 
     query = {
         "query": {
@@ -34,18 +39,19 @@ def get_cpu_utilization(
     results = [hit["_source"] for hit in res["hits"]["hits"]]
     return {"results": results}
 
-@router.get("/telemetry/memory-statistics/")
+@router.get("/memory-statistics/")
 def get_memory_statistics(
     device: Optional[str] = Query(None),
     memory: Optional[str] = Query(None),
-    limit: int = Query(100)
+    limit: int = Query(100),
+    user: dict = Depends(get_current_user)
 ):
     must_clauses = []
 
     if device:
-        must_clauses.append({"term": {"device.keyword": device}})
+        must_clauses.append({"term": {"device": device}})
     if memory:
-        must_clauses.append({"term": {"memory.keyword": memory}})
+        must_clauses.append({"term": {"memory": memory}})
 
     query = {
         "query": {
@@ -80,15 +86,14 @@ def get_memory_statistics(
 
     return {"results": results}
 
-@router.get("/telemetry/interface-statistics/interfaces/")
-def get_device_interfaces(device: Optional[str] = Query(None)):
+@router.get("/interface-statistics/interfaces/")
+def get_device_interfaces(device: Optional[str] = Query(None), user: dict = Depends(get_current_user)):
     must_clauses = []
     if device:
-        # Use the `.keyword` field to aggregate exact matches
         must_clauses.append({"term": {"device": device}})
 
     query = {
-        "size": 0,  # We only want aggregation results
+        "size": 0,
         "query": {
             "bool": {
                 "must": must_clauses
@@ -98,7 +103,7 @@ def get_device_interfaces(device: Optional[str] = Query(None)):
             "unique_interfaces": {
                 "terms": {
                     "field": "interface",
-                    "size": 1000  # max number of interfaces to return
+                    "size": 1000
                 }
             }
         }
@@ -114,11 +119,12 @@ def get_device_interfaces(device: Optional[str] = Query(None)):
 
     return {"interfaces": interfaces}
 
-@router.get("/telemetry/interface-statistics/")
+@router.get("/interface-statistics/")
 def get_interface_statistics(
     device: Optional[str] = Query(None),
     interface: Optional[str] = Query(None),
-    limit: int = Query(100)
+    limit: int = Query(100),
+    user: dict = Depends(get_current_user)
 ):
     must_clauses = []
 
@@ -161,8 +167,8 @@ def get_interface_statistics(
 
     return {"results": results}
 
-@router.get("/telemetry/interface-oper-status/interfaces/")
-def get_device_interfaces(device: Optional[str] = Query(None)):
+@router.get("/interface-oper-status/interfaces/")
+def get_device_interfaces(device: Optional[str] = Query(None), user: dict = Depends(get_current_user)):
     must_clauses = []
     if device:
         # Use the `.keyword` field to aggregate exact matches
@@ -195,11 +201,12 @@ def get_device_interfaces(device: Optional[str] = Query(None)):
 
     return {"interfaces": interfaces}
 
-@router.get("/telemetry/interface-oper-status/")
+@router.get("/interface-oper-status/")
 def get_interface_statistics(
     device: Optional[str] = Query(None),
     interface: Optional[str] = Query(None),
-    limit: int = Query(100)
+    limit: int = Query(100),
+    user: dict = Depends(get_current_user)
 ):
     must_clauses = []
 
@@ -242,11 +249,12 @@ def get_interface_statistics(
 
     return {"results": results}
 
-@router.get("/telemetry/bgp-statistics/")
+@router.get("/bgp-statistics/")
 def get_interface_statistics(
     device: Optional[str] = Query(None),
     interface: Optional[str] = Query(None),
-    limit: int = Query(100)
+    limit: int = Query(100),
+    user: dict = Depends(get_current_user)
 ):
     must_clauses = []
 

@@ -14,11 +14,6 @@
 }
 
 .mainContainer {
-    display: flex;
-    flex-direction: column;
-    height: calc(100vh - 90px);
-    margin-bottom: 5px;
-    width: 90%;
     box-shadow: 4px 4px 20px rgba(29, 29, 29, 0.1);
     border-top: var(--borderLight);
     border-bottom: var(--borderDark2);
@@ -26,6 +21,8 @@
     color: var(--textColor);
     background: var(--contentBackground);
     backdrop-filter: blur(8px);
+    width: calc(100% - 40px);
+    height: calc(100vh - 90px);
 }
 
 .mainContainerHeader {
@@ -266,8 +263,7 @@ ul {
     border-radius: 8px;
     justify-content: center;
     align-items: center;
-    background: var(--background1);
-    height: calc(100vh - 200px);
+    height: calc(100vh - 140px);
 }
 
 .errorMessage {
@@ -275,18 +271,19 @@ ul {
     border-radius: 8px;
     justify-content: center;
     align-items: center;
-    background: var(--background1);
-    height: calc(100vh - 200px);
+    height: calc(100vh - 140px);
 }
 
 .syslogsTableContainer {
     flex: 1;
     display: flex;
-    height: calc(100vh - 180px);
+    width: 100%;
+    justify-content: center;
+    height: calc(100vh - 120px);
 }
 
 .paginationContainer {
-    margin-top: -2px;
+    top: -10px;
     display: flex;
     width: 100%;
     justify-content: space-between; /* Distribute child elements evenly */

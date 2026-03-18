@@ -4,12 +4,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import relationship, selectinload
 from pydantic import BaseModel
 from typing import Optional, Any, List
+from app.auth.keycloak import get_current_user, require_admin
 
 from app.db.session import Base, get_db
 from app.syslogs.services import mnemonic_rules_association
 #from app.syslogs.mnemonics import Mnemonic
 
-router = APIRouter()
+statefulRules = APIRouter(
+    prefix="/api/syslogs/signals/rules/stateful",
+    tags=["syslogs, signals, rules", "stateful"],
+)
+
+severityLevel = APIRouter(
+    prefix="/api/syslogs/signals/rules/severity",
+    tags=["syslogs, signals, rules", "severity"],
+)
 
 # ======================
 # SQLAlchemy Model
@@ -102,14 +111,25 @@ class SyslogSeveritySchema(BaseModel):
 # Rules API Routes
 # ======================
 
-@router.get("/syslogs/statefulrules/brief/", response_model=List[StatefulSyslogRuleBrief])
-async def get_stateful_syslog_rules_brief(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(StatefulSyslogRule.id, StatefulSyslogRule.name))
+@statefulRules.get("/", response_model=List[StatefulSyslogRuleBrief])
+async def get_stateful_syslog_rules_brief(
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(StatefulSyslogRule.id, StatefulSyslogRule.name)
+    )
     return [{"id": r[0], "name": r[1]} for r in result.all()]
 
 
-@router.get("/syslogs/statefulrules/{rule_name}", response_model=StatefulSyslogRuleRead)
-async def get_stateful_syslog_rule(rule_name: str, db: AsyncSession = Depends(get_db)):
+@statefulRules.get("/{rule_name}", response_model=StatefulSyslogRuleRead)
+async def get_stateful_syslog_rule(
+    rule_name: str,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    require_admin(user)
+
     stmt = (
         select(StatefulSyslogRule)
         .options(
@@ -124,14 +144,6 @@ async def get_stateful_syslog_rule(rule_name: str, db: AsyncSession = Depends(ge
 
     if not db_rule:
         raise HTTPException(status_code=404, detail="Rule not found")
-
-    # ✅ These are now already loaded (no lazy load → no MissingGreenlet)
-    opensignal_name: Optional[str] = (
-        db_rule.opensignalmnemonic.name if db_rule.opensignalmnemonic else None
-    )
-    closesignal_name: Optional[str] = (
-        db_rule.closesignalmnemonic.name if db_rule.closesignalmnemonic else None
-    )
 
     return StatefulSyslogRuleRead(
         id=db_rule.id,
@@ -149,18 +161,22 @@ async def get_stateful_syslog_rule(rule_name: str, db: AsyncSession = Depends(ge
         cooldown=db_rule.cooldown,
     )
 
-@router.post("/syslogs/statefulrules/", response_model=StatefulSyslogRuleRead, status_code=201)
-async def create_stateful_syslog_rule(rule: StatefulSyslogRuleBase, db: AsyncSession = Depends(get_db)):
+@statefulRules.post("/", response_model=StatefulSyslogRuleRead, status_code=201)
+async def create_stateful_syslog_rule(
+    rule: StatefulSyslogRuleBase,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    require_admin(user)
+
     from app.syslogs.mnemonics import Mnemonic
 
-    # Ensure no duplicate
     existing_rule = (await db.execute(
         select(StatefulSyslogRule).where(StatefulSyslogRule.name == rule.name)
     )).scalars().first()
     if existing_rule:
         raise HTTPException(status_code=400, detail=f"Rule '{rule.name}' already exists")
 
-    # Fetch referenced mnemonics eagerly
     open_mnemonic = (await db.execute(
         select(Mnemonic).where(Mnemonic.name == rule.opensignalmnemonic)
     )).scalars().first()
@@ -172,10 +188,6 @@ async def create_stateful_syslog_rule(rule: StatefulSyslogRuleBase, db: AsyncSes
     )).scalars().first()
     if not close_mnemonic:
         raise HTTPException(status_code=400, detail=f"Close mnemonic '{rule.closesignalmnemonic}' not found")
-
-    # Save plain names (so no lazy load after session is closed)
-    open_name = open_mnemonic.name
-    close_name = close_mnemonic.name
 
     new_rule = StatefulSyslogRule(
         name=rule.name,
@@ -200,8 +212,8 @@ async def create_stateful_syslog_rule(rule: StatefulSyslogRuleBase, db: AsyncSes
     return StatefulSyslogRuleRead(
         id=new_rule.id,
         name=new_rule.name,
-        opensignalmnemonic=open_name,
-        closesignalmnemonic=close_name,
+        opensignalmnemonic=open_mnemonic.name,
+        closesignalmnemonic=close_mnemonic.name,
         opensignaltag=new_rule.opensignaltag,
         opensignalvalue=new_rule.opensignalvalue,
         closesignaltag=new_rule.closesignaltag,
@@ -214,24 +226,35 @@ async def create_stateful_syslog_rule(rule: StatefulSyslogRuleBase, db: AsyncSes
     )
 
 
-@router.put("/syslogs/statefulrules/{rule_name}", response_model=StatefulSyslogRuleRead)
-async def update_stateful_syslog_rule(rule_name: str, rule: StatefulSyslogRuleBase, db: AsyncSession = Depends(get_db)):
-    # local import to avoid circular import
+@statefulRules.put("/{rule_name}", response_model=StatefulSyslogRuleRead)
+async def update_stateful_syslog_rule(
+    rule_name: str,
+    rule: StatefulSyslogRuleBase,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    require_admin(user)
+
     from app.syslogs.mnemonics import Mnemonic
 
-    db_rule = (await db.execute(select(StatefulSyslogRule).where(StatefulSyslogRule.name == rule_name))).scalars().first()
+    db_rule = (await db.execute(
+        select(StatefulSyslogRule).where(StatefulSyslogRule.name == rule_name)
+    )).scalars().first()
     if not db_rule:
         raise HTTPException(status_code=404, detail="Rule not found")
 
-    open_mnemonic = (await db.execute(select(Mnemonic).where(Mnemonic.name == rule.opensignalmnemonic))).scalars().first()
+    open_mnemonic = (await db.execute(
+        select(Mnemonic).where(Mnemonic.name == rule.opensignalmnemonic)
+    )).scalars().first()
     if not open_mnemonic:
         raise HTTPException(status_code=400, detail=f"Open mnemonic '{rule.opensignalmnemonic}' not found")
 
-    close_mnemonic = (await db.execute(select(Mnemonic).where(Mnemonic.name == rule.closesignalmnemonic))).scalars().first()
+    close_mnemonic = (await db.execute(
+        select(Mnemonic).where(Mnemonic.name == rule.closesignalmnemonic)
+    )).scalars().first()
     if not close_mnemonic:
         raise HTTPException(status_code=400, detail=f"Close mnemonic '{rule.closesignalmnemonic}' not found")
 
-    # Update fields
     db_rule.name = rule.name
     db_rule.opensignaltag = rule.opensignaltag
     db_rule.opensignalvalue = rule.opensignalvalue
@@ -253,37 +276,53 @@ async def update_stateful_syslog_rule(rule_name: str, rule: StatefulSyslogRuleBa
         id=db_rule.id,
         name=db_rule.name,
         opensignalmnemonic=open_mnemonic.name,
-        closesignalmnemonic=close_mnemonic.name
+        closesignalmnemonic=close_mnemonic.name,
     )
 
 
-@router.delete("/syslogs/statefulrules/{rule_name}", status_code=204)
-async def delete_stateful_syslog_rule(rule_name: str, db: AsyncSession = Depends(get_db)):
-    db_rule = (await db.execute(select(StatefulSyslogRule).where(StatefulSyslogRule.name == rule_name))).scalars().first()
+@statefulRules.delete("/{rule_name}", status_code=204)
+async def delete_stateful_syslog_rule(
+    rule_name: str,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    require_admin(user)
+
+    db_rule = (await db.execute(
+        select(StatefulSyslogRule).where(StatefulSyslogRule.name == rule_name)
+    )).scalars().first()
     if not db_rule:
         raise HTTPException(status_code=404, detail="Rule not found")
 
     await db.delete(db_rule)
     await db.commit()
-    return {"detail": f"Rule '{rule_name}' deleted successfully"}
 
 # ======================
 # Severity API Routes
 # ======================
-@router.get("/syslogs/severity", response_model=SyslogSeveritySchema)
-async def get_severity(db: AsyncSession = Depends(get_db)):
+@severityLevel.get("/", response_model=SyslogSeveritySchema)
+async def get_severity(
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    
+
     result = await db.execute(select(SyslogSeverity))
     severity = result.scalar_one_or_none()
     if not severity:
         raise HTTPException(status_code=404, detail="Severity not found")
+
     return severity
 
-@router.put("/syslogs/severity", response_model=SyslogSeveritySchema)
+
+@severityLevel.put("/", response_model=SyslogSeveritySchema)
 async def update_severity(payload: SyslogSeveritySchema, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(SyslogSeverity))
     severity = result.scalar_one_or_none()
     if not severity:
         raise HTTPException(status_code=404, detail="Severity not found")
+    
+    require_admin(user)
 
     severity.number = payload.number
     severity.description = payload.description

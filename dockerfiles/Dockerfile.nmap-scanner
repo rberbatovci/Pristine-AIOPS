@@ -1,0 +1,13 @@
+FROM python:3.11-slim
+
+# Install Nmap
+RUN apt-get update && apt-get install -y nmap && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY nmap-scanner/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY nmap-scanner/main.py .
+
+CMD ["python", "main.py"]

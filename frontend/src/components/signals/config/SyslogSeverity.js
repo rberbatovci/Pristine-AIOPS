@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import apiClient from '../../misc/AxiosConfig';
-import './SignalConfigElement.css'; // Import your CSS file
+import { useState, useEffect } from 'react';
+import kcFetch from '../../misc/kcFetch';
+import './SignalConfigElement.css';
 
-const SyslogSeverity = () => {
+const SyslogSeverity = ({ keycloak }) => {
   const severityOptions = [
     { label: "Emergency", value: 0 },
     { label: "Alert", value: 1 },
@@ -27,23 +27,27 @@ const SyslogSeverity = () => {
       setError(null);
 
       try {
-        const response = await apiClient.get('/syslogs/severity/');
-        setActiveSeverity(Number(response.data.number));
-        setDescription(response.data.description);
+        const data = await kcFetch(keycloak, "/syslogs/severity");
+
+        setActiveSeverity(Number(data.number));
+        setDescription(data.description);
       } catch (error) {
-        if (error.response && error.response.status === 404) {
+        // kcFetch throws Error("HTTP <status>: <body>")
+        if (error.message.startsWith("HTTP 404")) {
           setShowCreateForm(true);
         } else {
-          console.error('Fetch error:', error);
-          setError('Failed to load syslog severity. Please try again later.');
+          console.error("Fetch error:", error);
+          setError("Failed to load syslog severity. Please try again later.");
         }
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchSyslogSeverity();
-  }, []);
+    if (keycloak?.authenticated) {
+      fetchSyslogSeverity();
+    }
+  }, [keycloak]);
 
   const handleUpdate = async () => {
     if (activeSeverity === null) {
@@ -51,25 +55,31 @@ const SyslogSeverity = () => {
       return;
     }
 
-    const selected = severityOptions.find(option => option.value === activeSeverity);
+    const selected = severityOptions.find(
+      option => option.value === activeSeverity
+    );
+
     if (!selected) {
       alert("Selected severity not found.");
       return;
     }
 
     try {
-      await apiClient.put('/syslogs/severity/', {
-        number: selected.value,
-        severity: selected.label,
-        description
+      await kcFetch(keycloak, "/syslogs/severity", {
+        method: "PUT",
+        body: JSON.stringify({
+          number: selected.value,
+          severity: selected.label, // backend ignores it, but fine
+          description,
+        }),
       });
-      alert('Severity and description updated successfully!');
+
+      alert("Severity and description updated successfully!");
     } catch (error) {
-      console.error('Error updating severity and description:', error);
-      alert('Failed to update severity and description.');
+      console.error("Error updating severity and description:", error);
+      alert("Failed to update severity and description.");
     }
   };
-
   return (
     <div className="signalConfigRuleContainer" style={{ margin: '10px' }}>
       {isLoading ? (

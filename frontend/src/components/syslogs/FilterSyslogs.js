@@ -1,323 +1,159 @@
-import React, { useState, useEffect } from 'react';
-import Select from 'react-select';
-import apiClient from '../misc/AxiosConfig';
-import '../../css/SearchSyslogs.css';
-import customStyles from '../misc/SelectStyles';
+import React, { useState, useCallback } from "react";
+import Select from "react-select";
+import customStyles from "../misc/SelectStyles";
+import "../../css/SearchElement.css";
 
-const FilterSyslogs = ({ source, devices, trapOids, onSelectedTagsChange, onSelectedTagsSearch }) => {
-    const [tags, setTags] = useState([]);
-    const [selectedTags, setSelectedTags] = useState({});
-    const [tagOptions, setTagOptions] = useState({});
-    const [fetchedTags, setFetchedTags] = useState({});
-    const [mnemonics, setMnemonics] = useState([]);
-    console.log('Agent devices:', devices);
+const severityOptions = [
+  { value: "emergency", label: "Emergency" },
+  { value: "alert", label: "Alert" },
+  { value: "critical", label: "Critical" },
+  { value: "error", label: "Error" },
+  { value: "warning", label: "Warning" },
+  { value: "notice", label: "Notice" },
+  { value: "info", label: "Info" },
+  { value: "debug", label: "Debug" }
+];
 
-    const netflowTags = [
-        { label: 'Source IP', value: 'source_ip' },
-        { label: 'Destination IP', value: 'destination_ip' },
-        { label: 'Protocol', value: 'protocol' },
-        { label: 'Source Port', value: 'source_port' },
-        { label: 'Destination Port', value: 'destination_port' }
-    ];
+const FilterSyslogs = ({
+  devices,
+  tags,
+  onSelectedSyslogFiltersChange
+}) => {
 
-    console.log('Devices in FilterSyslogs:', devices);
+  /* -------------------- state -------------------- */
+  const [selectedTags, setSelectedTags] = useState({});
+  const [optionsCache, setOptionsCache] = useState({}); // 🔥 dynamic options cache
+  const [loadingFields, setLoadingFields] = useState({});
 
-    // Convert devices into Select options
-    const deviceOptions = devices.map(device => ({
-        value: device.ip_address,
-        label: device.hostname,
-        ip_address: device.ip_address
-    }));
+  /* -------------------- static options -------------------- */
+  const deviceOptions = devices.map(d => ({
+    value: d.hostname,
+    label: d.hostname
+  }));
 
-    const fetchMnemonics = async () => {
-        try {
-            const response = await apiClient.get('/syslogs/mnemonics/');
-            const mnemonics = response.data.map((mnemonic) => ({
-                value: mnemonic.name,
-                label: mnemonic.name,
-            }));
-            setMnemonics(mnemonics);
-        } catch (error) {
-            console.error('Error fetching mnemonic data:', error);
-        }
+  /* -------------------- change handler -------------------- */
+  const handleChange = (value, key) => {
+    const updated = {
+      ...selectedTags,
+      [key]: value || []
     };
 
-    const fetchTrapTags = async () => {
-        try {
-            const response = await apiClient.get('/traps/tags/');
-            const trapTags = response.data.map((tag) => ({
-                label: tag.name, // Assuming your trap tag API returns 'name'
-                value: tag.name,
-            }));
-            setTags(trapTags);
-        } catch (error) {
-            console.error('Error fetching trap tags:', error);
-        }
-    };
+    setSelectedTags(updated);
+    onSelectedSyslogFiltersChange(updated);
+  };
 
-    const fetchSyslogTags = async () => {
-        try {
-            const response = await apiClient.get('/syslogs/tags/');
-            const syslogTags = response.data.map((tag) => ({
-                label: tag.name,
-                value: tag.name,
-            }));
-            setTags(syslogTags);
-        } catch (error) {
-            console.error('Error fetching syslog tags:', error);
-        }
-    };
+  /* -------------------- fetch from backend -------------------- */
+  const fetchOptions = async (field) => {
+    try {
+      setLoadingFields(prev => ({ ...prev, [field]: true }));
 
-    const fetchSyslogTagOptions = async (tag) => {
-        if (fetchedTags[tag]) return; // Avoid fetching if already fetched
+      const res = await fetch(`/api/syslogs/options/${field}`);
+      const data = await res.json();
 
-        try {
-            const response = await apiClient.get(`/syslogs/tags/unique-values`, {
-                params: { field: tag }
-            });
+      const formatted = data.map(item => ({
+        value: item.value,
+        label: item.label || item.value
+      }));
 
-            const optionsArray = response.data;
-            if (optionsArray) {
-                setTagOptions((prevOptions) => ({
-                    ...prevOptions,
-                    [tag]: optionsArray.map((option) => ({
-                        value: option,
-                        label: option,
-                    })),
-                }));
-                setFetchedTags((prevFetchedTags) => ({
-                    ...prevFetchedTags,
-                    [tag]: true,
-                }));
-            }
-        } catch (error) {
-            console.error(`Error fetching options for ${tag}: `, error);
-        }
-    };
+      setOptionsCache(prev => ({
+        ...prev,
+        [field]: formatted
+      }));
+    } catch (err) {
+      console.error(`Failed to fetch ${field}`, err);
+    } finally {
+      setLoadingFields(prev => ({ ...prev, [field]: false }));
+    }
+  };
 
-    const fetchTrapTagOptions = async (tag) => {
-        if (fetchedTags[tag]) return;
+  /* -------------------- focus handler (lazy load) -------------------- */
+  const handleFocus = useCallback((field) => {
+    if (optionsCache[field]) return; // ✅ already loaded
 
-        try {
-            const response = await apiClient.get(`/traps/tags/unique-values`, {
-                params: { field: tag } // Assuming your API for trap tag values uses 'field' as well
-            });
-            const optionsArray = response.data;
-            if (optionsArray) {
-                setTagOptions(prevOptions => ({
-                    ...prevOptions,
-                    [tag]: optionsArray.map(option => ({ value: option, label: option }))
-                }));
-                setFetchedTags(prevFetchedTags => ({ ...prevFetchedTags, [tag]: true }));
-            }
-        } catch (error) {
-            console.error(`Error fetching options for trap tag ${tag}:`, error);
-        }
-    };
+    fetchOptions(field);
+  }, [optionsCache]);
 
 
-    useEffect(() => {
-        if (source === "syslogs") {
-            fetchSyslogTags();
-        } else if (source === "snmptraps") {
-            fetchTrapTags();
-        } else if (source === "netflow") {
-            setTags(netflowTags);
-        }
-    }, [source]);
+  /* -------------------- render -------------------- */
+  return (
+    <div className="searchSyslogsContainer">
+      <div className="searchSyslogsFilterEntries">
 
-    const handleFocus = (tag) => {
-        if (tag === "mnemonics") {
-            fetchMnemonics();
-        } else if (source === "syslogs") {
-            fetchSyslogTagOptions(tag);
-        } else if (source === "snmptraps") {
-            fetchTrapTagOptions(tag);
-        }
-    };
+        {/* Devices */}
+        <FilterSelect
+          label="Device"
+          options={deviceOptions}
+          value={selectedTags.device}
+          onChange={(v) => handleChange(v, "device")}
+        />
 
-    const handleChange = (selectedValues, tag) => {
-        const updatedSelectedTags = {
-            ...selectedTags,
-            [tag]: selectedValues,
-        };
-        setSelectedTags(updatedSelectedTags);
-        onSelectedTagsChange(updatedSelectedTags);
-    };
+        {/* Mnemonics */}
+        <FilterSelect
+          label="Mnemonic"
+          options={optionsCache.mnemonic || []}
+          value={selectedTags.mnemonic}
+          loading={loadingFields.mnemonic}
+          onFocus={() => handleFocus("mnemonic")}
+          onChange={(v) => handleChange(v, "mnemonic")}
+        />
 
-    const handleAgentChange = (selectedValues) => {
-        const updatedSelectedTags = {
-            ...selectedTags,
-            device: selectedValues,
-        };
-        setSelectedTags(updatedSelectedTags);
-        onSelectedTagsChange(updatedSelectedTags);
-    };
+        {/* Severity */}
+        <FilterSelect
+          label="Severity"
+          options={severityOptions}
+          value={selectedTags.severity}
+          onChange={(v) => handleChange(v, "severity")}
+        />
 
-    const handleSeverityChange = (selectedValues) => {
-        const updatedSelectedTags = {
-            ...selectedTags,
-            severity: selectedValues,
-        };
-        setSelectedTags(updatedSelectedTags);
-        onSelectedTagsChange(updatedSelectedTags);
-    };
+        {/* Dynamic tags */}
+        {tags.map(tag => {
+          console.log("Rendering tag:", tag);
+          return (
+            <FilterSelect
+              key={tag.name}
+              label={tag.label}
+              options={optionsCache[tag.name] || []}
+              value={selectedTags[tag.name]}
+              loading={loadingFields[tag.name]}
+              onFocus={() => handleFocus(tag.name)}
+              onChange={(v) => handleChange(v, tag.name)}
+            />
+          );
+        })}
 
-
-    const handleSearchClick = () => {
-        const filters = {
-            device: selectedTags.device ? selectedTags.device.map((opt) => opt.value) : [],
-            severity: selectedTags.severity ? selectedTags.severity.map((opt) => opt.value) : [],
-            mnemonic: selectedTags.mnemonic ? selectedTags.mnemonic.map((opt) => opt.value) : [],
-            snmpTrapOid: selectedTags.snmpTrapOid ? selectedTags.snmpTrapOid.map((opt) => opt.value) : [],
-            tags: Object.keys(selectedTags).reduce((acc, key) => {
-                if (key !== 'device' && key !== 'mnemonic' && key !== 'snmpTrapOid') {
-                    acc[key] = selectedTags[key] ? selectedTags[key].map((opt) => opt.value) : [];
-                }
-                return acc;
-            }, {}),
-        };
-        onSelectedTagsSearch(filters);
-    };
-
-    const severityOptions = [
-        { value: 'Emergency', label: 'Emergency' },
-        { value: 'Alert', label: 'Alert' },
-        { value: 'Critical', label: 'Critical' },
-        { value: 'Error', label: 'Error' },
-        { value: 'Warning', label: 'Warning' },
-        { value: 'Notice', label: 'Notice' },
-        { value: 'Informational', label: 'Informational' },
-        { value: 'Debug', label: 'Debug' }
-    ];
-
-    return (
-        <div className="searchSyslogsContainer">
-            {tags.length === 0 && source !== 'traps' && source !== 'syslog' ? (
-                <p style={{ textAlign: 'center' }}>No specific tags to filter.</p>
-            ) : tags.length === 0 ? (
-                <p style={{ textAlign: 'center' }}>Loading {source} tags...</p>
-            ) : (
-                <div className="searchSyslogsFilterEntries">
-                    {/* Agent Hostnames Field */}
-                    <div className="searchSyslogsFilterEntry">
-                        <span className="searchSignalFilterText">Device:</span>
-                        <div style={{ marginTop: '6px' }}>
-                            <Select
-                                options={deviceOptions}
-                                isMulti
-                                value={selectedTags.device}
-                                onChange={(selectedValues) => handleAgentChange(selectedValues)}
-                                styles={{
-                                    ...customStyles('375px'),
-                                    menuPortal: base => ({ ...base, zIndex: 9999 })
-                                }}
-                                menuPortalTarget={document.body}
-                                placeholder="Select devices"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Mnemonic Field for Syslogs */}
-                    {source === "syslogs" && (
-
-                        <div className="searchSyslogsFilterEntry">
-                            <span className="searchSignalFilterText">Mnemonic:</span>
-                            <div style={{ marginTop: '6px' }}>
-                                <Select
-                                    options={mnemonics || []}  // Use dynamically fetched options
-                                    isMulti
-                                    value={selectedTags.mnemonic || []}    // Make sure it's never undefined/null
-                                    onChange={(selectedValues) => handleChange(selectedValues, 'mnemonic')}
-                                    name="mnemonics"
-                                    onFocus={() => handleFocus("mnemonics")}
-                                    styles={{
-                                        ...customStyles('375px'),
-                                        menuPortal: base => ({ ...base, zIndex: 9999 })
-                                    }}
-                                    menuPortalTarget={document.body}
-                                    placeholder="Select mnemonics"
-                                />
-                            </div>
-                        </div>
-                    )}
-
-                    {source === "syslogs" && (
-
-                        <div className="searchSyslogsFilterEntry">
-                            <span className="searchSignalFilterText">Severity:</span>
-                            <div style={{ marginTop: '6px' }}>
-                                <Select
-                                    options={severityOptions}
-                                    isMulti
-                                    value={selectedTags.severity || []}
-                                    onChange={(selectedValues) => handleSeverityChange(selectedValues)}
-                                    name="severity"
-                                    styles={{
-                                        ...customStyles('375px'),
-                                        menuPortal: base => ({ ...base, zIndex: 9999 })
-                                    }}
-                                    menuPortalTarget={document.body}
-                                    placeholder="Select severity"
-                                />
-                            </div>
-                        </div>
-                    )}
-
-                    {/* SnmpTrapOid Field for Traps */}
-                    {source === 'snmptraps' && (
-                        <div className="searchSyslogsFilterEntry">
-                            <span className="searchSignalFilterText">SNMP Trap OID:</span>
-                            <div style={{ marginTop: '6px' }}>
-                                <Select
-                                    options={trapOids}
-                                    isMulti
-                                    value={selectedTags.snmpTrapOid}
-                                    onChange={(selectedValues) => handleChange(selectedValues, 'snmpTrapOid')}
-                                    name="snmpTrapOid"
-                                    onFocus={() => handleFocus('snmpTrapOid')}
-                                    styles={{
-                                        ...customStyles('375px'),
-                                        menuPortal: base => ({ ...base, zIndex: 9999 })
-                                    }}
-                                    menuPortalTarget={document.body}
-                                    placeholder="Select SNMP Trap OIDs"
-                                />
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Dynamic Tags */}
-                    {tags.map((tag) => (
-                        <div key={tag.label} className="searchSyslogsFilterEntry">
-                            <span className="searchSignalFilterText">{tag.label}:</span>
-                            <div style={{ marginTop: '6px' }}>
-                                <Select
-                                    options={tagOptions[tag.label] || []}
-                                    isMulti
-                                    value={selectedTags[tag.label]}
-                                    onChange={(selectedValues) => handleChange(selectedValues, tag.label)}
-                                    name={tag.label}
-                                    onFocus={() => handleFocus(tag.label)}
-                                    styles={{
-                                        ...customStyles('375px'),
-                                        menuPortal: base => ({ ...base, zIndex: 9999 })
-                                    }}
-                                    menuPortalTarget={document.body}
-                                    placeholder={`Select ${tag.label}`}
-                                />
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-            <div style={{ display: 'flex', width: '100%', justifyContent: 'center', margin: '10px' }}>
-                <button onClick={handleSearchClick} className="button save-button">
-                    Search
-                </button>
-            </div>
-        </div>
-    );
+      </div>
+    </div>
+  );
 };
+
+/* -------------------- reusable select -------------------- */
+const FilterSelect = ({
+  label,
+  options,
+  value,
+  onChange,
+  onFocus,
+  loading
+}) => (
+  <div className="searchSyslogsFilterEntry">
+    <span className="searchSignalFilterText">{label}:</span>
+    <div style={{ marginTop: "6px" }}>
+      <Select
+        options={options}
+        isMulti
+        isLoading={loading}
+        value={value || []}
+        onChange={onChange}
+        onFocus={onFocus}
+        styles={{
+          ...customStyles("375px"),
+          menuPortal: base => ({ ...base, zIndex: 9999 })
+        }}
+        menuPortalTarget={document.body}
+        placeholder={`Select ${label}`}
+      />
+    </div>
+  </div>
+);
 
 export default FilterSyslogs;

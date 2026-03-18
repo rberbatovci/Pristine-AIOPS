@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import '../css/SyslogDatabase.css';
 import EventsTable from '../components/misc/EventsTable.js';
-import apiClient from '../components/misc/AxiosConfig.js';
+import kcFetch from '../components/misc/kcFetch';
+
 import { FaClock, FaRegClock } from "react-icons/fa";
 import { RiDownloadCloudLine, RiDownloadCloudFill } from "react-icons/ri";
 import { HiOutlineViewColumns, HiViewColumns } from "react-icons/hi2";
@@ -11,10 +12,10 @@ import FilterTraffic from '../components/netflow/FilterTraffic.js';
 import NetflowChart from '../components/netflow/Chart.js';
 
 import { RiFilterLine, RiFilterFill } from "react-icons/ri";
-import { IoPieChartOutline, IoPieChartSharp } from "react-icons/io5";
 import { TfiLayoutListThumb, TfiLayoutListThumbAlt } from "react-icons/tfi";
+import { IoPieChartOutline, IoPieChartSharp, IoRefreshCircleOutline, IoRefreshCircleSharp } from "react-icons/io5";
 
-function Traffic({ currentUser, setDashboardTitle }) {
+function Traffic({ currentUser, setDashboardTitle, keycloak }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(false);
     const [selectedTags, setSelectedTags] = useState([]);
@@ -31,18 +32,18 @@ function Traffic({ currentUser, setDashboardTitle }) {
     });
     const [devices, setDevices] = useState([]);
     const [page, setPage] = useState(1);
-    const [pageSize, setPageSize] = useState(24);
+    const [pageSize, setPageSize] = useState(21);
     const [totalEvents, setTotalEvents] = useState(0);
     const baseColumns = [
         { label: 'Timestamp', value: 'timestamp' },
-        { label: 'Exporter IP', value: 'exporter_ip' },
+        { label: 'Device', value: 'device' },
         { label: 'Source IP', value: 'source_ip' },
         { label: 'Source Port', value: 'source_port' },
         { label: 'Destination IP', value: 'dest_ip' },
         { label: 'Destination Port', value: 'dest_port' },
         { label: 'Protocol', value: 'protocol' },
-        { label: 'Input SNMP', value: 'input_snmp' },
-        { label: 'Output SNMP', value: 'output_snmp' },
+        { label: 'Input Interface', value: 'input_if' },
+        { label: 'Output Interface', value: 'output_if' },
         { label: 'Bytes', value: 'bytes' },
         { label: 'Packets', value: 'packets' },
     ];
@@ -70,58 +71,67 @@ function Traffic({ currentUser, setDashboardTitle }) {
         });
     };
 
-    const loadNetflowData = (page = 1, pageSize = 20, startTime = startTime, endTime = endTime, filters = {}) => {
+    const loadNetflowData = async (
+        keycloak,
+        page = 1,
+        pageSize = 20,
+        startTime = startTime,
+        endTime = endTime,
+        filters = {}
+    ) => {
         setEventsData(null);
         setLoading(true);
+        setError(null);
 
-        // Base URL for netflow
-        let url = `/netflow/?page=${page}&page_size=${pageSize}`;
-        if (startTime) url += `&start_time=${encodeURIComponent(startTime)}`;
-        if (endTime) url += `&end_time=${encodeURIComponent(endTime)}`;
+        try {
+            // Base URL for netflow
+            let url = `/netflow/?page=${page}&page_size=${pageSize}`;
 
-        // Add filters
-        const query = new URLSearchParams();
+            if (startTime) url += `&start_time=${encodeURIComponent(startTime)}`;
+            if (endTime) url += `&end_time=${encodeURIComponent(endTime)}`;
 
-        if (filters.device?.length) {
-            filters.device.forEach(device => query.append('device', device));
+            // Add filters
+            const query = new URLSearchParams();
+
+            if (filters.device?.length) {
+                filters.device.forEach(device => query.append("device", device));
+            }
+
+            if (query.toString()) {
+                url += `&${query.toString()}`;
+            }
+
+            const data = await kcFetch(keycloak, url);
+
+            let results = [];
+
+            if (data?.results) {
+                results = data.results.map(item => item._source || item);
+                setTotalEvents(data.total || 0);
+            } else if (Array.isArray(data)) {
+                results = data.map(item => item._source || item);
+                setTotalEvents(data.length);
+            } else {
+                console.warn("Unexpected response data structure:", data);
+            }
+
+            setEventsData(results);
+        } catch (error) {
+            console.error("Error fetching netflow data:", error);
+            setError("Error fetching netflow data");
+        } finally {
+            setLoading(false);
         }
-
-        if (query.toString()) {
-            url += `&${query.toString()}`;
-        }
-
-        apiClient
-            .get(url)
-            .then(response => {
-                let results = [];
-                if (response.data && response.data.results) {
-                    results = response.data.results.map(item => item._source || item);
-                    setTotalEvents(response.data.total || 0);
-                } else if (Array.isArray(response.data)) {
-                    results = response.data.map(item => item._source || item);
-                    setTotalEvents(response.data.length);
-                } else {
-                    console.warn('Unexpected response data structure:', response.data);
-                }
-                setEventsData(results);
-            })
-            .catch(error => {
-                console.error('Error fetching netflow data:', error);
-                setError('Error fetching netflow data');
-            })
-            .finally(() => {
-                setLoading(false);
-            });
     };
 
     useEffect(() => {
-        loadNetflowData(page, pageSize, startTime?.toISOString(), endTime?.toISOString(), filters);
+        loadNetflowData(keycloak, page, pageSize, startTime?.toISOString(), endTime?.toISOString(), filters);
     }, [page, pageSize, startTime, endTime, pageSize]);
 
     useEffect(() => {
         const fetchDevices = async () => {
             try {
-                const response = await apiClient.get('/devices');
+                const response = await kcFetch(keycloak, "/devices/");
                 const devices = response.data.map((device) => ({
                     id: device.id,
                     hostname: device.hostname,
@@ -161,7 +171,7 @@ function Traffic({ currentUser, setDashboardTitle }) {
     };
 
     const handleTimeRangeSelect = (range) => {
-        loadNetflowData(page, pageSize, startTime?.toISOString(), endTime?.toISOString(), filters);
+        loadNetflowData(keycloak, page, pageSize, startTime?.toISOString(), endTime?.toISOString(), filters);
     };
 
     const handleSearchAndCloseDropdown = (filters) => {
@@ -172,11 +182,11 @@ function Traffic({ currentUser, setDashboardTitle }) {
             searchSyslogs: { ...prev.searchSyslogs, visible: false }
         }));
 
-        loadNetflowData(page, pageSize, startTime?.toISOString(), endTime?.toISOString(), filters);
+        loadNetflowData(keycloak, page, pageSize, startTime?.toISOString(), endTime?.toISOString(), filters);
     };
 
     const handleApplyEventsPerPage = () => {
-        loadNetflowData(page, pageSize, startTime?.toISOString(), endTime?.toISOString(), filters); // Reset to page 1 when page size changes
+        loadNetflowData(keycloak, page, pageSize, startTime?.toISOString(), endTime?.toISOString(), filters); // Reset to page 1 when page size changes
     };
 
     const handlePageSizeChange = (event) => {
@@ -225,6 +235,7 @@ function Traffic({ currentUser, setDashboardTitle }) {
                         <button
                             className="iconButton"
                             onClick={() => setView("chart")}
+                            style={{ marginRight: '20px' }}
                         >
                             <TfiLayoutListThumb className="defaultIcon" />
                             <IoPieChartSharp className="hoverIcon" />
@@ -233,11 +244,16 @@ function Traffic({ currentUser, setDashboardTitle }) {
                         <button
                             className="iconButton"
                             onClick={() => setView("list")}
+                            style={{ marginRight: '20px' }}
                         >
                             <IoPieChartOutline className="defaultIcon" />
                             <TfiLayoutListThumbAlt className="hoverIcon" />
                         </button>
                     )}
+                    <button className="iconButton">
+                        <IoRefreshCircleOutline className="defaultIcon" />
+                        <IoRefreshCircleSharp className="hoverIcon" />
+                    </button>
                     <button
                         className={`iconButton ${dropdowns.search.visible ? 'active' : ''} `}
                         onClick={(event) => handleButtonClick(event, 'search')}
@@ -258,78 +274,20 @@ function Traffic({ currentUser, setDashboardTitle }) {
                         <RiDownloadCloudLine className="defaultIcon" />
                         <RiDownloadCloudFill className="hoverIcon" />
                     </button>
-                    
+
                 </div>
             </div>
 
             <div className="mainContainerContent">
                 {loading && <div className="loadingMessage">Loading...</div>}
                 {error && <div className="errorMessage">{error}</div>}
-                {!loading && !error && (
-                    view === "list" ? (
-                        <div>
-                            <div className="syslogsTableContainer">
-                                <EventsTable
-                                    currentUser={currentUser}
-                                    data={eventsData}
-                                    columns={baseColumns}
-                                    signalSource={dataSource}
-                                    onDownload={(downloadFn) => (downloadRef.current = downloadFn)}
-                                    onRowSelectChange={handleRowSelectChange}
-                                />
-                            </div>
-                            <div className="paginationContainer">
-                                <div style={{ paddingLeft: '20px' }}>
-                                    <span>Events Per Page: </span>
-                                    <input
-                                        type="number"
-                                        id="syslogsPerPage"
-                                        value={pageSize}
-                                        min="1"
-                                        onChange={handlePageSizeChange}
-                                        style={{
-                                            width: '30px',
-                                            background: 'none',
-                                            marginRight: '6px',
-                                            border: 'none',
-                                            outline: 'none',
-                                            paddingLeft: '10px',
-                                            padding: '5px',
-                                            borderRadius: '5px',
-                                            color: 'var(--textColor)'
-                                        }}
-                                    />
-                                </div>
-                                <div style={{
-                                    display: 'flex',
-                                    justifyContent: 'center',
-                                    alignItems: 'center',
-                                    gap: '20px',
-                                    marginTop: '10px'
-                                }}>
-                                    <Pagination
-                                        count={totalPages}
-                                        page={page}
-                                        onChange={(event, value) => setPage(value)}
-                                        shape="rounded"
-                                        color="primary"
-                                        sx={{
-                                            '& .MuiPaginationItem-root': {
-                                                color: 'var(--textColor)',
-                                            }
-                                        }}
-                                    />
-                                </div>
-                                <div style={{ paddingRight: '20px' }}>
-                                    <span>Total Entries: {totalEvents}</span>
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
+                {!loading && !error && (view === "list" ? (
+                    <div className="syslogsTableContainer">
+                        <EventsTable currentUser={currentUser} data={eventsData} columns={baseColumns} signalSource={dataSource} onDownload={(downloadFn) => (downloadRef.current = downloadFn)} onRowSelectChange={handleRowSelectChange} />
+                    </div>) : (
+                    <div className="syslogsTableContainer">
                         <NetflowChart />
-                    )
-                )}
-
+                    </div>))}
             </div>
             <div ref={dropdownMenuRef}>
                 <div

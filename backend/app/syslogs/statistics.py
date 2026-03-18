@@ -1,48 +1,22 @@
-from fastapi import APIRouter, HTTPException, Query, Body 
+from fastapi import APIRouter, Depends, HTTPException, Query, Body 
 from typing import List
 from app.db.session import opensearch_client
+from app.auth.keycloak import get_current_user, require_admin
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/api/syslogs/statistics",
+    tags=["syslogs,statistics"],
+)
+
+signalsRouter = APIRouter(
+    prefix="/api/signals/syslogs/statistics",
+    tags=["syslogs,signals,statistics"],
+)
 
 TOP_LEVEL_FIELDS = [ "mnemonic", "device", "severity" ]
 
-def get_unique_terms(index: str, field: str, size: int = 1000) -> List[str]:
-    try:
-        response = opensearch_client.search(
-            index=index,
-            size=0,
-            body={
-                "aggs": {
-                    "unique_terms": {
-                        "terms": {
-                            "field": field,
-                            "size": size
-                        }
-                    }
-                }
-            }
-        )
-        buckets = response["aggregations"]["unique_terms"]["buckets"]
-        return [bucket["key"] for bucket in buckets]
-    except Exception as e:
-        logger.exception("Error during OpenSearch aggregation")
-        raise HTTPException(status_code=500, detail=f"Error getting terms: {str(e)}")
-
-@router.get("/syslogs/tags/unique-values", response_model=List[str])
-def get_dynamic_unique_values(field: str = Query(..., description="Field to aggregate")):
-    # Determine actual field path for aggregation
-    if field in TOP_LEVEL_FIELDS:
-        field_path = field
-    else:
-        field_path = f"tags.{field}"
-
-    try:
-        return get_unique_terms(index="syslogs", field=field_path)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/syslogs/statistics/{key}")
-def get_field_statistics(key: str):
+@router.get("/{key}")
+def get_field_statistics(key: str, user: dict = Depends(get_current_user)):
     # Fields like 'severity', 'device', etc. should use .keyword
     field_path = f"{key}" if key in TOP_LEVEL_FIELDS else f"tags.{key}"
 
@@ -65,8 +39,8 @@ def get_field_statistics(key: str):
 
     return {"key": key, "statistics": stats}
 
-@router.get("/signals/syslogs/devices/statistics")
-def get_device_statistics():
+@signalsRouter.get("/devices")
+def get_device_statistics(user: dict = Depends(get_current_user)):
     query = {
         "size": 0,
         "aggs": {
@@ -87,8 +61,8 @@ def get_device_statistics():
         ]
     }
 
-@router.get("/signals/syslogs/mnemonics/statistics")
-def get_mnemonic_statistics():
+@signalsRouter.get("/mnemonics")
+def get_mnemonic_statistics(user: dict = Depends(get_current_user)):
     query = {
         "size": 0,
         "aggs": {
@@ -109,8 +83,8 @@ def get_mnemonic_statistics():
         ]
     }
 
-@router.get("/signals/syslogs/rules/statistics")
-def get_rule_statistics():
+@signalsRouter.get("/rules")
+def get_rule_statistics(user: dict = Depends(get_current_user)):
     query = {
         "size": 0,
         "aggs": {
@@ -132,8 +106,8 @@ def get_rule_statistics():
     }
 
 
-@router.get("/signals/syslogs/status/statistics")
-def get_syslog_status_statistics():
+@signalsRouter.get("/status")
+def get_syslog_status_statistics(user: dict = Depends(get_current_user)):
     query = {
         "size": 0,
         "aggs": {
@@ -154,8 +128,8 @@ def get_syslog_status_statistics():
         ]
     }
 
-@router.get("/signals/syslogs/severity/statistics")
-def get_trap_severity_statistics():
+@signalsRouter.get("/severity")
+def get_trap_severity_statistics(user: dict = Depends(get_current_user)):
     query = {
         "size": 0,
         "aggs": {
@@ -176,8 +150,8 @@ def get_trap_severity_statistics():
         ]
     }
 
-@router.get("/signals/syslogs/affected-entities/statistics/{entity_key}")
-def get_affected_entity_statistics(entity_key: str):
+@signalsRouter.get("/affected-entities/{entity_key}")
+def get_affected_entity_statistics(entity_key: str, user: dict = Depends(get_current_user)):
     index_name = "syslog-signals"
     field_path = f"affectedEntities.{entity_key}"
 

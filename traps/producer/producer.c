@@ -14,9 +14,9 @@
 #define KAFKA_DEBUG 0
 #define NETSNMP_DEBUG 0
 
-#define EXPIRATION_YEAR 2025
-#define EXPIRATION_MONTH 11
-#define EXPIRATION_DAY 3
+#define EXPIRATION_YEAR 2026
+#define EXPIRATION_MONTH 4
+#define EXPIRATION_DAY 18
 #define EXPIRATION_HOUR 17
 #define EXPIRATION_MINUTE 38
 
@@ -283,8 +283,7 @@ int is_expired() {
 void print_banner() {
     printf("\n");
     printf("╔══════════════════════════════════════════════╗\n");
-    printf("║           Welcome to Pristine-AIOPS          ║\n");
-    printf("║                   v1.1 beta                  ║\n");
+    printf("║        Welcome to Pristine-AIOPS v1.2        ║\n");
     printf("║           Thanks for using our tool          ║\n");
     printf("╚══════════════════════════════════════════════╝\n");
 }
@@ -296,7 +295,7 @@ int main(int argc, char **argv)
     setbuf(stdout, NULL);
 
     if (is_expired()) {
-        fprintf(stderr, "⛔ Pristine-AIOPS v1.1 beta is out of date.\n Please contact the developer to get Pristine-AIOPS v1.2.\n");
+        fprintf(stderr, "⛔ Pristine-AIOPS v1.2 is out of date.\n Please contact the developer to get Pristine-AIOPS v1.3.\n");
         return 1;
     }
 

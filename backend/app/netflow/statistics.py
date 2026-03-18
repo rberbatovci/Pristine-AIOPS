@@ -1,8 +1,35 @@
-from fastapi import APIRouter, HTTPException, Query, Body 
+from fastapi import APIRouter, Depends, HTTPException, Query, Body 
 from typing import List
 from app.db.session import opensearch_client
+from app.auth.keycloak import get_current_user, require_admin
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/api/netflow/statistics",
+    tags=["netflow,statistics"],
+)
+
+@router.get("/{key}")
+def get_field_statistics(key: str, user: dict = Depends(get_current_user)):
+
+    query = {
+        "size": 0,
+        "aggs": {
+            "value_counts": {
+                "terms": {
+                    "field": key,
+                    "size": 1000
+                }
+            }
+        }
+    }
+
+    response = opensearch_client.search(index="netflow", body=query)
+
+    buckets = response.get("aggregations", {}).get("value_counts", {}).get("buckets", [])
+
+    stats = [{"value": b["key"], "count": b["doc_count"]} for b in buckets]
+
+    return {"key": key, "statistics": stats}
 
 def get_unique_terms(index: str, field: str, size: int = 1000) -> List[str]:
     try:

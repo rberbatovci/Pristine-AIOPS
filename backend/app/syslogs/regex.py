@@ -15,8 +15,12 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from app.db.session import Base, get_db
 from app.syslogs.tags import SyslogTag
+from app.auth.keycloak import get_current_user, require_admin
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/api/syslogs/regex",
+    tags=["syslogs,regex"],
+)
 
 class MatchOptions(str, Enum):
     undefined = "undefined"
@@ -141,31 +145,63 @@ def delete_regex_from_redis(regex_id):
 # ======================
 # API Routes
 # ======================
-@router.post("/syslogs/regex/syncToRedis/")
-def sync_regex():
+@router.post("/syncToRedis")
+async def sync_regex(
+    user: dict = Depends(get_current_user),
+):
+    require_admin(user)
+
     try:
         sync_regex_to_redis()
         return {"message": "Regex rules synchronized successfully to Redis"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/syslogs/regex/", response_model=list[RegExBrief])
-async def read_regex(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(RegEx).offset(skip).limit(limit))
+@router.get("/", response_model=list[RegExBrief])
+async def read_regex(
+    skip: int = 0,
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    require_admin(user)
+
+    result = await db.execute(
+        select(RegEx).offset(skip).limit(limit)
+    )
     return result.scalars().all()
 
-@router.get("/syslogs/regex/{regex_name}", response_model=RegExResponse)
-async def read_regex_by_name(regex_name: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(RegEx).filter(RegEx.name == regex_name))
+@router.get("/{regex_name}", response_model=RegExResponse)
+async def read_regex_by_name(
+    regex_name: str,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    require_admin(user)
+
+    result = await db.execute(
+        select(RegEx).where(RegEx.name == regex_name)
+    )
     db_regex = result.scalars().first()
+
     if not db_regex:
         raise HTTPException(status_code=404, detail="RegEx not found")
+
     return db_regex
 
-@router.delete("/syslogs/regex/{regex_name}", response_model=dict)
-async def delete_regex(regex_name: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(RegEx).filter(RegEx.name == regex_name))
+@router.delete("/{regex_name}", response_model=dict)
+async def delete_regex(
+    regex_name: str,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    require_admin(user)
+
+    result = await db.execute(
+        select(RegEx).where(RegEx.name == regex_name)
+    )
     db_regex = result.scalars().first()
+
     if not db_regex:
         raise HTTPException(status_code=404, detail="RegEx not found")
 
@@ -176,32 +212,44 @@ async def delete_regex(regex_name: str, db: AsyncSession = Depends(get_db)):
     await db.commit()
 
     delete_regex_from_redis(regex_id)
+
     response = {"regex_deleted": True, "tag_deleted": False}
 
     if tag_name:
-        result = await db.execute(select(RegEx).filter(RegEx.tag == tag_name))
-        remaining_regexes = result.scalars().all()
-        if not remaining_regexes:
-            db_tag_result = await db.scalar(select(SyslogTag).filter(SyslogTag.name == tag_name))
-            if db_tag_result:
-                await db.delete(db_tag_result)
+        remaining = await db.execute(
+            select(RegEx).where(RegEx.tag == tag_name)
+        )
+        if not remaining.scalars().all():
+            db_tag = await db.scalar(
+                select(SyslogTag).where(SyslogTag.name == tag_name)
+            )
+            if db_tag:
+                await db.delete(db_tag)
                 await db.commit()
                 response["tag_deleted"] = True
 
     return response
 
-@router.post("/syslogs/regex/", response_model=RegExResponse)
-async def create_regex(regex: RegExCreate, db: AsyncSession = Depends(get_db)):
-    db_regex = await db.scalar(select(RegEx).where(RegEx.name == regex.name))
+@router.post("/", response_model=RegExResponse)
+async def create_regex(
+    regex: RegExCreate,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    require_admin(user)
+
+    db_regex = await db.scalar(
+        select(RegEx).where(RegEx.name == regex.name)
+    )
     if db_regex:
         raise HTTPException(status_code=400, detail="RegEx name already exists")
 
     db_tag = None
     if regex.tag:
-        db_tag_result = await db.scalar(select(SyslogTag).where(SyslogTag.name == regex.tag))
-        if db_tag_result:
-            db_tag = db_tag_result
-        else:
+        db_tag = await db.scalar(
+            select(SyslogTag).where(SyslogTag.name == regex.tag)
+        )
+        if not db_tag:
             db_tag = SyslogTag(name=regex.tag)
             db.add(db_tag)
             await db.commit()
@@ -218,18 +266,29 @@ async def create_regex(regex: RegExCreate, db: AsyncSession = Depends(get_db)):
     add_regex_to_redis(db_regex_create)
     return db_regex_create
 
-@router.put("/syslogs/regex/{regex_name}", response_model=RegExResponse)
-async def update_regex(regex_name: str, regex_update: RegExUpdate, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(RegEx).filter(RegEx.name == regex_name))
+@router.put("/{regex_name}", response_model=RegExResponse)
+async def update_regex(
+    regex_name: str,
+    regex_update: RegExUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    require_admin(user)
+
+    result = await db.execute(
+        select(RegEx).where(RegEx.name == regex_name)
+    )
     db_regex = result.scalars().first()
+
     if not db_regex:
         raise HTTPException(status_code=404, detail="RegEx not found")
 
     for key, value in regex_update.dict(exclude_unset=True).items():
         if key == "tag":
             if value:
-                db_tag_result = await db.scalar(select(SyslogTag).where(SyslogTag.name == value))
-                db_tag = db_tag_result
+                db_tag = await db.scalar(
+                    select(SyslogTag).where(SyslogTag.name == value)
+                )
                 if not db_tag:
                     db_tag = SyslogTag(name=value)
                     db.add(db_tag)

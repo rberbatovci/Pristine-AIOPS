@@ -46,8 +46,8 @@
   --tagListColHov: rgba(32, 105, 153, .5);
 
   --rowSelectedColor: rgb(22, 35, 48);
-  --rowSelectedBackground: rgba(255, 255, 255, 0.2);
-  --rowOddBackground: rgba(211, 211, 211, 0.1);
+  --rowSelectedBackground: rgba(24, 104, 179, 0.4);
+  --rowOddBackground: rgba(255, 255, 255, 0.1);
   --rowEvenBackground: rgba(211, 211, 211, 0.25);
   --dropdownTopBorder: rgba(245, 245, 245, 0.5);
   --dropdownBottomBorder: rgba(139, 139, 139, 0.3);
@@ -116,8 +116,8 @@
 
   --rowSelectedColor: rgb(255, 255, 255);
   --rowSelectedBackground: rgba(11, 78, 102, 0.3);
-  --rowOddBackground: rgba(55, 125, 172, 0.1);
-  --rowEvenBackground: rgba(55, 125, 172, 0.15);
+  --rowOddBackground: rgba(10, 89, 153, 0.1);
+  --rowEvenBackground: rgba(10, 89, 153, 0.15);
   --cpu-5s: #60a5fa;
   --cpu-1m: #4ade80;
   --cpu-5m: #f87171;
@@ -767,6 +767,8 @@ header {
   transition: color 0.2s ease;
 }
 
+
+
 .signalTagItemX button:hover {
   color: #e53935;
 }
@@ -797,6 +799,18 @@ header {
   content: '';
   display: inline-block;
   animation: dots 1.2s steps(3, end) infinite;
+}
+
+.syslogsPerPage {
+  width: '30px';
+  background: 'none';
+  margin-right: '6px';
+  border: 'none';
+  outline: 'none';
+  padding-left: '10px';
+  padding: '5px';
+  border-radius: '5px';
+  color: 'var(--textColor)';
 }
 
 @keyframes dots {

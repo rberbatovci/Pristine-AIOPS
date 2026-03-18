@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import '../../css/SyslogTagsList.css';
-import apiClient from '../misc/AxiosConfig';
+import kcFetch from '../misc/kcFetch';
 
-const TrapComponents = ({ selTrapEventsTags, setSelTrapEventsTags }) => {
+const TrapComponents = ({ keycloak, selTrapEventsTags, setSelTrapEventsTags }) => {
   const [searchValue, setSearchValue] = useState('');
   const [tags, setTags] = useState([]);
 
@@ -11,12 +11,19 @@ const TrapComponents = ({ selTrapEventsTags, setSelTrapEventsTags }) => {
   useEffect(() => {
     const fetchSyslogTags = async () => {
       try {
-        const response = await apiClient.get('/traps/tags/');
-        const apiTags = response.data.map(tag => tag.name);
-        const combinedTags = Array.from(new Set([...defaultTags, ...apiTags]));
+        const data = await kcFetch(keycloak, "/traps/tags/");
+
+        const apiTags = Array.isArray(data)
+          ? data.map(tag => tag.name)
+          : [];
+
+        const combinedTags = Array.from(
+          new Set([...defaultTags, ...apiTags])
+        );
+
         setTags(combinedTags);
       } catch (error) {
-        console.error('Error fetching syslog tag names:', error);
+        console.error("Error fetching syslog tag names:", error);
       }
     };
 
@@ -31,24 +38,24 @@ const TrapComponents = ({ selTrapEventsTags, setSelTrapEventsTags }) => {
     typeof tag === 'string' && tag.toLowerCase().includes(searchValue.toLowerCase())
   );
 
-const handleTagCheckboxChange = (tag) => {
-  if (selTrapEventsTags.includes(tag)) {
-    // Do nothing if tag is already selected (to prevent going below 3)
-    return;
-  }
+  const handleTagCheckboxChange = (tag) => {
+    if (selTrapEventsTags.includes(tag)) {
+      // Do nothing if tag is already selected (to prevent going below 3)
+      return;
+    }
 
-  let newTags = [...selTrapEventsTags];
+    let newTags = [...selTrapEventsTags];
 
-  if (newTags.length >= 3) {
-    // Remove the first (oldest) selected tag
-    newTags.shift();
-  }
+    if (newTags.length >= 3) {
+      // Remove the first (oldest) selected tag
+      newTags.shift();
+    }
 
-  // Add the newly selected tag
-  newTags.push(tag);
+    // Add the newly selected tag
+    newTags.push(tag);
 
-  setSelTrapEventsTags(newTags);
-};
+    setSelTrapEventsTags(newTags);
+  };
 
   return (
     <div className="signalTagContainer">

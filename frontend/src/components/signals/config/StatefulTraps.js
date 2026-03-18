@@ -1,18 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import './SignalConfigElement.css';
 import Select from 'react-select';
 import customStyles from '../../misc/SelectStyles';
-import apiClient from '../../misc/AxiosConfig';
+import { useSnmpTrapRules } from "../../../hooks/useSnmpTrapRules";
+import { useSnmpTrapTags } from "../../../hooks/useSnmpTrapTags";
+import { useSnmpTrapOids } from "../../../hooks/useSnmpTrapOids";
 
-const StatefulTraps = () => {
-    const [selectedOption, setSelectedOption] = useState(null);
+const StatefulTraps = ({ keycloak }) => {
     const [snmpTrapRule, setSnmpTrapRule] = useState([]);
+    const {
+        rules,
+        selectedRule,
+        ruleDetails,
+        loading: isLoading,
+        error,
+        selectRule,
+        addRule,
+        updateRule,
+        deleteRule
+    } = useSnmpTrapRules(keycloak);
     const [editedData, setEditedData] = useState({});
-    const [snmpTrapOids, setSnmpTrapOids] = useState([]);
-    const [oidNames, setOidNames] = useState([]);
-    const [trapTags, setTrapTags] = useState([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState(null);
+    const {
+        oids: oidNames = [],
+        loading: oidsLoading,
+        error: oidsError
+    } = useSnmpTrapOids(keycloak);
+
+    const {
+        tags: tagNames = [],
+        loading: tagsLoading,
+        error: tagsError
+    } = useSnmpTrapTags(keycloak);
     const [devices, setDevices] = useState([]);
     const [newRule, setNewRule] = useState({
         name: '',
@@ -31,137 +49,44 @@ const StatefulTraps = () => {
     });
     const [isAddingNewRule, setIsAddingNewRule] = useState(true);
 
-    const fetchTrapTags = () => {
-        apiClient
-            .get('/traps/tags/')
-            .then((response) => {
-                console.log('SNMP Trap Tags list2:', response.data);
-                const trapTags = response.data.map((Oid) => ({
-                    value: Oid.name,
-                    label: Oid.name,
-                }));
-                setTrapTags(trapTags);
-            })
-            .catch((error) => {
-                console.error('Error fetching SNMP Trap Tags:', error);
-                setError('Error fetching SNMP Trap Tags. Please try again.');
-            });
-    };
-
-    const fetchStatefulTrapRules = async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            const response = await apiClient.get('/traps/statefulrules/');
-            setSnmpTrapRule(response.data);
-        } catch (error) {
-            console.error('Error fetching syslog rules:', error);
-            setError('Error fetching stateful syslog rules:')
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const fetchSnmpTrapOids = async () => {
-        try {
-            const response = await apiClient.get('/traps/trapOids/');
-            const oids = response.data.map((oid) => ({
-                value: oid.name,
-                label: oid.name,
-            }));
-            setSnmpTrapOids(oids);
-        } catch (error) {
-            console.error('Error fetching SNMP Trap OID data:', error);
-        }
-    };
-
-    useEffect(() => {
-        fetchStatefulTrapRules();
-        fetchSnmpTrapOids();
-        fetchTrapTags();
-    }, []);
-
-    const handleOptionChange = (rule) => {
-        setSelectedOption(rule);
+    const handleOptionChange = async (rule) => {
         setIsAddingNewRule(false);
         setEditedData(rule);
-
-        apiClient.get(`/traps/statefulrules/${rule.name}/`)
-            .then((response) => {
-                setNewRule(response.data);
-                console.log('Fetched Syslog Tag Details:', response.data);
-            })
-            .catch((error) => {
-                console.error('Error fetching syslog tag details:', error);
-            });
+        await selectRule(rule);
     };
 
     const handleAddRule = async () => {
-        const payload = {
-            name: newRule.name,
-            devices: newRule.devices,
-            opensignaltrap: newRule.opensignaltrap,
-            opensignaltag: newRule.opensignaltag,
-            opensignalvalue: newRule.opensignalvalue,
-            closesignaltrap: newRule.closesignaltrap,
-            closesignaltag: newRule.closesignaltag,
-            closesignalvalue: newRule.closesignalvalue,
-            initialseverity: newRule.initialseverity,
-            affectedentity: newRule.affectedentity,
-            description: newRule.description,
-            warmup: newRule.warmup,
-            cooldown: newRule.cooldown
-        };
         try {
-            console.log("Payload:", payload);
-            const response = await apiClient.post('/traps/statefulrules/', payload);
+            await addRule(newRule);
             setNewRule({});
-            fetchStatefulTrapRules();
-        } catch (error) {
-            console.error("Error adding rule:", error);
-            setError("Failed to add rule. Please try again.");
+            setIsAddingNewRule(false);
+        } catch (err) {
+            console.error("Error adding rule:", err);
         }
     };
 
     const handleSave = async () => {
+        if (!selectedRule) return;
         try {
-            const { id } = newRule;
-            const response = await apiClient.put(`/snmptraps/statefultraprules/${id}/`, newRule);
-            setNewRule(snmpTrapRule.map(rule => (rule.id === id ? response.data : rule)));
-            setSelectedOption(response.data);
-            setNewRule({
-                name: '',
-                devices: [],
-                opensignaltrap: '',
-                opensignaltag: '',
-                opensignalvalue: '',
-                closesignaltrap: '',
-                closesignaltag: '',
-                closesignalvalue: '',
-                initialseverity: '',
-                affectedentity: [],
-                description: '',
-                warmup: '',
-                cooldown: '',
-            });
-            setIsAddingNewRule(true);
-        } catch (error) {
-            console.error('Error updating tag:', error);
+            await updateRule(selectedRule.name, editedData);
+            setEditedData({});
+        } catch (err) {
+            console.error("Error updating rule:", err);
         }
     };
 
     const handleDelete = async () => {
+        if (!selectedRule) return;
         try {
-            await apiClient.delete(`/traps/statefulrules/${editedData.name}/`);
-            setSnmpTrapRule(snmpTrapRule.filter(rule => rule.id !== editedData.id));
-            setSelectedOption(null);
-        } catch (error) {
-            console.error('Error deleting rule:', error);
+            await deleteRule(selectedRule.name);
+            setIsAddingNewRule(true);
+        } catch (err) {
+            console.error("Error deleting rule:", err);
         }
     };
 
-    const handleHostnameChange = (selectedOptions) => {
-        const selectedIds = selectedOptions ? selectedOptions.map(option => option.value) : [];
+    const handleHostnameChange = (selectedRules) => {
+        const selectedIds = selectedRules ? selectedRules.map(option => option.value) : [];
         setNewRule({
             ...newRule,
             devices: selectedIds,
@@ -169,7 +94,7 @@ const StatefulTraps = () => {
     }
 
     return (
-        <div className="dropdownConfigContainer" style={{ height: '500px'}}>
+        <div className="dropdownConfigContainer" style={{ height: '500px' }}>
             {isLoading ? (
                 <div className="signalConfigRuleMessage">Loading stateful syslog rules. Please wait...</div>
             ) : error ? (
@@ -183,7 +108,7 @@ const StatefulTraps = () => {
                                     className={`signalTagItem ${isAddingNewRule ? 'selected' : ''}`}
                                     onClick={() => {
                                         setIsAddingNewRule(true);
-                                        setSelectedOption(null);
+                                        //setSelectedOption(null);
                                         setNewRule({
                                             name: '',
                                             devices: [],
@@ -206,7 +131,7 @@ const StatefulTraps = () => {
                                 {snmpTrapRule.map((rule) => (
                                     <li
                                         key={rule.id}
-                                        className={`signalTagItem ${selectedOption && selectedOption.id === rule.id ? 'selected' : ''}`}
+                                        className={`signalTagItem ${selectedRule && selectedRule.id === rule.id ? 'selected' : ''}`}
                                         onClick={() => handleOptionChange(rule)}
                                     >
                                         {rule.name}
@@ -279,14 +204,18 @@ const StatefulTraps = () => {
                                         <span>Open Signal OID:</span>
                                         <Select
                                             name="opensignaltrap"
-                                            value={snmpTrapOids.find(option => option.label === newRule.opensignaltrap) || null}
+                                            value={
+                                                oidNames.length
+                                                    ? oidNames.find(option => option.value === newRule.opensignaltrap) ?? null
+                                                    : null
+                                            }
                                             isMulti={false}
-                                            options={snmpTrapOids.map(tag => ({
+                                            options={oidNames.map(tag => ({
                                                 value: tag.value,
                                                 label: tag.label,
                                             }))}
-                                            onChange={(selectedOption) =>
-                                                setNewRule({ ...newRule, opensignaltrap: selectedOption.value })}
+                                            onChange={(selectedRule) =>
+                                                setNewRule({ ...newRule, opensignaltrap: selectedRule.value })}
                                             styles={customStyles('505px')}
                                         />
                                     </div>
@@ -295,10 +224,10 @@ const StatefulTraps = () => {
                                             <span>Open Signal Event:</span>
                                             <Select
                                                 name="opensignaltag"
-                                                value={trapTags.find(option => option.value === newRule.opensignaltag)}
-                                                options={trapTags}
-                                                onChange={(selectedOption) =>
-                                                    setNewRule({ ...newRule, opensignaltag: selectedOption.value })}
+                                                value={tagNames.find(option => option.value === newRule.opensignaltag)}
+                                                options={tagNames}
+                                                onChange={(selectedRule) =>
+                                                    setNewRule({ ...newRule, opensignaltag: selectedRule.value })}
                                                 styles={customStyles('243px')}
                                                 isMulti={false}
                                             />
@@ -321,14 +250,18 @@ const StatefulTraps = () => {
                                         <span>Close Signal OID:</span>
                                         <Select
                                             name="closesignaltrap"
-                                            value={snmpTrapOids.find(option => option.label === newRule.closesignaltrap) || null}
+                                            value={
+                                                oidNames.length
+                                                    ? oidNames.find(option => option.value === newRule.closesignaltrap) ?? null
+                                                    : null
+                                            }
                                             isMulti={false}
-                                            options={snmpTrapOids.map(tag => ({
+                                            options={oidNames.map(tag => ({
                                                 value: tag.value,
                                                 label: tag.label,
                                             }))}
-                                            onChange={(selectedOption) =>
-                                                setNewRule({ ...newRule, closesignaltrap: selectedOption.value })}
+                                            onChange={(selectedRule) =>
+                                                setNewRule({ ...newRule, closesignaltrap: selectedRule.value })}
                                             styles={customStyles('505px')}
                                         />
                                     </div>
@@ -337,10 +270,10 @@ const StatefulTraps = () => {
                                             <span>Close Signal Event:</span>
                                             <Select
                                                 name="closesignaltag"
-                                                value={trapTags.find(option => option.value === newRule.closesignaltag)}
-                                                options={trapTags}
-                                                onChange={(selectedOption) =>
-                                                    setNewRule({ ...newRule, closesignaltag: selectedOption.value })}
+                                                value={tagNames.find(option => option.value === newRule.closesignaltag)}
+                                                options={tagNames}
+                                                onChange={(selectedRule) =>
+                                                    setNewRule({ ...newRule, closesignaltag: selectedRule.value })}
                                                 styles={customStyles('243px')}
                                                 isMulti={false}
                                             />
@@ -363,12 +296,12 @@ const StatefulTraps = () => {
                                         <span>Affected Entities:</span>
                                         <Select
                                             name="affectedentity"
-                                            value={trapTags.filter((tag) => newRule.affectedentity.includes(tag.label))}
-                                            options={trapTags}
-                                            onChange={(selectedOptions) =>
+                                            value={tagNames.filter((tag) => newRule.affectedentity.includes(tag.label))}
+                                            options={tagNames}
+                                            onChange={(selectedRules) =>
                                                 setNewRule({
                                                     ...newRule,
-                                                    affectedentity: selectedOptions ? selectedOptions.map(option => option.label) : []
+                                                    affectedentity: selectedRules ? selectedRules.map(option => option.label) : []
                                                 })
                                             }
                                             styles={customStyles('505px')}
@@ -386,8 +319,8 @@ const StatefulTraps = () => {
                                                 { label: "Medium", value: "medium" },
                                                 { label: "High", value: "high" }
                                             ]}
-                                            onChange={(selectedOption) =>
-                                                setNewRule({ ...newRule, initialseverity: selectedOption.value })}
+                                            onChange={(selectedRule) =>
+                                                setNewRule({ ...newRule, initialseverity: selectedRule.value })}
                                             styles={customStyles('505px')}
                                             isMulti={false}
                                         />
@@ -451,7 +384,7 @@ const StatefulTraps = () => {
                             </button>
                         </>
                     ) : (
-                        selectedOption && (
+                        selectedRule && (
                             <>
                                 <button onClick={handleSave} className="buttonStyles saveRuleButton">
                                     Save

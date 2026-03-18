@@ -1,179 +1,98 @@
-import React, { useState, useEffect } from 'react';
-import './SignalConfigElement.css';
-import Select from 'react-select';
-import customStyles from '../../misc/SelectStyles';
-import apiClient from '../../misc/AxiosConfig';
+import { useState } from "react";
+import "./SignalConfigElement.css";
+import Select from "react-select";
+import customStyles from "../../misc/SelectStyles";
+import { useStatefulSyslogRules } from "../../../hooks/useStatefulSyslogRules";
+import { useSyslogTags } from "../../../hooks/useSyslogTags";
+import { useDevices } from "../../../hooks/useDevices";
+import { useMnemonics } from "../../../hooks/useMnemonics";
 
-const StatefulSyslogs = ({ devices, mnemonics }) => {
-    const [selectedOption, setSelectedOption] = useState(null);
-    const [syslogRules, setSyslogRules] = useState([]);
-    const [newRule, setNewRule] = useState('');
+const StatefulSyslogs = ({ keycloak }) => {
+    const {
+        rules,
+        selectedRule,
+        ruleDetails,
+        loading: isLoading,
+        error,
+        selectRule,
+        addRule,
+        updateRule,
+        deleteRule
+    } = useStatefulSyslogRules(keycloak);
+    const {
+        tags: tagNames,
+        loading: tagsLoading,
+        error: tagsError
+    } = useSyslogTags(keycloak);
+
     const [editedData, setEditedData] = useState({});
-    const [tagNames, setTagNames] = useState([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const [alert, setAlert] = useState('');
-
-    const [newRuleData, setNewRuleData] = useState({
-        name: '',
-        devices: [],
-        devicesFilter: '',
-        opensignalmnemonic: '',
-        opensignaltag: '',
-        opensignalvalue: '',
-        closesignalmnemonic: '',
-        closesignaltag: '',
-        closesignalvalue: '',
-        initialseverity: '',
-        affectedentity: [],
-        description: '',
-        warmup: '',
-        cooldown: '',
-    });
     const [isAddingNewRule, setIsAddingNewRule] = useState(true);
+    const [newRule, setNewRule] = useState({
+        name: "",
+        devices: [],
+        devicesFilter: "",
+        opensignalmnemonic: "",
+        opensignaltag: "",
+        opensignalvalue: "",
+        closesignalmnemonic: "",
+        closesignaltag: "",
+        closesignalvalue: "",
+        initialseverity: "",
+        affectedentity: [],
+        description: "",
+        warmup: "",
+        cooldown: ""
+    });
 
-    useEffect(() => {
-        const fetchSyslogRules = async () => {
-            setIsLoading(true);
-            setError(null);
-            try {
-                const response = await apiClient.get('/syslogs/statefulrules/brief/');
-                setSyslogRules(response.data);
-            } catch (error) {
-                console.error('Error fetching stateful syslog rules:', error);
-                setError('Error fetching stateful syslog rules:')
-            } finally {
-                setIsLoading(false);
-            }
-        };
+    const { devices } = useDevices(keycloak, false);
+    const { mnemonics } = useMnemonics(keycloak, false);
 
-        const fetchTagNames = async () => {
-            try {
-                const response = await apiClient.get('/syslogs/tags/');
-                const formattedTagNames = response.data.map((tag) => ({
-                    value: tag.name,
-                    label: tag.name,
-                }));
-                setTagNames(formattedTagNames);
-            } catch (error) {
-                console.error('Error fetching tag names:', error);
-            }
-        };
-
-        fetchSyslogRules();
-        fetchTagNames();
-    }, []);
-
-    const handleOptionChange = (rule) => {
-        setSelectedOption(rule);
+    const handleOptionChange = async (rule) => {
         setIsAddingNewRule(false);
-        setEditedData(rule);  // Set the selected rule as the editable data
-
-        // Fetch detailed data for the selected tag
-        apiClient.get(`/syslogs/statefulrules/${rule.name}/`)
-            .then((response) => {
-                // Set the fetched data to newSyslogTag state
-                setNewRuleData(response.data);
-                console.log('Fetched Syslog Tag Details:', response.data);
-            })
-            .catch((error) => {
-                console.error('Error fetching syslog tag details:', error);
-            });
+        setEditedData(rule);
+        await selectRule(rule);
     };
 
-    const handleAddRule = () => {
-        const payload = {
-            name: newRuleData.name,
-            devices: newRuleData.devices,
-            devicesFilter: newRuleData.devicesFilter,
-            opensignalmnemonic: newRuleData.opensignalmnemonic,
-            opensignaltag: newRuleData.opensignaltag,
-            opensignalvalue: newRuleData.opensignalvalue,
-            closesignalmnemonic: newRuleData.closesignalmnemonic,
-            closesignaltag: newRuleData.closesignaltag,
-            closesignalvalue: newRuleData.closesignalvalue,
-            initialseverity: newRuleData.initialseverity,
-            affectedentity: newRuleData.affectedentity,
-            description: newRuleData.description,
-            warmup: newRuleData.warmup,
-            cooldown: newRuleData.cooldown
-        };
-
-        console.log("Payload:", payload);  // For debugging
-
-        // Use apiClient to send the POST request
-        apiClient.post('/syslogs/statefulrules/', payload)
-            .then(response => {
-                console.log("Rule successfully added:", response.data);
-                // Reset form or provide feedback to the user
-                setNewRuleData({}); // Reset the form data
-                // Additional success handling if needed
-            })
-            .catch(error => {
-                console.error("Error adding rule:", error);
-                // Handle error feedback to the user if needed
-            });
-    };
-
-    const handleSave = async () => {
-    if (!selectedOption) return;
-
-    try {
-        // Merge selected rule with any edits
-        const updatedRule = {
-            ...selectedOption,   // all existing values
-            ...editedData        // overwrite with edits
-        };
-
-        // ✅ Ensure backend-required fields are included
-        const payload = {
-            name: updatedRule.name,
-            opensignalmnemonic: updatedRule.opensignalmnemonic,
-            closesignalmnemonic: updatedRule.closesignalmnemonic,
-            opensignaltag: updatedRule.opensignaltag,
-            opensignalvalue: updatedRule.opensignalvalue,
-            closesignaltag: updatedRule.closesignaltag,
-            closesignalvalue: updatedRule.closesignalvalue,
-            initialseverity: updatedRule.initialseverity,
-            affectedentity: updatedRule.affectedentity,
-            description: updatedRule.description,
-            warmup: updatedRule.warmup,
-            cooldown: updatedRule.cooldown,
-        };
-
-        const response = await apiClient.put(
-            `/syslogs/statefulrules/${selectedOption.name}`,
-            payload
-        );
-
-        // update state
-        setSyslogRules(syslogRules.map(rule =>
-            rule.id === selectedOption.id ? response.data : rule
-        ));
-        setSelectedOption(response.data);
-        setEditedData({});
-    } catch (err) {
-        console.error("Error updating rule:", err);
-    }
-};
-
-    const handleDelete = async () => {
+    const handleAddRule = async () => {
         try {
-            await apiClient.delete(`/syslogs/statefulrules/${selectedOption.name}/`);
-            setSyslogRules(syslogRules.filter(rule => rule.name !== selectedOption.name));
-            setSelectedOption(null);
-        } catch (error) {
-            console.error('Error deleting rule:', error);
+            await addRule(newRule);
+            setNewRule({});
+            setIsAddingNewRule(false);
+        } catch (err) {
+            console.error("Error adding rule:", err);
         }
     };
 
-    const handleHostnameChange = (selectedOptions) => {
-        const selectedIds = selectedOptions ? selectedOptions.map(option => option.value) : [];
-        setNewRuleData({
-            ...newRuleData,
-            devices: selectedIds,
-        })
-    }
+    const handleSave = async () => {
+        if (!selectedRule) return;
+        try {
+            await updateRule(selectedRule.name, editedData);
+            setEditedData({});
+        } catch (err) {
+            console.error("Error updating rule:", err);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!selectedRule) return;
+        try {
+            await deleteRule(selectedRule.name);
+            setIsAddingNewRule(true);
+        } catch (err) {
+            console.error("Error deleting rule:", err);
+        }
+    };
+
+    const handleHostnameChange = (selectedRules) => {
+        const selectedIds = selectedRules
+            ? selectedRules.map(option => option.value)
+            : [];
+
+        setNewRule(prev => ({
+            ...prev,
+            devices: selectedIds
+        }));
+    };
 
     return (
         <div className="signalTagContainer">
@@ -190,8 +109,8 @@ const StatefulSyslogs = ({ devices, mnemonics }) => {
                                     className={`signalTagItem ${isAddingNewRule ? 'selected' : ''}`}
                                     onClick={() => {
                                         setIsAddingNewRule(true);
-                                        setSelectedOption(null);
-                                        setNewRuleData({
+                                        //setSelectedOption(null);
+                                        setNewRule({
                                             name: '',
                                             devices: [],
                                             devicesFilter: '',
@@ -208,14 +127,14 @@ const StatefulSyslogs = ({ devices, mnemonics }) => {
                                             warmup: '',
                                             cooldown: '',
                                         });
-                                        setEditedData({}); // Clear form or edited data
+                                        setEditedData({});
                                     }}>
                                     Add new rule
                                 </li>
-                                {syslogRules.map((rule) => (
+                                {rules.map((rule) => (
                                     <li
                                         key={rule.id}
-                                        className={`signalTagItem ${selectedOption && selectedOption.id === rule.id ? 'selected' : ''
+                                        className={`signalTagItem ${selectedRule && selectedRule.id === rule.id ? 'selected' : ''
                                             }`}
                                         onClick={() => handleOptionChange(rule)}
                                     >
@@ -232,11 +151,11 @@ const StatefulSyslogs = ({ devices, mnemonics }) => {
                                     <input
                                         type="text"
                                         name="name"
-                                        value={newRuleData.name}
+                                        value={newRule.name}
                                         className="inputText"
                                         style={{ width: '500px' }}
                                         onChange={(e) =>
-                                            setNewRuleData({ ...newRuleData, name: e.target.value })
+                                            setNewRule({ ...newRule, name: e.target.value })
                                         }
                                     />
                                 </div>
@@ -245,7 +164,7 @@ const StatefulSyslogs = ({ devices, mnemonics }) => {
                                     <span>Hostname:</span>
                                     <Select
                                         name="hostname"
-                                        value={devices.filter(device => newRuleData.devices.includes(device.id)).map(device => ({
+                                        value={devices.filter(device => newRule.devices.includes(device.id)).map(device => ({
                                             value: device.id,
                                             label: device.hostname,
                                         }))}
@@ -259,7 +178,7 @@ const StatefulSyslogs = ({ devices, mnemonics }) => {
                                     />
                                 </div>
                                 {/* Hostname Filter */}
-                                {newRuleData.devices && newRuleData.devices.length > 0 && (
+                                {newRule.devices && newRule.devices.length > 0 && (
                                     <div className="tag-detail-row">
                                         <div>
                                             <div style={{ display: 'flex', alignItems: 'center', marginTop: '5px', paddingLeft: '15px' }}>
@@ -268,8 +187,8 @@ const StatefulSyslogs = ({ devices, mnemonics }) => {
                                                         type="radio"
                                                         name="devicesFilter"
                                                         value="include"
-                                                        checked={newRuleData.devicesFilter === 'include'}
-                                                        onChange={() => setNewRuleData({ ...newRuleData, devicesFilter: 'include' })}
+                                                        checked={newRule.devicesFilter === 'include'}
+                                                        onChange={() => setNewRule({ ...newRule, devicesFilter: 'include' })}
                                                     />
                                                     Include
                                                 </label>
@@ -278,8 +197,8 @@ const StatefulSyslogs = ({ devices, mnemonics }) => {
                                                         type="radio"
                                                         name="devicesFilter"
                                                         value="exclude"
-                                                        checked={newRuleData.newRuleData === 'exclude'}
-                                                        onChange={() => setNewRuleData({ ...newRuleData, devicesFilter: 'exclude' })}
+                                                        checked={newRule.newRule === 'exclude'}
+                                                        onChange={() => setNewRule({ ...newRule, devicesFilter: 'exclude' })}
                                                     />
                                                     Exclude
                                                 </label>
@@ -291,17 +210,16 @@ const StatefulSyslogs = ({ devices, mnemonics }) => {
                                     <span>Open Signal Mnemonic:</span>
                                     <Select
                                         name="opensignalmnemonic "
-                                        // Find the mnemonic by its name from newRuleData and set the default value
-                                        value={mnemonics.find(option => option.label === newRuleData.opensignalmnemonic)}
+                                        value={mnemonics.find(option => option.label === newRule.opensignalmnemonic)}
                                         isMulti={false}
                                         options={mnemonics.map(mnemonic => ({
                                             value: mnemonic.value,
                                             label: mnemonic.label,
                                         }))}
-                                        onChange={(selectedOption) => {
-                                            setNewRuleData({
-                                                ...newRuleData,
-                                                opensignalmnemonic: selectedOption.label // Use name as the value
+                                        onChange={(selectedRule) => {
+                                            setNewRule({
+                                                ...newRule,
+                                                opensignalmnemonic: selectedRule.label
                                             });
                                         }}
                                         isLoading={isLoading}
@@ -315,13 +233,13 @@ const StatefulSyslogs = ({ devices, mnemonics }) => {
                                         <span>Open Signal Event:</span>
                                         <Select
                                             name="opensignaltag"
-                                            value={tagNames.find(option => option.value === newRuleData.opensignaltag) || null}
+                                            value={tagNames.find(option => option.value === newRule.opensignaltag) || null}
                                             options={tagNames}
-                                            onChange={(selectedOption) =>
-                                                setNewRuleData({ ...newRuleData, opensignaltag: selectedOption ? selectedOption.value : null })
+                                            onChange={(selectedRule) =>
+                                                setNewRule({ ...newRule, opensignaltag: selectedRule ? selectedRule.value : null })
                                             }
                                             styles={customStyles('243px')}
-                                            isMulti={false} // Single-select
+                                            isMulti={false}
                                         />
                                     </div>
                                     {/* SNMP Trap OID */}
@@ -330,10 +248,10 @@ const StatefulSyslogs = ({ devices, mnemonics }) => {
                                         <input
                                             type="text"
                                             name="opensignalvalue"
-                                            value={newRuleData.opensignalvalue}
+                                            value={newRule.opensignalvalue}
                                             className="inputText"
                                             onChange={(e) =>
-                                                setNewRuleData({ ...newRuleData, opensignalvalue: e.target.value })
+                                                setNewRule({ ...newRule, opensignalvalue: e.target.value })
                                             }
                                             style={{ width: '243px' }}
                                         />
@@ -343,16 +261,16 @@ const StatefulSyslogs = ({ devices, mnemonics }) => {
                                     <span>Close Signal Mnemonic:</span>
                                     <Select
                                         name="closesignalmnemonic  "
-                                        // Find the mnemonic by its name from newRuleData and set the default value
-                                        value={mnemonics.find(option => option.label === newRuleData.closesignalmnemonic)}
+                                        // Find the mnemonic by its name from newRule and set the default value
+                                        value={mnemonics.find(option => option.label === newRule.closesignalmnemonic)}
                                         isMulti={false}
                                         options={mnemonics.map(mnemonic => ({
                                             value: mnemonic.value,
                                             label: mnemonic.label,
                                         }))}
 
-                                        onChange={(selectedOption) =>
-                                            setNewRuleData({ ...newRuleData, closesignalmnemonic: selectedOption.label })}
+                                        onChange={(selectedRule) =>
+                                            setNewRule({ ...newRule, closesignalmnemonic: selectedRule.label })}
                                         isLoading={isLoading}
                                         styles={customStyles('505px')}
                                     />
@@ -363,10 +281,10 @@ const StatefulSyslogs = ({ devices, mnemonics }) => {
                                         <span>Close Signal Event:</span>
                                         <Select
                                             name="closesignaltag"
-                                            value={tagNames.find(option => option.value === newRuleData.closesignaltag) || null}
+                                            value={tagNames.find(option => option.value === newRule.closesignaltag) || null}
                                             options={tagNames}
-                                            onChange={(selectedOption) =>
-                                                setNewRuleData({ ...newRuleData, closesignaltag: selectedOption ? selectedOption.value : null })
+                                            onChange={(selectedRule) =>
+                                                setNewRule({ ...newRule, closesignaltag: selectedRule ? selectedRule.value : null })
                                             }
                                             styles={customStyles('243px')}
                                             isMulti={false} // Single-select
@@ -378,10 +296,10 @@ const StatefulSyslogs = ({ devices, mnemonics }) => {
                                         <input
                                             type="text"
                                             name="closesignalvalue"
-                                            value={newRuleData.closesignalvalue}
+                                            value={newRule.closesignalvalue}
                                             className="inputText"
                                             onChange={(e) =>
-                                                setNewRuleData({ ...newRuleData, closesignalvalue: e.target.value })
+                                                setNewRule({ ...newRule, closesignalvalue: e.target.value })
                                             }
                                             style={{ width: '243px' }}
                                         />
@@ -392,12 +310,12 @@ const StatefulSyslogs = ({ devices, mnemonics }) => {
                                     <span>Affected Entities:</span>
                                     <Select
                                         name="affectedentity"
-                                        value={tagNames.filter((tag) => newRuleData.affectedentity.includes(tag.value))}
+                                        value={tagNames.filter((tag) => newRule.affectedentity.includes(tag.value))}
                                         options={tagNames}
-                                        onChange={(selectedOptions) =>
-                                            setNewRuleData({
-                                                ...newRuleData,
-                                                affectedentity: selectedOptions ? selectedOptions.map(option => option.value) : []
+                                        onChange={(selectedRules) =>
+                                            setNewRule({
+                                                ...newRule,
+                                                affectedentity: selectedRules ? selectedRules.map(option => option.value) : []
                                             })
                                         }
                                         styles={customStyles('505px')}
@@ -409,14 +327,14 @@ const StatefulSyslogs = ({ devices, mnemonics }) => {
                                     <span>Initial Severity:</span>
                                     <Select
                                         name="initialseverity"
-                                        value={{ label: newRuleData.initialseverity, value: newRuleData.initialseverity }}
+                                        value={{ label: newRule.initialseverity, value: newRule.initialseverity }}
                                         options={[
                                             { label: "Low", value: "low" },
                                             { label: "Medium", value: "medium" },
                                             { label: "High", value: "high" }
                                         ]}
-                                        onChange={(selectedOption) =>
-                                            setNewRuleData({ ...newRuleData, initialseverity: selectedOption.value })}
+                                        onChange={(selectedRule) =>
+                                            setNewRule({ ...newRule, initialseverity: selectedRule.value })}
                                         styles={customStyles('505px')}
                                         isMulti={false} // Single-select
                                     />
@@ -427,11 +345,11 @@ const StatefulSyslogs = ({ devices, mnemonics }) => {
                                     <input
                                         type="text"
                                         name="description"
-                                        value={newRuleData.description}
+                                        value={newRule.description}
                                         className="inputText"
                                         style={{ width: '500px' }}
                                         onChange={(e) =>
-                                            setNewRuleData({ ...newRuleData, description: e.target.value })
+                                            setNewRule({ ...newRule, description: e.target.value })
                                         }
                                     />
                                 </div>
@@ -442,11 +360,11 @@ const StatefulSyslogs = ({ devices, mnemonics }) => {
                                         <input
                                             type="number"
                                             name="warmup"
-                                            value={newRuleData.warmup}
+                                            value={newRule.warmup}
                                             className="inputText"
                                             style={{ width: '243px' }}
                                             onChange={(e) =>
-                                                setNewRuleData({ ...newRuleData, warmup: e.target.value })
+                                                setNewRule({ ...newRule, warmup: e.target.value })
                                             }
                                         />
                                     </div>
@@ -456,11 +374,11 @@ const StatefulSyslogs = ({ devices, mnemonics }) => {
                                         <input
                                             type="number"
                                             name="cooldown"
-                                            value={newRuleData.cooldown}
+                                            value={newRule.cooldown}
                                             className="inputText"
                                             style={{ width: '243px' }}
                                             onChange={(e) =>
-                                                setNewRuleData({ ...newRuleData, cooldown: e.target.value })
+                                                setNewRule({ ...newRule, cooldown: e.target.value })
                                             }
                                         />
                                     </div>
@@ -480,7 +398,7 @@ const StatefulSyslogs = ({ devices, mnemonics }) => {
                             <button onClick={() => isAddingNewRule(false)}>Cancel</button>
                         </>
                     ) : (
-                        selectedOption && (
+                        selectedRule && (
                             <>
                                 <button
                                     onClick={handleDelete}

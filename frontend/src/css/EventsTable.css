@@ -1,211 +1,191 @@
 
-:root {
-    --hoveredRowColor: rgb(226, 239, 250);
-    --selectedRowColor: rgb(48, 113, 151);
-  
-  }
-  
-  [data-theme='dark'] {
-    --selectedRowColor: rgb(48, 84, 109);
-    --selectedRowColor: rgb(48, 113, 151);
+/* ---------- WRAPPERS ---------- 
 
+.eventsTableWrapper {
+  width: 100%;
+  max-width: calc(100vw - 40px);
+  overflow: hidden;
+}
+
+.tableContainer {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 10px;
+  margin: 12px 8px;
+} */
+
+/* ---------- PAGINATION ---------- 
+
+.paginationContainer {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+}*/
+
+.eventsTableWrapper {
+  width: calc(100% - 40px);
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - 30px);
+}
+
+.tableContainer {
+  flex: 1;
+  overflow: auto;
+}
+
+.paginationContainer {
+  display: flex;
+  justify-content: center;
+  top: -10px;
+}
+
+/* ---------- TABLE ---------- */
+
+.eventsTable {
+  table-layout: fixed;
+  width: max-content;
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 2px;
+  font-family: Arial, sans-serif;
+}
+
+/* ---------- CELLS ---------- */
+
+.eventsTable th,
+.eventsTable td {
+  padding: 6px 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
+  max-width: 0;
+  font-size: 14px;
+}
+
+/* ---------- HEADER ---------- */
+
+.headerCell {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.headerText {
+  flex: 1;
+  text-transform: capitalize;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--tableDataHeaderColor);
+  padding: 8px 10px;
+}
+
+.headerIcons {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.eventsTable th:hover .headerIcons {
+  opacity: 1;
+}
+
+.headerIcons span {
+  cursor: pointer;
+  color: var(--tableHeaderColor);
+}
+
+.resizeHandle {
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+}
+
+.cellContent {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- FILTER INPUT ---------- */
+
+.filterInput {
+  width: calc(100% - 40px);
+  height: 25px;
+  border: 1px solid #ccc;
+  font-size: 12px;
+  outline: none;
+  background: var(--backgroundColor3);
+}
+
+.filterInput:focus {
+  border-color: rgba(42, 83, 99, 0.2);
+  box-shadow: 0 0 8px rgba(0, 123, 255, 0.3);
+}
+
+/* ---------- ROW STYLING ---------- */
+
+.eventsTable tbody tr {
+  transition: background 0.2s ease;
+  color: var(--textColor);
+}
+
+/* even / odd rows */
+
+.eventsTable tbody tr:nth-child(even) {
+  background: var(--rowEvenBackground);
+}
+
+.eventsTable tbody tr:nth-child(odd) {
+  background: var(--rowOddBackground);
+}
+
+/* hover */
+
+.eventsTable tbody tr:hover {
+  background: var(--hoveredRowColor);
+}
+
+/* selected */
+
+.selectedRow {
+  background: var(--rowSelectedBackground) !important;
+  color: white;
+}
+
+/* ---------- CHECKBOX COLUMN ---------- */
+
+.selectHeader {
+  width: 50px;
+  min-width: 50px;
+  max-width: 50px;
+  text-align: center;
+  padding: 0;
+  color: var(--tableDataHeaderColor);
+}
+
+.checkboxColumn {
+  width: 40px;
+  text-align: center;
+}
+
+
+
+/* ---------- MOBILE ---------- */
+
+@media (max-width: 768px) {
+  .eventsTable th,
+  .eventsTable td {
+    font-size: 14px;
   }
-  
-  .tableContainer {
-    width: 100%;
-    overflow-x: scroll; /* To manage horizontal overflow */
-    border-radius: 10px;
-    background-color: var(--backgroundColor3);
-    margin: 12px 8px;
-    padding-bottom: 10px;
+
+  .filterInput {
+    font-size: 12px;
   }
-  
-  .evenTable {
-    width: auto;
-    min-width: 100%;
-    max-width: 140%;
-    overflow-x: auto;
-  }
-  
-  .table {
-    width: 100%;
-    border-collapse: collapse;
-    font-family: 'Arial', sans-serif;
-    table-layout: fixed;
-  }
-  
-  .tableHeader {
-    height: 30px;
-  }
-  
-  .table th,
-  .table td {
-    padding: 12px 15px;
-    text-align: left;
-    min-width: 80px;
-    max-width: 600px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    width: 20%; /* Example percentage-based width */
-  }
-    
-  .table th {
-    color: #333;
-    font-weight: bold;
-    border-bottom: 2px solid #ddd;
-    position: relative;
-  }
-  
-  .table th span {
-    display: inline-block;
-    margin-left: 8px;
-    vertical-align: middle;
-    cursor: pointer;
-  }
-  
-  .selectHeader {
-    width: 50px;
-    max-width: 50px;
-    min-width: 50px;
-    text-align: center; /* To center the checkbox */
-    padding: 0; /* Remove padding to prevent checkbox overflow */
-    overflow: hidden; /* Ensure the content doesn't overflow */
-    color: var(--tableDataHeaderColor);
-    border-radius: 0px;
-    box-shadow: 3px 3px 3px rgba(0, 0, 0, 0.5);
-  }
-  
-  .table td.checkbox-column {
-    width: 40px;
-    max-width: 40px;
-    min-width: 40px;
-    text-align: center; /* To center the checkbox */
-    padding: 0; /* Remove padding to prevent checkbox overflow */
-    overflow: hidden; /* Ensure the content doesn't overflow */
-    background: red;
-    color: 'var(--tableHeaderColor)';
-  }
-  
-  .tableBody td.checkbox-column input[type='checkbox'] {
-    margin: 0; /* Remove default margin */
-  }
-  
-    .filterInput {
-      width: calc(100% - 50px);
-      height: 25px; /* Set height to fit the header */
-      margin-top: 0; /* Remove margin to fit within the max height */
-      border: 1px solid #ccc;
-      font-size: 12px; /* Adjust font size to fit better */
-      outline: none;
-      transition: all 0.3s ease;
-      background: pink;
-    }
-    
-    .tableBody {
-      overflow-x: scroll;
-    }
-  
-    .filterInput:focus {
-      border-color: rgba(42, 83, 99, .2);
-      box-shadow: 0 0 8px rgba(0, 123, 255, 0.3);
-    }
-    
-    /* Table row styling */
-    .tableBody tr {
-      transition: all 0.5s ease-in-out;
-      color: var(--textColor);
-      opacity: 0.8;
-    }
-    
-    .tableBody tr:nth-child(even) {
-      background-color: var(--rowEvenBackground);
-    }
-    
-    .tableBody tr:nth-child(odd) {
-      background-color: var(--rowOddBackground);
-    }
-    
-    .tableBody tr:hover {
-      background-color: var(--rowSelectedBackground);
-      color: var(--rowSelectedColor);
-    }
-  
-    .tableBody td {
-      white-space: nowrap; /* Keep content in a single line */
-      overflow: hidden; /* Hide overflow content */
-      text-overflow: ellipsis; /* Display ellipsis when content overflows */
-    }
-    
-    /* Selected row styling */
-     .tableBody tr.selectedRow {
-      background: var(--rowSelectedBackground);
-      border-color: 1px solid black;
-      color: var(--textColor2);
-  
-    }
-    
-    /* Checkbox styling */
-    .tableBody input[type='checkbox'] {
-      margin-right: 10px;
-    }
-    
-    
-    /* Sort icon styling */
-    .tableHeader th span {
-      margin-left: 10px;
-      cursor: pointer;
-      color: #999;
-    }
-    
-    .tableHeader th span:hover {
-      color: #007bff;
-    }
-    
-    /* Responsive design for smaller screens */
-    @media (max-width: 768px) {
-      .tableContainer {
-        overflow-x: scroll;
-        border: none;
-      }
-    
-      .table th,
-      .table td {
-        font-size: 14px;
-      }
-    
-      .filterInput {
-        font-size: 12px;
-        padding: 6px 8px;
-      }
-    }
-    
-    .filterIcon {
-      margin-left: 5px;
-      cursor: pointer;
-      opacity: 0.6;
-      transition: opacity 0.3s ease;
-    }
-    
-    .filterIcon:hover {
-      opacity: 1;
-    }
-  
-    .headerIcons {
-      display: inline-flex;
-      align-items: center;
-      justify-content: flex-end;
-      margin-left: auto;
-    }
-  
-    .headerText {
-      width: calc(100% - 60px);
-      text-transform: capitalize;
-      justify-content: start;
-      color: var(--tableDataHeaderColor);
-    }
-  
-    .headerIcons span {
-      margin-left: 7px;
-      color: var(--tableHeaderColor);
-    }
+}

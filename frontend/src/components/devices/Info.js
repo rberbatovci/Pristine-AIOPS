@@ -1,19 +1,15 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import '../../css/SignalInfo.css';
 import { RiCloseCircleLine, RiCloseCircleFill } from "react-icons/ri";
-import apiClient from '../misc/AxiosConfig';
-import { IoAnalyticsOutline } from "react-icons/io5";
-import { IoMdAnalytics } from "react-icons/io";
+import kcFetch from '../misc/kcFetch';
 import { PiTerminalDuotone, PiTerminalFill } from "react-icons/pi";
 import { RiStackshareLine, RiStackshareFill } from "react-icons/ri";
 import { PiSwapFill, PiSwapDuotone } from "react-icons/pi";
 import { RiDeleteBin2Line, RiDeleteBin2Fill } from "react-icons/ri";
-import NetflowConfig from './NetflowConfig';
-import SyslogConfig from './SyslogConfig';
-import SnmpTrapConfig from './SnmpTrapConfig';
-import TelemetryConfig from './TelemetryConfig';
+import { RiShieldKeyholeLine, RiShieldKeyholeFill } from "react-icons/ri";
 
-const Info = ({ currentUser, selectedDevice, onDeviceDeselect, onConfig, onDeviceDelete, showNotification }) => {
+
+const Info = ({ currentUser, selectedDevice, onDeviceDeselect, onConfig, onDeviceDelete, showNotification, keycloak }) => {
   const [editedHostname, setEditedHostname] = useState(selectedDevice.hostname);
   const [isEditing, setIsEditing] = useState(false);
   const [dropdowns, setDropdowns] = useState({
@@ -30,82 +26,80 @@ const Info = ({ currentUser, selectedDevice, onDeviceDeselect, onConfig, onDevic
     onDeviceDeselect(true);
   };
 
-  const updateHostname = async () => {
-    try {
-      const response = await apiClient.put(`/devices/devices/${selectedDevice.id}/`, {
-        hostname: editedHostname
-      });
-      console.log("Hostname updated:", response.data);
-      setIsEditing(false);
-    } catch (error) {
-      console.error("Failed to update hostname:", error);
-    }
-  };
-
   const deleteDevice = async () => {
+
     if (!window.confirm(`Are you sure you want to delete ${selectedDevice.hostname}?`)) return;
 
     try {
-      await apiClient.delete(`/devices/${selectedDevice.hostname}`);
-      console.log("Device deleted successfully");
+      await kcFetch(
+        keycloak,
+        `/devices/${selectedDevice.hostname}`,
+        { method: "DELETE" }
+      );
+
       onDeviceDeselect(true);
       onDeviceDelete(selectedDevice.id);
-    } catch (error) {
-      console.error("Failed to delete device:", error);
-      alert("Failed to delete device. Please try again.");
+      showNotification("Device deleted successfully", "success");
+    } catch (err) {
+      if (err.status === 403) {
+        showNotification("You are not authorized to delete devices", "error");
+      } else {
+        showNotification("Failed to delete device", "error");
+      }
     }
   };
 
-const pushConfiguration = (featureName) => async () => {
-  if (!selectedDevice?.hostname) {
-    showNotification("No device selected", "error");
-    return;
-  }
+  const pushConfiguration = (featureName) => async () => {
+    if (!selectedDevice?.hostname) {
+      showNotification("No device selected", "error");
+      return;
+    }
 
-  // Define messages for different features
-  const messages = {
-    syslogs: {
-      loading: `Configuring syslogs on ${selectedDevice.hostname}...`,
-      success: `Syslogs configuration applied successfully on ${selectedDevice.hostname}.`,
-      error: `Failed to apply syslogs configuration on ${selectedDevice.hostname}.`,
-    },
-    snmp_traps: {
-      loading: `Configuring SNMP Traps on ${selectedDevice.hostname}...`,
-      success: `SNMP Traps configuration applied successfully on ${selectedDevice.hostname}.`,
-      error: `Failed to apply SNMP Traps configuration on ${selectedDevice.hostname}.`,
-    },
-    netflow: {
-      loading: `Configuring Netflow/IPFIX on ${selectedDevice.hostname}...`,
-      success: `Netflow/IPFIX configuration applied successfully on ${selectedDevice.hostname}.`,
-      error: `Failed to apply Netflow/IPFIX configuration on ${selectedDevice.hostname}.`,
-    },
-    default: {
-      loading: `Configuring ${featureName} on ${selectedDevice.hostname}...`,
-      success: `Successfully pushed configuration for ${featureName} on ${selectedDevice.hostname}.`,
-      error: `Error configuring ${featureName} on ${selectedDevice.hostname}.`,
-    },
+    // Define messages for different features
+    const messages = {
+      syslogs: {
+        loading: `Configuring syslogs on ${selectedDevice.hostname}...`,
+        success: `Syslogs configuration applied successfully on ${selectedDevice.hostname}.`,
+        error: `Failed to apply syslogs configuration on ${selectedDevice.hostname}.`,
+      },
+      snmp_traps: {
+        loading: `Configuring SNMP Traps on ${selectedDevice.hostname}...`,
+        success: `SNMP Traps configuration applied successfully on ${selectedDevice.hostname}.`,
+        error: `Failed to apply SNMP Traps configuration on ${selectedDevice.hostname}.`,
+      },
+      netflow: {
+        loading: `Configuring Netflow/IPFIX on ${selectedDevice.hostname}...`,
+        success: `Netflow/IPFIX configuration applied successfully on ${selectedDevice.hostname}.`,
+        error: `Failed to apply Netflow/IPFIX configuration on ${selectedDevice.hostname}.`,
+      },
+      default: {
+        loading: `Configuring ${featureName} on ${selectedDevice.hostname}...`,
+        success: `Successfully pushed configuration for ${featureName} on ${selectedDevice.hostname}.`,
+        error: `Error configuring ${featureName} on ${selectedDevice.hostname}.`,
+      },
+    };
+
+    const msg = messages[featureName] || messages.default;
+
+    // Show loading notification
+    showNotification(msg.loading, "loading");
+
+    try {
+      const response = await kcFetch(
+        keycloak,
+        `/devices/${selectedDevice.hostname}/configure/${featureName}/`,
+        { method: "POST" }
+      );
+
+      showNotification("Configuration applied successfully", "success");
+    } catch (err) {
+      if (err.status === 403) {
+        showNotification("You are not authorized to configure devices", "error");
+      } else {
+        showNotification("Configuration failed", "error");
+      }
+    }
   };
-
-  const msg = messages[featureName] || messages.default;
-
-  // Show loading notification
-  showNotification(msg.loading, "loading");
-
-  try {
-    const response = await apiClient.post(
-      `/devices/${selectedDevice.hostname}/configure/${featureName}/`,
-      {}
-    );
-
-    console.log("Updated device:", response.data);
-
-    showNotification(msg.success, "success");
-
-  } catch (err) {
-    const message = err.response?.data?.detail || err.message || err;
-    showNotification(`${msg.error} ${message}`, "error");
-  }
-};
 
   return (
     <div className="signalRightElementContainer" style={{ maxHeight: '180px' }}>
@@ -141,34 +135,38 @@ const pushConfiguration = (featureName) => async () => {
               <RiCloseCircleLine className="defaultIcon" />
               <RiCloseCircleFill className="hoverIcon" />
             </button>
+            <button className="iconButton" >
+              <RiShieldKeyholeLine className="defaultIcon" />
+              <RiShieldKeyholeFill className="hoverIcon" />
+            </button>
           </div>
         </div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '10px', color: 'var(--spanTextColor)', opacity: '0.8', height: '200px' }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', fontSize: '13px', marginTop: '4px' }}>
+          <div style={{ display: 'flex', fontSize: '13px', marginTop: '4px',  height: '25px' }}>
             <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>Health:</p>
-            <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}># Device Health</p>
+            <p style={{ textAlign: 'left', width: '100px', marginRight: '10px' }}># Device Health</p>
           </div>
-          <div style={{ display: 'flex', fontSize: '13px', marginTop: '4px' }}>
+          <div style={{ display: 'flex', fontSize: '13px', marginTop: '4px',  height: '25px' }}>
             <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>Vendor:</p>
-            <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>{selectedDevice.vendor}</p>
+            <p style={{ textAlign: 'left', width: '100px', marginRight: '10px' }}>{selectedDevice.vendor}</p>
           </div>
         </div>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', fontSize: '13px', marginTop: '4px' }}>
+          <div style={{ display: 'flex', fontSize: '13px', marginTop: '4px',  height: '25px' }}>
             <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>IP Address:</p>
-            <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>{selectedDevice.ip_address}</p>
+            <p style={{ textAlign: 'left', width: '100px', marginRight: '10px' }}>{selectedDevice.ip_address}</p>
           </div>
-          <div style={{ display: 'flex', fontSize: '13px', marginTop: '4px' }}>
+          <div style={{ display: 'flex', fontSize: '13px', marginTop: '4px',  height: '25px' }}>
             <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>Version:</p>
-            <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>{selectedDevice.version}</p>
+            <p style={{ textAlign: 'left', width: '100px', marginRight: '10px' }}>{selectedDevice.version}</p>
           </div>
         </div>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', fontSize: '13px', marginTop: '4px' }}>
+          <div style={{ display: 'flex', fontSize: '13px', marginTop: '4px',  height: '25px' }}>
             <p style={{ textAlign: 'right', width: '120px', marginRight: '10px' }}>Hostname:</p>
-            <p style={{ textAlign: 'left', width: '100px', marginRight: '10px', marginTop: '0px' }}>{selectedDevice.hostname}</p>
+            <p style={{ textAlign: 'left', width: '100px', marginRight: '10px' }}>{selectedDevice.hostname}</p>
           </div>
 
         </div>

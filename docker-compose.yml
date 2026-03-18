@@ -3,16 +3,58 @@ version: '3.8'
 networks:
   aiops:
     driver: bridge
+  web:
+    driver: bridge
+  internal:
+    driver: bridge
 
 services:
+  ############################################
+  # TRAEFIK (reverse proxy)
+  ############################################
+  traefik:
+    image: traefik:v2.10
+    container_name: traefik
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      # Use local CA cert
+      - "--tls.certificates[0].certFile=/certs/pristine-aiops.crt"
+      - "--tls.certificates[0].keyFile=/certs/pristine-aiops.key"
+      - "--configFile=/etc/traefik/traefik.yml"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./certs:/certs"
+      - "./traefik.yml:/etc/traefik/traefik.yml:ro"
+    networks:
+      - aiops
+
+    # Traefik dashboard
+    #labels:
+    #  - "traefik.enable=true"
+    #  - "traefik.http.routers.traefik.rule=Host(`traefik.pristine-aiops.local`)"
+    #  - "traefik.http.routers.traefik.entrypoints=websecure"
+    #  - "traefik.http.routers.traefik.tls=true"
+    #  - "traefik.http.routers.traefik.service=api@internal"
+
+  ############################################
+  # FASTAPI BACKEND
+  ############################################
   backend:
-    container_name: FastAPI
-    #image: ghcr.io/rberbato/backend:latest
+    #container_name: fastapi
     build:
       context: .
       dockerfile: ./dockerfiles/Dockerfile.backend
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
+    networks:
+      - aiops
     depends_on:
       postgresql:
         condition: service_healthy
@@ -20,24 +62,121 @@ services:
       - .env
     volumes:
       - shared-mibs:/app/traps/producer/mibs
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`app.pristine-aiops.local`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend.entrypoints=websecure"
+      - "traefik.http.routers.backend.tls=true"
+      - "traefik.http.services.backend.loadbalancer.server.port=8000"
+    extra_hosts:
+      - "auth.pristine-aiops.local:host-gateway"
+
+  ############################################
+  # FRONTEND (REACT SERVED BY NGINX)
+  ############################################
+  frontend:
+    container_name: react
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.frontend
     networks:
       - aiops
-    entrypoint: ["/app/entrypoint.sh"]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`app.pristine-aiops.local`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls=true"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
 
-  #frontend:
-  #  container_name: ReactJS
-  #  #image: ghcr.io/rberbato/frontend:latest
-  #  build:
-  #    context: .
-  #    dockerfile: ./dockerfiles/Dockerfile.frontend
-  #  ports:
-  #    - "3000:80"
-  #  #volumes:
-  #  #  - ./frontend:/app
+  ############################################
+  # KEYCLOAK
+  ############################################
+  keycloak:
+    container_name: keycloak
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.keycloak
+    image: pristine-aiops-keycloak
+    command:
+      - start
+      - --import-realm
+      - --hostname=auth.pristine-aiops.local
+      - --http-relative-path=/auth
+      - --http-port=8080
+    volumes:
+      - ./keycloak/realms:/opt/keycloak/data/import
+    depends_on:
+      - postgresql
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: Admin123!
+      KC_PROXY: edge
+      PROXY_ADDRESS_FORWARDING: "true"
+    networks:
+      - aiops
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.keycloak.rule=Host(`auth.pristine-aiops.local`)"
+      - "traefik.http.routers.keycloak.entrypoints=websecure"
+      - "traefik.http.routers.keycloak.tls=true"
+      - "traefik.http.services.keycloak.loadbalancer.server.port=8080"
+
+  ############################################
+  # OPENLDAP
+  ############################################
+  #openldap:
+  #  image: osixia/openldap:1.5.0
+  #  container_name: openldap
   #  environment:
-  #    - CHOKIDAR_USEPOLLING=true
+  #    LDAP_ORGANISATION: "Pristine AIOps"
+  #    LDAP_DOMAIN: "pristine.local"
+  #    LDAP_ADMIN_PASSWORD: "admin"
   #  networks:
   #    - aiops
+  #  restart: unless-stopped
+
+
+  ############################################
+  # PHP LDAP Admin
+  ############################################
+  #phpldapadmin:
+  #  image: osixia/phpldapadmin:0.9.0
+  #  container_name: phpldapadmin
+  #  environment:
+  #    PHPLDAPADMIN_LDAP_HOSTS: openldap
+  #    PHPLDAPADMIN_HTTPS: "false"
+  #  networks:
+  #    - aiops
+  #  labels:
+  #    - "traefik.enable=true"
+  #    - "traefik.http.routers.ldapui.rule=Host(`ldap.pristine-aiops.local`)"
+  #    - "traefik.http.routers.ldapui.entrypoints=websecure"
+  #    - "traefik.http.routers.ldapui.tls=true"
+  #    - "traefik.http.services.ldapui.loadbalancer.server.port=80"
+
+  ############################################
+  # FREERADIUS
+  ############################################
+  #freeradius:
+  #  build:
+  #    context: .
+  #    dockerfile: ./dockerfiles/Dockerfile.freeradius
+  #  container_name: FreeRADIUS
+  #  ports:
+  #      - "1812:18120/udp"
+  #      - "1813:18130/udp"
+  #  depends_on:
+  #    - keycloak
+  #    - openldap
+  #  networks:
+  #    - aiops
+  #  volumes:
+  #    - /etc/ssl/certs/win-server01.pristine-aiops.local.pem:/etc/ssl/certs/win-server01.pristine-aiops.local.pem:ro
+  #  labels:
+  #    - "traefik.enable=false"
+  #  extra_hosts:
+  #    - "WinServer01.pristine-aiops.local:192.168.1.202"
+  #  restart: unless-stopped
 
   postgresql:
     image: ghcr.io/rberbatovci/postgresql:latest
@@ -59,13 +198,16 @@ services:
     container_name: Kafka
     image: wurstmeister/kafka:latest
     environment:
+      KAFKA_ADVERTISED_HOST_NAME: kafka
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,INTERNAL://kafka:9093
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,INTERNAL://0.0.0.0:9093
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ZOOKEEPER_CONNECTION_TIMEOUT_MS: 60000
       KAFKA_CREATE_TOPICS: "unknown:1:1,topology-topic:1:1,telemetry-signals:1:1,cpu-utilization:1:1,memory-statistics:1:1,interface-statistics:1:1,interface-oper-status:1:1,bgp-connections:1:1,isis-statistics:1:1,syslog-events:1:1,trap-events:1:1,netflow-events:1:1,syslog-signals:1:1,trap-signals:1:1"
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_OFFSETS_TOPIC_NUM_PARTITIONS: 50
       KAFKA_BROKER_ID: 1
       KAFKA_NUM_PARTITIONS: 1
@@ -74,60 +216,57 @@ services:
       - "9092:9092"
     depends_on:
       zookeeper:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "9092"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server kafka:9093 --list > /dev/null 2>&1"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
     networks:
       - aiops
 
   zookeeper:
-    container_name: Zookeeper
-    image: bitnami/zookeeper:latest
+    container_name: zookeeper
+    image: confluentinc/cp-zookeeper:7.6.1
     ports:
       - "2181:2181"
     environment:
-      - ALLOW_ANONYMOUS_LOGIN=yes
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
     healthcheck:
-      test: ["CMD", "zkServer.sh", "status"]
+      test: ["CMD-SHELL", "echo srvr | nc 127.0.0.1 2181 | grep Mode"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 15
+      start_period: 40s
     networks:
       - aiops
-
-  #opensearch:
-  #  image: opensearchproject/opensearch:1.0.1
-  #  container_name: OpenSearch
-  #  environment:
-  #    - cluster.name=opensearch-cluster
-  #    - node.name=opensearch-node1
-  #    - discovery.type=single-node
-  #    - bootstrap.memory_lock=true
-  #    - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
-  #    - DISABLE_SECURITY_PLUGIN=true
-  #  ulimits:
-  #    memlock:
-  #      soft: -1
-  #      hard: -1
-  #    nofile:
-  #      soft: 65536
-  #      hard: 65536
-  #  volumes:
-  #    - ./opensearch/config/opensearch.yml:/usr/share/opensearch/config/opensearch.yml
-  #    - ./opensearch/config/jvm.options:/usr/share/opensearch/config/jvm.options
-  #  healthcheck:
-  #    test: ["CMD-SHELL", "curl -sf http://localhost:9200/"]
-  #    interval: 30s
-  #    timeout: 10s
-  #    retries: 5
-  #  ports:
-  #    - 9200:9200
-  #    - 9600:9600
-  #  networks:
-  #    - aiops
+      
+  ############################################
+  # OPENSEARCH + DASHBOARDS
+  ############################################
+  opensearch:
+    image: opensearchproject/opensearch-dashboards:3.1.0
+    container_name: opensearch-dashboards
+    environment:
+      OPENSEARCH_HOSTS: '["http://opensearch-node1:9200","http://opensearch-node2:9200","http://opensearch-node3:9200"]'
+      OPENSEARCH_USERNAME: ${OPENSEARCH_USERNAME}
+      OPENSEARCH_PASSWORD: ${OPENSEARCH_PASSWORD}
+    depends_on: 
+      - opensearch-node1
+      - opensearch-node2
+      - opensearch-node3
+    ports:
+      - "5601:5601"
+    networks:
+      - aiops
+    labels:
+    - "traefik.enable=true"
+    - "traefik.http.routers.opensearch.rule=Host(`opensearch.pristine-aiops.local`)"
+    - "traefik.http.routers.opensearch.entrypoints=websecure"
+    - "traefik.http.routers.opensearch.tls=true"
+    - "traefik.http.services.opensearch.loadbalancer.server.port=5601"
 
   opensearch-node1:
     image: opensearchproject/opensearch:3.1.0
@@ -147,8 +286,8 @@ services:
     volumes:
       - opensearch-data1:/usr/share/opensearch/data
     ports:
-      - "9200:9200"   # REST API
-      - "9600:9600"   # Performance Analyzer
+      - "9200:9200"
+      - "9600:9600"
     healthcheck:
       test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health || exit 1"]
       interval: 30s
@@ -176,7 +315,7 @@ services:
     volumes:
       - opensearch-data2:/usr/share/opensearch/data
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:9200 || exit 1"]
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -201,27 +340,10 @@ services:
     volumes:
       - opensearch-data3:/usr/share/opensearch/data
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:9200 || exit 1"]
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
-    networks:
-      - aiops
-
-  dashboards:
-    image: opensearchproject/opensearch-dashboards:3.1.0
-    container_name: opensearch-dashboards
-    environment:
-      OPENSEARCH_HOSTS: '["https://opensearch-node1:9200","https://opensearch-node2:9200","https://opensearch-node3:9200"]'
-      OPENSEARCH_USERNAME: ${OPENSEARCH_USERNAME}
-      OPENSEARCH_PASSWORD: ${OPENSEARCH_PASSWORD}
-      OPENSEARCH_SSL_VERIFICATIONMODE: none
-    depends_on: 
-      - opensearch-node1
-      - opensearch-node2
-      - opensearch-node3
-    ports:
-      - "5601:5601"
     networks:
       - aiops
 
@@ -233,6 +355,7 @@ services:
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - ./data:/data
+    
     networks:
       - aiops
 
@@ -249,6 +372,21 @@ services:
   #  networks:
   #    - aiops
 
+  nmap-scanner:
+    container_name: NmapScanner
+    #image: ghcr.io/rberbato/nmap-scanner:latest
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.nmap-scanner
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - aiops
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+
   syslog-producer:
     container_name: SyslogProducer
     #image: ghcr.io/rberbato/syslog-producer:latest
@@ -264,6 +402,8 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+    labels:
+      - "traefik.enable=false"
     networks:
       - aiops
 
@@ -280,6 +420,8 @@ services:
         condition: service_healthy
       opensearch-node1:
         condition: service_healthy
+    labels: 
+      - "traefik.enable=false"
     networks:
       - aiops
     restart: unless-stopped
@@ -297,6 +439,8 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+    labels:
+      - "traefik.enable=false"
     networks:
       - aiops
     restart: unless-stopped
@@ -312,9 +456,31 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+    labels:
+      - "traefik.enable=false"
     networks:
       - aiops
     restart: unless-stopped
+
+  #poll-producer:
+  #  container_name: PollProducer
+    #image: ghcr.io/rberbato/poll-producer:latest
+  #  build:
+  #    context: .
+  #    dockerfile: ./dockerfiles/Dockerfile.poll-producer
+  #  env_file:
+  #    - .env
+  #  ports:
+  #    - "1161:1161/udp"
+  #  volumes:
+  #    - shared-mibs:/app/traps/producer/mibs
+  #  depends_on:
+  #    kafka:
+  #      condition: service_healthy
+  #  labels:
+  #    - "traefik.enable=false"
+  #  networks:
+  #    - aiops
 
   trap-producer:
     container_name: TrapProducer
@@ -337,6 +503,8 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+    labels:
+      - "traefik.enable=false"
     networks:
       - aiops
 
@@ -353,6 +521,8 @@ services:
         condition: service_healthy
       opensearch-node1:
         condition: service_healthy
+    labels:
+      - "traefik.enable=false"
     networks:
       - aiops
     restart: unless-stopped
@@ -370,6 +540,8 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+    labels:
+     - "traefik.enable=false"
     networks:
       - aiops
 
@@ -385,6 +557,8 @@ services:
       opensearch-node1:
         condition: service_healthy
     restart: unless-stopped
+    labels:
+      - "traefik.enable=false"
     networks:
       - aiops
 
@@ -397,6 +571,8 @@ services:
     ports:
       - "179:179"
       - "50051:50051"
+    labels:
+      - "traefik.enable=false"
     networks:
       - aiops
     healthcheck:
@@ -417,6 +593,8 @@ services:
   #      condition: service_healthy
   #    zookeeper:
   #      condition: service_healthy
+  #  labels:
+  #    - "traefik.enable=false"
   #  networks:
   #    - aiops
 
@@ -438,6 +616,8 @@ services:
         condition: service_healthy
       zookeeper:
         condition: service_healthy
+    labels:
+      - "traefik.enable=false"
     networks:
       - aiops
 
@@ -453,6 +633,8 @@ services:
       opensearch-node1:
         condition: service_healthy
     restart: unless-stopped
+    labels:
+      - "traefik.enable=false"
     networks:
       - aiops
 
@@ -468,6 +650,8 @@ services:
       opensearch-node1:
         condition: service_healthy
     restart: unless-stopped
+    labels:
+      - "traefik.enable=false"
     networks:
       - aiops
       
@@ -483,6 +667,8 @@ services:
       opensearch-node1:
         condition: service_healthy
     restart: unless-stopped
+    labels:
+      - "traefik.enable=false"
     networks:
       - aiops
 
@@ -498,6 +684,8 @@ services:
       opensearch-node1:
         condition: service_healthy
     restart: unless-stopped
+    labels:
+      - "traefik.enable=false"
     networks:
       - aiops
 
@@ -512,6 +700,8 @@ services:
         condition: service_healthy
       opensearch-node1:
         condition: service_healthy
+    labels:
+      - "traefik.enable=false"
     restart: unless-stopped
     networks:
       - aiops
@@ -522,3 +712,4 @@ volumes:
   opensearch-data2:
   opensearch-data3:
   shared-mibs:
+  keycloak-db:

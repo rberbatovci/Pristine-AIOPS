@@ -70,12 +70,12 @@
 .signalRightElementContainer {
   font-size: 15px;
   display: inline-block;
-  width: calc(100% - 50px);
-  max-width: calc(100% - 50px);
+  width: calc(100% - 30px);
+  max-width: calc(100% - 30px);
   border-radius: 12px;
-  margin-left: 20px;
-  margin-right: 20px;
-  margin-top: 20px;
+  margin-left: 10px;
+  margin-right: 10px;
+  margin-top: 10px;
   overflow: hidden;
   transition: height 1s ease;
   background: var(--backgroundColor3);

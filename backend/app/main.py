@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from app.users import routes as users
 from app.devices import routes as devices
 from app.syslogs import events as syslogEvents, signals as syslogSignals, mnemonics, regex, rules as syslogRules, tags as syslogTags, statistics as syslogStatistics
@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from datetime import datetime
+from app.auth.keycloak import get_current_user
 
 load_dotenv()
 
@@ -25,17 +26,19 @@ Base = declarative_base()
 
 logging.config.dictConfig(LOGGING_CONFIG)
 
-app = FastAPI()
+app = FastAPI(
+    dependencies=[Depends(get_current_user)]
+)
 
 @app.middleware("http")
 async def expiration_middleware(request: Request, call_next):
-    expiration_date = datetime(2025, 11, 3)
+    expiration_date = datetime(2026, 4, 18)
     now = datetime.now()
 
     if now >= expiration_date:
         return JSONResponse(
             status_code=403,
-            content={"detail": "This application has expired as of October 1, 2025."}
+            content={"detail": "This application has expired as of April 18th, 2026."}
         )
     
     response = await call_next(request)
@@ -43,12 +46,22 @@ async def expiration_middleware(request: Request, call_next):
 
 # Configure CORS
 origins = [
-    "http://localhost:3000",  
-    "http://localhost",
+    # Local development (HTTP)
+    "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "http://127.0.0.1",
     "http://192.168.1.201:3000",
+
+    # Local development (HTTPS)
+    "https://localhost:3000",
+    "https://127.0.0.1:3000",
+    "https://192.168.1.201:3000",
+
+    # Production / deployment
+    "https://192.168.1.201",
     "http://192.168.1.201",
+
+    # Production / Traefik frontend
+    "https://frontend.pristine-aiops.local",
 ]
 
 app.add_middleware(
@@ -65,15 +78,18 @@ app.include_router(devices.router)
 app.include_router(syslogEvents.router)
 app.include_router(mnemonics.router)
 app.include_router(regex.router)
-app.include_router(syslogRules.router)
+app.include_router(syslogRules.statefulRules)
+app.include_router(syslogRules.severityLevel)
 app.include_router(syslogTags.router)
 app.include_router(syslogStatistics.router)
+app.include_router(syslogStatistics.signalsRouter)
 app.include_router(syslogSignals.router)
 
 app.include_router(trapEvents.router)
 app.include_router(snmptrapoids.router)
 app.include_router(trapTags.router)
 app.include_router(trapStatistics.router)
+app.include_router(trapStatistics.signalsRouter)
 app.include_router(trapRules.router)
 app.include_router(mibs.router)
 app.include_router(trapSignals.router)

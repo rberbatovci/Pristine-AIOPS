@@ -1,77 +1,47 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import '../../css/SyslogTagsList.css';
-import apiClient from '../misc/AxiosConfig';
 import { IoMdAddCircleOutline, IoMdAddCircle } from "react-icons/io";
 import { RiDeleteBin6Line } from "react-icons/ri";
+import { useMibs } from "../../hooks/useSnmpMibs";
 
-const UploadMIB = ({ currentUser }) => {
+const UploadMIB = ({ keycloak }) => {
+
+    const {
+        mibs,
+        loading,
+        uploadMib,
+        deleteMib,
+        fetchMibs
+    } = useMibs(keycloak);
+
     const [searchValue, setSearchValue] = useState('');
-    const [file, setFile] = useState(null);
-    const [response, setResponse] = useState(null);
-    const [mibList, setMibList] = useState([]);
     const fileInputRef = useRef(null);
 
-    const fetchMIBs = async () => {
-        try {
-            const response = await apiClient.get('/traps/mibs/');
-            setMibList(response.data.mibs);
-        } catch (error) {
-            console.error('Error fetching MIB files:', error);
-        }
-    };
+    useEffect(() => {
+        fetchMibs();
+    }, [fetchMibs]);
 
-    const handleUpload = async (fileToUpload) => {
-        if (!fileToUpload) return;
-        const formData = new FormData();
-        formData.append("file", fileToUpload);
+    const handleFileChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
 
-        try {
-            const res = await apiClient.post("/traps/mibs/upload/", formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data'
-                }
-            });
-            setResponse(res.data);
-            fetchMIBs();
-        } catch (err) {
-            console.error("Upload error:", err);
-        }
-    };
-
-    const handleFileChange = (e) => {
-        const selectedFile = e.target.files[0];
-        if (selectedFile) {
-            setFile(selectedFile);
-            handleUpload(selectedFile);
-        }
-    };
-
-    const handleDelete = async (filename) => {
-        try {
-            await apiClient.delete(`/traps/mibs/${filename}`);
-            fetchMIBs();
-        } catch (err) {
-            console.error(`Error deleting ${filename}:`, err);
-        }
+        await uploadMib(file);
     };
 
     const triggerFileInput = () => {
         fileInputRef.current.click();
     };
 
-    useEffect(() => {
-        fetchMIBs();
-    }, []);
-
-    const filteredMibs = mibList.filter(mib =>
+    const filteredMibs = mibs.filter(mib =>
         mib.toLowerCase().includes(searchValue.toLowerCase())
     );
 
     return (
         <div className="signalTagContainer">
-            {!mibList.length && <p>Loading SNMP MIBs...</p>}
-            {mibList.length > 0 && (
 
+            {loading && <p>Loading SNMP MIBs...</p>}
+
+            {!loading && (
                 <div style={{
                     padding: '10px',
                     height: '350px',
@@ -97,10 +67,12 @@ const UploadMIB = ({ currentUser }) => {
                                 width: '220px'
                             }}
                         />
+
                         <button className="iconButton" onClick={triggerFileInput}>
                             <IoMdAddCircleOutline className="defaultIcon hasFilters" />
                             <IoMdAddCircle className="hoverIcon" />
                         </button>
+
                         <input
                             type="file"
                             accept=".mib,.txt"
@@ -113,12 +85,11 @@ const UploadMIB = ({ currentUser }) => {
                     <div style={{ marginTop: '10px' }}>
                         <ul style={{ marginTop: '10px' }}>
                             {filteredMibs.map((mib, index) => (
-                                <li key={index}
-                                    className="signalTagItem"
-                                >
+                                <li key={index} className="signalTagItem">
                                     <span>{mib}</span>
+
                                     <button
-                                        onClick={() => handleDelete(mib)}
+                                        onClick={() => deleteMib(mib)}
                                         style={{
                                             background: 'transparent',
                                             border: 'none',
@@ -132,13 +103,8 @@ const UploadMIB = ({ currentUser }) => {
                                 </li>
                             ))}
                         </ul>
-
-                        {response && (
-                            <div style={{ marginTop: '10px', color: 'green' }}>
-                                Uploaded: {response.filename}
-                            </div>
-                        )}
                     </div>
+
                 </div>
             )}
         </div>

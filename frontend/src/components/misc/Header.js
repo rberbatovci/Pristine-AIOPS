@@ -17,7 +17,7 @@ const Header = ({ currentUser, dashboardTitle, onToggleUserProfile }) => {
         </p>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '50px' }}>
-        <p style={{ margin: 0, fontWeight: 'lighter', fontSize: '14px' }}>Hello, {currentUser}</p>
+        <p style={{ margin: 0, fontWeight: 'lighter', fontSize: '14px' }}>{currentUser?.username ? `Hello, ${currentUser.username}` : 'Hello'}</p>
         <button
           onClick={onToggleUserProfile}
           style={{

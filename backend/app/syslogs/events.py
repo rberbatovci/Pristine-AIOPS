@@ -1,14 +1,18 @@
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 from collections import defaultdict
-from fastapi import APIRouter, Query, Request, Body
+from fastapi import APIRouter, Query, Request, Body, Depends
 from pydantic import BaseModel
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, JSON, func
 from sqlalchemy.orm import relationship
 from app.db.session import Base, get_db, opensearch_client
 from app.syslogs.services import syslog_signal_events
+from app.auth.keycloak import get_current_user, require_admin
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/api/syslogs",
+    tags=["syslogs,events"],
+)
 
 TOP_LEVEL_FIELDS = ["device", "mnemonic", "severity"]
 
@@ -51,8 +55,8 @@ class Syslog(Base):
 # ======================
 # API Routes
 # ======================
-@router.get("/syslogs/")
-async def get_syslogs(request: Request, page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100), start_time: Optional[datetime] = Query(None), end_time: Optional[datetime] = Query(None)):
+@router.get("/")
+async def get_syslogs(request: Request, page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100), start_time: Optional[datetime] = Query(None), end_time: Optional[datetime] = Query(None),user: dict = Depends(get_current_user)):
     start = (page - 1) * page_size
     must_clauses = []
 
@@ -106,8 +110,8 @@ async def get_syslogs(request: Request, page: int = Query(1, ge=1), page_size: i
         "page_size": page_size
     }
 
-@router.post("/syslogs/bulk")
-async def get_multiple_syslogs(syslog_ids: list[str] = Body(..., embed=True)):
+@router.post("/bulk")
+async def get_multiple_syslogs(syslog_ids: list[str] = Body(..., embed=True), user: dict = Depends(get_current_user)):
     body = {
         "ids": syslog_ids
     }

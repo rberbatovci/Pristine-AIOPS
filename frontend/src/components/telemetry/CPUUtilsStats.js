@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import apiClient from "../misc/AxiosConfig";
+import kcFetch from "../misc/kcFetch";
 import moment from "moment";
 import {
   LineChart,
@@ -12,7 +12,7 @@ import {
   Legend,
 } from "recharts";
 
-const CpuUtilsStats = ({ selectedDevice }) => {
+const CpuUtilsStats = ({ selectedDevice, keycloak }) => {
   const [showData, setShowData] = useState(true);
   const [cpuData, setCpuData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,14 +29,22 @@ const CpuUtilsStats = ({ selectedDevice }) => {
 
   useEffect(() => {
     const fetchCpuStats = async () => {
+      if (!keycloak?.authenticated || !selectedDevice) return;
+
       setLoading(true);
       setError(null);
-      try {
-        const res = await apiClient.get("/telemetry/cpu-utilization", {
-          params: { device: selectedDevice },
-        });
 
-        const formatted = res.data.results.map((item) => ({
+      try {
+        const query = new URLSearchParams({
+          device: selectedDevice,
+        }).toString();
+
+        const data = await kcFetch(
+          keycloak,
+          `/telemetry/cpu-utilization/?${query}`
+        );
+
+        const formatted = data.results.map((item) => ({
           timestamp: moment(item.timestamp).format("HH:mm:ss"),
           fiveSeconds: item.stats?.["five-seconds"] ?? 0,
           oneMinute: item.stats?.["one-minute"] ?? 0,
@@ -44,6 +52,7 @@ const CpuUtilsStats = ({ selectedDevice }) => {
         }));
 
         setCpuData(formatted);
+
       } catch (err) {
         console.error("Failed to fetch CPU stats:", err);
         setError("Failed to load CPU stats.");
@@ -52,15 +61,25 @@ const CpuUtilsStats = ({ selectedDevice }) => {
       }
     };
 
-    if (selectedDevice) {
-      fetchCpuStats();
-    }
-  }, [selectedDevice]);
+    fetchCpuStats();
+
+  }, [selectedDevice, keycloak]);
 
   return (
-    <div className={`signalRightElementContainer ${showData ? "expanded" : "collapsed"}`}>
+    <div
+      className={`signalRightElementContainer ${showData ? "expanded" : "collapsed"
+        }`}
+    >
       <div className="signalRightElementHeader">
-        <span style={{ fontSize: '14px', color: 'var(--textColor)', paddingLeft: '10px' }}> {selectedDevice || ''} - CPU Utliization Statistics</span>
+        <span
+          style={{
+            fontSize: "14px",
+            color: "var(--textColor)",
+            paddingLeft: "10px",
+          }}
+        >
+          {selectedDevice || ""} - CPU Utilization Statistics
+        </span>
       </div>
 
       <div style={{ paddingTop: "10px" }}>
@@ -78,7 +97,7 @@ const CpuUtilsStats = ({ selectedDevice }) => {
                 margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
               >
                 <CartesianGrid stroke="#ccc" strokeDasharray="5 5" />
-                <XAxis dataKey="timestamp" reversed={true} />
+                <XAxis dataKey="timestamp" reversed />
                 <YAxis domain={[0, 100]} />
                 <Tooltip />
                 <Legend />

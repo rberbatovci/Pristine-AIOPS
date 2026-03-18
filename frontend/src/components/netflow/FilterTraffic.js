@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Select from 'react-select';
-import apiClient from '../misc/AxiosConfig';
+import kcFetch from '../misc/kcFetch';
 import '../../css/SearchSyslogs.css';
 import customStyles from '../misc/SelectStyles';
 
-const FilterTraffic = ({ devices, onSelectedTagsChange, onSelectedTagsSearch }) => {
+const FilterTraffic = ({ devices, onSelectedTagsChange, onSelectedTagsSearch, keycloak }) => {
     const [selectedTags, setSelectedTags] = useState({});
     const [tagOptions, setTagOptions] = useState({});
     const [fetchedTags, setFetchedTags] = useState({});
@@ -23,16 +23,21 @@ const FilterTraffic = ({ devices, onSelectedTagsChange, onSelectedTagsSearch }) 
         label: device.hostname || device.ip_address,
     }));
 
-    // 🔹 Fetch unique values for a given NetFlow field
+    // Fetch unique values for a given NetFlow field
     const fetchNetflowTagOptions = async (tag) => {
-        if (fetchedTags[tag]) return; // Avoid re-fetching
-        try {
-            const response = await apiClient.get(`/netflow/unique-values`, {
-                params: { field: tag }
-            });
 
-            const optionsArray = response.data;
-            if (optionsArray) {
+        if (fetchedTags[tag]) return;
+
+        try {
+
+            const endpoint = `/netflow/options?fields=${tag}`;
+
+            const data = await kcFetch(keycloak, endpoint);
+
+            const optionsArray = data[tag];
+
+            if (Array.isArray(optionsArray)) {
+
                 setTagOptions((prev) => ({
                     ...prev,
                     [tag]: optionsArray.map(option => ({
@@ -40,8 +45,13 @@ const FilterTraffic = ({ devices, onSelectedTagsChange, onSelectedTagsSearch }) 
                         label: option,
                     })),
                 }));
-                setFetchedTags((prev) => ({ ...prev, [tag]: true }));
+
+                setFetchedTags((prev) => ({
+                    ...prev,
+                    [tag]: true
+                }));
             }
+
         } catch (error) {
             console.error(`Error fetching options for ${tag}:`, error);
         }
@@ -52,39 +62,63 @@ const FilterTraffic = ({ devices, onSelectedTagsChange, onSelectedTagsSearch }) 
     };
 
     const handleChange = (selectedValues, tag) => {
-        const updated = { ...selectedTags, [tag]: selectedValues };
+
+        const updated = {
+            ...selectedTags,
+            [tag]: selectedValues
+        };
+
         setSelectedTags(updated);
         onSelectedTagsChange(updated);
     };
 
     const handleDeviceChange = (selectedValues) => {
-        const updated = { ...selectedTags, device: selectedValues };
+
+        const updated = {
+            ...selectedTags,
+            device: selectedValues
+        };
+
         setSelectedTags(updated);
         onSelectedTagsChange(updated);
     };
 
     const handleSearchClick = () => {
+
         const filters = {
-            device: selectedTags.device ? selectedTags.device.map(opt => opt.value) : [],
+            device: selectedTags.device
+                ? selectedTags.device.map(opt => opt.value)
+                : [],
             tags: Object.keys(selectedTags).reduce((acc, key) => {
+
                 if (key !== 'device') {
                     acc[key] = selectedTags[key]
                         ? selectedTags[key].map(opt => opt.value)
                         : [];
                 }
+
                 return acc;
+
             }, {}),
         };
+
         onSelectedTagsSearch(filters);
     };
 
     return (
         <div className="searchSyslogsContainer">
+
             <div className="searchSyslogsFilterEntries">
+
                 {/* Device Filter */}
                 <div className="searchSyslogsFilterEntry">
-                    <span className="searchSignalFilterText">Device:</span>
+
+                    <span className="searchSignalFilterText">
+                        Device:
+                    </span>
+
                     <div style={{ marginTop: '6px' }}>
+
                         <Select
                             options={deviceOptions}
                             isMulti
@@ -97,20 +131,31 @@ const FilterTraffic = ({ devices, onSelectedTagsChange, onSelectedTagsSearch }) 
                             menuPortalTarget={document.body}
                             placeholder="Select devices"
                         />
+
                     </div>
                 </div>
 
-                {/* Dynamic NetFlow Filters */}
+                {/* NetFlow Filters */}
                 {netflowTags.map((tag) => (
+
                     <div key={tag.value} className="searchSyslogsFilterEntry">
-                        <span className="searchSignalFilterText">{tag.label}:</span>
+
+                        <span className="searchSignalFilterText">
+                            {tag.label}:
+                        </span>
+
                         <div style={{ marginTop: '6px' }}>
+
                             <Select
                                 options={tagOptions[tag.value] || []}
                                 isMulti
                                 value={selectedTags[tag.value] || []}
-                                onChange={(selectedValues) => handleChange(selectedValues, tag.value)}
-                                onFocus={() => handleFocus(tag.value)}
+                                onChange={(selectedValues) =>
+                                    handleChange(selectedValues, tag.value)
+                                }
+                                onFocus={() =>
+                                    handleFocus(tag.value)
+                                }
                                 styles={{
                                     ...customStyles('375px'),
                                     menuPortal: base => ({ ...base, zIndex: 9999 })
@@ -118,21 +163,33 @@ const FilterTraffic = ({ devices, onSelectedTagsChange, onSelectedTagsSearch }) 
                                 menuPortalTarget={document.body}
                                 placeholder={`Select ${tag.label}`}
                             />
+
                         </div>
+
                     </div>
+
                 ))}
+
             </div>
 
-            <div style={{
-                display: 'flex',
-                width: '100%',
-                justifyContent: 'center',
-                margin: '10px'
-            }}>
-                <button onClick={handleSearchClick} className="button save-button">
+            <div
+                style={{
+                    display: 'flex',
+                    width: '100%',
+                    justifyContent: 'center',
+                    margin: '10px'
+                }}
+            >
+
+                <button
+                    onClick={handleSearchClick}
+                    className="button save-button"
+                >
                     Search
                 </button>
+
             </div>
+
         </div>
     );
 };

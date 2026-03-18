@@ -1,15 +1,18 @@
 from typing import List
-
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.devices import models, schemas
-import asyncio
-router = APIRouter()
-import os
+from app.auth.keycloak import get_current_user, require_admin
 
+router = APIRouter(
+    prefix="/api/devices",
+    tags=["devices"],
+)
+
+# Default feature set
 default_features = {
     "syslogs": False,
     "snmp_traps": False,
@@ -21,14 +24,19 @@ default_features = {
         "isis_stats": False,
         "rib_table": False,
         "fib_entry": False,
-    }
+    },
 }
 
 
-@router.get("/devices/", response_model=List[dict])
-async def get_device_ids_names(db: AsyncSession = Depends(get_db)):
+# ✅ GET all devices (AUTH REQUIRED)
+@router.get("/", response_model=List[dict])
+async def get_device_ids_names(
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
     """
-    Retrieve a list of device IDs and hostnames.
+    Retrieve a list of devices.
+    Requires valid Keycloak JWT.
     """
     result = await db.execute(
         select(
@@ -42,6 +50,7 @@ async def get_device_ids_names(db: AsyncSession = Depends(get_db)):
     )
 
     devices = result.all()
+
     return [
         {
             "id": id,
@@ -49,13 +58,23 @@ async def get_device_ids_names(db: AsyncSession = Depends(get_db)):
             "ip_address": ip_address,
             "vendor": vendor,
             "version": version,
-            "features": features
+            "features": features,
         }
         for id, hostname, ip_address, vendor, version, features in devices
     ]
 
-@router.post("/devices/", response_model=schemas.DeviceResponse, status_code=201)
-async def create_device(device_in: schemas.DeviceCreate, db: AsyncSession = Depends(get_db)):
+
+# ✅ POST a new device (ADMIN ONLY)
+@router.post("/", response_model=schemas.DeviceResponse, status_code=201)
+async def create_device(
+    device_in: schemas.DeviceCreate,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    roles = user.get("realm_access", {}).get("roles", [])
+
+    require_admin(user)
+
     existing = await db.execute(
         select(models.Device).where(models.Device.hostname == device_in.hostname)
     )
@@ -64,18 +83,12 @@ async def create_device(device_in: schemas.DeviceCreate, db: AsyncSession = Depe
 
     device_data = device_in.model_dump()
 
-    # Force only the wanted keys (ip_address, hostname, vendor, version)
-    filtered_data = {
-        "ip_address": device_data.get("ip_address"),
-        "hostname": device_data.get("hostname"),
-        "vendor": device_data.get("vendor"),
-        "version": device_data.get("version"),
-    }
+    db_device = models.Device(
+        ip_address=device_data.get("ip_address"),
+        hostname=device_data.get("hostname"),
+        features=default_features,
+    )
 
-    # Set features to default all-false dict
-    filtered_data["features"] = default_features
-
-    db_device = models.Device(**filtered_data)
     db.add(db_device)
     await db.commit()
     await db.refresh(db_device)
@@ -83,27 +96,42 @@ async def create_device(device_in: schemas.DeviceCreate, db: AsyncSession = Depe
     return db_device
 
 
+# ✅ GET device by hostname (AUTH REQUIRED)
+@router.get("/{hostname}", response_model=schemas.DeviceResponse)
+async def get_device_by_hostname(
+    hostname: str,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(models.Device).where(models.Device.hostname == hostname)
+    )
 
-@router.get("/devices/{hostname}", response_model=schemas.DeviceResponse)
-async def get_device_by_hostname(hostname: str, db: AsyncSession = Depends(get_db)):
-    """
-    Get a device by its hostname.
-    """
-    result = await db.execute(select(models.Device).where(models.Device.hostname == hostname))
     db_device = result.scalars().first()
     if not db_device:
         raise HTTPException(status_code=404, detail="Device not found")
+
     return db_device
 
-@router.delete("/devices/{hostname}", status_code=204)
-async def delete_device(hostname: str, db: AsyncSession = Depends(get_db)):
-    """
-    Delete a device by its hostname.
-    """
-    result = await db.execute(select(models.Device).where(models.Device.hostname == hostname))
+
+# ✅ DELETE device by hostname (ADMIN ONLY)
+@router.delete("/{hostname}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_device(
+    hostname: str,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    roles = user.get("realm_access", {}).get("roles", [])
+
+    require_admin(user)
+
+    result = await db.execute(
+        select(models.Device).where(models.Device.hostname == hostname)
+    )
+
     db_device = result.scalars().first()
     if not db_device:
         raise HTTPException(status_code=404, detail="Device not found")
+
     await db.delete(db_device)
     await db.commit()
-    return

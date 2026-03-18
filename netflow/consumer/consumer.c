@@ -196,9 +196,9 @@ void create_netflow_index() {
         "      \"dynamic\": false,"
         "      \"properties\": {"
         "        \"@timestamp\":        {\"type\": \"date\"},"
-        "        \"exporter_ip\":       {\"type\": \"ip\"},"
-        "        \"source_addr\":       {\"type\": \"ip\"},"
-        "        \"dest_addr\":         {\"type\": \"ip\"},"
+        "        \"device\":            {\"type\": \"ip\"},"
+        "        \"source_ip\":       {\"type\": \"ip\"},"
+        "        \"dest_ip\":         {\"type\": \"ip\"},"
         "        \"protocol\":          {\"type\": \"long\"}," // Changed to long to be safe
         "        \"source_port\":       {\"type\": \"long\"}," // Changed to long to be safe
         "        \"dest_port\":         {\"type\": \"long\"}," // Changed to long to be safe
