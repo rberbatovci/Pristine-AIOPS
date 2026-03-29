@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import kcFetch from '../misc/kcFetch';
-import { RadialBarChart, PolarAngleAxis, RadialBar, Cell, Tooltip as RechartsTooltip } from 'recharts';
-import { IoPushOutline, IoPushSharp, IoRefreshCircleSharp, IoRefreshCircleOutline } from "react-icons/io5";
-import { pushConfiguration } from '../../hooks/pushConfiguration';
+import { RadialBarChart, PolarAngleAxis, RadialBar, Cell } from 'recharts';  
 
 function CpuUtilization({ keycloak, selectedDevice, onSuccess, showNotification }) {
   const [device, setDevice] = useState(selectedDevice);

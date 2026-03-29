@@ -9,15 +9,15 @@ import { TfiLayoutListThumb, TfiLayoutListThumbAlt } from "react-icons/tfi";
 import ChartView from '../components/misc/ChartView.js';
 import { RiFilterLine, RiFilterFill } from "react-icons/ri";
 import Mnemonics from '../components/syslogs/Mnemonics.js';
-import SyslogTags from '../components/syslogs/TagColumns.js';
+import SyslogTags from '../components/syslogs/Tags.js';
 import SearchTime from '../components/misc/SearchTime.js';
 import FilterSyslogs from '../components/syslogs/FilterSyslogs.js';
 import FilterTraps from '../components/snmptraps/FilterTraps.js';
-import RegExConfig from '../components/syslogs/RegExConfig.js';
+import RegEx from '../components/syslogs/RegEx.js';
 import UploadMIB from '../components/snmptraps/UploadMIB.js';
 import { PiUploadBold, PiUploadFill } from "react-icons/pi";
 import SnmpTrapOid from '../components/snmptraps/SnmpTrapOid.js';
-import TrapTags from '../components/snmptraps/TrapTags.js';
+import SnmpTrapTagConfig from '../components/snmptraps/SnmpTrapTagConfig.js';
 import { IoPieChartOutline, IoPieChartSharp, IoRefreshCircleOutline, IoRefreshCircleSharp } from "react-icons/io5";
 import { RiInfoCardLine, RiInfoCardFill } from "react-icons/ri";
 import { PiArticleMediumLight, PiArticleMediumFill } from "react-icons/pi";
@@ -28,19 +28,18 @@ import { useDevices } from '../hooks/useDevices.js';
 import { useSyslogTags } from '../hooks/useSyslogTags';
 import { useSnmpTrapTags } from '../hooks/useSnmpTrapTags';
 import { useFaultData } from '../hooks/useFaultData.js';
+import { downloadTableData } from '../components/misc/DownloadData.js';
 
-function Faults({ currentUser, setDashboardTitle, keycloak }) {
+function Faults({ currentUser, setDashboardTitle, showNotification, keycloak }) {
     const [startTime, setStartTime] = useState(() => new Date(Date.now() - 60 * 60 * 1000));
     const [endTime, setEndTime] = useState(() => new Date());
     const [filters, setFilters] = useState({});
     const { eventsData, totalEvents, totalPages, loading, error, loadData } = useFaultData();
     const [selectedTags, setSelectedTags] = useState([]);
-    const [dataSource, setDataSource] = useState('syslogs');
-    const downloadRef = useRef(null);
+    const [dataSource, setDataSource] = useState('syslogs'); 
     const dropdownWrapperRef = useRef(null);
-    const dropdownMenuRef = useRef(null);
-    const buttonsContainerRef = useRef(null);
-
+    const dropdownMenuRef = useRef(null); 
+    const [selectedRows, setSelectedRows] = useState([]);
     const [dropdowns, setDropdowns] = useState({
         syslogTags: { visible: false, position: { x: 0, y: 0 } },
         regEx: { visible: false, position: { x: 0, y: 0 } },
@@ -51,12 +50,10 @@ function Faults({ currentUser, setDashboardTitle, keycloak }) {
         mnemonics: { visible: false, position: { x: 0, y: 0 } },
         MIBFiles: { visible: false, position: { x: 0, y: 0 } },
         snmpTrapOids: { visible: false, position: { x: 0, y: 0 } },
-        trapTags: { visible: false, position: { x: 0, y: 0 } },
+        snmpTrapTags: { visible: false, position: { x: 0, y: 0 } },
+        snmpTrapTagConfig: { visible: false, position: { x: 0, y: 0 } },
         eventStatistics: { visible: false, position: { x: 0, y: 0 } },
-    });
-    const [selStatisticTags, setSelStatisticTags] = useState([]);
-    const [selEventTags, setSelEventTags] = useState([]);
-    const [selSignalTags, setSelSignalTags] = useState([]);
+    }); 
     const [page, setPage] = useState(1);
     const baseColumns = {
         syslogs: [
@@ -73,21 +70,15 @@ function Faults({ currentUser, setDashboardTitle, keycloak }) {
             { label: 'Trap OID', value: 'snmpTrapOid' },
             { label: 'Content', value: 'content' },
         ],
-    };
-    const [selectedDevice, setSelectedDevice] = useState(null);
+    }; 
     const [columnConfigs, setColumnConfigs] = useState(baseColumns);
     const { mnemonics, loading: mnemonicsLoading, reload: reloadMnemonics } = useMnemonics(keycloak);
-    const { regExpressions, regExTagNames, loading: regexLoading, reload: reloadRegEx } = useSyslogRegEx(keycloak);
-    const { snmpTrapOids, loading: oidsLoading, reload: reloadSnmpTrapOids } = useSnmpTrapOids(keycloak);
+    const { list: regularExpressions, loadingList, errorList, loadList: reloadRegEx } = useSyslogRegEx(keycloak);
+    const { list: snmpTrapOids, loading: oidsLoading, loadList: reloadSnmpTrapOids } = useSnmpTrapOids(keycloak);
     const { tags: syslogTags, loading: syslogTagsLoading, reload: reloadSyslogTags } = useSyslogTags(keycloak, false);
-    const { tags: snmpTrapTags, loading: snmpTrapTagsLoading, reload: reloadSnmpTrapTags } = useSnmpTrapTags(keycloak, false);
-    const activeTags = dataSource === "syslogs" ? syslogTags : snmpTrapTags;
-    const tagsLoading = dataSource === "syslogs" ? syslogTagsLoading : snmpTrapTagsLoading;
-    const [tagNames, setTagNames] = useState([]);
+    const { tags: snmpTrapTags, loading: snmpTrapTagsLoading, reload: reloadSnmpTrapTags } = useSnmpTrapTags(keycloak, false); 
     const { devices, loading: devicesLoading, reload: reloadDevices } = useDevices(keycloak);
-    const [view, setView] = useState("list")
-
-
+    const [view, setView] = useState("list") 
     useEffect(() => {
         loadData(
             keycloak,
@@ -97,6 +88,12 @@ function Faults({ currentUser, setDashboardTitle, keycloak }) {
             endTime?.toISOString(),
             filters
         );
+        if (dataSource === 'syslogs') {
+            reloadMnemonics(keycloak);
+            reloadRegEx();
+        } else if (dataSource === 'snmptraps') {
+            reloadSnmpTrapOids(keycloak);
+        }
     }, [keycloak, dataSource, page, startTime, endTime, filters, loadData]);
 
     useEffect(() => {
@@ -105,20 +102,19 @@ function Faults({ currentUser, setDashboardTitle, keycloak }) {
             [dataSource]: [
                 ...(baseColumns[dataSource] || []),
                 ...(selectedTags || []).map(tag => ({
-                    label: tag,      // label shown in table header
-                    value: tag,      // field key in data
+                    label: tag, 
+                    value: tag, 
                 })),
             ],
         }));
     }, [selectedTags, dataSource]);
 
-
-
-    const handleButtonClick = (event, dropdownKey) => {
+    const handleButtonClick = (event, dropdownKey) => { 
         const updatedDropdowns = Object.keys(dropdowns).reduce((acc, key) => {
             acc[key] = { ...dropdowns[key], visible: false };
             return acc;
         }, {});
+ 
         const newVisibility = !dropdowns[dropdownKey].visible;
         setDropdowns({
             ...updatedDropdowns,
@@ -127,20 +123,18 @@ function Faults({ currentUser, setDashboardTitle, keycloak }) {
                 visible: newVisibility,
             },
         });
-    };
-
-    const handleTagsClick = (event) => {
-        handleButtonClick(event, 'tags');
-
-        if (dataSource === "syslogs") {
-            if (syslogTags.length === 0) {
-                reloadSyslogTags();
-            }
-        }
-
-        if (dataSource === "snmptraps") {
-            if (snmpTrapTags.length === 0) {
-                reloadSnmpTrapTags();
+ 
+        if (newVisibility) {
+            if (dropdownKey === "syslogTags" && syslogTags.length === 0) {
+                reloadSyslogTags(keycloak);
+            } else if (dropdownKey === "snmpTrapTags" && snmpTrapTags.length === 0) {
+                reloadSnmpTrapTags(keycloak);
+            } else if (dropdownKey === "regEx" && regularExpressions.length === 0) {
+                reloadRegEx();
+            } else if (dropdownKey === "mnemonics" && mnemonics.length === 0) {
+                reloadMnemonics(keycloak); 
+            } else if (dropdownKey === "mnemonics" && regularExpressions.length === 0) {
+                reloadRegEx();
             }
         }
     };
@@ -150,21 +144,26 @@ function Faults({ currentUser, setDashboardTitle, keycloak }) {
         return () => setDashboardTitle('');
     }, [setDashboardTitle]);
 
+    useEffect(() => {
+        console.log('Filtering for:', filters);
+    }, []);
+
     const handleRowSelectChange = (newSelectedRows) => {
-        console.log('Testing!!!');
+        setSelectedRows(newSelectedRows);
     };
 
     const handleHeaderClick = (source) => {
         setDataSource(source);
         setPage(1);
-        ///loadData(keycloak, dataSource, page, startTime?.toISOString(), endTime?.toISOString(), filters);
         setColumnConfigs(baseColumns);
 
-        if (source === 'syslogs') {
-            reloadMnemonics(keycloak);
-            reloadRegEx(keycloak);
+        if (source === 'syslogs') { 
+            if (!mnemonics || mnemonics.length === 0) reloadMnemonics(keycloak);
+            if (!regularExpressions || regularExpressions.length === 0) reloadRegEx();
+            if (!syslogTags || syslogTags.length === 0) reloadSyslogTags(keycloak);
         } else if (source === 'snmptraps') {
-            reloadSnmpTrapOids(keycloak);
+            if (!snmpTrapOids || snmpTrapOids.length === 0) reloadSnmpTrapOids(keycloak);
+            if (!snmpTrapTags || snmpTrapTags.length === 0) reloadSnmpTrapTags(keycloak);
         }
     };
 
@@ -186,10 +185,10 @@ function Faults({ currentUser, setDashboardTitle, keycloak }) {
     };
 
     const handleTagsEditing = () => {
-        reloadRegEx(keycloak);
+        reloadRegEx();
         setDropdowns(prev => ({
             ...prev,
-            regExConfig: { ...prev.regExConfig, visible: false }
+            regEx: { ...prev.regEx, visible: false }
         }));
     }
 
@@ -206,6 +205,8 @@ function Faults({ currentUser, setDashboardTitle, keycloak }) {
     const handleSyslogTagsChange = (selectedTags) => {
         console.log('Selected tags:', selectedTags)
     };
+
+    
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -225,6 +226,10 @@ function Faults({ currentUser, setDashboardTitle, keycloak }) {
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
+    }, []);
+
+    useEffect(() => {
+        setView("list");
     }, []);
 
     return (
@@ -262,7 +267,7 @@ function Faults({ currentUser, setDashboardTitle, keycloak }) {
                             <RiInfoCardLine className="defaultIcon" />
                             <RiInfoCardFill className="hoverIcon" />
                         </button>
-                        <button className={`iconButton ${dropdowns.regEx.visible ? 'active' : ''} `} style={{ marginRight: '20px' }} onClick={(event) => handleButtonClick(event, 'trapTags')} >
+                        <button className={`iconButton ${dropdowns.snmpTrapTagConfig.visible ? 'active' : ''} `} style={{ marginRight: '20px' }} onClick={(event) => handleButtonClick(event, 'trapTags')} >
                             <MdBookmarkBorder className="defaultIcon" />
                             <MdBookmark className="hoverIcon" />
                         </button>  </>)}
@@ -270,27 +275,34 @@ function Faults({ currentUser, setDashboardTitle, keycloak }) {
                         <IoRefreshCircleOutline className="defaultIcon" />
                         <IoRefreshCircleSharp className="hoverIcon" />
                     </button>
-                    <button className={`iconButton ${dropdowns.tags.visible ? 'active' : ''} `} onClick={(event) => handleButtonClick(event, 'tags')} >
-                        <HiOutlineViewColumns className={`defaultIcon ${selectedTags.length > 0 ? 'hasFilters' : 'noFilters'} `} />
-                        <HiViewColumns className="hoverIcon" />
-                    </button>
+                    {dataSource === "syslogs" ? (<>
+                        <button className={`iconButton ${dropdowns.syslogTags.visible ? 'active' : ''} `} onClick={(event) => handleButtonClick(event, 'syslogTags')} >
+                            <HiOutlineViewColumns className="defaultIcon" />
+                            <HiViewColumns className="hoverIcon" />
+                        </button> </>) : (<>
+                            <button className={`iconButton ${dropdowns.snmpTrapTagConfig.visible ? 'active' : ''} `} onClick={(event) => handleButtonClick(event, 'snmpTrapTags')} >
+                                <HiOutlineViewColumns className="defaultIcon" />
+                                <HiViewColumns className="hoverIcon" />
+                            </button> </>)}
                     {dataSource === 'syslogs' && (<>
                         <button className={`iconButton ${dropdowns.filterSyslogs.visible ? 'active' : ''} `} onClick={(event) => handleButtonClick(event, 'filterSyslogs')} >
                             <RiFilterLine className="defaultIcon" />
                             <RiFilterFill className="hoverIcon" />
-                        </button> 
+                        </button>
                     </>)}
                     {dataSource === 'snmptraps' && (<>
                         <button className={`iconButton ${dropdowns.filterSnmpTraps.visible ? 'active' : ''} `} onClick={(event) => handleButtonClick(event, 'filterSnmpTraps')} >
                             <RiFilterLine className="defaultIcon" />
                             <RiFilterFill className="hoverIcon" />
-                        </button> 
-                    </>)} 
+                        </button>
+                    </>)}
                     <button className={`iconButton ${dropdowns.time.visible ? 'active' : ''} `} onClick={(event) => handleButtonClick(event, 'time')} >
                         <FaRegClock className="defaultIcon hasFilters" />
                         <FaClock className="hoverIcon" />
                     </button>
-                    <button className="iconButton" >
+                    <button
+                        className="iconButton"
+                        onClick={() => downloadTableData({ data: eventsData, selectedRows, columns: columnConfigs[dataSource], fileName: `${dataSource}_events.csv` })}>
                         <RiDownloadCloudLine className="defaultIcon" />
                         <RiDownloadCloudFill className="hoverIcon" />
                     </button>
@@ -299,29 +311,29 @@ function Faults({ currentUser, setDashboardTitle, keycloak }) {
             <div className="mainContainerContent">
                 {loading && <div className="loadingMessage">Loading...</div>}
                 {error && <div className="errorMessage">{error}</div>}
-                {!loading && !error && (view === 'chart' ? (
-                    <div className="syslogsTableContainer">
-                        <ChartView keycloak={keycloak} currentUser={currentUser} source='events' dataSource={dataSource} selectedTags={columnConfigs[dataSource]} />
-                    </div>) : (
+                {!loading && !error && (view === 'list' ? (
                     <div className="syslogsTableContainer">
                         <EventsTable dataSource={dataSource} data={eventsData} totalPages={totalPages} columns={columnConfigs[dataSource]} signalSource={dataSource} onRowSelectChange={handleRowSelectChange} page={page} onPageChange={setPage} />
+                    </div>) : (
+                    <div className="syslogsTableContainer">
+                        <ChartView keycloak={keycloak} currentUser={currentUser} source='events' dataSource={dataSource} selectedTags={columnConfigs[dataSource]} />
                     </div>))}
             </div>
             <div ref={dropdownMenuRef}>
                 <div
                     className={`dropdownMenu ${dropdowns.filterSyslogs.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
                     style={{ width: '420px' }} >
-                    <FilterSyslogs source={dataSource} tags={tagNames} devices={devices} onSelectedTagsChange={handleSyslogTagsChange} onSelectedTagsSearch={handleSearchAndCloseDropdown} />
+                    <FilterSyslogs source={dataSource} tags={syslogTags} devices={devices} onSelectedTagsChange={handleSyslogTagsChange} onSelectedTagsSearch={handleSearchAndCloseDropdown} />
                 </div>
                 <div
                     className={`dropdownMenu ${dropdowns.filterSnmpTraps.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
                     style={{ width: '420px' }} >
-                    <FilterTraps source={dataSource} tags={tagNames} devices={devices} mnemonics={mnemonics} onSelectedTagsChange={handleSyslogTagsChange} onSelectedTagsSearch={handleSearchAndCloseDropdown} />
+                    <FilterTraps source={dataSource} tags={snmpTrapTags} devices={devices} mnemonics={mnemonics} onSelectedTagsChange={handleSyslogTagsChange} onSelectedTagsSearch={handleSearchAndCloseDropdown} />
                 </div>
                 <div
                     className={`dropdownMenu ${dropdowns.regEx.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
                     style={{ width: '700px' }} >
-                    <RegExConfig devices={devices} tags={tagNames} regExpressions={regExpressions} onAdd={handleTagsEditing} onUpdate={handleTagsEditing} onDelete={handleTagsEditing} />
+                    <RegEx keycloak={keycloak} devices={devices} tags={syslogTags} regularExpressions={regularExpressions} showNotification={showNotification} onReload={reloadRegEx} />
                 </div>
                 <div
                     className={`dropdownMenu ${dropdowns.time.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
@@ -329,28 +341,28 @@ function Faults({ currentUser, setDashboardTitle, keycloak }) {
                     <SearchTime startTime={startTime} endTime={endTime} onTimeRangeChange={handleTimeRangeChange} />
                 </div>
                 <div
-                    className={`dropdownMenu ${dropdowns.tags.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
+                    className={`dropdownMenu ${dropdowns.syslogTags.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
                     style={{ width: '280px' }}>
-                    <SyslogTags dataSource={dataSource} selectedTags={selectedTags} onTagChange={(updated) => setSelectedTags(updated)} />
+                    <SyslogTags dataSource={dataSource} tags={syslogTags.map(t => t.value)} selectedTags={selectedTags} onTagChange={(updated) => setSelectedTags(updated)} />
                 </div>
                 <div
                     className={`dropdownMenu ${dropdowns.MIBFiles.visible ? 'dropdownVisible' : 'dropdownHidden'} `}>
-                    <UploadMIB keycloak={keycloak} currentUser={currentUser} />
+                    <UploadMIB keycloak={keycloak} currentUser={currentUser} showNotification={showNotification} />
                 </div>
                 <div
                     className={`dropdownMenu ${dropdowns.snmpTrapOids.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
                     style={{ width: 'auto', maxHeight: '740px', overflow: 'hidden' }}>
-                    <SnmpTrapOid currentUser={currentUser} />
+                    <SnmpTrapOid currentUser={currentUser} keycloak={keycloak} showNotification={showNotification} />
                 </div>
                 <div
-                    className={`dropdownMenu ${dropdowns.trapTags.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
+                    className={`dropdownMenu ${dropdowns.snmpTrapTagConfig.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
                     style={{ width: 'auto', maxHeight: '740px', overflow: 'hidden' }}>
-                    <TrapTags currentUser={currentUser} />
+                    <SnmpTrapTagConfig currentUser={currentUser} />
                 </div>
                 <div
                     className={`dropdownMenu ${dropdowns.mnemonics.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
                     style={{ width: 'auto', maxHeight: '740px', overflow: 'hidden' }}>
-                    <Mnemonics keycloak={keycloak} currentUser={currentUser} mnemonics={mnemonics} entityOptions={regExpressions} />
+                    <Mnemonics keycloak={keycloak} mnemonics={mnemonics} regularExpressions={regularExpressions} showNotification={showNotification} />
                 </div>
             </div>
         </div>

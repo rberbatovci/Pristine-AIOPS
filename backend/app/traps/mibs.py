@@ -4,6 +4,8 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from app.auth.keycloak import get_current_user, require_admin
 
+MIBS_DIR = os.getenv("MIBS_DIR", "/app/traps/producer/mibs")
+
 router = APIRouter(
     prefix="/api/traps/mibs",
     tags=["traps,mibs"],
@@ -19,12 +21,19 @@ def list_mibs(user: dict = Depends(get_current_user)):
 
 @router.delete("/{filename}")
 def delete_mib(filename: str, user: dict = Depends(get_current_user)):
+    # 🔒 सुरक्षा: prevent path traversal
+    if "/" in filename or ".." in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
     file_path = os.path.join(MIBS_DIR, filename)
+
     try:
         if os.path.exists(file_path) and os.path.isfile(file_path):
             os.remove(file_path)
-            return JSONResponse(content={"message": f"{filename} deleted."})
+            return {"message": f"{filename} deleted."}
+
         return JSONResponse(status_code=404, content={"error": "File not found."})
+
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 

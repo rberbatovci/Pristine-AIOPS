@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useState } from 'react';
 import '../../css/SignalsList.css';
 import { PiTerminalDuotone, PiTerminalFill } from "react-icons/pi";
 import { RiStackshareLine, RiStackshareFill } from "react-icons/ri";

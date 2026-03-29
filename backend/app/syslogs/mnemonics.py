@@ -123,7 +123,7 @@ async def read_mnemonic_by_name(
     return MnemonicBase.from_orm(db_mnemonic)
 
 
-@router.put("/{mnemonic_name}", response_model=MnemonicBase)
+@router.put("/{mnemonic_name}/", response_model=MnemonicBase)
 async def update_mnemonic_by_name(
     mnemonic_name: str,
     mnemonic_update: MnemonicBase,

@@ -1,15 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import '../css/SyslogDatabase.css';
 import EventsTable from '../components/misc/EventsTable.js';
-import kcFetch from '../components/misc/kcFetch';
-
+import kcFetch from '../components/misc/kcFetch'; 
 import { FaClock, FaRegClock } from "react-icons/fa";
-import { RiDownloadCloudLine, RiDownloadCloudFill } from "react-icons/ri";
-import { HiOutlineViewColumns, HiViewColumns } from "react-icons/hi2";
-import SearchTime from '../components/misc/SearchTime.js';
-import Pagination from '@mui/material/Pagination';
+import { RiDownloadCloudLine, RiDownloadCloudFill } from "react-icons/ri"; 
+import SearchTime from '../components/misc/SearchTime.js'; 
 import FilterTraffic from '../components/netflow/FilterTraffic.js';
-import NetflowChart from '../components/netflow/Chart.js';
+import ChartView from '../components/misc/ChartView.js';
 
 import { RiFilterLine, RiFilterFill } from "react-icons/ri";
 import { TfiLayoutListThumb, TfiLayoutListThumbAlt } from "react-icons/tfi";
@@ -286,7 +283,7 @@ function Traffic({ currentUser, setDashboardTitle, keycloak }) {
                         <EventsTable currentUser={currentUser} data={eventsData} columns={baseColumns} signalSource={dataSource} onDownload={(downloadFn) => (downloadRef.current = downloadFn)} onRowSelectChange={handleRowSelectChange} />
                     </div>) : (
                     <div className="syslogsTableContainer">
-                        <NetflowChart />
+                        <ChartView keycloak={keycloak} currentUser={currentUser} source='events' dataSource='netflow' selectedTags={baseColumns} />
                     </div>))}
             </div>
             <div ref={dropdownMenuRef}>

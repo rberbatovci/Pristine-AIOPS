@@ -2,6 +2,7 @@ import React, { useState, useCallback } from "react";
 import Select from "react-select";
 import customStyles from "../misc/SelectStyles";
 import "../../css/SearchElement.css";
+import { AsyncPaginate } from "react-select-async-paginate";
 
 const severityOptions = [
   { value: "emergency", label: "Emergency" },
@@ -107,7 +108,6 @@ const FilterSyslogs = ({
 
         {/* Dynamic tags */}
         {tags.map(tag => {
-          console.log("Rendering tag:", tag);
           return (
             <FilterSelect
               key={tag.name}

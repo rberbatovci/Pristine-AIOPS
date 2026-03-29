@@ -1,22 +1,12 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Select from 'react-select';
 import customStyles from '../misc/SelectStyles';
 import '../../css/SyslogTagsList.css';
 import { TailSpin } from 'react-loader-spinner';
-
 import { useSyslogRegEx } from '../../hooks/useSyslogRegEx';
 
-function RegExConfig({ keycloak }) {
-  const {
-    regExRules,
-    loading,
-    error,
-    get,
-    create,
-    update,
-    remove,
-  } = useSyslogRegEx({ keycloak });
-
+function RegEx({ keycloak, regularExpressions, onReload, showNotification }) {
+  const { details, loading, error, get, create, update, remove } = useSyslogRegEx(keycloak);
   const [selectedRegex, setSelectedRegex] = useState(null);
   const [isAddNew, setIsAddNew] = useState(true);
   const [loadingState, setLoadingState] = useState(null);
@@ -39,37 +29,61 @@ function RegExConfig({ keycloak }) {
     { value: 'finditer', label: 'Finditer' },
   ];
 
-  const handleSelect = async (regex) => {
-    const full = await get(regex.name);
-    setSelectedRegex(full);
-    setForm(full);
+  useEffect(() => {
+    if (details) {
+      setForm(details);
+    }
+  }, [details]);
+
+  // SELECT RULE
+  const handleSelect = (regex) => { 
+    setSelectedRegex(regex);
     setIsAddNew(false);
+    get(regex.name);
   };
 
+  // ADD
   const handleAdd = async () => {
     setLoadingState('adding');
-    await create(form);
-    setForm(emptyForm);
-    setIsAddNew(true);
-    setLoadingState(null);
+    try {
+      await create(form);
+      await onReload();
+      //await loadList(); // 🔥 refresh list
+      setForm(emptyForm);
+      setIsAddNew(true);
+    } finally {
+      setLoadingState(null);
+    }
   };
 
+  // SAVE
   const handleSave = async () => {
     setLoadingState('saving');
-    await update(form.name, form);
-    setSelectedRegex(null);
-    setForm(emptyForm);
-    setIsAddNew(true);
-    setLoadingState(null);
+    try {
+      await update(form.name, form);
+      await onReload();
+      //await loadList(); // 🔥 refresh list
+      setSelectedRegex(null);
+      setForm(emptyForm);
+      setIsAddNew(true);
+    } finally {
+      setLoadingState(null);
+    }
   };
 
+  // DELETE
   const handleDelete = async () => {
     setLoadingState('deleting');
-    await remove(selectedRegex.name);
-    setSelectedRegex(null);
-    setForm(emptyForm);
-    setIsAddNew(true);
-    setLoadingState(null);
+    try {
+      await remove(selectedRegex.name);
+      await onReload();
+      //await loadList(); // 🔥 refresh list
+      setSelectedRegex(null);
+      setForm(emptyForm);
+      setIsAddNew(true);
+    } finally {
+      setLoadingState(null);
+    }
   };
 
   return (
@@ -79,27 +93,11 @@ function RegExConfig({ keycloak }) {
       </div>
 
       {loading ? (
-        <div
-          className="signalConfigRuleMessage"
-          style={{
-            background: 'var(--backgroundColor3)',
-            padding: '10px',
-            marginTop: '10px',
-            borderRadius: '8px'
-          }}
-        >
-          Loading Regular Expressions. Please wait...
+        <div className="signalConfigRuleMessage">
+          Loading rule details...
         </div>
       ) : error ? (
-        <div
-          className="signalConfigRuleMessage"
-          style={{
-            background: 'var(--backgroundColor3)',
-            padding: '10px',
-            marginTop: '10px',
-            borderRadius: '8px'
-          }}
-        >
+        <div className="signalConfigRuleMessage">
           {error}
         </div>
       ) : (
@@ -129,17 +127,12 @@ function RegExConfig({ keycloak }) {
                   Add New Rule
                 </li>
 
-                {regExRules.map((regex) => (
+                {regularExpressions.map((regex) => (
                   <li
-                    key={regex.name}
+                    key={regex.id}
                     className={`signalTagItem ${selectedRegex?.name === regex.name ? 'selected' : ''
                       }`}
-                    onClick={async () => {
-                      const full = await get(regex.name);
-                      setSelectedRegex(full);
-                      setForm(full);
-                      setIsAddNew(false);
-                    }}
+                    onClick={() => handleSelect(regex)}
                   >
                     {regex.name}
                   </li>
@@ -278,9 +271,7 @@ function RegExConfig({ keycloak }) {
             {isAddNew ? (
               <>
                 <button
-                  onClick={() => {
-                    setForm(emptyForm);
-                  }}
+                  onClick={() => setForm(emptyForm)}
                   className="button cancel-button"
                 >
                   Cancel
@@ -334,4 +325,4 @@ function RegExConfig({ keycloak }) {
   );
 }
 
-export default RegExConfig;
+export default RegEx;

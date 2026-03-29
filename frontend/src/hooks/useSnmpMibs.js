@@ -9,7 +9,7 @@ export function useMibs(keycloak) {
   const fetchMibs = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await kcFetch(keycloak, "/traps/mibs");
+      const res = await kcFetch(keycloak, "/traps/mibs/");
       setMibs(res.mibs || []);
     } catch (err) {
       setError(err.message);

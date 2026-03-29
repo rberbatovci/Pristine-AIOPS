@@ -6,7 +6,7 @@ import { TailSpin } from "react-loader-spinner";
 
 import { useTrapTags2 } from "../../hooks/useTrapTags2";
 
-const TrapTags = ({ keycloak }) => {
+const SnmpTrapTagConfig = ({ keycloak }) => {
   /* ---------------- hooks ---------------- */
   const {
     items: trapTags,
@@ -224,4 +224,4 @@ const TrapTags = ({ keycloak }) => {
   );
 };
 
-export default TrapTags;
+export default SnmpTrapTagConfig;

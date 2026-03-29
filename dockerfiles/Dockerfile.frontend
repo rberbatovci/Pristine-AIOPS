@@ -1,13 +1,32 @@
 FROM node:20-alpine AS build
 
 WORKDIR /app
+
+# Copy only dependency files first (better caching)
 COPY frontend/package*.json ./
-RUN npm install
-COPY frontend/. .
+
+# Install exact versions (secure + reproducible)
+RUN npm ci
+
+# Copy source code
+COPY frontend/ .
+
+# Build static files
 RUN npm run build
 
+
+# -------- Production Image --------
 FROM nginx:alpine
-COPY --from=build /app/build /usr/share/nginx/html
+
+# Remove default nginx config (optional but cleaner)
+RUN rm /etc/nginx/conf.d/default.conf
+
+# Copy your config
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
+
+# Copy built app
+COPY --from=build /app/build /usr/share/nginx/html
+
 EXPOSE 80
+
 CMD ["nginx", "-g", "daemon off;"]

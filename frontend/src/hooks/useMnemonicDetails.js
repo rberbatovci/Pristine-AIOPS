@@ -35,10 +35,13 @@ export function useMnemonicDetails(keycloak) {
     try {
       const updated = await kcFetch(
         keycloak,
-        `/syslogs/update/mnemonics/${id}/`,
+        `/syslogs/mnemonics/${id}/`,
         {
           method: "PUT",
-          body: payload
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
         }
       );
       setDetails(updated);

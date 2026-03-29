@@ -1,6 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import Select from 'react-select';
-import customStyles from '../misc/SelectStyles';
+import { useState, useEffect } from 'react'; 
 import { TailSpin } from 'react-loader-spinner';
 import kcFetch from '../misc/kcFetch';
 
@@ -96,15 +94,7 @@ function AddNewDevice({ onDeviceAdded, keycloak }) {
                 : '',
           }}
         >
-          {loading ? (
-            <TailSpin height={16} width={16} color="#fff" />
-          ) : success ? (
-            'Added!'
-          ) : error ? (
-            'Error'
-          ) : (
-            'Save'
-          )}
+          {loading ? ( <TailSpin height={16} width={16} color="#fff" /> ) : success ? ( 'Added!' ) : error ? ( 'Error' ) : ( 'Save' )}
         </button>
       </div>
     </div>

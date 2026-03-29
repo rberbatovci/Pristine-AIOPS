@@ -1,156 +1,142 @@
-import { useState, useEffect, useCallback } from "react";
-import kcFetch from "../components/misc/kcFetch";
+import { useState, useEffect, useCallback } from 'react';
+import kcFetch from '../components/misc/kcFetch'; // your fetch utility
 
-export function useSyslogRegEx({ keycloak, autoLoad = true } = {}) {
-  const [items, setItems] = useState([]);
+export function useSyslogRegEx(keycloak) {
+  const [list, setList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [details, setDetails] = useState(null);
 
-  /**
-   * Generic request wrapper
-   */
-  const request = useCallback(
-    async (method, path = "", body = null) => {
-      if (!keycloak?.authenticated) {
-        throw new Error("Keycloak not authenticated");
-      }
+  // fetch the full list
+  const loadList = async () => {
+    if (!keycloak?.authenticated) return;
 
-      return kcFetch(keycloak, `/syslogs/regex/${path}`.replace(/\/+/g, "/"), {
-        method,
-        ...(body ? { body: JSON.stringify(body) } : {})
-      });
-    },
-    [keycloak]
-  );
+    setLoading(true);
+    try {
+      const data = await kcFetch(keycloak, '/syslogs/regex/');
+      setList(data);
+      setError(null);
+    } catch (err) {
+      setError(err.message || 'Failed to fetch regex list');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  /**
-   * GET all regex rules
-   */
-  const list = useCallback(async () => {
+  const get = useCallback(async (name) => {
+    if (!keycloak?.authenticated || !name) {
+      console.warn("Skipping GET: not authenticated or no name", { keycloak, name });
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const data = await kcFetch(
+        keycloak,
+        `/syslogs/regex/${encodeURIComponent(name)}`
+      );
+      setDetails(data);
+    } catch (err) {
+      console.error("Failed to load regex details:", err);
+      setError(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [keycloak]);
+
+  const update = useCallback(async (name, payload) => {
+    if (!keycloak?.authenticated || !name) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const updated = await kcFetch(
+        keycloak,
+        `/syslogs/regex/${encodeURIComponent(name)}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+      setDetails(updated);
+      return updated;
+    } catch (err) {
+      setError(err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [keycloak]);
+
+  const remove = useCallback(async (name) => {
+    if (!keycloak?.authenticated || !name) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      await kcFetch(
+        keycloak,
+        `/syslogs/regex/${encodeURIComponent(name)}`,
+        { method: "DELETE" }
+      );
+      setDetails(null);
+    } catch (err) {
+      setError(err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [keycloak]);
+
+  const create = useCallback(async (payload) => {
     if (!keycloak?.authenticated) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      const data = await request("GET", "/");
-      setItems(data || []);
-      return data;
+      const created = await kcFetch(
+        keycloak,
+        `/syslogs/regex/`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+      setDetails(created);
+      return created;
     } catch (err) {
-      setError(err.message || "Failed to fetch regex rules");
+      setError(err);
       throw err;
     } finally {
       setLoading(false);
     }
-  }, [keycloak, request]);
-
-  /**
-   * GET single regex rule
-   */
-  const get = useCallback(
-    async (name) => {
-      try {
-        return await request("GET", `/${name}`);
-      } catch (err) {
-        setError(err.message);
-        throw err;
-      }
-    },
-    [request]
-  );
-
-  /**
-   * CREATE regex rule
-   */
-  const create = useCallback(
-    async (payload) => {
-      try {
-        const created = await request("POST", "/", payload);
-        setItems(prev => [...prev, created]);
-        return created;
-      } catch (err) {
-        setError(err.message);
-        throw err;
-      }
-    },
-    [request]
-  );
-
-  /**
-   * UPDATE regex rule
-   */
-  const update = useCallback(
-    async (name, payload) => {
-      try {
-        const updated = await request("PUT", `/${name}/`, payload);
-
-        setItems(prev =>
-          prev.map(item =>
-            item.name === updated.name ? updated : item
-          )
-        );
-
-        return updated;
-      } catch (err) {
-        setError(err.message);
-        throw err;
-      }
-    },
-    [request]
-  );
-
-  /**
-   * DELETE regex rule
-   */
-  const remove = useCallback(
-    async (name) => {
-      try {
-        await request("DELETE", `/${name}/`);
-
-        setItems(prev =>
-          prev.filter(item => item.name !== name)
-        );
-      } catch (err) {
-        setError(err.message);
-        throw err;
-      }
-    },
-    [request]
-  );
-
-  /**
-   * Sync to Redis
-   */
-  const syncToRedis = useCallback(async () => {
-    try {
-      await kcFetch(keycloak, `/syslogs/regex/handleSyncToRedis/`, {
-        method: "POST"
-      });
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    }
   }, [keycloak]);
 
-  /**
-   * Auto-load on mount
-   */
+
   useEffect(() => {
-    if (autoLoad && keycloak?.authenticated) {
-      list();
-    }
-  }, [autoLoad, keycloak, list]);
+    loadList();
+  }, []);
 
   return {
-    regExRules: items,
+    list,
+    details,
     loading,
     error,
-    list,
+    loadList,
     get,
     create,
     update,
     remove,
-    syncToRedis,
-    setItems
   };
 }

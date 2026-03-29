@@ -719,6 +719,7 @@ header {
   transform: scale(1.01);
   padding: 10px 21px;
   border-radius: 5px;
+  border: none;
   outline: none;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
   transition:
@@ -732,13 +733,12 @@ header {
 
 .signalTagItemX:hover {
   background-color: var(--tagListBackHover);
-  transform: scale(1.01);
-  padding: 10px 32px;
+  padding: 10px 21px;
   box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
   margin-left: 4px;
   margin-right: 4px;
-  color: #fafafa;
-  border-top: 1px solid var(--dropdownTopBorder);
+  color: #fafafa; 
+  
 }
 
 .signalTagItemX.selected {

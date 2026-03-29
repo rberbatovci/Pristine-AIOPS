@@ -26,6 +26,7 @@ class MatchOptions(str, Enum):
     undefined = "undefined"
     search = "search"
     match = "match"
+    findall = "findall"
 
 # ======================
 # SQLAlchemy Model

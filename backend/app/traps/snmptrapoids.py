@@ -138,7 +138,7 @@ async def read_snmpTrapOids(skip: int = 0, limit: int = 100, db: AsyncSession = 
     
     return snmpTrapOids
 
-@router.get("/{trap_oid_name}", response_model=dict)
+@router.get("/{trap_oid_name}/", response_model=dict)
 async def get_trap_oid_by_name(trap_oid_name: str, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
     result = await db.execute(
         select(TrapOid)
@@ -160,7 +160,7 @@ async def get_trap_oid_by_name(trap_oid_name: str, db: AsyncSession = Depends(ge
         "tags": [tag.name for tag in trap_oid.tags],
     }
 
-@router.patch("/{trap_oid_name}", response_model=TrapOidBrief)
+@router.patch("/{trap_oid_name}/", response_model=TrapOidBrief)
 async def update_trap_oid_by_name(
     trap_oid_name: str,
     trap_oid_update: TrapOidUpdate,

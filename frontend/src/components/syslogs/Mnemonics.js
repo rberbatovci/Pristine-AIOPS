@@ -1,106 +1,100 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Select from 'react-select';
 import customStyles from '../misc/SelectStyles';
+import { useMnemonicDetails } from '../../hooks/useMnemonicDetails'; 
 import '../../css/SyslogTagsList.css';
-import { TailSpin } from 'react-loader-spinner';
 
-import { useSyslogRegEx } from '../../hooks/useSyslogRegEx';
-import { useMnemonics } from '../../hooks/useMnemonics';
-import { useMnemonicDetails } from '../../hooks/useMnemonicDetails';
-
-function Mnemonics({ keycloak }) {
+// Added 'keycloak' to props to support the hook
+function Mnemonics({ 
+  mnemonics = [], 
+  regularExpressions = [], 
+  showNotification, 
+  keycloak 
+}) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [success, setSuccess] = useState(false);
+  const [selectedMnemonic, setSelectedMnemonic] = useState(null);
+  const [successMessage, setSuccessMessage] = useState('');
 
-  // -----------------------------
-  // Hooks
-  // -----------------------------
-  const {
-    mnemonics,
-    loading: listLoading,
-    error: listError
-  } = useMnemonics(keycloak);
-
-  const {
-    regExRules,
-    loading: regexLoading,
-    error: regexError
-  } = useSyslogRegEx({ keycloak });
-
-  const {
-    details: selectedMnemonic,
-    loading: detailsLoading,
-    error: detailsError,
-    loadMnemonic,
-    updateMnemonic,
-    deleteMnemonic
+  // 1. Initialize the hook
+  const { 
+    details, 
+    loading, 
+    error, 
+    loadMnemonic, 
+    updateMnemonic, 
+    deleteMnemonic 
   } = useMnemonicDetails(keycloak);
 
-  // -----------------------------
-  // Auto-select random mnemonic
-  // -----------------------------
+  // 2. Auto-select first mnemonic and trigger initial fetch
   useEffect(() => {
-    if (mnemonics.length && !selectedMnemonic) {
-      const random = mnemonics[Math.floor(Math.random() * mnemonics.length)];
-      loadMnemonic(random.name);
+    if (!selectedMnemonic && mnemonics.length > 0) {
+      const first = mnemonics[0];
+      loadMnemonic(first.name);
     }
   }, [mnemonics, selectedMnemonic, loadMnemonic]);
 
-  // -----------------------------
-  // Filtering
-  // -----------------------------
+  // 3. Update local 'draft' state when hook finishes fetching/updating
+  useEffect(() => {
+    if (details) {
+      setSelectedMnemonic(details);
+    }
+  }, [details]);
+
   const filteredMnemonics = useMemo(() => {
     return mnemonics.filter(m =>
-      m.label.toLowerCase().includes(searchTerm.toLowerCase())
+      m.label?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [mnemonics, searchTerm]);
 
-  // -----------------------------
-  // Save
-  // -----------------------------
+  const handleSelectMnemonic = (mnemonic) => {
+    // Trigger hook to fetch fresh data for this specific mnemonic
+    loadMnemonic(mnemonic.name);
+  };
+
+  const handleRegexChange = (opts) => {
+    setSelectedMnemonic(prev => ({
+      ...prev,
+      regexes: opts?.map(o => o.value) || []
+    }));
+  };
+
   const handleSave = async () => {
     if (!selectedMnemonic) return;
-
     try {
       await updateMnemonic(selectedMnemonic.name, selectedMnemonic);
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 5000);
-    } catch { }
+      setSuccessMessage('Mnemonic updated successfully');
+      showNotification?.('Mnemonic updated successfully', 'success');
+      setTimeout(() => setSuccessMessage(''), 5000);
+    } catch (err) {
+      showNotification?.('Failed to update mnemonic', 'error');
+    }
   };
 
-  // -----------------------------
-  // Delete
-  // -----------------------------
   const handleDelete = async () => {
     if (!selectedMnemonic) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedMnemonic.name}?`)) return;
 
-    await deleteMnemonic(selectedMnemonic.name);
+    try {
+      await deleteMnemonic(selectedMnemonic.name);
+      showNotification?.(`Deleted mnemonic: ${selectedMnemonic.name}`, 'success');
+      setSelectedMnemonic(null);
+    } catch (err) {
+      showNotification?.('Failed to delete mnemonic', 'error');
+    }
   };
 
-  // -----------------------------
-  // Loading & error
-  // -----------------------------
-  if (listLoading || detailsLoading) {
-    return <div>Loading mnemonics...</div>;
+  if (!mnemonics || mnemonics.length === 0) {
+    return <div className="loading-state">Loading mnemonics list...</div>;
   }
 
-  if (listError) {
-    return <div>Error loading mnemonics</div>;
-  }
-
-  if (detailsError) {
-    return <div>Error loading mnemonic details</div>;
-  }
-
-  // -----------------------------
-  // Render
-  // -----------------------------
   return (
     <div className="signalTagContainer">
-      <div style={{ marginBottom: '8px' }}>Mnemonics Configuration:</div>
+      <div style={{ marginBottom: '8px', fontWeight: 'bold' }}>Mnemonics Configuration:</div>
 
-      <div style={{ display: 'flex', gap: '10px' }}>
-        {/* List */}
+      {error && <div style={{ color: 'red', marginBottom: '10px' }}>Error: {error.message}</div>}
+
+      <div style={{ display: 'flex', gap: '10px', opacity: loading ? 0.7 : 1 }}>
+        {/* Mnemonics List */}
         <div className="signalTagList">
           <input
             type="text"
@@ -110,78 +104,80 @@ function Mnemonics({ keycloak }) {
             className="signalSearchItem"
           />
           <ul>
-            {filteredMnemonics.map(mnemonic => (
+            {filteredMnemonics.map(m => (
               <li
-                key={mnemonic.id}
-                className={`signalTagItem ${selectedMnemonic?.name === mnemonic.name ? 'selected' : ''
-                  }`}
-                onClick={() => loadMnemonic(mnemonic.name)}
+                key={m.id || m.name}
+                className={`signalTagItem ${selectedMnemonic?.name === m.name ? 'selected' : ''}`}
+                onClick={() => handleSelectMnemonic(m)}
               >
-                {mnemonic.label}
+                {m.label || m.name}
               </li>
             ))}
           </ul>
         </div>
 
-        {/* Details */}
-        {selectedMnemonic && (
-          <div className="signalTagDetails">
-            <div>
-              <span>Name:</span>
-              <input
-                value={selectedMnemonic.name}
-                readOnly
-                className="inputText"
-              />
-            </div>
+        {/* Mnemonic Details Form */}
+        <div className="signalTagDetails">
+          {loading && !selectedMnemonic ? (
+            <div>Loading details...</div>
+          ) : selectedMnemonic ? (
+            <>
+              <div>
+                <span>Name:</span>
+                <input value={selectedMnemonic.name || ''} readOnly className="inputText" />
+              </div>
 
-            <div>
-              <span>Alerting:</span>
-              <input
-                type="checkbox"
-                checked={!!selectedMnemonic.alert}
-                onChange={(e) =>
-                  selectedMnemonic &&
-                  (selectedMnemonic.alert = e.target.checked)
-                }
-              />
-            </div>
+              <div>
+                <span>Alerting:</span>
+                <input
+                  type="checkbox"
+                  checked={!!selectedMnemonic.alert}
+                  onChange={(e) =>
+                    setSelectedMnemonic(prev => ({ ...prev, alert: e.target.checked }))
+                  }
+                />
+              </div>
 
-            <div>
-              <span>Severity:</span>
-              <input value={selectedMnemonic.severity} readOnly />
-            </div>
+              <div>
+                <span>Severity:</span>
+                <input value={selectedMnemonic.severity || ''} readOnly />
+              </div>
 
-            <div>
-              <span>Regexes:</span>
-              <Select
-                isMulti
-                options={regExRules.map(o => ({
-                  value: o.name,
-                  label: o.name
-                }))}
-                value={regExRules
-                  .filter(o => selectedMnemonic.regexes?.includes(o.name))
-                  .map(o => ({ value: o.name, label: o.name }))}
-                onChange={(opts) =>
-                (selectedMnemonic.regexes =
-                  opts?.map(o => o.value) || [])
-                }
-                styles={customStyles('380px')}
-              />
-            </div>
-          </div>
-        )}
+              <div>
+                <span>Regexes:</span>
+                <Select
+                  isMulti
+                  options={regularExpressions.map(o => ({ value: o.name, label: o.name }))}
+                  value={regularExpressions
+                    .filter(o => selectedMnemonic.regexes?.includes(o.name))
+                    .map(o => ({ value: o.name, label: o.name }))}
+                  onChange={handleRegexChange}
+                  styles={customStyles('380px')}
+                />
+              </div>
+            </>
+          ) : (
+            <div>Select a mnemonic to view details</div>
+          )}
+        </div>
       </div>
 
       {/* Actions */}
       {selectedMnemonic && (
         <div style={{ marginTop: '10px', textAlign: 'right' }}>
-          {success && <div>Mnemonic updated successfully</div>}
-          <button onClick={handleSave} className="button save-button">
-            Save
+          {successMessage && <span style={{ color: 'green', marginRight: '10px' }}>{successMessage}</span>}
+          <button 
+            onClick={handleSave} 
+            className="button save-button" 
+            disabled={loading}
+          >
+            {loading ? 'Saving...' : 'Save'}
           </button>
-          <button onClick={handleDelete} className="button delete-button">
+          <button 
+            onClick={handleDelete} 
+            className="button delete-button" 
+            disabled={loading}
+          >
             Delete
           </button>
         </div>

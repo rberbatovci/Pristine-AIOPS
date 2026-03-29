@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import kcFetch from '../misc/kcFetch';
-import { RadialBarChart, PolarAngleAxis, RadialBar, Cell, Tooltip as RechartsTooltip } from 'recharts';
-import { IoPushOutline, IoPushSharp, IoRefreshCircleSharp, IoRefreshCircleOutline } from "react-icons/io5";
+import { RadialBarChart, PolarAngleAxis, RadialBar, Cell } from 'recharts'; 
 
 function MemoryStatistics({ keycloak, selectedDevice, onSuccess }) {
   const [device, setDevice] = useState(selectedDevice);
