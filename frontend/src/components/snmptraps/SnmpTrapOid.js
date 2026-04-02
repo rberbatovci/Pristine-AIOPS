@@ -4,22 +4,18 @@ import "../../css/SyslogTagsList.css";
 import customStyles from "../misc/SelectStyles";
 import { TailSpin } from "react-loader-spinner";
 
-import { useSnmpTrapOids2 } from "../../hooks/useSnmpTrapOids2";
-import { useTrapTags2 } from "../../hooks/useTrapTags2";
+import { useSnmpTrapOids } from "../../hooks/useSnmpTrapOids";
 
-const SnmpTrapOid = ({ keycloak }) => {
+const SnmpTrapOid = ({ keycloak, snmpTrapOids, snmpTrapTags, showNotification }) => {
   /* ---------------- hooks ---------------- */
   const {
-    snmpTrapOids,
+    details,
     loading,
     error,
-    update
-  } = useSnmpTrapOids2(keycloak);
-
-  const {
-    items: trapTags,
-    loading: tagsLoading
-  } = useTrapTags2(keycloak);
+    get,
+    update,
+    remove
+  } = useSnmpTrapOids(keycloak);
 
   /* ---------------- UI state ---------------- */
   const [searchTerm, setSearchTerm] = useState("");
@@ -32,8 +28,19 @@ const SnmpTrapOid = ({ keycloak }) => {
   useEffect(() => {
     if (snmpTrapOids.length && !selectedTrapOid) {
       setSelectedTrapOid(snmpTrapOids[0]);
+      get(snmpTrapOids[0].name);
     }
-  }, [snmpTrapOids, selectedTrapOid]);
+  }, [snmpTrapOids, selectedTrapOid, get]);
+
+  useEffect(() => {
+    if (details) {
+      setSelectedTrapOid(details);
+    }
+  }, [details]);
+
+  const handleSelectTrapOid = (snmpTrapOid) => {
+    get(snmpTrapOid.name);
+  };
 
   /* ---------------- sync tags when selection changes ---------------- */
   useEffect(() => {
@@ -79,19 +86,11 @@ const SnmpTrapOid = ({ keycloak }) => {
     oid.oid.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const tagOptions = trapTags.map(tag => ({
+  const tagOptions = snmpTrapTags.map(tag => ({
     value: tag.name,
     label: tag.name
   }));
-
-  /* ---------------- render ---------------- */
-  if (loading) {
-    return <div className="signalConfigRuleMessage">Loading SNMP Trap OIDs…</div>;
-  }
-
-  if (error) {
-    return <div className="signalConfigRuleMessage">Failed to load SNMP Trap OIDs</div>;
-  }
+ 
 
   return (
     <div className="signalTagContainer">
@@ -118,10 +117,9 @@ const SnmpTrapOid = ({ keycloak }) => {
             {filteredSnmpTrapOids.map(oid => (
               <li
                 key={oid.id}
-                className={`signalTagItem ${
-                  selectedTrapOid?.id === oid.id ? "selected" : ""
-                }`}
-                onClick={() => setSelectedTrapOid(oid)}
+                className={`signalTagItem ${selectedTrapOid?.id === oid.id ? "selected" : ""
+                  }`}
+                onClick={() => handleSelectTrapOid(oid)}
               >
                 {oid.name} ({oid.oid})
               </li>
@@ -176,7 +174,7 @@ const SnmpTrapOid = ({ keycloak }) => {
                 isMulti
                 value={selectedTagsForOid}
                 options={tagOptions}
-                isLoading={tagsLoading}
+                //isLoading={tagsLoading}
                 onChange={setSelectedTagsForOid}
                 styles={customStyles("330px")}
               />

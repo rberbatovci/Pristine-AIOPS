@@ -9,7 +9,8 @@ import { useSyslogSignalsTagOptions } from "../../../hooks/useSyslogSignalsTagOp
 const SyslogSignalFilters = ({
   keycloak,
   onSelectedSyslogFiltersChange,
-  initialSelectedTags = {}
+  initialSelectedTags = {},
+  syslogTags = []
 }) => {
   const [selectedTags, setSelectedTags] = useState(initialSelectedTags);
 

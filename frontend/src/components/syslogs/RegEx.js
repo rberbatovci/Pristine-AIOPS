@@ -49,8 +49,11 @@ function RegEx({ keycloak, regularExpressions, onReload, showNotification }) {
       await create(form);
       await onReload();
       //await loadList(); // 🔥 refresh list
+      showNotification("Rule created successfully", "success");
       setForm(emptyForm);
       setIsAddNew(true);
+    } catch (err) {
+      showNotification(err.message || "Failed to create rule", "error");
     } finally {
       setLoadingState(null);
     }
@@ -63,9 +66,12 @@ function RegEx({ keycloak, regularExpressions, onReload, showNotification }) {
       await update(form.name, form);
       await onReload();
       //await loadList(); // 🔥 refresh list
+      showNotification("Rule updated successfully", "success");
       setSelectedRegex(null);
       setForm(emptyForm);
       setIsAddNew(true);
+    } catch (err) {
+      showNotification(err.message || "Failed to update rule", "error");
     } finally {
       setLoadingState(null);
     }
@@ -78,10 +84,11 @@ function RegEx({ keycloak, regularExpressions, onReload, showNotification }) {
       await remove(selectedRegex.name);
       await onReload();
       //await loadList(); // 🔥 refresh list
+      showNotification("Rule deleted successfully", "success");
       setSelectedRegex(null);
       setForm(emptyForm);
       setIsAddNew(true);
-    } finally {
+    } catch (err) {
       setLoadingState(null);
     }
   };

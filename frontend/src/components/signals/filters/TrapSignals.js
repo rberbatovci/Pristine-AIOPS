@@ -3,18 +3,17 @@ import Select from "react-select";
 import customStyles from "../../misc/SelectStyles";
 import "../../../css/SearchElement.css";
 
-import { useSnmpTrapTags } from "../../../hooks/useSnmpTrapTags";
 import { useTrapSignalsTagOptions } from "../../../hooks/useTrapSignalsTagOptions";
 
 const STATIC_ENTITIES = ["snmpTrapOid", "rule"];
 
 const TrapSignalFilters = ({
     onSelectedSyslogFiltersChange,
-    initialSelectedTags = {}
+    initialSelectedTags = {},
+    snmpTrapTags = [],
 }) => {
     const [selectedTags, setSelectedTags] = useState(initialSelectedTags);
 
-    const { tags } = useSnmpTrapTags();
     const {
         options,
         loading,
@@ -56,7 +55,7 @@ const TrapSignalFilters = ({
                 {renderSelect("snmpTrapOid", "SNMP Trap OID")}
                 {renderSelect("rule", "Stateful Rule")}
 
-                {tags.map(tag =>
+                {snmpTrapTags.map(tag =>
                     renderSelect(tag.name, tag.name)
                 )}
             </div>

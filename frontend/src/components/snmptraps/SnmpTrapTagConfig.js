@@ -4,104 +4,112 @@ import "../../css/SyslogTagsList.css";
 import customStyles from "../misc/SelectStyles";
 import { TailSpin } from "react-loader-spinner";
 
-import { useTrapTags2 } from "../../hooks/useTrapTags2";
+import { useSnmpTrapTags } from "../../hooks/useSnmpTrapTags";
 
-const SnmpTrapTagConfig = ({ keycloak }) => {
+const SnmpTrapTagConfig = ({ keycloak, snmpTrapTags, onReload, showNotification }) => {
   /* ---------------- hooks ---------------- */
   const {
-    items: trapTags,
+    details,
     loading,
     error,
+    get,
     create,
     update,
     remove
-  } = useTrapTags2(keycloak);
+  } = useSnmpTrapTags(keycloak);
 
   /* ---------------- UI state ---------------- */
   const [selectedTag, setSelectedTag] = useState(null);
-  const [isAddMode, setIsAddMode] = useState(true);
-  const [form, setForm] = useState({ name: "", oids: [] });
-  const [action, setAction] = useState(null); // adding | saving | deleting 
+  const [isAddNew, setIsAddNew] = useState(true);
+  const [action, setAction] = useState(null);
   const [formError, setFormError] = useState("");
+  const [loadingState, setLoadingState] = useState(null);
+  const emptyForm = {
+    name: '',
+    oids: [],
+  };
 
-  /* ---------------- sync form on selection ---------------- */
+  const [form, setForm] = useState(emptyForm);
+
   useEffect(() => {
-    if (selectedTag) {
+    if (details) {
       setForm({
-        name: selectedTag.name,
-        oids: selectedTag.oids?.map(o => ({ value: o, label: o })) || []
+        name: details.name,
+        oids: details.oids.map(o => ({ value: o, label: o })) 
       });
-      setIsAddMode(false);
-    } else {
-      setForm({ name: "", oids: [] });
-      setIsAddMode(true);
     }
-  }, [selectedTag]);
+  }, [details]);
 
-  /* ---------------- handlers ---------------- */
+  // SELECT RULE
+  const handleSelect = (tag) => {
+    setSelectedTag(tag);
+    setIsAddNew(false);
+    get(tag.name);
+    console.log("Selected tag:", tag);
+  }; 
+  
+  // ADD
   const handleAdd = async () => {
-    setAction("adding");
-    setFormError("");
+    setLoadingState('adding');
 
     try {
-      await create({
-        name: form.name,
+      const payload = {
+        ...form,
         oids: form.oids.map(o => o.value)
-      });
+      };
 
-      setSelectedTag(null);
+      await create(payload);
+      await onReload();
+      showNotification("Tag created successfully", "success");
+      setForm(emptyForm);
+      setIsAddNew(true);
     } catch (err) {
-      console.error(err);
-      setFormError("Failed to create trap tag.");
+      showNotification(err.message || "Failed to create tag", "error");
     } finally {
-      setAction(null);
+      setLoadingState(null);
     }
   };
 
+  // SAVE
   const handleSave = async () => {
-    if (!selectedTag) return;
-
-    setAction("saving");
-    setFormError("");
+    setLoadingState('saving');
 
     try {
-      await update(selectedTag.name, {
+      const payload = {
+        ...form,
         oids: form.oids.map(o => o.value)
-      });
+      };
 
+      await update(form.name, payload);
+      await onReload();
+      showNotification("Tag updated successfully", "success");
       setSelectedTag(null);
+      setForm(emptyForm);
+      setIsAddNew(true);
     } catch (err) {
-      console.error(err);
-      setFormError("Failed to update trap tag.");
+      showNotification(err.message || "Failed to update tag", "error");
     } finally {
-      setAction(null);
+      setLoadingState(null);
     }
   };
 
+  // DELETE
   const handleDelete = async () => {
-    if (!selectedTag) return;
-
-    setAction("deleting");
-
+    setLoadingState('deleting');
     try {
       await remove(selectedTag.name);
+      await onReload();
+      //await loadList() 
       setSelectedTag(null);
+      showNotification("Tag deleted successfully", "success");
+      setForm(emptyForm);
+      setIsAddNew(true);
     } catch (err) {
-      console.error(err);
-      setFormError("Failed to delete trap tag.");
+      showNotification(err.message || "Failed to delete tag", "error");
     } finally {
-      setAction(null);
+      setLoadingState(null);
     }
-  };
-
-  /* ---------------- render ---------------- */
-  if (loading) {
-    return <div className="signalConfigRuleMessage">Loading trap tags…</div>;
-  }
-
-  if (error) {
-    return <div className="signalConfigRuleMessage">Failed to load trap tags</div>;
-  }
+  }; 
 
   return (
     <div className="signalTagContainer">
@@ -123,20 +131,23 @@ const SnmpTrapTagConfig = ({ keycloak }) => {
         >
           <ul style={{ padding: 0, listStyle: "none", margin: 0 }}>
             <li
-              className={`signalTagItem ${isAddMode ? "selected" : ""}`}
-              onClick={() => setSelectedTag(null)}
+              className={`signalTagItem ${isAddNew ? "selected" : ""}`}
+              onClick={() => {
+                setIsAddNew(true);
+                setSelectedTag(null);
+                setForm(emptyForm);
+              }}
               style={{ marginBottom: "5px" }}
             >
               Add New Tag
             </li>
 
-            {trapTags.map(tag => (
+            {snmpTrapTags.map(tag => (
               <li
                 key={tag.name}
-                className={`signalTagItem ${
-                  selectedTag?.name === tag.name ? "selected" : ""
-                }`}
-                onClick={() => setSelectedTag(tag)}
+                className={`signalTagItem ${selectedTag?.name === tag.name ? "selected" : ""
+                  }`}
+                onClick={() => handleSelect(tag)}
                 style={{ marginBottom: "5px" }}
               >
                 {tag.name}
@@ -160,7 +171,7 @@ const SnmpTrapTagConfig = ({ keycloak }) => {
             <input
               type="text"
               value={form.name}
-              disabled={!isAddMode}
+              disabled={!isAddNew}
               className="inputText"
               style={{ width: "375px" }}
               onChange={e =>
@@ -192,7 +203,7 @@ const SnmpTrapTagConfig = ({ keycloak }) => {
       <div style={{ marginTop: "10px", display: "flex", justifyContent: "flex-end" }}>
         {formError && <div style={{ color: "red" }}>{formError}</div>}
 
-        {isAddMode ? (
+        {isAddNew ? (
           <button
             onClick={handleAdd}
             disabled={action === "adding"}

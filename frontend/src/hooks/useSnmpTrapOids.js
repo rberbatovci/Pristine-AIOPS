@@ -57,13 +57,14 @@ export function useSnmpTrapOids(keycloak) {
         keycloak,
         `/traps/trapOids/${encodeURIComponent(name)}/`,
         {
-          method: "PUT",
+          method: "PATCH", // ✅ FIXED
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify(payload),
         }
       );
+
       setDetails(updated);
       return updated;
     } catch (err) {

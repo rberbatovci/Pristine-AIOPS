@@ -1,43 +1,142 @@
-import { useState, useCallback, useEffect } from "react";
-import kcFetch from "../components/misc/kcFetch";
+import { useState, useEffect, useCallback } from 'react';
+import kcFetch from '../components/misc/kcFetch'; // your fetch utility
 
-export function useSnmpTrapTags(keycloak, autoLoad = true) {
-  const [tags, setTags] = useState([]);
+export function useSnmpTrapTags(keycloak) {
+  const [list, setList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [details, setDetails] = useState(null);
 
-  const loadTags = useCallback(async () => {
+  // fetch the full list
+  const loadList = async () => {
     if (!keycloak?.authenticated) return;
+
+    setLoading(true);
+    try {
+      const data = await kcFetch(keycloak, '/traps/tags/');
+      setList(data);
+      setError(null);
+    } catch (err) {
+      setError(err.message || 'Failed to fetch regex list');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const get = useCallback(async (name) => {
+    if (!keycloak?.authenticated || !name) {
+      console.warn("Skipping GET: not authenticated or no name", { keycloak, name });
+      return;
+    }
 
     setLoading(true);
     setError(null);
 
     try {
-      const data = await kcFetch(keycloak, "/traps/tags/");
-      setTags(
-        data.map(tag => ({
-          value: tag.name,
-          label: tag.name
-        }))
+      const data = await kcFetch(
+        keycloak,
+        `/traps/tags/${encodeURIComponent(name)}`
       );
+      setDetails(data);
     } catch (err) {
-      console.error("Failed to load SNMP trap tags:", err);
+      console.error("Failed to load trap tag details:", err);
       setError(err);
     } finally {
       setLoading(false);
     }
   }, [keycloak]);
 
-  useEffect(() => {
-    if (autoLoad && keycloak?.authenticated) {
-      loadTags();
+  const update = useCallback(async (name, payload) => {
+    if (!keycloak?.authenticated || !name) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const updated = await kcFetch(
+        keycloak,
+        `/traps/tags/${encodeURIComponent(name)}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+      setDetails(updated);
+      return updated;
+    } catch (err) {
+      setError(err);
+      throw err;
+    } finally {
+      setLoading(false);
     }
-  }, [loadTags, autoLoad, keycloak?.authenticated]);
+  }, [keycloak]);
+
+  const remove = useCallback(async (name) => {
+    if (!keycloak?.authenticated || !name) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      await kcFetch(
+        keycloak,
+        `/traps/tags/${encodeURIComponent(name)}`,
+        { method: "DELETE" }
+      );
+      setDetails(null);
+    } catch (err) {
+      setError(err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [keycloak]);
+
+  const create = useCallback(async (payload) => {
+    if (!keycloak?.authenticated) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const created = await kcFetch(
+        keycloak,
+        `/traps/tags/`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+      setDetails(created);
+      return created;
+    } catch (err) {
+      setError(err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [keycloak]);
+
+
+  useEffect(() => {
+    loadList();
+  }, []);
 
   return {
-    tags,
+    list,
+    details,
     loading,
     error,
-    reload: loadTags
+    loadList,
+    get,
+    create,
+    update,
+    remove,
   };
 }

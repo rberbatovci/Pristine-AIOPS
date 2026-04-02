@@ -10,7 +10,7 @@ import psycopg2
 from pydantic import BaseModel
 from psycopg2.extras import RealDictCursor
 from app.traps.services import trap_oid_tags, trap_rules_association
-from app.traps.tags import OIDTag
+from app.traps.tags import OIDTag, Tag
 from datetime import datetime
 from app.auth.keycloak import get_current_user, require_admin
 
@@ -165,38 +165,50 @@ async def update_trap_oid_by_name(
     trap_oid_name: str,
     trap_oid_update: TrapOidUpdate,
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user)  
+    user: dict = Depends(get_current_user)
 ):
     result = await db.execute(
         select(TrapOid)
         .options(selectinload(TrapOid.rules), selectinload(TrapOid.tags))
-        .filter(TrapOid.name == trap_oid_name)
+        .where(TrapOid.name == trap_oid_name)
     )
+
     trap_oid = result.scalars().first()
+
     if not trap_oid:
         raise HTTPException(status_code=404, detail="TrapOid not found")
 
+    # ✅ Update name (you weren't handling this)
+    if trap_oid_update.name is not None:
+        trap_oid.name = trap_oid_update.name
+
+    # ✅ Update tags
     if trap_oid_update.tags is not None:
         tag_names = trap_oid_update.tags
 
-        tags_result = await db.execute(select(TagModel).where(TagModel.name.in_(tag_names)))
+        tags_result = await db.execute(
+            select(Tag).where(Tag.name.in_(tag_names))
+        )
         tag_objs = tags_result.scalars().all()
 
         trap_oid.tags = tag_objs
 
-    db.add(trap_oid)
     await db.commit()
     await db.refresh(trap_oid)
 
+    # ✅ Update Redis
     try:
         r = redis.Redis(host='redis', port=6379, decode_responses=True)
         redis_key = f"traps:oid:{trap_oid.id}"
+
         r.hset(redis_key, mapping={
             'id': trap_oid.id,
             'name': trap_oid.name or '',
-            'tags': ','.join(trap_oid.tags) if trap_oid.tags else ''
+            'tags': ','.join(tag.name for tag in trap_oid.tags) if trap_oid.tags else ''
         })
+
         r.sadd("traps:oid:all", trap_oid.id)
+
     except Exception as e:
         print(f"Failed to update Redis: {e}")
 

@@ -19,6 +19,17 @@ function TrapEventsStatistics({ keycloak, selectedTags }) {
         '#87CEEB', '#8A2BE2', '#FF69B4', '#20B2AA'
     ];
 
+    // Normalize selectedTags (handles string OR react-select object)
+    const normalizeTags = (tags) => {
+        const excluded = ["timestamp", "message"];
+
+        return tags
+            .map(tag => typeof tag === "string" ? tag : tag?.value)
+            .filter(tag => tag && !excluded.includes(tag.toLowerCase()));
+    };
+
+    const normalizedTags = normalizeTags(selectedTags);
+
     useEffect(() => {
         if (!selectedTags || selectedTags.length === 0) return;
 
@@ -124,7 +135,7 @@ function TrapEventsStatistics({ keycloak, selectedTags }) {
                 flexWrap: 'wrap',
                 justifyContent: 'space-around'
             }}>
-                {selectedTags.map(option => {
+                {normalizedTags.map(option => {
                     const dataType = option.value;
                     const chartType = chartTypeMap[dataType] || 'BarChart';
                     const chartData = chartDataMap[dataType] || [];

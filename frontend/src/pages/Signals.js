@@ -19,6 +19,8 @@ import { PiBatteryWarningVerticalBold, PiBatteryWarningVerticalFill } from "reac
 import { TfiLayoutListThumb, TfiLayoutListThumbAlt } from "react-icons/tfi";
 import { IoPieChartOutline, IoPieChartSharp, IoRefreshCircleOutline, IoRefreshCircleSharp } from "react-icons/io5";
 import { BsPass, BsPassFill } from "react-icons/bs";
+import { useSyslogTags } from '../hooks/useSyslogTags';
+import { useSnmpTrapTags } from '../hooks/useSnmpTrapTags';
 
 function Signals({ currentUser, setDashboardTitle, keycloak }) {
     const [loading, setLoading] = useState(false);
@@ -85,6 +87,9 @@ function Signals({ currentUser, setDashboardTitle, keycloak }) {
     const [filters, setFilters] = useState({});
     const totalPages = Math.ceil(totalEvents / pageSize);
     const [view, setView] = useState("list")
+
+    const { tags: syslogTags, loading: syslogTagsLoading, reload: reloadSyslogTags } = useSyslogTags(keycloak, false);
+    const { tags: snmpTrapTags, loading: snmpTrapTagsLoading, reload: reloadSnmpTrapTags } = useSnmpTrapTags(keycloak, false);
 
     const handleButtonClick = (event, dropdownKey) => {
         const updatedDropdowns = Object.keys(dropdowns).reduce((acc, key) => {
@@ -260,7 +265,7 @@ function Signals({ currentUser, setDashboardTitle, keycloak }) {
                 {error && <div className="errorMessage">{error}</div>}
                 {!loading && !error && (view === 'chart' ? (
                     <div className="syslogsTableContainer">
-                        <ChartView keycloak={keycloak} currentUser={currentUser} source='signals' dataSource={dataSource} selectedTags={baseColumns} />
+                        <ChartView keycloak={keycloak} currentUser={currentUser} source='signals' dataSource={dataSource} selectedTags={columnConfigs[dataSource]} />
                     </div>
                 ) : (
                     <div className="syslogsTableContainer">
@@ -292,12 +297,12 @@ function Signals({ currentUser, setDashboardTitle, keycloak }) {
                 <div
                     className={`dropdownMenu ${dropdowns.syslogSignalFilters.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
                     style={{ width: '420px' }} >
-                    <SyslogSignalFilters keycloak={keycloak} onSearch={(f) => handleSearchFilters(f)} />
+                    <SyslogSignalFilters keycloak={keycloak} onSearch={(f) => handleSearchFilters(f)} syslogTags={syslogTags}/>
                 </div>
                 <div
                     className={`dropdownMenu ${dropdowns.trapSignalFilters.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
                     style={{ width: '420px' }} >
-                    <TrapSignalFilters keycloak={keycloak} onSearch={(f) => handleSearchFilters(f)} />
+                    <TrapSignalFilters keycloak={keycloak} onSearch={(f) => handleSearchFilters(f)} snmpTrapTags={snmpTrapTags}/>
                 </div>
                 <div
                     className={`dropdownMenu ${dropdowns.time.visible ? 'dropdownVisible' : 'dropdownHidden'} `}

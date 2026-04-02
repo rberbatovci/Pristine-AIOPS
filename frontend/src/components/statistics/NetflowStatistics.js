@@ -20,9 +20,15 @@ function NetflowStatistics({ keycloak, selectedTags = [] }) {
     ];
 
     // Normalize selectedTags (handles string OR react-select object)
-    const normalizedTags = selectedTags
-        .map(tag => typeof tag === "string" ? tag : tag?.value)
-        .filter(Boolean);
+    const normalizeTags = (tags) => {
+        const excluded = ["timestamp", "message"];
+
+        return tags
+            .map(tag => typeof tag === "string" ? tag : tag?.value)
+            .filter(tag => tag && !excluded.includes(tag.toLowerCase()));
+    };
+
+    const normalizedTags = normalizeTags(selectedTags);
 
     useEffect(() => {
         if (!normalizedTags.length) return;

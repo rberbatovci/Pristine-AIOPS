@@ -2,11 +2,10 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import Column, String
+from sqlalchemy import Column, String, ARRAY, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.db.session import Base, get_db
-from sqlalchemy import Column, String, ARRAY
 from sqlalchemy.orm import relationship
 from app.traps.services import trap_oid_tags
 from typing import Optional, List
@@ -85,6 +84,7 @@ class TagUpdate(BaseModel):
     Schema for updating an existing tag.
     Typically you allow only `oids` to be updated.
     """
+    name: Optional[str] = None
     oids: Optional[List[str]] = None
 
     class Config:
@@ -146,20 +146,41 @@ async def create_tag(tag: TagCreate, db: AsyncSession = Depends(get_db), user: d
     await db.refresh(new_tag)
     return new_tag
 
-@router.put("/{name}", response_model=TagSchema)
-async def update_tag(name: str, tag: TagUpdate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+@router.patch("/{name}", response_model=TagSchema)
+async def update_tag(
+    name: str,
+    tag: TagUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    update_data = {}
+
+    # ✅ Only include fields that were sent (PATCH behavior)
+    if tag.oids is not None:
+        update_data["oids"] = tag.oids
+
+    if tag.name is not None:
+        update_data["name"] = tag.name
+
+    # ❗ If nothing to update
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No fields provided for update")
+
     async with db.begin():
         stmt = (
             update(Tag)
             .where(Tag.name == name)
-            .values(oids=tag.oids)
+            .values(**update_data)
         )
-        await db.execute(stmt)
+        result = await db.execute(stmt)
 
-    result = await db.execute(select(Tag).where(Tag.name == name))
-    updated = result.scalar_one_or_none()
-    if not updated:
-        raise HTTPException(404, "Tag not found")
+    # Check if anything was updated
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Tag not found")
+
+    # Fetch updated object
+    result = await db.execute(select(Tag).where(Tag.name == update_data.get("name", name)))
+    updated = result.scalar_one()
 
     return TagSchema.from_orm(updated)
 

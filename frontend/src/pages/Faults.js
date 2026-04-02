@@ -17,6 +17,7 @@ import RegEx from '../components/syslogs/RegEx.js';
 import UploadMIB from '../components/snmptraps/UploadMIB.js';
 import { PiUploadBold, PiUploadFill } from "react-icons/pi";
 import SnmpTrapOid from '../components/snmptraps/SnmpTrapOid.js';
+import SnmpTrapTags from '../components/snmptraps/SnmpTrapTags.js';
 import SnmpTrapTagConfig from '../components/snmptraps/SnmpTrapTagConfig.js';
 import { IoPieChartOutline, IoPieChartSharp, IoRefreshCircleOutline, IoRefreshCircleSharp } from "react-icons/io5";
 import { RiInfoCardLine, RiInfoCardFill } from "react-icons/ri";
@@ -36,9 +37,9 @@ function Faults({ currentUser, setDashboardTitle, showNotification, keycloak }) 
     const [filters, setFilters] = useState({});
     const { eventsData, totalEvents, totalPages, loading, error, loadData } = useFaultData();
     const [selectedTags, setSelectedTags] = useState([]);
-    const [dataSource, setDataSource] = useState('syslogs'); 
+    const [dataSource, setDataSource] = useState('syslogs');
     const dropdownWrapperRef = useRef(null);
-    const dropdownMenuRef = useRef(null); 
+    const dropdownMenuRef = useRef(null);
     const [selectedRows, setSelectedRows] = useState([]);
     const [dropdowns, setDropdowns] = useState({
         syslogTags: { visible: false, position: { x: 0, y: 0 } },
@@ -53,7 +54,7 @@ function Faults({ currentUser, setDashboardTitle, showNotification, keycloak }) 
         snmpTrapTags: { visible: false, position: { x: 0, y: 0 } },
         snmpTrapTagConfig: { visible: false, position: { x: 0, y: 0 } },
         eventStatistics: { visible: false, position: { x: 0, y: 0 } },
-    }); 
+    });
     const [page, setPage] = useState(1);
     const baseColumns = {
         syslogs: [
@@ -70,15 +71,15 @@ function Faults({ currentUser, setDashboardTitle, showNotification, keycloak }) 
             { label: 'Trap OID', value: 'snmpTrapOid' },
             { label: 'Content', value: 'content' },
         ],
-    }; 
+    };
     const [columnConfigs, setColumnConfigs] = useState(baseColumns);
     const { mnemonics, loading: mnemonicsLoading, reload: reloadMnemonics } = useMnemonics(keycloak);
     const { list: regularExpressions, loadingList, errorList, loadList: reloadRegEx } = useSyslogRegEx(keycloak);
     const { list: snmpTrapOids, loading: oidsLoading, loadList: reloadSnmpTrapOids } = useSnmpTrapOids(keycloak);
     const { tags: syslogTags, loading: syslogTagsLoading, reload: reloadSyslogTags } = useSyslogTags(keycloak, false);
-    const { tags: snmpTrapTags, loading: snmpTrapTagsLoading, reload: reloadSnmpTrapTags } = useSnmpTrapTags(keycloak, false); 
+    const { list: snmpTrapTags, loading: snmpTrapTagsLoading, loadList: reloadSnmpTrapTags } = useSnmpTrapTags(keycloak, false);
     const { devices, loading: devicesLoading, reload: reloadDevices } = useDevices(keycloak);
-    const [view, setView] = useState("list") 
+    const [view, setView] = useState("list")
     useEffect(() => {
         loadData(
             keycloak,
@@ -102,19 +103,19 @@ function Faults({ currentUser, setDashboardTitle, showNotification, keycloak }) 
             [dataSource]: [
                 ...(baseColumns[dataSource] || []),
                 ...(selectedTags || []).map(tag => ({
-                    label: tag, 
-                    value: tag, 
+                    label: tag,
+                    value: tag,
                 })),
             ],
         }));
     }, [selectedTags, dataSource]);
 
-    const handleButtonClick = (event, dropdownKey) => { 
+    const handleButtonClick = (event, dropdownKey) => {
         const updatedDropdowns = Object.keys(dropdowns).reduce((acc, key) => {
             acc[key] = { ...dropdowns[key], visible: false };
             return acc;
         }, {});
- 
+
         const newVisibility = !dropdowns[dropdownKey].visible;
         setDropdowns({
             ...updatedDropdowns,
@@ -123,16 +124,18 @@ function Faults({ currentUser, setDashboardTitle, showNotification, keycloak }) 
                 visible: newVisibility,
             },
         });
- 
+
         if (newVisibility) {
             if (dropdownKey === "syslogTags" && syslogTags.length === 0) {
                 reloadSyslogTags(keycloak);
             } else if (dropdownKey === "snmpTrapTags" && snmpTrapTags.length === 0) {
                 reloadSnmpTrapTags(keycloak);
+            } else if (dropdownKey === "snmpTrapTagConfig" && snmpTrapTags.length === 0) {
+                reloadSnmpTrapTags(keycloak);
             } else if (dropdownKey === "regEx" && regularExpressions.length === 0) {
                 reloadRegEx();
             } else if (dropdownKey === "mnemonics" && mnemonics.length === 0) {
-                reloadMnemonics(keycloak); 
+                reloadMnemonics(keycloak);
             } else if (dropdownKey === "mnemonics" && regularExpressions.length === 0) {
                 reloadRegEx();
             }
@@ -157,7 +160,7 @@ function Faults({ currentUser, setDashboardTitle, showNotification, keycloak }) 
         setPage(1);
         setColumnConfigs(baseColumns);
 
-        if (source === 'syslogs') { 
+        if (source === 'syslogs') {
             if (!mnemonics || mnemonics.length === 0) reloadMnemonics(keycloak);
             if (!regularExpressions || regularExpressions.length === 0) reloadRegEx();
             if (!syslogTags || syslogTags.length === 0) reloadSyslogTags(keycloak);
@@ -206,7 +209,7 @@ function Faults({ currentUser, setDashboardTitle, showNotification, keycloak }) 
         console.log('Selected tags:', selectedTags)
     };
 
-    
+
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -267,7 +270,7 @@ function Faults({ currentUser, setDashboardTitle, showNotification, keycloak }) 
                             <RiInfoCardLine className="defaultIcon" />
                             <RiInfoCardFill className="hoverIcon" />
                         </button>
-                        <button className={`iconButton ${dropdowns.snmpTrapTagConfig.visible ? 'active' : ''} `} style={{ marginRight: '20px' }} onClick={(event) => handleButtonClick(event, 'trapTags')} >
+                        <button className={`iconButton ${dropdowns.snmpTrapTagConfig.visible ? 'active' : ''} `} style={{ marginRight: '20px' }} onClick={(event) => handleButtonClick(event, 'snmpTrapTagConfig')} >
                             <MdBookmarkBorder className="defaultIcon" />
                             <MdBookmark className="hoverIcon" />
                         </button>  </>)}
@@ -280,7 +283,7 @@ function Faults({ currentUser, setDashboardTitle, showNotification, keycloak }) 
                             <HiOutlineViewColumns className="defaultIcon" />
                             <HiViewColumns className="hoverIcon" />
                         </button> </>) : (<>
-                            <button className={`iconButton ${dropdowns.snmpTrapTagConfig.visible ? 'active' : ''} `} onClick={(event) => handleButtonClick(event, 'snmpTrapTags')} >
+                            <button className={`iconButton ${dropdowns.snmpTrapTags.visible ? 'active' : ''} `} onClick={(event) => handleButtonClick(event, 'snmpTrapTags')} >
                                 <HiOutlineViewColumns className="defaultIcon" />
                                 <HiViewColumns className="hoverIcon" />
                             </button> </>)}
@@ -346,18 +349,23 @@ function Faults({ currentUser, setDashboardTitle, showNotification, keycloak }) 
                     <SyslogTags dataSource={dataSource} tags={syslogTags.map(t => t.value)} selectedTags={selectedTags} onTagChange={(updated) => setSelectedTags(updated)} />
                 </div>
                 <div
+                    className={`dropdownMenu ${dropdowns.snmpTrapTags.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
+                    style={{ width: '280px' }}>
+                    <SnmpTrapTags dataSource={dataSource} tags={snmpTrapTags.map(t => t.value)} selectedTags={selectedTags} onTagChange={(updated) => setSelectedTags(updated)} />
+                </div>
+                <div
                     className={`dropdownMenu ${dropdowns.MIBFiles.visible ? 'dropdownVisible' : 'dropdownHidden'} `}>
                     <UploadMIB keycloak={keycloak} currentUser={currentUser} showNotification={showNotification} />
                 </div>
                 <div
                     className={`dropdownMenu ${dropdowns.snmpTrapOids.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
                     style={{ width: 'auto', maxHeight: '740px', overflow: 'hidden' }}>
-                    <SnmpTrapOid currentUser={currentUser} keycloak={keycloak} showNotification={showNotification} />
+                    <SnmpTrapOid keycloak={keycloak} snmpTrapOids={snmpTrapOids} snmpTrapTags={snmpTrapTags} showNotification={showNotification} />
                 </div>
                 <div
                     className={`dropdownMenu ${dropdowns.snmpTrapTagConfig.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
                     style={{ width: 'auto', maxHeight: '740px', overflow: 'hidden' }}>
-                    <SnmpTrapTagConfig currentUser={currentUser} />
+                    <SnmpTrapTagConfig keycloak={keycloak} snmpTrapTags={snmpTrapTags} currentUser={currentUser} onReload={reloadSnmpTrapTags} showNotification={showNotification}/>
                 </div>
                 <div
                     className={`dropdownMenu ${dropdowns.mnemonics.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
