@@ -1,13 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import '../css/SyslogDatabase.css';
-import EventsTable from '../components/misc/EventsTable.js';
-import kcFetch from '../components/misc/kcFetch';
+import EventsTable from '../components/misc/EventsTable.js'; 
 import { FaClock, FaRegClock } from "react-icons/fa";
 import { RiDownloadCloudLine, RiDownloadCloudFill } from "react-icons/ri";
 import ChartView from '../components/misc/ChartView.js';
 import { RiFilterLine, RiFilterFill } from "react-icons/ri";
-import SearchTime from '../components/misc/SearchTime.js';
-import Pagination from '@mui/material/Pagination';
+import SearchTime from '../components/misc/SearchTime.js'; 
 import SyslogSignalFilters from '../components/signals/filters/SyslogSignals.js';
 import TrapSignalFilters from '../components/signals/filters/TrapSignals.js';
 import SyslogMnemonic from '../components/signals/config/SyslogMnemonic.js';
@@ -17,8 +15,7 @@ import StatefulTraps from '../components/signals/config/StatefulTraps.js';
 import { MdOutlineRuleFolder, MdRuleFolder } from "react-icons/md";
 import { PiBatteryWarningVerticalBold, PiBatteryWarningVerticalFill } from "react-icons/pi";
 import { TfiLayoutListThumb, TfiLayoutListThumbAlt } from "react-icons/tfi";
-import { IoPieChartOutline, IoPieChartSharp, IoRefreshCircleOutline, IoRefreshCircleSharp } from "react-icons/io5";
-import { BsPass, BsPassFill } from "react-icons/bs";
+import { IoPieChartOutline, IoPieChartSharp } from "react-icons/io5"; 
 import { useSyslogTags } from '../hooks/useSyslogTags';
 import { useSnmpTrapTags } from '../hooks/useSnmpTrapTags';
 
@@ -30,8 +27,7 @@ function Signals({ currentUser, setDashboardTitle, keycloak }) {
     const [eventsData, setEventsData] = useState([]);
     const downloadRef = useRef(null);
     const dropdownWrapperRef = useRef(null);
-    const dropdownMenuRef = useRef(null);
-    const buttonsContainerRef = useRef(null);
+    const dropdownMenuRef = useRef(null); 
     const [dropdowns, setDropdowns] = useState({
         syslogSeverity: { visible: false, position: { x: 0, y: 0 } },
         syslogSignalFilters: { visible: false, position: { x: 0, y: 0 } },
@@ -43,8 +39,7 @@ function Signals({ currentUser, setDashboardTitle, keycloak }) {
         syslogMnemonics: { visible: false, position: { x: 0, y: 0 } },
     });
     const [page, setPage] = useState(1);
-    const [pageSize, setPageSize] = useState(24);
-    const [totalEvents, setTotalEvents] = useState(0);
+    const [pageSize, setPageSize] = useState(24); 
     const baseColumns = {
         syslogs: [
             { label: 'Start Time', value: 'startTime' },
@@ -84,8 +79,7 @@ function Signals({ currentUser, setDashboardTitle, keycloak }) {
 
     const [startTime, setStartTime] = useState(() => new Date(Date.now() - 60 * 60 * 1000));
     const [endTime, setEndTime] = useState(() => new Date());
-    const [filters, setFilters] = useState({});
-    const totalPages = Math.ceil(totalEvents / pageSize);
+    const [filters, setFilters] = useState({}); 
     const [view, setView] = useState("list")
 
     const { tags: syslogTags, loading: syslogTagsLoading, reload: reloadSyslogTags } = useSyslogTags(keycloak, false);
@@ -108,25 +102,18 @@ function Signals({ currentUser, setDashboardTitle, keycloak }) {
 
     useEffect(() => {
         setDashboardTitle("Events Dashboard");
-        return () => setDashboardTitle(''); // Clean up when navigating away
+        return () => setDashboardTitle(''); 
     }, [setDashboardTitle]);
 
     const handleHeaderClick = (source) => {
-        setDataSource(source);
-        setPage(1);
-        //loadData(keycloak, dataSource, page, pageSize, startTime?.toISOString(), endTime?.toISOString(), filters);
+        setDataSource(source);  
         setColumnConfigs(baseColumns);
     };
 
     const handleTimeRangeChange = (start, end) => {
         setStartTime(start);
         setEndTime(end);
-    };
-
-    useEffect(() => {
-        console.log('Testing in mounting:', selectedTags)
-        //loadData(keycloak, dataSource, page, pageSize, startTime?.toISOString(), endTime?.toISOString(), filters);
-    }, [keycloak, dataSource, page, pageSize, startTime, endTime, filters]);
+    }; 
 
     const onTagChange = (tagName) => {
         setColumnConfigs(prev => {
@@ -141,16 +128,7 @@ function Signals({ currentUser, setDashboardTitle, keycloak }) {
                 [dataSource]: newList
             }
         })
-    }
-
-    const handlePageSizeChange = (event) => {
-        const value = parseInt(event.target.value, 10);
-        setPageSize(isNaN(value) || value < 1 ? 1 : value);
-    };
-
-    const handleSyslogTagsChange = (selectedTags) => {
-        console.log('Selected tags:', selectedTags)
-    };
+    } 
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -185,6 +163,15 @@ function Signals({ currentUser, setDashboardTitle, keycloak }) {
         console.log('Testing!!!');
     };
 
+    useEffect(() => {
+        setView("list");
+    }, [dataSource]);
+
+
+    const toggleView = () => {
+        setView(prev => (prev === "list" ? "chart" : "list"));
+    };
+
     return (
         <div className="mainContainer" ref={dropdownWrapperRef}>
             <div className="mainContainerHeader">
@@ -194,11 +181,11 @@ function Signals({ currentUser, setDashboardTitle, keycloak }) {
                 </div>
                 <div className="mainContainerButtons">
                     {view === "list" ? (<>
-                        <button className="iconButton" style={{ marginRight: '20px' }} onClick={() => setView("chart")} >
+                        <button className="iconButton" style={{ marginRight: '20px' }} onClick={toggleView} >
                             <TfiLayoutListThumb className="defaultIcon" />
                             <IoPieChartSharp className="hoverIcon" />
                         </button> </>) : (<>
-                            <button className="iconButton" style={{ marginRight: '20px' }} onClick={() => setView("list")} >
+                            <button className="iconButton" style={{ marginRight: '20px' }} onClick={toggleView} >
                                 <IoPieChartOutline className="defaultIcon" />
                                 <TfiLayoutListThumbAlt className="hoverIcon" />
                             </button> </>)}
@@ -297,12 +284,12 @@ function Signals({ currentUser, setDashboardTitle, keycloak }) {
                 <div
                     className={`dropdownMenu ${dropdowns.syslogSignalFilters.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
                     style={{ width: '420px' }} >
-                    <SyslogSignalFilters keycloak={keycloak} onSearch={(f) => handleSearchFilters(f)} syslogTags={syslogTags}/>
+                    <SyslogSignalFilters keycloak={keycloak} onSearch={(f) => handleSearchFilters(f)} syslogTags={syslogTags} />
                 </div>
                 <div
                     className={`dropdownMenu ${dropdowns.trapSignalFilters.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
                     style={{ width: '420px' }} >
-                    <TrapSignalFilters keycloak={keycloak} onSearch={(f) => handleSearchFilters(f)} snmpTrapTags={snmpTrapTags}/>
+                    <TrapSignalFilters keycloak={keycloak} onSearch={(f) => handleSearchFilters(f)} snmpTrapTags={snmpTrapTags} />
                 </div>
                 <div
                     className={`dropdownMenu ${dropdowns.time.visible ? 'dropdownVisible' : 'dropdownHidden'} `}

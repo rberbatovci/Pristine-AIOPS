@@ -1,8 +1,8 @@
-import React, { useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import Select from "react-select";
 import customStyles from "../misc/SelectStyles";
 import "../../css/SearchElement.css";
-import { AsyncPaginate } from "react-select-async-paginate";
+import { useSyslogTagOptions } from "../../hooks/useSyslogTagOptions";
 
 const severityOptions = [
   { value: "emergency", label: "Emergency" },
@@ -16,117 +16,143 @@ const severityOptions = [
 ];
 
 const FilterSyslogs = ({
-  devices,
+  keycloak,
   tags,
   onSelectedSyslogFiltersChange
 }) => {
 
-  /* -------------------- state -------------------- */
   const [selectedTags, setSelectedTags] = useState({});
-  const [optionsCache, setOptionsCache] = useState({}); // 🔥 dynamic options cache
-  const [loadingFields, setLoadingFields] = useState({});
 
-  /* -------------------- static options -------------------- */
-  const deviceOptions = devices.map(d => ({
-    value: d.hostname,
-    label: d.hostname
-  }));
+  const { options, loading, loadOptions } = useSyslogTagOptions(keycloak);
 
-  /* -------------------- change handler -------------------- */
-  const handleChange = (value, key) => {
-    const updated = {
-      ...selectedTags,
-      [key]: value || []
-    };
+  /* ---------------- HANDLE CHANGE ---------------- */
+  // ✅ ONLY store string arrays
+  const handleChange = (values, key) => {
+    const safeValues = Array.isArray(values)
+      ? values.map(v => v.value)
+      : [];
 
-    setSelectedTags(updated);
-    onSelectedSyslogFiltersChange(updated);
+    setSelectedTags(prev => ({
+      ...prev,
+      [key]: safeValues
+    }));
   };
 
-  /* -------------------- fetch from backend -------------------- */
-  const fetchOptions = async (field) => {
-    try {
-      setLoadingFields(prev => ({ ...prev, [field]: true }));
+  /* ---------------- MAP VALUES ---------------- */
+  // ✅ convert stored strings -> react-select format
+  const mapValuesToOptions = (values = [], options = []) => {
+    if (!Array.isArray(values)) return [];
 
-      const res = await fetch(`/api/syslogs/options/${field}`);
-      const data = await res.json();
-
-      const formatted = data.map(item => ({
-        value: item.value,
-        label: item.label || item.value
-      }));
-
-      setOptionsCache(prev => ({
-        ...prev,
-        [field]: formatted
-      }));
-    } catch (err) {
-      console.error(`Failed to fetch ${field}`, err);
-    } finally {
-      setLoadingFields(prev => ({ ...prev, [field]: false }));
-    }
+    return values
+      .map(v => options.find(o => o.value === v))
+      .filter(Boolean);
   };
 
-  /* -------------------- focus handler (lazy load) -------------------- */
+  /* ---------------- LAZY LOAD ---------------- */
   const handleFocus = useCallback((field) => {
-    if (optionsCache[field]) return; // ✅ already loaded
+    loadOptions(field, selectedTags);
+  }, [loadOptions, selectedTags]);
 
-    fetchOptions(field);
-  }, [optionsCache]);
+  /* ---------------- SEARCH ---------------- */
+  const handleSearchClick = () => {
+    const cleaned = Object.fromEntries(
+      Object.entries(selectedTags).map(([key, values]) => [
+        key,
+        Array.isArray(values)
+          ? values.map(v => typeof v === "object" ? v.value : v)
+          : []
+      ]).filter(([_, v]) => v.length > 0)
+    );
 
+    console.log("Sending filters:", cleaned);
+    onSelectedSyslogFiltersChange(cleaned);
+  };
 
-  /* -------------------- render -------------------- */
+  /* ---------------- RESET ---------------- */
+  const handleReset = () => {
+    setSelectedTags({});
+    onSelectedSyslogFiltersChange({});
+  };
+
+  const isEmpty = Object.keys(selectedTags).length === 0;
+
   return (
     <div className="searchSyslogsContainer">
       <div className="searchSyslogsFilterEntries">
 
-        {/* Devices */}
+        {/* DEVICE */}
         <FilterSelect
           label="Device"
-          options={deviceOptions}
-          value={selectedTags.device}
+          options={options.device || []}
+          value={mapValuesToOptions(selectedTags.device, options.device)}
+          loading={loading.device}
           onChange={(v) => handleChange(v, "device")}
+          onFocus={() => handleFocus("device")}
         />
 
-        {/* Mnemonics */}
+        {/* MNEMONIC */}
         <FilterSelect
           label="Mnemonic"
-          options={optionsCache.mnemonic || []}
-          value={selectedTags.mnemonic}
-          loading={loadingFields.mnemonic}
-          onFocus={() => handleFocus("mnemonic")}
+          options={options.mnemonic || []}
+          value={mapValuesToOptions(selectedTags.mnemonic, options.mnemonic)}
+          loading={loading.mnemonic}
           onChange={(v) => handleChange(v, "mnemonic")}
+          onFocus={() => handleFocus("mnemonic")}
         />
 
-        {/* Severity */}
+        {/* SEVERITY */}
         <FilterSelect
           label="Severity"
           options={severityOptions}
-          value={selectedTags.severity}
+          value={mapValuesToOptions(selectedTags.severity, severityOptions)}
           onChange={(v) => handleChange(v, "severity")}
         />
 
-        {/* Dynamic tags */}
-        {tags.map(tag => {
-          return (
-            <FilterSelect
-              key={tag.name}
-              label={tag.label}
-              options={optionsCache[tag.name] || []}
-              value={selectedTags[tag.name]}
-              loading={loadingFields[tag.name]}
-              onFocus={() => handleFocus(tag.name)}
-              onChange={(v) => handleChange(v, tag.name)}
-            />
-          );
-        })}
+        {/* DYNAMIC TAGS */}
+        {tags.map(tag => (
+          <FilterSelect
+            key={tag.value}
+            label={tag.label}
+            options={options[tag.value] || []}
+            value={mapValuesToOptions(selectedTags[tag.value], options[tag.value])}
+            loading={loading[tag.value]}
+            onFocus={() => handleFocus(tag.value)}
+            onChange={(v) => handleChange(v, tag.value)}
+          />
+        ))}
 
+      </div>
+
+      {/* ACTION BUTTONS */}
+      <div
+        style={{
+          display: "flex",
+          width: "100%",
+          justifyContent: "center",
+          gap: "10px",
+          margin: "10px"
+        }}
+      >
+        <button
+          onClick={handleSearchClick}
+          disabled={isEmpty}
+          className="button save-button"
+        >
+          Search
+        </button>
+
+        <button
+          onClick={handleReset}
+          className="button cancel-button"
+        >
+          Reset
+        </button>
       </div>
     </div>
   );
 };
 
-/* -------------------- reusable select -------------------- */
+/* ---------------- SAFE SELECT ---------------- */
 const FilterSelect = ({
   label,
   options,
@@ -137,22 +163,21 @@ const FilterSelect = ({
 }) => (
   <div className="searchSyslogsFilterEntry">
     <span className="searchSignalFilterText">{label}:</span>
-    <div style={{ marginTop: "6px" }}>
-      <Select
-        options={options}
-        isMulti
-        isLoading={loading}
-        value={value || []}
-        onChange={onChange}
-        onFocus={onFocus}
-        styles={{
-          ...customStyles("375px"),
-          menuPortal: base => ({ ...base, zIndex: 9999 })
-        }}
-        menuPortalTarget={document.body}
-        placeholder={`Select ${label}`}
-      />
-    </div>
+
+    <Select
+      options={options}
+      isMulti
+      isLoading={loading}
+      value={Array.isArray(value) ? value : []}
+      onChange={onChange}
+      onFocus={onFocus}
+      styles={{
+        ...customStyles("375px"),
+        menuPortal: base => ({ ...base, zIndex: 9999 })
+      }}
+      menuPortalTarget={document.body}
+      placeholder={`Select ${label}`}
+    />
   </div>
 );
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Select from 'react-select';
 import customStyles from '../misc/SelectStyles';
 import { useMnemonicDetails } from '../../hooks/useMnemonicDetails'; 

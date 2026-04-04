@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
     PieChart, Pie, Cell, Tooltip as RechartsTooltip,
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend
@@ -9,7 +9,7 @@ import '../../css/SyslogDatabase.css';
 import { IoBarChartOutline } from "react-icons/io5";
 import { AiOutlinePieChart } from "react-icons/ai";
 
-function TrapEventsStatistics({ keycloak, selectedTags }) {
+function TrapEventsStatistics({ keycloak, selectedTags = [] }) {
     const [chartDataMap, setChartDataMap] = useState({});
     const [loadingMap, setLoadingMap] = useState({});
     const [chartTypeMap, setChartTypeMap] = useState({});
@@ -102,7 +102,7 @@ function TrapEventsStatistics({ keycloak, selectedTags }) {
             return updated;
         });
 
-    }, [selectedTags]);
+    }, [normalizedTags,selectedTags]);
 
     const handleChartTypeChange = (dataType, type) => {
         setChartTypeMap(prev => ({

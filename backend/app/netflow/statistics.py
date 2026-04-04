@@ -17,7 +17,7 @@ def get_field_statistics(key: str, user: dict = Depends(get_current_user)):
             "value_counts": {
                 "terms": {
                     "field": key,
-                    "size": 1000
+                    "size": 20   # 👈 top 20 only
                 }
             }
         }
@@ -25,11 +25,18 @@ def get_field_statistics(key: str, user: dict = Depends(get_current_user)):
 
     response = opensearch_client.search(index="netflow", body=query)
 
-    buckets = response.get("aggregations", {}).get("value_counts", {}).get("buckets", [])
+    buckets = (
+        response.get("aggregations", {})
+        .get("value_counts", {})
+        .get("buckets", [])
+    )
 
-    stats = [{"value": b["key"], "count": b["doc_count"]} for b in buckets]
+    stats = [
+        {"value": b["key"], "count": b["doc_count"]}
+        for b in buckets
+    ]
 
-    return {"key": key, "statistics": stats}
+    return {"key": key, "statistics": stats} 
 
 def get_unique_terms(index: str, field: str, size: int = 1000) -> List[str]:
     try:

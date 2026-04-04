@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import kcFetch from '../components/misc/kcFetch'; // your fetch utility
+import kcFetch from '../components/misc/kcFetch'; 
 
 export function useSyslogRegEx(keycloak) {
   const [list, setList] = useState([]);

@@ -128,3 +128,77 @@ async def get_multiple_syslogs(syslog_ids: list[str] = Body(..., embed=True), us
         "not_found_ids": [doc['_id'] for doc in response['docs'] if not doc['found']]
     }
 
+@router.get("/options/{field}")
+async def get_field_options(
+    field: str,
+    request: Request,
+    start_time: Optional[datetime] = Query(None),
+    end_time: Optional[datetime] = Query(None),
+    user: dict = Depends(get_current_user)
+):
+    must_clauses = []
+
+    # ⏱️ Time filter
+    if start_time and end_time:
+        must_clauses.append({
+            "range": {
+                "timestamp": {
+                    "gte": start_time.isoformat(),
+                    "lte": end_time.isoformat()
+                }
+            }
+        })
+
+    # 🔁 Reuse your dynamic filters (EXCEPT current field)
+    query_params = request.query_params.multi_items()
+    fixed_params = {"page", "page_size", "start_time", "end_time"}
+
+    dynamic_filters = [(k, v) for k, v in query_params if k not in fixed_params and k != field]
+
+    filter_dict = defaultdict(list)
+    for k, v in dynamic_filters:
+        filter_dict[k].append(v)
+
+    for f, values in filter_dict.items():
+        if f in TOP_LEVEL_FIELDS:
+            es_field = f
+        else:
+            es_field = f"tags.{f}"
+
+        if len(values) == 1:
+            must_clauses.append({"term": {es_field: values[0]}})
+        else:
+            must_clauses.append({"terms": {es_field: values}})
+
+    # 🎯 Determine ES field
+    if field in TOP_LEVEL_FIELDS:
+        es_field = field
+    else:
+        es_field = f"tags.{field}"
+
+    # 📊 Aggregation query
+    body = {
+        "size": 0,
+        "query": {
+            "bool": {
+                "must": must_clauses or [{"match_all": {}}]
+            }
+        },
+        "aggs": {
+            "options": {
+                "terms": {
+                    "field": es_field,
+                    "size": 100  # adjust if needed
+                }
+            }
+        }
+    }
+
+    response = opensearch_client.search(index="syslogs", body=body)
+
+    buckets = response["aggregations"]["options"]["buckets"]
+
+    return [
+        {"value": b["key"], "label": str(b["key"])}
+        for b in buckets
+    ]

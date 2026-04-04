@@ -128,6 +128,8 @@ function Faults({ currentUser, setDashboardTitle, showNotification, keycloak }) 
         if (newVisibility) {
             if (dropdownKey === "syslogTags" && syslogTags.length === 0) {
                 reloadSyslogTags(keycloak);
+            } else if (dropdownKey === "filterSyslogs" && syslogTags.length === 0) {
+                reloadSyslogTags(keycloak);
             } else if (dropdownKey === "snmpTrapTags" && snmpTrapTags.length === 0) {
                 reloadSnmpTrapTags(keycloak);
             } else if (dropdownKey === "snmpTrapTagConfig" && snmpTrapTags.length === 0) {
@@ -136,8 +138,6 @@ function Faults({ currentUser, setDashboardTitle, showNotification, keycloak }) 
                 reloadRegEx();
             } else if (dropdownKey === "mnemonics" && mnemonics.length === 0) {
                 reloadMnemonics(keycloak);
-            } else if (dropdownKey === "mnemonics" && regularExpressions.length === 0) {
-                reloadRegEx();
             }
         }
     };
@@ -210,6 +210,21 @@ function Faults({ currentUser, setDashboardTitle, showNotification, keycloak }) 
     };
 
 
+    const handleFiltersChange = (newFilters) => {
+        console.log("Filtering for:", newFilters);
+
+        setFilters(newFilters);
+        setPage(1);  
+
+        loadData(
+            keycloak,
+            "syslogs",
+            1,
+            startTime,
+            endTime,
+            newFilters
+        );
+    };
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -235,6 +250,10 @@ function Faults({ currentUser, setDashboardTitle, showNotification, keycloak }) 
         setView("list");
     }, []);
 
+    const toggleView = () => {
+        setView(prev => (prev === "list" ? "chart" : "list"));
+    };
+
     return (
         <div className="mainContainer" ref={dropdownWrapperRef}>
             <div className="mainContainerHeader">
@@ -244,11 +263,11 @@ function Faults({ currentUser, setDashboardTitle, showNotification, keycloak }) 
                 </div>
                 <div className="mainContainerButtons">
                     {view === "list" ? (<>
-                        <button className="iconButton" style={{ marginRight: '20px' }} onClick={() => setView("chart")} >
+                        <button className="iconButton" style={{ marginRight: '20px' }} onClick={toggleView} >
                             <TfiLayoutListThumb className="defaultIcon" />
                             <IoPieChartSharp className="hoverIcon" />
                         </button> </>) : (<>
-                            <button className="iconButton" style={{ marginRight: '20px' }} onClick={() => setView("list")} >
+                            <button className="iconButton" style={{ marginRight: '20px' }} onClick={toggleView} >
                                 <IoPieChartOutline className="defaultIcon" />
                                 <TfiLayoutListThumbAlt className="hoverIcon" />
                             </button> </>)}
@@ -326,7 +345,7 @@ function Faults({ currentUser, setDashboardTitle, showNotification, keycloak }) 
                 <div
                     className={`dropdownMenu ${dropdowns.filterSyslogs.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
                     style={{ width: '420px' }} >
-                    <FilterSyslogs source={dataSource} tags={syslogTags} devices={devices} onSelectedTagsChange={handleSyslogTagsChange} onSelectedTagsSearch={handleSearchAndCloseDropdown} />
+                    <FilterSyslogs keycloak={keycloak} source={dataSource} tags={syslogTags} onSelectedSyslogFiltersChange={handleFiltersChange} />
                 </div>
                 <div
                     className={`dropdownMenu ${dropdowns.filterSnmpTraps.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
@@ -365,7 +384,7 @@ function Faults({ currentUser, setDashboardTitle, showNotification, keycloak }) 
                 <div
                     className={`dropdownMenu ${dropdowns.snmpTrapTagConfig.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
                     style={{ width: 'auto', maxHeight: '740px', overflow: 'hidden' }}>
-                    <SnmpTrapTagConfig keycloak={keycloak} snmpTrapTags={snmpTrapTags} currentUser={currentUser} onReload={reloadSnmpTrapTags} showNotification={showNotification}/>
+                    <SnmpTrapTagConfig keycloak={keycloak} snmpTrapTags={snmpTrapTags} currentUser={currentUser} onReload={reloadSnmpTrapTags} showNotification={showNotification} />
                 </div>
                 <div
                     className={`dropdownMenu ${dropdowns.mnemonics.visible ? 'dropdownVisible' : 'dropdownHidden'} `}

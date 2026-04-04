@@ -34,8 +34,15 @@ export function useFaultData() {
         throw new Error(`Unknown dataSource: ${dataSource}`);
       }
 
-      if (startTime) url += `&start_time=${encodeURIComponent(startTime)}`;
-      if (endTime) url += `&end_time=${encodeURIComponent(endTime)}`;
+      if (startTime) {
+        const start = new Date(startTime).toISOString();
+        url += `&start_time=${encodeURIComponent(start)}`;
+      }
+
+      if (endTime) {
+        const end = new Date(endTime).toISOString();
+        url += `&end_time=${encodeURIComponent(end)}`;
+      }
 
       const query = new URLSearchParams();
 

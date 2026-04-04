@@ -1,45 +1,41 @@
 import { useState } from "react";
-import kcFetch from "../misc/kcFetch";
-
-const STATIC_ENDPOINTS = {
-  mnemonic: "/signals/syslogs/mnemonics/options",
-  rule: "/signals/syslogs/rules/options",
-  device: "/signals/syslogs/devices/options",
-};
+import kcFetch from '../components/misc/kcFetch';
 
 export function useSyslogTagOptions(keycloak) {
   const [options, setOptions] = useState({});
   const [loading, setLoading] = useState({});
 
   const loadOptions = async (tagName) => {
+    // prevent duplicate calls
     if (options[tagName]) return;
 
     setLoading(prev => ({ ...prev, [tagName]: true }));
 
     try {
-      let data;
+      const res = await kcFetch(
+        keycloak,
+        `/syslogs/options/${tagName}`
+      );
 
-      if (STATIC_ENDPOINTS[tagName]) {
-        data = await kcFetch(keycloak, STATIC_ENDPOINTS[tagName]);
-        setOptions(prev => ({
-          ...prev,
-          [tagName]: data.map(v => ({ value: v, label: v }))
-        }));
-      } else {
-        // affected entity fallback
-        const res = await kcFetch(
-          keycloak,
-          `/signals/syslogs/affected-entities/options/${tagName}`
-        );
+      // ✅ normalize EVERYTHING here
+      const normalized = (res || []).map(item => {
+        // case 1: backend returns string
+        if (typeof item === "string") {
+          return { value: item, label: item };
+        }
 
-        setOptions(prev => ({
-          ...prev,
-          [tagName]: (res.values || []).map(v => ({
-            value: v,
-            label: v
-          }))
-        }));
-      }
+        // case 2: backend returns object
+        return {
+          value: item.value,
+          label: item.label ?? item.value
+        };
+      });
+
+      setOptions(prev => ({
+        ...prev,
+        [tagName]: normalized
+      }));
+
     } catch (err) {
       console.error(`Error loading options for ${tagName}:`, err);
     } finally {

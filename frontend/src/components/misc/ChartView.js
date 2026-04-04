@@ -3,7 +3,7 @@ import SyslogSignalsStatistics from '../statistics/SyslogSignalsStatistics';
 import SyslogEventsStatistics from '../statistics/SyslogEventsStatistics';
 import TrapSignalsStatistics from '../statistics/TrapSignalsStatistics';
 import TrapEventsStatistics from '../statistics/TrapEventsStatistics';
-import NetflowStatistics from '../statistics/TrapEventsStatistics';
+import NetflowStatistics from '../statistics/NetflowStatistics';
 
 const ChartView = ({
   keycloak,
@@ -31,7 +31,7 @@ const ChartView = ({
       {dataSource === 'snmptraps' && source === 'events' && (
         <TrapEventsStatistics keycloak={keycloak} selectedTags={selectedTags} />
       )}
-      {dataSource === 'netflow' && (
+      {dataSource === 'netflow' && source === 'events' && (
         <NetflowStatistics keycloak={keycloak} selectedTags={selectedTags} />
       )}
     </div>

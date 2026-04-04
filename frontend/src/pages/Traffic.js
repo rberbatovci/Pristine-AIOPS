@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import '../css/SyslogDatabase.css';
 import EventsTable from '../components/misc/EventsTable.js';
-import kcFetch from '../components/misc/kcFetch'; 
+import kcFetch from '../components/misc/kcFetch';
 import { FaClock, FaRegClock } from "react-icons/fa";
-import { RiDownloadCloudLine, RiDownloadCloudFill } from "react-icons/ri"; 
-import SearchTime from '../components/misc/SearchTime.js'; 
+import { RiDownloadCloudLine, RiDownloadCloudFill } from "react-icons/ri";
+import SearchTime from '../components/misc/SearchTime.js';
 import FilterTraffic from '../components/netflow/FilterTraffic.js';
 import ChartView from '../components/misc/ChartView.js';
 
@@ -123,7 +123,7 @@ function Traffic({ currentUser, setDashboardTitle, keycloak }) {
 
     useEffect(() => {
         loadNetflowData(keycloak, page, pageSize, startTime?.toISOString(), endTime?.toISOString(), filters);
-    }, [page, pageSize, startTime, endTime, pageSize]);
+    }, [page, pageSize, startTime, endTime, pageSize, view, dataSource]);
 
     useEffect(() => {
         const fetchDevices = async () => {
@@ -144,6 +144,9 @@ function Traffic({ currentUser, setDashboardTitle, keycloak }) {
         fetchDevices();
     }, []);
 
+    useEffect(() => {
+        setView("list");
+    }, [dataSource]);
 
 
     const handleRowSelectChange = (newSelectedRows) => {
@@ -217,6 +220,10 @@ function Traffic({ currentUser, setDashboardTitle, keycloak }) {
         };
     }, []);
 
+    const toggleView = () => {
+        setView(prev => (prev === "list" ? "chart" : "list"));
+    };
+
     return (
         <div className="mainContainer" ref={dropdownWrapperRef}>
             <div className="mainContainerHeader">
@@ -231,7 +238,7 @@ function Traffic({ currentUser, setDashboardTitle, keycloak }) {
                     {view === "list" ? (
                         <button
                             className="iconButton"
-                            onClick={() => setView("chart")}
+                            onClick={toggleView}
                             style={{ marginRight: '20px' }}
                         >
                             <TfiLayoutListThumb className="defaultIcon" />
@@ -240,7 +247,7 @@ function Traffic({ currentUser, setDashboardTitle, keycloak }) {
                     ) : (
                         <button
                             className="iconButton"
-                            onClick={() => setView("list")}
+                            onClick={toggleView}
                             style={{ marginRight: '20px' }}
                         >
                             <IoPieChartOutline className="defaultIcon" />
