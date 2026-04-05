@@ -1,13 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./SignalConfigElement.css";
 import Select from "react-select";
 import customStyles from "../../misc/SelectStyles";
-import { useStatefulSyslogRules } from "../../../hooks/useStatefulSyslogRules";
-import { useSyslogTags } from "../../../hooks/useSyslogTags";
-import { useDevices } from "../../../hooks/useDevices";
-import { useMnemonics } from "../../../hooks/useMnemonics";
+import { useStatefulSyslogRules } from "../../../hooks/useStatefulSyslogRules"; 
 
-const StatefulSyslogs = ({ keycloak }) => {
+const StatefulSyslogs = ({ keycloak, devices, mnemonics, tags }) => {
     const {
         rules,
         selectedRule,
@@ -19,11 +16,6 @@ const StatefulSyslogs = ({ keycloak }) => {
         updateRule,
         deleteRule
     } = useStatefulSyslogRules(keycloak);
-    const {
-        tags: tagNames,
-        loading: tagsLoading,
-        error: tagsError
-    } = useSyslogTags(keycloak);
 
     const [editedData, setEditedData] = useState({});
     const [isAddingNewRule, setIsAddingNewRule] = useState(true);
@@ -42,10 +34,13 @@ const StatefulSyslogs = ({ keycloak }) => {
         description: "",
         warmup: "",
         cooldown: ""
-    });
+    }); 
 
-    const { devices } = useDevices(keycloak, false);
-    const { mnemonics } = useMnemonics(keycloak, false);
+      useEffect(() => {
+        if (ruleDetails) {
+          setNewRule(ruleDetails);
+        }
+      }, [ruleDetails]);
 
     const handleOptionChange = async (rule) => {
         setIsAddingNewRule(false);
@@ -92,7 +87,7 @@ const StatefulSyslogs = ({ keycloak }) => {
             ...prev,
             devices: selectedIds
         }));
-    };
+    }; 
 
     return (
         <div className="signalTagContainer">
@@ -160,6 +155,7 @@ const StatefulSyslogs = ({ keycloak }) => {
                                     />
                                 </div>
                                 {/* Hostname Field */}
+                                {/*
                                 <div style={{ marginTop: '5px', marginRight: '15px' }}>
                                     <span>Hostname:</span>
                                     <Select
@@ -176,9 +172,9 @@ const StatefulSyslogs = ({ keycloak }) => {
                                         onChange={handleHostnameChange}
                                         styles={customStyles('505px')}
                                     />
-                                </div>
+                                </div>*/}
                                 {/* Hostname Filter */}
-                                {newRule.devices && newRule.devices.length > 0 && (
+                                {/*{newRule.devices && newRule.devices.length > 0 && (
                                     <div className="tag-detail-row">
                                         <div>
                                             <div style={{ display: 'flex', alignItems: 'center', marginTop: '5px', paddingLeft: '15px' }}>
@@ -205,7 +201,7 @@ const StatefulSyslogs = ({ keycloak }) => {
                                             </div>
                                         </div>
                                     </div>
-                                )}
+                                )}*/}
                                 <div style={{ marginTop: '5px', marginRight: '15px' }}>
                                     <span>Open Signal Mnemonic:</span>
                                     <Select
@@ -233,8 +229,8 @@ const StatefulSyslogs = ({ keycloak }) => {
                                         <span>Open Signal Event:</span>
                                         <Select
                                             name="opensignaltag"
-                                            value={tagNames.find(option => option.value === newRule.opensignaltag) || null}
-                                            options={tagNames}
+                                            value={tags.find(option => option.value === newRule.opensignaltag) || null}
+                                            options={tags}
                                             onChange={(selectedRule) =>
                                                 setNewRule({ ...newRule, opensignaltag: selectedRule ? selectedRule.value : null })
                                             }
@@ -260,7 +256,7 @@ const StatefulSyslogs = ({ keycloak }) => {
                                 <div style={{ marginTop: '5px' }}>
                                     <span>Close Signal Mnemonic:</span>
                                     <Select
-                                        name="closesignalmnemonic  "
+                                        name="closesignalmnemonic"
                                         // Find the mnemonic by its name from newRule and set the default value
                                         value={mnemonics.find(option => option.label === newRule.closesignalmnemonic)}
                                         isMulti={false}
@@ -281,8 +277,8 @@ const StatefulSyslogs = ({ keycloak }) => {
                                         <span>Close Signal Event:</span>
                                         <Select
                                             name="closesignaltag"
-                                            value={tagNames.find(option => option.value === newRule.closesignaltag) || null}
-                                            options={tagNames}
+                                            value={tags.find(option => option.value === newRule.closesignaltag) || null}
+                                            options={tags}
                                             onChange={(selectedRule) =>
                                                 setNewRule({ ...newRule, closesignaltag: selectedRule ? selectedRule.value : null })
                                             }
@@ -310,8 +306,8 @@ const StatefulSyslogs = ({ keycloak }) => {
                                     <span>Affected Entities:</span>
                                     <Select
                                         name="affectedentity"
-                                        value={tagNames.filter((tag) => newRule.affectedentity.includes(tag.value))}
-                                        options={tagNames}
+                                        value={tags.filter((tag) => newRule.affectedentity.includes(tag.value))}
+                                        options={tags}
                                         onChange={(selectedRules) =>
                                             setNewRule({
                                                 ...newRule,

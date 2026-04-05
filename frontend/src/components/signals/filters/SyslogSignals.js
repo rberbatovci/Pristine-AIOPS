@@ -1,95 +1,194 @@
-import React, { useState } from 'react';
-import Select from 'react-select';
-import '../../../css/SearchElement.css';
-import customStyles from '../../misc/SelectStyles';
+import { useState, useCallback } from "react";
+import Select from "react-select";
+import customStyles from "../../misc/SelectStyles";
+import "../../../css/SearchElement.css";
+import { useSyslogTagOptions } from "../../../hooks/useSyslogTagOptions";
 
-import { useSyslogTags } from "../../../hooks/useSyslogTags";
-import { useSyslogSignalsTagOptions } from "../../../hooks/useSyslogSignalsTagOptions";
+const severityOptions = [
+  { value: "emergency", label: "Emergency" },
+  { value: "alert", label: "Alert" },
+  { value: "critical", label: "Critical" },
+  { value: "error", label: "Error" },
+  { value: "warning", label: "Warning" },
+  { value: "notice", label: "Notice" },
+  { value: "info", label: "Info" },
+  { value: "debug", label: "Debug" }
+];
 
 const SyslogSignalFilters = ({
   keycloak,
-  onSelectedSyslogFiltersChange,
-  initialSelectedTags = {},
-  syslogTags = []
+  tags,
+  onSelectedSyslogFiltersChange
 }) => {
-  const [selectedTags, setSelectedTags] = useState(initialSelectedTags);
 
-  const {
-    tags,
-    loading: tagsLoading,
-    error: tagsError
-  } = useSyslogTags(keycloak);
+  const [selectedTags, setSelectedTags] = useState({});
 
-  const {
-    options,
-    loading,
-    fetchOptions
-  } = useSyslogSignalsTagOptions(keycloak);
+  const { options, loading, loadOptions } = useSyslogTagOptions(keycloak);
 
-  const handleChange = (values, tagName) => {
-    const updated = {
-      ...selectedTags,
-      [tagName]: values
-    };
-    setSelectedTags(updated);
-    onSelectedSyslogFiltersChange(updated);
+  /* ---------------- HANDLE CHANGE ---------------- */
+  // ✅ ONLY store string arrays
+  const handleChange = (values, key) => {
+    const safeValues = Array.isArray(values)
+      ? values.map(v => v.value)
+      : [];
+
+    setSelectedTags(prev => ({
+      ...prev,
+      [key]: safeValues
+    }));
   };
 
-  if (tagsLoading) {
-    return <p>Loading Syslog Tags...</p>;
-  }
+  /* ---------------- MAP VALUES ---------------- */
+  // ✅ convert stored strings -> react-select format
+  const mapValuesToOptions = (values = [], options = []) => {
+    if (!Array.isArray(values)) return [];
 
-  if (tagsError) {
-    return <p>Failed to load tags</p>;
-  }
+    return values
+      .map(v => options.find(o => o.value === v))
+      .filter(Boolean);
+  };
+
+  /* ---------------- LAZY LOAD ---------------- */
+  const handleFocus = useCallback((field) => {
+    loadOptions(field, selectedTags);
+  }, [loadOptions, selectedTags]);
+
+  /* ---------------- SEARCH ---------------- */
+  const handleSearchClick = () => {
+    const cleaned = Object.fromEntries(
+      Object.entries(selectedTags).map(([key, values]) => [
+        key,
+        Array.isArray(values)
+          ? values.map(v => typeof v === "object" ? v.value : v)
+          : []
+      ]).filter(([_, v]) => v.length > 0)
+    );
+
+    console.log("Sending filters:", cleaned);
+    onSelectedSyslogFiltersChange(cleaned);
+  };
+
+  /* ---------------- RESET ---------------- */
+  const handleReset = () => {
+    setSelectedTags({});
+    onSelectedSyslogFiltersChange({});
+  };
+
+  const isEmpty = Object.keys(selectedTags).length === 0;
 
   return (
-    <div className="dropdownConfigContainer" style={{ padding: '10px', width: '400px' }}>
-      <span>Filter Syslog Signals:</span>
+    <div className="searchSyslogsContainer">
+      <div className="searchSyslogsFilterEntries">
 
-      <div className="searchSyslogsFilterEntries" style={{ marginTop: '8px', padding: '10px' }}>
-        {['device', 'mnemonic', 'rule'].map(tagName => (
-          <div key={tagName} className="searchSyslogsFilterEntry">
-            <span className="searchSignalFilterText">
-              {tagName.charAt(0).toUpperCase() + tagName.slice(1)}:
-            </span>
-            <Select
-              isMulti
-              name={tagName}
-              options={options[tagName] || []}
-              value={selectedTags[tagName] || []}
-              onChange={(v) => handleChange(v, tagName)}
-              onFocus={() => fetchOptions(tagName)}
-              isLoading={loading[tagName]}
-              styles={customStyles('370px')}
-            />
-          </div>
-        ))}
+        {/* DEVICE */}
+        <FilterSelect
+          label="Device"
+          options={options.device || []}
+          value={mapValuesToOptions(selectedTags.device, options.device)}
+          loading={loading.device}
+          onChange={(v) => handleChange(v, "device")}
+          onFocus={() => handleFocus("device")}
+        />
 
+        {/* Rule */}
+        <FilterSelect
+          label="SNMP Trap OID"
+          options={options.rule || []}
+          value={mapValuesToOptions(selectedTags.rule, options.rule)}
+          loading={loading.rule}
+          onChange={(v) => handleChange(v, "rule")}
+          onFocus={() => handleFocus("rule")}
+        />
+
+        {/* MNEMONIC */}
+        <FilterSelect
+          label="Mnemonic"
+          options={options.mnemonic || []}
+          value={mapValuesToOptions(selectedTags.mnemonic, options.mnemonic)}
+          loading={loading.mnemonic}
+          onChange={(v) => handleChange(v, "mnemonic")}
+          onFocus={() => handleFocus("mnemonic")}
+        />
+
+        {/* SEVERITY */}
+        <FilterSelect
+          label="Severity"
+          options={severityOptions}
+          value={mapValuesToOptions(selectedTags.severity, severityOptions)}
+          onChange={(v) => handleChange(v, "severity")}
+        />
+
+        {/* DYNAMIC TAGS */}
         {tags.map(tag => (
-          <div key={tag.name} className="searchSyslogsFilterEntry">
-            <span className="searchSignalFilterText">{tag.name}:</span>
-            <Select
-              isMulti
-              name={tag.name}
-              options={options[tag.name] || []}
-              value={selectedTags[tag.name] || []}
-              onChange={(v) => handleChange(v, tag.name)}
-              onFocus={() => fetchOptions(tag.name)}
-              isLoading={loading[tag.name]}
-              styles={customStyles('370px')}
-            />
-          </div>
+          <FilterSelect
+            key={tag.value}
+            label={tag.label}
+            options={options[tag.value] || []}
+            value={mapValuesToOptions(selectedTags[tag.value], options[tag.value])}
+            loading={loading[tag.value]}
+            onFocus={() => handleFocus(tag.value)}
+            onChange={(v) => handleChange(v, tag.value)}
+          />
         ))}
+
       </div>
 
-      <div style={{ textAlign: 'center' }}>
-        <button style={{ padding: '8px 60px', color: 'green' }}>
+      {/* ACTION BUTTONS */}
+      <div
+        style={{
+          display: "flex",
+          width: "100%",
+          justifyContent: "center",
+          gap: "10px",
+          margin: "10px"
+        }}
+      >
+        <button
+          onClick={handleSearchClick}
+          disabled={isEmpty}
+          className="button save-button"
+        >
           Search
+        </button>
+
+        <button
+          onClick={handleReset}
+          className="button cancel-button"
+        >
+          Reset
         </button>
       </div>
     </div>
   );
 };
+
+/* ---------------- SAFE SELECT ---------------- */
+const FilterSelect = ({
+  label,
+  options,
+  value,
+  onChange,
+  onFocus,
+  loading
+}) => (
+  <div className="searchSyslogsFilterEntry">
+    <span className="searchSignalFilterText">{label}:</span>
+
+    <Select
+      options={options}
+      isMulti
+      isLoading={loading}
+      value={Array.isArray(value) ? value : []}
+      onChange={onChange}
+      onFocus={onFocus}
+      styles={{
+        ...customStyles("375px"),
+        menuPortal: base => ({ ...base, zIndex: 9999 })
+      }}
+      menuPortalTarget={document.body}
+      placeholder={`Select ${label}`}
+    />
+  </div>
+);
 
 export default SyslogSignalFilters;

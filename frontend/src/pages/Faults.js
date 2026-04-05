@@ -1,13 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
 import '../css/SyslogDatabase.css';
 import EventsTable from '../components/misc/EventsTable.js';
+import ChartView from '../components/misc/ChartView.js';
+
 import { MdBookmarkBorder, MdBookmark } from "react-icons/md";
 import { FaClock, FaRegClock } from "react-icons/fa";
 import { RiDownloadCloudLine, RiDownloadCloudFill } from "react-icons/ri";
 import { HiOutlineViewColumns, HiViewColumns } from "react-icons/hi2";
 import { TfiLayoutListThumb, TfiLayoutListThumbAlt } from "react-icons/tfi";
-import ChartView from '../components/misc/ChartView.js';
+import { IoPieChartOutline, IoPieChartSharp, IoRefreshCircleOutline, IoRefreshCircleSharp } from "react-icons/io5";
+import { RiInfoCardLine, RiInfoCardFill } from "react-icons/ri";
+import { PiArticleMediumLight, PiArticleMediumFill } from "react-icons/pi";
+import { PiUploadBold, PiUploadFill } from "react-icons/pi";
 import { RiFilterLine, RiFilterFill } from "react-icons/ri";
+
 import Mnemonics from '../components/syslogs/Mnemonics.js';
 import SyslogTags from '../components/syslogs/Tags.js';
 import SearchTime from '../components/misc/SearchTime.js';
@@ -15,13 +21,10 @@ import FilterSyslogs from '../components/syslogs/FilterSyslogs.js';
 import FilterTraps from '../components/snmptraps/FilterTraps.js';
 import RegEx from '../components/syslogs/RegEx.js';
 import UploadMIB from '../components/snmptraps/UploadMIB.js';
-import { PiUploadBold, PiUploadFill } from "react-icons/pi";
 import SnmpTrapOid from '../components/snmptraps/SnmpTrapOid.js';
 import SnmpTrapTags from '../components/snmptraps/SnmpTrapTags.js';
 import SnmpTrapTagConfig from '../components/snmptraps/SnmpTrapTagConfig.js';
-import { IoPieChartOutline, IoPieChartSharp, IoRefreshCircleOutline, IoRefreshCircleSharp } from "react-icons/io5";
-import { RiInfoCardLine, RiInfoCardFill } from "react-icons/ri";
-import { PiArticleMediumLight, PiArticleMediumFill } from "react-icons/pi";
+
 import { useMnemonics } from '../hooks/useMnemonics.js';
 import { useSyslogRegEx } from '../hooks/useSyslogRegEx.js';
 import { useSnmpTrapOids } from '../hooks/useSnmpTrapOids.js';

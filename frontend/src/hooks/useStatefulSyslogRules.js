@@ -54,7 +54,7 @@ export function useStatefulSyslogRules(keycloak, autoLoad = true) {
       try {
         const data = await kcFetch(
           keycloak,
-          `/syslogs/statefulrules/${rule.name}/`
+          `/syslogs/signals/rules/stateful/${rule.name}`
         );
         setRuleDetails(data);
         return data;
@@ -123,7 +123,7 @@ export function useStatefulSyslogRules(keycloak, autoLoad = true) {
     async (ruleName) => {
       await kcFetch(
         keycloak,
-        `/syslogs/signals/rules/stateful/${ruleName}/`,
+        `/syslogs/signals/rules/stateful/${ruleName}`,
         {
           method: "DELETE",
         }

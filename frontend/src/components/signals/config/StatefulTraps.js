@@ -2,11 +2,9 @@ import { useState, useEffect } from 'react';
 import './SignalConfigElement.css';
 import Select from 'react-select';
 import customStyles from '../../misc/SelectStyles';
-import { useSnmpTrapRules } from "../../../hooks/useSnmpTrapRules";
-import { useSnmpTrapTags } from "../../../hooks/useSnmpTrapTags";
-import { useSnmpTrapOids } from "../../../hooks/useSnmpTrapOids";
+import { useSnmpTrapRules } from "../../../hooks/useSnmpTrapRules"; 
 
-const StatefulTraps = ({ keycloak }) => {
+const StatefulTraps = ({ keycloak, devices, snmpTrapOids, tags }) => {
     const [snmpTrapRule, setSnmpTrapRule] = useState([]);
     const {
         rules,
@@ -19,19 +17,7 @@ const StatefulTraps = ({ keycloak }) => {
         updateRule,
         deleteRule
     } = useSnmpTrapRules(keycloak);
-    const [editedData, setEditedData] = useState({});
-    const {
-        oids: oidNames = [],
-        loading: oidsLoading,
-        error: oidsError
-    } = useSnmpTrapOids(keycloak);
-
-    const {
-        tags: tagNames = [],
-        loading: tagsLoading,
-        error: tagsError
-    } = useSnmpTrapTags(keycloak);
-    const [devices, setDevices] = useState([]);
+    const [editedData, setEditedData] = useState({});  
     const [newRule, setNewRule] = useState({
         name: '',
         devices: [],
@@ -48,6 +34,13 @@ const StatefulTraps = ({ keycloak }) => {
         cooldown: '',
     });
     const [isAddingNewRule, setIsAddingNewRule] = useState(true);
+
+    useEffect(() => {
+        if (ruleDetails) {
+          setNewRule(ruleDetails);
+        }
+        console.log("Rule details updated:", ruleDetails);
+      }, [ruleDetails]);
 
     const handleOptionChange = async (rule) => {
         setIsAddingNewRule(false);
@@ -93,8 +86,12 @@ const StatefulTraps = ({ keycloak }) => {
         })
     }
 
+    console.log("Devices:", devices);
+    console.log("SNMP Trap OIDs:", snmpTrapOids);
+    console.log("Tags:", tags);
+
     return (
-        <div className="dropdownConfigContainer" style={{ height: '500px' }}>
+        <div className="signalTagContainer">
             {isLoading ? (
                 <div className="signalConfigRuleMessage">Loading stateful syslog rules. Please wait...</div>
             ) : error ? (
@@ -128,7 +125,7 @@ const StatefulTraps = ({ keycloak }) => {
                                     }}>
                                     Add new rule
                                 </li>
-                                {snmpTrapRule.map((rule) => (
+                                {rules.map((rule) => (
                                     <li
                                         key={rule.id}
                                         className={`signalTagItem ${selectedRule && selectedRule.id === rule.id ? 'selected' : ''}`}
@@ -154,7 +151,7 @@ const StatefulTraps = ({ keycloak }) => {
                                                 setNewRule({ ...newRule, name: e.target.value })
                                             }
                                         />
-                                    </div>
+                                    </div>{/*
                                     <div style={{ marginTop: '5px' }}>
                                         <span>Hostname:</span>
                                         <Select
@@ -199,23 +196,19 @@ const StatefulTraps = ({ keycloak }) => {
                                                 </div>
                                             </div>
                                         </div>
-                                    )}
+                                    )}*/}
                                     <div style={{ marginTop: '5px' }}>
                                         <span>Open Signal OID:</span>
                                         <Select
-                                            name="opensignaltrap"
-                                            value={
-                                                oidNames.length
-                                                    ? oidNames.find(option => option.value === newRule.opensignaltrap) ?? null
-                                                    : null
-                                            }
+                                            name="opensignaltrap" 
+                                            value={snmpTrapOids.find(option => option.name === newRule.opensignaltrap)}
                                             isMulti={false}
-                                            options={oidNames.map(tag => ({
-                                                value: tag.value,
-                                                label: tag.label,
+                                            options={snmpTrapOids.map(tag => ({
+                                                value: tag.name,
+                                                label: tag.name,
                                             }))}
                                             onChange={(selectedRule) =>
-                                                setNewRule({ ...newRule, opensignaltrap: selectedRule.value })}
+                                                setNewRule({ ...newRule, opensignaltrap: selectedRule.name })}
                                             styles={customStyles('505px')}
                                         />
                                     </div>
@@ -224,8 +217,8 @@ const StatefulTraps = ({ keycloak }) => {
                                             <span>Open Signal Event:</span>
                                             <Select
                                                 name="opensignaltag"
-                                                value={tagNames.find(option => option.value === newRule.opensignaltag)}
-                                                options={tagNames}
+                                                value={tags.find(option => option.value === newRule.opensignaltag)}
+                                                options={tags}
                                                 onChange={(selectedRule) =>
                                                     setNewRule({ ...newRule, opensignaltag: selectedRule.value })}
                                                 styles={customStyles('243px')}
@@ -249,19 +242,15 @@ const StatefulTraps = ({ keycloak }) => {
                                     <div style={{ marginTop: '5px' }}>
                                         <span>Close Signal OID:</span>
                                         <Select
-                                            name="closesignaltrap"
-                                            value={
-                                                oidNames.length
-                                                    ? oidNames.find(option => option.value === newRule.closesignaltrap) ?? null
-                                                    : null
-                                            }
+                                            name="closesignaltrap" 
+                                            value={snmpTrapOids.find(option => option.name === newRule.closesignaltrap)}
                                             isMulti={false}
-                                            options={oidNames.map(tag => ({
-                                                value: tag.value,
-                                                label: tag.label,
+                                            options={snmpTrapOids.map(tag => ({
+                                                value: tag.name,
+                                                label: tag.name,
                                             }))}
                                             onChange={(selectedRule) =>
-                                                setNewRule({ ...newRule, closesignaltrap: selectedRule.value })}
+                                                setNewRule({ ...newRule, closesignaltrap: selectedRule.name })}
                                             styles={customStyles('505px')}
                                         />
                                     </div>
@@ -270,8 +259,8 @@ const StatefulTraps = ({ keycloak }) => {
                                             <span>Close Signal Event:</span>
                                             <Select
                                                 name="closesignaltag"
-                                                value={tagNames.find(option => option.value === newRule.closesignaltag)}
-                                                options={tagNames}
+                                                value={tags.find(option => option.value === newRule.closesignaltag)}
+                                                options={tags}
                                                 onChange={(selectedRule) =>
                                                     setNewRule({ ...newRule, closesignaltag: selectedRule.value })}
                                                 styles={customStyles('243px')}
@@ -296,8 +285,8 @@ const StatefulTraps = ({ keycloak }) => {
                                         <span>Affected Entities:</span>
                                         <Select
                                             name="affectedentity"
-                                            value={tagNames.filter((tag) => newRule.affectedentity.includes(tag.label))}
-                                            options={tagNames}
+                                            value={tags.filter((tag) => newRule.affectedentity.includes(tag.label))}
+                                            options={tags}
                                             onChange={(selectedRules) =>
                                                 setNewRule({
                                                     ...newRule,

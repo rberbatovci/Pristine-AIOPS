@@ -127,45 +127,26 @@ const FilterTraps = ({
           </div>
         </div>
 
-        {/* Mnemonics */}
+        {/* SNMP Trap OIDs */}
         <div className="searchSyslogsFilterEntry">
-          <span className="searchSignalFilterText">Mnemonic:</span>
+          <span className="searchSignalFilterText">SNMP Trap OID:</span>
           <div style={{ marginTop: '6px' }}>
             <Select
-              options={tagOptions.mnemonic || []}
+              options={tagOptions.snmpTrapOids || []}
               isMulti
-              value={selectedTags.mnemonic || []}
-              onChange={(v) => handleChange(v, 'mnemonic')}
-              onFocus={() => handleFocus("mnemonic")}
+              value={selectedTags.snmpTrapOids || []}
+              onChange={(v) => handleChange(v, 'snmpTrapOids')}
+              onFocus={() => handleFocus("snmpTrapOids")}
               styles={{
                 ...customStyles('375px'),
                 menuPortal: base => ({ ...base, zIndex: 9999 })
               }}
               menuPortalTarget={document.body}
-              placeholder="Select mnemonics"
+              placeholder="Select snmpTrapOids"
             />
           </div>
-        </div>
-
-        {/* Severity */}
-        <div className="searchSyslogsFilterEntry">
-          <span className="searchSignalFilterText">Severity:</span>
-          <div style={{ marginTop: '6px' }}>
-            <Select
-              options={severityOptions}
-              isMulti
-              value={selectedTags.severity || []}
-              onChange={(v) => handleChange(v, "severity")}
-              styles={{
-                ...customStyles('375px'),
-                menuPortal: base => ({ ...base, zIndex: 9999 })
-              }}
-              menuPortalTarget={document.body}
-              placeholder="Select severity"
-            />
-          </div>
-        </div>
-
+        </div> 
+        
         {/* Dynamic Tags (optional) */}
         {tags.map((tag) => (
           <div key={tag.name} className="searchSyslogsFilterEntry">
