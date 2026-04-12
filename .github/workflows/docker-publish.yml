@@ -137,13 +137,13 @@ jobs:
       #    push: true
       #    tags: ghcr.io/rberbatovci/telemetry-memory-stats:latest
 
-      #- name: Build and push interface statistics consumer image
-      #  uses: docker/build-push-action@v5
-      #  with:
-      #    context: .
-      #    file: ./dockerfiles/Dockerfile.telemetry-interface-stats
-      #    push: true
-      #    tags: ghcr.io/rberbatovci/telemetry-interface-stats:latest
+      - name: Build and push interface statistics consumer image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.telemetry-interface-stats
+          push: true
+          tags: ghcr.io/rberbatovci/telemetry-interface-stats:latest
 
       - name: Build and push interface status consumer image
         uses: docker/build-push-action@v5
@@ -151,7 +151,7 @@ jobs:
           context: .
           file: ./dockerfiles/Dockerfile.telemetry-interface-oper-status
           push: true
-          tags: ghcr.io/rberbatovci/telemetry-interface-stats:latest
+          tags: ghcr.io/rberbatovci/telemetry-interface-oper-status:latest
 
       #- name: Build and push bgp connections consumer image
       #  uses: docker/build-push-action@v5
