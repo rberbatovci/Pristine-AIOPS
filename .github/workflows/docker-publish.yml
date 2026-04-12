@@ -169,13 +169,13 @@ jobs:
       #    push: true
       #    tags: ghcr.io/rberbatovci/gobgp-server:latest
 
-      - name: Build and push topology producer image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./dockerfiles/Dockerfile.topology-producer
-          push: true
-          tags: ghcr.io/rberbatovci/topology-producer:latest
+      #- name: Build and push topology producer image
+      #  uses: docker/build-push-action@v5
+      #  with:
+      #    context: .
+      #    file: ./dockerfiles/Dockerfile.topology-producer
+      #    push: true
+      #    tags: ghcr.io/rberbatovci/topology-producer:latest
 
       - name: Build and push keycloak image
         uses: docker/build-push-action@v5
