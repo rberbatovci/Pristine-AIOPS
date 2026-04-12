@@ -129,11 +129,11 @@ const App = ({ keycloak, keycloakAuthenticated }) => {
               <Routes>
                 <Route path="/incidents" element={<ProtectedRoute isAuthenticated={isAuthenticated}><Incidents currentUser={currentUser} setDashboardTitle={setDashboardTitle} keycloak={keycloak}/></ProtectedRoute>} />
                 <Route path="/devices" element={<ProtectedRoute isAuthenticated={isAuthenticated}><Devices currentUser={currentUser} setDashboardTitle={setDashboardTitle} showNotification={showNotification} keycloak={keycloak}/></ProtectedRoute>} />
-                <Route path="/signals" element={<ProtectedRoute isAuthenticated={isAuthenticated}><Signals currentUser={currentUser} setDashboardTitle={setDashboardTitle} keycloak={keycloak}/></ProtectedRoute>} />
-                <Route path="/faults" element={<ProtectedRoute isAuthenticated={isAuthenticated}><Faults currentUser={currentUser} setDashboardTitle={setDashboardTitle} keycloak={keycloak}/></ProtectedRoute>} />
-                <Route path="/traffic" element={ <ProtectedRoute isAuthenticated={isAuthenticated}><Traffic currentUser={currentUser} setDashboardTitle={setDashboardTitle} keycloak={keycloak} /></ProtectedRoute> } />
-                <Route path="/performance" element={ <ProtectedRoute isAuthenticated={isAuthenticated}> <Performance currentUser={currentUser} setDashboardTitle={setDashboardTitle} keycloak={keycloak} /></ProtectedRoute>} />
-                <Route path="/topology" element={<ProtectedRoute isAuthenticated={isAuthenticated}><Topology currentUser={currentUser} setDashboardTitle={setDashboardTitle} keycloak={keycloak}/></ProtectedRoute>} />
+                <Route path="/signals" element={<ProtectedRoute isAuthenticated={isAuthenticated}><Signals currentUser={currentUser} setDashboardTitle={setDashboardTitle} keycloak={keycloak} showNotification={showNotification}/></ProtectedRoute>} />
+                <Route path="/faults" element={<ProtectedRoute isAuthenticated={isAuthenticated}><Faults currentUser={currentUser} setDashboardTitle={setDashboardTitle} keycloak={keycloak} showNotification={showNotification}/></ProtectedRoute>} />
+                <Route path="/traffic" element={ <ProtectedRoute isAuthenticated={isAuthenticated}><Traffic currentUser={currentUser} setDashboardTitle={setDashboardTitle} keycloak={keycloak} showNotification={showNotification}/></ProtectedRoute> } />
+                <Route path="/performance" element={ <ProtectedRoute isAuthenticated={isAuthenticated}> <Performance currentUser={currentUser} setDashboardTitle={setDashboardTitle} keycloak={keycloak} showNotification={showNotification}/></ProtectedRoute>} />
+                <Route path="/topology" element={<ProtectedRoute isAuthenticated={isAuthenticated}><Topology currentUser={currentUser} setDashboardTitle={setDashboardTitle} keycloak={keycloak} showNotification={showNotification}/></ProtectedRoute>} />
               </Routes>
             </div>
           </div>

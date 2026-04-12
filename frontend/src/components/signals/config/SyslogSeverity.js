@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import kcFetch from '../../misc/kcFetch';
-import './SignalConfigElement.css';
+import kcFetch from '../../misc/kcFetch'; 
 import { useSyslogSeverity } from '../../../hooks/useSyslogSeverity';
 
 const SyslogSeverity = ({ keycloak }) => {

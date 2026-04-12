@@ -30,6 +30,8 @@ export function useSignalData() {
         url = `/syslogs/signals/?page=${page}&page_size=${PAGE_SIZE}`;
       } else if (dataSource === "snmptraps") {
         url = `/traps/signals/?page=${page}&page_size=${PAGE_SIZE}`;
+      } else if (dataSource === "telemetry") {
+        url = `/telemetry/signals/?page=${page}&page_size=${PAGE_SIZE}`;
       } else {
         throw new Error(`Unknown dataSource: ${dataSource}`);
       }

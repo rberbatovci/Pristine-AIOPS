@@ -89,7 +89,7 @@ int main() {
 
     create_traps_index();
 
-    rd_kafka_t *signal_producer = init_signal_producer("kafka:9092");
+    rd_kafka_t *signal_producer = init_signal_producer("Kafka:9092");
 
     signal(SIGINT, stop_program);
     signal(SIGTERM, stop_program);

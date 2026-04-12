@@ -7,6 +7,7 @@ from sqlalchemy.orm import relationship, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 from app.auth.keycloak import get_current_user, require_admin
+from app.traps.snmptrapoids import TrapOid
 
 from app.db.session import Base, get_db
 from app.traps.services import trap_rules_association
@@ -31,10 +32,10 @@ class StatefulTrapRule(Base):
     opensignaltrap = relationship("TrapOid", foreign_keys=[opensignaltrap_id], backref="open_rules")
     closesignaltrap = relationship("TrapOid", foreign_keys=[closesignaltrap_id], backref="close_rules")
 
-    opensignaltag = Column(String(255), nullable=False)
-    opensignalvalue = Column(String(255), nullable=False)
-    closesignaltag = Column(String(255), nullable=False)
-    closesignalvalue = Column(String(255), nullable=False)
+    opensignaltag = Column(String(255), nullable=True)
+    opensignalvalue = Column(String(255), nullable=True)
+    closesignaltag = Column(String(255), nullable=True)
+    closesignalvalue = Column(String(255), nullable=True)
 
     initialseverity = Column(String(255), nullable=False)
     affectedentity = Column(JSON, nullable=True, default=list)
@@ -56,10 +57,10 @@ class StatefulTrapRuleBase(BaseModel):
     name: str
     opensignaltrap: Optional[str] = None
     closesignaltrap: Optional[str] = None
-    opensignaltag: str
-    opensignalvalue: str
-    closesignaltag: str
-    closesignalvalue: str
+    opensignaltag: Optional[str] = None
+    opensignalvalue: Optional[str] = None
+    closesignaltag: Optional[str] = None
+    closesignalvalue: Optional[str] = None
     initialseverity: str
     affectedentity: Optional[List[Any]] = None
     description: str
@@ -113,7 +114,21 @@ async def get_stateful_trap_rule(rule_name: str, db: AsyncSession = Depends(get_
     if not db_rule:
         raise HTTPException(status_code=404, detail=f"Trap rule '{rule_name}' not found")
 
-    return db_rule
+    return StatefulTrapRuleResponse(
+        id=db_rule.id,
+        name=db_rule.name,
+        opensignaltrap=db_rule.opensignaltrap.name if db_rule.opensignaltrap else None,
+        closesignaltrap=db_rule.closesignaltrap.name if db_rule.closesignaltrap else None,
+        opensignaltag=db_rule.opensignaltag,
+        opensignalvalue=db_rule.opensignalvalue,
+        closesignaltag=db_rule.closesignaltag,
+        closesignalvalue=db_rule.closesignalvalue,
+        initialseverity=db_rule.initialseverity,
+        affectedentity=db_rule.affectedentity,
+        description=db_rule.description,
+        warmup=db_rule.warmup,
+        cooldown=db_rule.cooldown,
+    )
 
 
 @router.post("/", response_model=StatefulTrapRuleResponse, status_code=201)
@@ -154,7 +169,21 @@ async def create_stateful_trap_rule(rule: StatefulTrapRuleCreate, db: AsyncSessi
     await db.commit()
     await db.refresh(db_rule)
 
-    return db_rule
+    return StatefulTrapRuleResponse(
+        id=db_rule.id,
+        name=db_rule.name,
+        opensignaltrap=db_rule.opensignaltrap.name if db_rule.opensignaltrap else None,
+        closesignaltrap=db_rule.closesignaltrap.name if db_rule.closesignaltrap else None,
+        opensignaltag=db_rule.opensignaltag,
+        opensignalvalue=db_rule.opensignalvalue,
+        closesignaltag=db_rule.closesignaltag,
+        closesignalvalue=db_rule.closesignalvalue,
+        initialseverity=db_rule.initialseverity,
+        affectedentity=db_rule.affectedentity,
+        description=db_rule.description,
+        warmup=db_rule.warmup,
+        cooldown=db_rule.cooldown,
+    )
 
 
 @router.delete("/{rule_name}", status_code=204)
@@ -171,3 +200,64 @@ async def delete_stateful_trap_rule(rule_name: str, db: AsyncSession = Depends(g
     await db.commit()
 
     return {"detail": f"Trap rule '{rule_name}' deleted successfully"}
+
+@router.put("/{rule_name}", response_model=StatefulTrapRuleResponse)
+async def update_stateful_trap_rule(
+    rule_name: str,
+    rule: StatefulTrapRuleResponse,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    require_admin(user)
+
+    from app.traps.snmptrapoids import TrapOid
+
+    db_rule = (await db.execute(
+        select(StatefulTrapRule).where(StatefulTrapRule.name == rule_name)
+    )).scalars().first()
+    if not db_rule:
+        raise HTTPException(status_code=404, detail="Rule not found")
+
+    open_trap = (await db.execute(
+        select(TrapOid).where(TrapOid.name == rule.opensignaltrap)
+    )).scalars().first()
+    if not open_trap:
+        raise HTTPException(status_code=400, detail=f"Open trap '{rule.opensignaltrap}' not found")
+
+    close_trap = (await db.execute(
+        select(TrapOid).where(TrapOid.name == rule.closesignaltrap)
+    )).scalars().first()
+    if not close_trap:
+        raise HTTPException(status_code=400, detail=f"Close trap '{rule.closesignaltrap}' not found")
+
+    db_rule.name = rule.name
+    db_rule.opensignaltag = rule.opensignaltag
+    db_rule.opensignalvalue = rule.opensignalvalue
+    db_rule.closesignaltag = rule.closesignaltag
+    db_rule.closesignalvalue = rule.closesignalvalue
+    db_rule.initialseverity = rule.initialseverity
+    db_rule.affectedentity = rule.affectedentity
+    db_rule.description = rule.description
+    db_rule.warmup = rule.warmup
+    db_rule.cooldown = rule.cooldown
+    db_rule.opensignaltrap = open_trap
+    db_rule.closesignaltrap = close_trap
+
+    await db.commit()
+    await db.refresh(db_rule)
+
+    return StatefulTrapRuleResponse(
+        id=db_rule.id,
+        name=db_rule.name,
+        opensignaltrap=open_trap.name if open_trap else None,
+        closesignaltrap=close_trap.name if close_trap else None,
+        opensignaltag=db_rule.opensignaltag,
+        opensignalvalue=db_rule.opensignalvalue,
+        closesignaltag=db_rule.closesignaltag,
+        closesignalvalue=db_rule.closesignalvalue,
+        initialseverity=db_rule.initialseverity,
+        affectedentity=db_rule.affectedentity,
+        description=db_rule.description,
+        warmup=db_rule.warmup,
+        cooldown=db_rule.cooldown,
+    )

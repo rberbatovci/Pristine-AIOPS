@@ -70,9 +70,9 @@ void* reload_data_thread(void* args) {
         pthread_mutex_lock(&config_mutex);
 
         load_trap_oids(conn);
-        // print_trap_oids();  // optional debug
+         print_trap_oids();  // optional debug
         load_trap_tags(conn);
-        // print_trap_tags();  // optional debug
+         print_trap_tags();  // optional debug
 
         pthread_mutex_unlock(&config_mutex);
 

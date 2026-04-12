@@ -132,17 +132,16 @@ CREATE TABLE IF NOT EXISTS stateful_trap_rules (
     name VARCHAR(255) NOT NULL,
     opensignaltrap_id INTEGER,
     closesignaltrap_id INTEGER,
-    opensignaltag VARCHAR(255) NOT NULL,
-    opensignalvalue VARCHAR(255) NOT NULL,
-    closesignaltag VARCHAR(255) NOT NULL,
-    closesignalvalue VARCHAR(255) NOT NULL,
-    initialseverity VARCHAR(255) NOT NULL,
+    opensignaltag VARCHAR(255), 
+    opensignalvalue VARCHAR(255),
+    closesignaltag VARCHAR(255),
+    closesignalvalue VARCHAR(255),
+    initialseverity VARCHAR(255),
     affectedentity JSON DEFAULT '[]',
     description TEXT NOT NULL,
     warmup INTEGER NOT NULL,
     cooldown INTEGER NOT NULL,
 
-    -- Foreign key constraints
     CONSTRAINT fk_opensignaltrap
         FOREIGN KEY (opensignaltrap_id) REFERENCES snmp_trap_oids(id) ON DELETE SET NULL,
     CONSTRAINT fk_closesignaltrap
@@ -164,6 +163,45 @@ CREATE TABLE IF NOT EXISTS trap_rules (
     PRIMARY KEY (trap_id, rule_id),
     FOREIGN KEY (trap_id) REFERENCES snmp_trap_oids(id) ON DELETE CASCADE,
     FOREIGN KEY (rule_id) REFERENCES stateful_trap_rules(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS telemetry_signals_rules (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    highthreshold DOUBLE PRECISION,
+    lowthreshold DOUBLE PRECISION,
+    openvalue VARCHAR(255),
+    closevalue VARCHAR(255),
+    initialseverity VARCHAR(255) NOT NULL,
+    affectedentity JSON DEFAULT '[]',
+    description TEXT NOT NULL,
+    warmup INTEGER NOT NULL,
+    cooldown INTEGER NOT NULL
+);
+
+INSERT INTO telemetry_signals_rules (
+    name,
+    highthreshold,
+    lowthreshold,
+    openvalue,
+    closevalue,
+    initialseverity,
+    affectedentity,
+    description,
+    warmup,
+    cooldown
+)
+VALUES (
+    'cpu-utilization',
+    90,
+    20,
+    'ALERT_OPEN',
+    'ALERT_CLOSE',
+    'Warning',
+    '[]',
+    'CPU utilization monitoring rule',
+    30,
+    60
 );
 
 -- Create the function

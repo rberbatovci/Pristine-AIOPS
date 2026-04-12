@@ -4,20 +4,18 @@ import Select from 'react-select';
 import customStyles from '../../misc/SelectStyles';
 import { TailSpin } from 'react-loader-spinner';
 
-import { useStatefulSnmpTrapRules } from "../../../hooks/useStatefulSnmpTrapRules";
+import { useTelemetrySignals } from "../../../hooks/useTelemetrySignals";
 
-const StatefulTraps = ({ keycloak, devices, onReload, snmpTrapOids, tags, showNotification }) => {
+const TelemetrySignals = ({ keycloak, devices, onReload, snmpTrapOids, tags, showNotification }) => {
     const [snmpTrapRule, setSnmpTrapRule] = useState([]);
-    const { rules, ruleDetails, loading: isLoading, error, selectRule, addRule, updateRule, deleteRule } = useStatefulSnmpTrapRules(keycloak);
+    const { rules, ruleDetails, loading: isLoading, error, selectRule, addRule, updateRule, deleteRule } = useTelemetrySignals(keycloak);
     const emptyRule = {
         name: '',
         devices: [],
-        opensignaltrap: '',
-        opensignaltag: '',
-        opensignalvalue: '',
-        closesignaltrap: '',
-        closesignaltag: '',
-        closesignalvalue: '',
+        highthreshold: '',
+        lowthreshold: '',
+        openvalue: '',
+        closevalue: '', 
         initialseverity: '',
         affectedentity: [],
         description: '',
@@ -212,100 +210,62 @@ const StatefulTraps = ({ keycloak, devices, onReload, snmpTrapOids, tags, showNo
                                             </div>
                                         </div>
                                     )}*/}
-                                    <div style={{ marginTop: '5px' }}>
-                                        <span>Open Signal OID:</span>
-                                        <Select
-                                            name="opensignaltrap"
-                                            value={snmpTrapOids
-                                                .map(o => ({ value: o.name, label: o.name }))
-                                                .find(o => o.value === selectedRule.opensignaltrap)
-                                            }
-                                            isMulti={false}
-                                            options={snmpTrapOids.map(o => ({ value: o.name, label: o.name }))}
-                                            onChange={(option) =>
-                                                setSelectedRule({ ...selectedRule, opensignaltrap: option?.value || '' })
-                                            }
-                                            styles={customStyles('505px')}
-                                        />
-                                    </div>
-                                    <div style={{ marginTop: '5px', display: 'flex' }}>
-                                        <div>
-                                            <span>Open Signal Event:</span>
-                                            <Select
-                                                name="opensignaltag"
-                                                value={tags
-                                                    .map(t => ({ value: t.name, label: t.name }))
-                                                    .find(t => t.value === selectedRule.opensignaltag)
-                                                }
-                                                options={tags.map(t => ({ value: t.name, label: t.name }))}
-                                                onChange={(option) =>
-                                                    setSelectedRule({ ...selectedRule, opensignaltag: option?.value || '' })
-                                                }
-                                                styles={customStyles('243px')}
-                                                isMulti={false}
-                                            />
-                                        </div>
-                                        <div style={{ marginLeft: '13px' }}>
-                                            <span>Open signal value:</span>
+                                    <div>
+                                            <span>High Threshold:</span>
                                             <input
-                                                type="text"
-                                                name="opensignalvalue"
-                                                value={selectedRule.opensignalvalue}
+                                                type="number"
+                                                name="highThreshold"
+                                                value={selectedRule.highThreshold}
                                                 className="inputText"
                                                 style={{ width: '243px' }}
                                                 onChange={(e) =>
-                                                    setSelectedRule({ ...selectedRule, opensignalvalue: e.target.value })
+                                                    setSelectedRule({ ...selectedRule, highThreshold: parseInt(e.target.value, 10) || 0 })
                                                 }
                                             />
                                         </div>
-                                    </div>
-                                    <div style={{ marginTop: '5px' }}>
-                                        <span>Close Signal OID:</span>
-                                        <Select
-                                            name="closesignaltrap"
-                                            value={snmpTrapOids
-                                                .map(o => ({ value: o.name, label: o.name }))
-                                                .find(o => o.value === selectedRule.closesignaltrap)
-                                            }
-                                            isMulti={false}
-                                            options={snmpTrapOids.map(o => ({ value: o.name, label: o.name }))}
-                                            onChange={(option) =>
-                                                setSelectedRule({ ...selectedRule, closesignaltrap: option?.value || '' })
-                                            }
-                                            styles={customStyles('505px')}
-                                        />
-                                    </div>
-                                    <div style={{ marginTop: '5px', display: 'flex' }}>
+
                                         <div>
-                                            <span>Close Signal Event:</span>
-                                            <Select
-                                                name="closesignaltag"
-                                                value={tags
-                                                    .map(t => ({ value: t.name, label: t.name }))
-                                                    .find(t => t.value === selectedRule.closesignaltag)
-                                                }
-                                                options={tags.map(t => ({ value: t.name, label: t.name }))}
-                                                onChange={(option) =>
-                                                    setSelectedRule({ ...selectedRule, closesignaltag: option?.value || '' })
-                                                }
-                                                styles={customStyles('243px')}
-                                                isMulti={false}
-                                            />
-                                        </div>
-                                        <div style={{ marginLeft: '13px' }}>
-                                            <span>Close signal value:</span>
+                                            <span>Low Threshold:</span>
                                             <input
-                                                type="text"
-                                                name="closesignalvalue"
-                                                value={selectedRule.closesignalvalue}
+                                                type="number"
+                                                name="lowThreshold"
+                                                value={selectedRule.lowThreshold}
                                                 className="inputText"
                                                 style={{ width: '243px' }}
                                                 onChange={(e) =>
-                                                    setSelectedRule({ ...selectedRule, closesignalvalue: e.target.value })
+                                                    setSelectedRule({ ...selectedRule, lowThreshold: parseInt(e.target.value, 10) || 0 })
                                                 }
                                             />
                                         </div>
-                                    </div>
+                                    <div style={{ marginTop: '5px', display: 'flex' }}>
+                                        <div>
+                                            <span>Open Value:</span>
+                                            <input
+                                                type="text"
+                                                name="openvalue"
+                                                value={selectedRule.openvalue}
+                                                className="inputText"
+                                                style={{ width: '243px' }}
+                                                onChange={(e) =>
+                                                    setSelectedRule({ ...selectedRule, openvalue: e.target.value })
+                                                }
+                                            />
+                                        </div>
+                                        <div style={{ marginLeft: '13px' }}>
+                                            <span>Close Value:</span>
+                                            <input
+                                                type="text"
+                                                name="closevalue"
+                                                value={selectedRule.closevalue}
+                                                className="inputText"
+                                                style={{ width: '243px' }}
+                                                onChange={(e) =>
+                                                    setSelectedRule({ ...selectedRule, closevalue: e.target.value })
+                                                }
+                                            />
+                                        </div>
+                                    </div> 
+                                     
                                     <div style={{ marginTop: '5px' }}>
                                         <span>Affected Entities:</span>
                                         <Select
@@ -454,4 +414,4 @@ const StatefulTraps = ({ keycloak, devices, onReload, snmpTrapOids, tags, showNo
     );
 };
 
-export default StatefulTraps;
+export default TelemetrySignals;

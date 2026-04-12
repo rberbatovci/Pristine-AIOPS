@@ -36,16 +36,34 @@ function RegEx({ keycloak, regularExpressions, onReload, showNotification }) {
   }, [details]);
 
   // SELECT RULE
-  const handleSelect = (regex) => { 
+  const handleSelect = (regex) => {
     setSelectedRegex(regex);
     setIsAddNew(false);
     get(regex.name);
+  };
+
+  const getErrorMessage = (err) => {
+    if (!err) return "Unknown error";
+
+    if (typeof err === "string") return err;
+
+    if (err.message) {
+      try {
+        const parsed = JSON.parse(err.message);
+        return parsed.detail || err.message;
+      } catch {
+        return err.message;
+      }
+    }
+
+    return JSON.stringify(err);
   };
 
   // ADD
   const handleAdd = async () => {
     setLoadingState('adding');
     try {
+      console.log("SENDING FORM:", form); // 👈 ADD THIS
       await create(form);
       await onReload();
       //await loadList(); // 🔥 refresh list
@@ -53,7 +71,12 @@ function RegEx({ keycloak, regularExpressions, onReload, showNotification }) {
       setForm(emptyForm);
       setIsAddNew(true);
     } catch (err) {
-      showNotification(err.message || "Failed to create rule", "error");
+      console.error("ADD ERROR:", err); // 👈 ADD THIS
+      if (err.detail?.includes("already exists")) {
+        showNotification("Name already exists. Choose another.", "error");
+      } else {
+        showNotification(getErrorMessage(err), "error");
+      }
     } finally {
       setLoadingState(null);
     }
@@ -63,6 +86,7 @@ function RegEx({ keycloak, regularExpressions, onReload, showNotification }) {
   const handleSave = async () => {
     setLoadingState('saving');
     try {
+      console.log("SENDING FORM:", form); // 👈 ADD THIS
       await update(form.name, form);
       await onReload();
       //await loadList(); // 🔥 refresh list
@@ -71,7 +95,8 @@ function RegEx({ keycloak, regularExpressions, onReload, showNotification }) {
       setForm(emptyForm);
       setIsAddNew(true);
     } catch (err) {
-      showNotification(err.message || "Failed to update rule", "error");
+      console.error("SAVE ERROR:", err); // 👈 ADD THIS
+      showNotification(err.message || String(err), "error");
     } finally {
       setLoadingState(null);
     }
@@ -90,6 +115,8 @@ function RegEx({ keycloak, regularExpressions, onReload, showNotification }) {
       setIsAddNew(true);
     } catch (err) {
       setLoadingState(null);
+      console.error("DELETE ERROR:", err); // 👈 ADD THIS
+      showNotification(err.message || String(err), "error");
     }
   };
 

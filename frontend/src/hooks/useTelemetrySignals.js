@@ -1,9 +1,9 @@
 import { useState, useCallback, useEffect } from "react";
 import kcFetch from "../components/misc/kcFetch";
 
-export function useSnmpTrapRules(keycloak, autoLoad = true) {
+export function useTelemetrySignals(keycloak, autoLoad = true) {
   const [rules, setRules] = useState([]);
-  const [selectedRule, setSelectedRule] = useState(null);
+  const [details, setDetails] = useState(null); 
   const [ruleDetails, setRuleDetails] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -20,11 +20,11 @@ export function useSnmpTrapRules(keycloak, autoLoad = true) {
     try {
       const data = await kcFetch(
         keycloak,
-        "/traps/signals/rules/stateful/"
+        "/telemetry/signals/rules/"
       );
       setRules(data);
     } catch (err) {
-      console.error("Failed to load traps rules:", err);
+      console.error("Failed to load telemetry signals rules:", err);
       setError(err);
     } finally {
       setLoading(false);
@@ -42,19 +42,17 @@ export function useSnmpTrapRules(keycloak, autoLoad = true) {
   ======================= */
   const selectRule = useCallback(
     async (rule) => {
-      if (!rule) {
-        setSelectedRule(null);
+      if (!rule) { 
         setRuleDetails(null);
         return;
       }
-
-      setSelectedRule(rule);
+ 
       setLoading(true);
 
       try {
         const data = await kcFetch(
           keycloak,
-          `/api/traps/signals/rules/stateful/${rule.name}/`
+          `/telemetry/signals/rules/${rule.name}`
         );
         setRuleDetails(data);
         return data;
@@ -75,15 +73,14 @@ export function useSnmpTrapRules(keycloak, autoLoad = true) {
     async (payload) => {
       const data = await kcFetch(
         keycloak,
-        "/api/traps/signals/rules/stateful/",
+        "/telemetry/signals/rules/",
         {
           method: "POST",
           body: JSON.stringify(payload),
         }
       );
 
-      setRules(prev => [...prev, data]);
-      setSelectedRule(data);
+      setRules(prev => [...prev, data]); 
       setRuleDetails(data);
 
       return data;
@@ -98,7 +95,7 @@ export function useSnmpTrapRules(keycloak, autoLoad = true) {
     async (ruleName, payload) => {
       const data = await kcFetch(
         keycloak,
-        `/api/traps/signals/rules/stateful/${ruleName}`,
+        `/telemetry/signals/rules/${ruleName}`,
         {
           method: "PUT",
           body: JSON.stringify(payload),
@@ -107,8 +104,7 @@ export function useSnmpTrapRules(keycloak, autoLoad = true) {
 
       setRules(prev =>
         prev.map(r => (r.name === ruleName ? data : r))
-      );
-      setSelectedRule(data);
+      ); 
       setRuleDetails(data);
 
       return data;
@@ -123,26 +119,23 @@ export function useSnmpTrapRules(keycloak, autoLoad = true) {
     async (ruleName) => {
       await kcFetch(
         keycloak,
-        `/api/traps/signals/rules/stateful/${ruleName}/`,
+        `/telemetry/signals/rules/${ruleName}`,
         {
           method: "DELETE",
         }
       );
 
-      setRules(prev => prev.filter(r => r.name !== ruleName));
-      setSelectedRule(null);
+      setRules(prev => prev.filter(r => r.name !== ruleName)); 
       setRuleDetails(null);
     },
     [keycloak]
   );
 
   return {
-    rules,
-    selectedRule,
+    rules, 
     ruleDetails,
     loading,
-    error,
-
+    error, 
     // actions
     reload: loadRules,
     selectRule,

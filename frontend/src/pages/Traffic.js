@@ -14,14 +14,11 @@ import { IoPieChartOutline, IoPieChartSharp, IoRefreshCircleOutline, IoRefreshCi
 
 function Traffic({ currentUser, setDashboardTitle, keycloak }) {
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(false);
-    const [selectedTags, setSelectedTags] = useState([]);
-    const [dataSource, setDataSource] = useState('syslogs');
+    const [error, setError] = useState(false);  
     const [eventsData, setEventsData] = useState([]);
     const downloadRef = useRef(null);
     const dropdownWrapperRef = useRef(null);
-    const dropdownMenuRef = useRef(null);
-    const buttonsContainerRef = useRef(null);
+    const dropdownMenuRef = useRef(null); 
     const [dropdowns, setDropdowns] = useState({
         search: { visible: false, position: { x: 0, y: 0 } },
         time: { visible: false, position: { x: 0, y: 0 } },
@@ -29,7 +26,7 @@ function Traffic({ currentUser, setDashboardTitle, keycloak }) {
     });
     const [devices, setDevices] = useState([]);
     const [page, setPage] = useState(1);
-    const [pageSize, setPageSize] = useState(21);
+    const [pageSize, setPageSize] = useState(20);
     const [totalEvents, setTotalEvents] = useState(0);
     const baseColumns = [
         { label: 'Timestamp', value: 'timestamp' },
@@ -43,10 +40,7 @@ function Traffic({ currentUser, setDashboardTitle, keycloak }) {
         { label: 'Output Interface', value: 'output_if' },
         { label: 'Bytes', value: 'bytes' },
         { label: 'Packets', value: 'packets' },
-    ];
-
-    const [selectedDevice, setSelectedDevice] = useState(null);
-    const [columnConfigs, setColumnConfigs] = useState(baseColumns);
+    ]; 
     const [startTime, setStartTime] = useState(() => new Date(Date.now() - 60 * 60 * 1000));
     const [endTime, setEndTime] = useState(() => new Date());
     const [filters, setFilters] = useState({});
@@ -123,7 +117,7 @@ function Traffic({ currentUser, setDashboardTitle, keycloak }) {
 
     useEffect(() => {
         loadNetflowData(keycloak, page, pageSize, startTime?.toISOString(), endTime?.toISOString(), filters);
-    }, [page, pageSize, startTime, endTime, pageSize, view, dataSource]);
+    }, [page, pageSize, startTime, endTime, pageSize, view, 'netflow']);
 
     useEffect(() => {
         const fetchDevices = async () => {
@@ -146,7 +140,7 @@ function Traffic({ currentUser, setDashboardTitle, keycloak }) {
 
     useEffect(() => {
         setView("list");
-    }, [dataSource]);
+    }, []);
 
 
     const handleRowSelectChange = (newSelectedRows) => {
@@ -287,7 +281,7 @@ function Traffic({ currentUser, setDashboardTitle, keycloak }) {
                 {error && <div className="errorMessage">{error}</div>}
                 {!loading && !error && (view === "list" ? (
                     <div className="syslogsTableContainer">
-                        <EventsTable currentUser={currentUser} data={eventsData} columns={baseColumns} signalSource={dataSource} onDownload={(downloadFn) => (downloadRef.current = downloadFn)} onRowSelectChange={handleRowSelectChange} />
+                        <EventsTable currentUser={currentUser} data={eventsData} columns={baseColumns} signalSource='netflow' onDownload={(downloadFn) => (downloadRef.current = downloadFn)} onRowSelectChange={handleRowSelectChange} />
                     </div>) : (
                     <div className="syslogsTableContainer">
                         <ChartView keycloak={keycloak} currentUser={currentUser} source='events' dataSource='netflow' selectedTags={baseColumns} />

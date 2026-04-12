@@ -33,15 +33,13 @@ services:
       - "./certs:/certs"
       - "./traefik.yml:/etc/traefik/traefik.yml:ro"
     networks:
-      - aiops
-
-    # Traefik dashboard
-    #labels:
-    #  - "traefik.enable=true"
-    #  - "traefik.http.routers.traefik.rule=Host(`traefik.pristine-aiops.local`)"
-    #  - "traefik.http.routers.traefik.entrypoints=websecure"
-    #  - "traefik.http.routers.traefik.tls=true"
-    #  - "traefik.http.routers.traefik.service=api@internal"
+      - aiops 
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.pristine-aiops.local`)"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.tls=true"
+      - "traefik.http.routers.traefik.service=api@internal"
 
   ############################################
   # FASTAPI BACKEND
@@ -57,6 +55,8 @@ services:
       - aiops
     depends_on:
       postgresql:
+        condition: service_healthy
+      opensearch-node1:
         condition: service_healthy
     env_file:
       - .env
@@ -79,6 +79,10 @@ services:
     build:
       context: .
       dockerfile: ./dockerfiles/Dockerfile.frontend
+    depends_on:
+      - backend
+      - keycloak
+      - opensearch-node1
     networks:
       - aiops
     labels:
@@ -179,8 +183,11 @@ services:
   #  restart: unless-stopped
 
   postgresql:
-    image: ghcr.io/rberbatovci/postgresql:latest
     container_name: PostgreSQL
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.postgresql
+    #image: ghcr.io/rberbatovci/postgresql:latest 
     ports:
       - "5432:5432"
     env_file: .env
@@ -355,9 +362,14 @@ services:
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - ./data:/data
-    
     networks:
       - aiops
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
   #celery-worker:
   #  container_name: CeleryWorker
@@ -439,6 +451,10 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+      opensearch-node1:
+        condition: service_healthy
     labels:
       - "traefik.enable=false"
     networks:
@@ -455,6 +471,12 @@ services:
       - .env
     depends_on:
       kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      postgresql:
+        condition: service_healthy
+      opensearch-node1:
         condition: service_healthy
     labels:
       - "traefik.enable=false"
@@ -631,6 +653,8 @@ services:
       kafka:
         condition: service_healthy
       opensearch-node1:
+        condition: service_healthy
+      postgresql:
         condition: service_healthy
     restart: unless-stopped
     labels:

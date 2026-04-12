@@ -92,6 +92,7 @@ void process_message(rd_kafka_t *rk)
 
         if (!json_is_object(content))
         {
+            fprintf(stderr, "[WARN] 'tags' field missing or invalid. Using empty object.\n");
             content = json_object();
         }
 

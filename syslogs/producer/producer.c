@@ -218,7 +218,7 @@ int main()
             strncpy(syslog.message, buffer, sizeof(syslog.message) - 1);
             syslog.message[sizeof(syslog.message) - 1] = '\0';
 
-            //printf("Received syslog from %s.\n", syslog.device);
+            printf("Received syslog from %s.\n", syslog.device);
 
             char escaped[MAX_BUFFER * 2];
             escape_json_string(syslog.message, escaped, sizeof(escaped));

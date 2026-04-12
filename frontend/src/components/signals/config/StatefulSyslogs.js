@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import "./SignalConfigElement.css";
+//import "./SignalConfigElement.css";
 import Select from "react-select";
 import customStyles from "../../misc/SelectStyles";
 import { useStatefulSyslogRules } from "../../../hooks/useStatefulSyslogRules"; 
 
-const StatefulSyslogs = ({ keycloak, devices, mnemonics, tags }) => {
+const StatefulSyslogs = ({ keycloak, devices, mnemonics, tags, onReload, showNotification }) => {
     const {
         rules,
         selectedRule,

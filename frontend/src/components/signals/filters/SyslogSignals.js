@@ -130,9 +130,7 @@ const SyslogSignalFilters = ({
             onChange={(v) => handleChange(v, tag.value)}
           />
         ))}
-
-      </div>
-
+      </div> 
       {/* ACTION BUTTONS */}
       <div
         style={{

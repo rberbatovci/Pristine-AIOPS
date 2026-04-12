@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Select from "react-select";
 import customStyles from "../../misc/SelectStyles";
-import "./SignalConfigElement.css";
+//import "./SignalConfigElement.css";
 
 import { useMnemonics } from "../../../hooks/useMnemonics";
 import { useSyslogTags } from "../../../hooks/useSyslogTags";

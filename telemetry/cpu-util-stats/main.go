@@ -11,7 +11,7 @@ import (
     "strconv"
     "sync"
     "time"
-
+    "github.com/jackc/pgx/v5"
 	telemetryBis "telemetry/protobuf/telemetry"
 
 	"github.com/golang/protobuf/proto"
@@ -59,6 +59,55 @@ func initRedis() {
         log.Fatalf("Failed to connect to Redis: %v", err)
     }
     log.Println("✅ Connected to Redis")
+}
+
+var (
+    highThreshold float64 = 80.0 // default fallback
+    lowThreshold  float64 = 20.0
+    thresholdLock sync.RWMutex
+)
+
+func connectDB() (*pgx.Conn, error) {
+    connStr := "postgres://psqlAdmin:psqlPassword@postgresql:5432/psqlDatabase"
+    return pgx.Connect(context.Background(), connStr)
+}
+
+func loadCPUThresholds(conn *pgx.Conn) error {
+    var high float64
+    var low float64
+
+    query := `
+        SELECT highthreshold, lowthreshold
+        FROM telemetry_signals_rules
+        WHERE name = $1
+        LIMIT 1
+    `
+
+    err := conn.QueryRow(context.Background(), query, "cpu-utilization").Scan(&high, &low)
+    if err != nil {
+        return err
+    }
+
+    thresholdLock.Lock()
+    highThreshold = high
+    lowThreshold = low
+    thresholdLock.Unlock()
+
+    log.Printf("✅ Loaded thresholds: high=%.2f low=%.2f", high, low)
+
+    return nil
+}
+
+func startThresholdRefresher(conn *pgx.Conn, interval time.Duration) {
+    go func() {
+        for {
+            err := loadCPUThresholds(conn)
+            if err != nil {
+                log.Printf("❌ Failed to refresh thresholds: %v", err)
+            }
+            time.Sleep(interval)
+        }
+    }()
 }
 
 func getValue(field *telemetryBis.TelemetryField) interface{} {
@@ -212,14 +261,42 @@ func isHighCPU(stats map[string]interface{}) bool {
         return false
     }
 
+    thresholdLock.RLock()
+    high := highThreshold
+    thresholdLock.RUnlock()
+
     keys := []string{"five-seconds", "one-minute", "five-minutes"}
+
     for _, k := range keys {
         val, ok := stats[k]
         if !ok {
             return false
         }
+
         floatVal, ok := convertToFloat(val)
-        if !ok || floatVal <= 20 {
+        if !ok || floatVal <= high {
+            return false
+        }
+    }
+
+    return true
+}
+
+func isRecoveredCPU(stats map[string]interface{}) bool {
+    thresholdLock.RLock()
+    low := lowThreshold
+    thresholdLock.RUnlock()
+
+    keys := []string{"five-seconds", "one-minute", "five-minutes"}
+
+    for _, k := range keys {
+        val, ok := stats[k]
+        if !ok {
+            return false
+        }
+
+        floatVal, ok := convertToFloat(val)
+        if !ok || floatVal >= low {
             return false
         }
     }
@@ -487,6 +564,20 @@ func main() {
     defer cancel()
 
     startPeriodicFlush(ctx, osClient, flushInterval)
+
+    conn, err := connectDB()
+    if err != nil {
+        log.Fatalf("❌ DB connection failed: %v", err)
+    }
+    defer conn.Close(context.Background())
+
+    // Initial load
+    if err := loadCPUThresholds(conn); err != nil {
+        log.Fatalf("❌ Failed to load thresholds: %v", err)
+    }
+
+    // Refresh every 30 seconds
+    startThresholdRefresher(conn, 30*time.Second)
 
 	log.Println("Kafka consumer started. Waiting for telemetry messages...")
 

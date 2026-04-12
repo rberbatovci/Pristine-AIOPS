@@ -28,8 +28,10 @@ import { useMnemonics } from '../hooks/useMnemonics.js';
 import { useDevices } from '../hooks/useDevices.js';
 import { useSignalData } from '../hooks/useSignalData.js';
 import { useSnmpTrapOids } from '../hooks/useSnmpTrapOids.js';
+import { useStatefulSyslogRules } from '../hooks/useStatefulSyslogRules.js';
+import { useStatefulSnmpTrapRules } from '../hooks/useStatefulSnmpTrapRules.js';
 
-function Signals({ currentUser, setDashboardTitle, keycloak }) {
+function Signals({ currentUser, setDashboardTitle, keycloak, showNotification }) {
     const { signalData, totalSignals, totalPages, loading, error, loadData } = useSignalData();
     const [selectedTags, setSelectedTags] = useState([]);
     const [dataSource, setDataSource] = useState('syslogs');
@@ -48,25 +50,35 @@ function Signals({ currentUser, setDashboardTitle, keycloak }) {
         statefulSyslogRules: { visible: false, position: { x: 0, y: 0 } },
         statefulTrapRules: { visible: false, position: { x: 0, y: 0 } },
         syslogMnemonics: { visible: false, position: { x: 0, y: 0 } },
+        telemetryRules: { visible: false, position: { x: 0, y: 0 } },
+        telemetryFilters: { visible: false, position: { x: 0, y: 0 } },
     });
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(24);
     const baseColumns = {
         syslogs: [
             { label: 'Status', value: 'status' },
-            { label: 'Start Time', value: 'startTime' }, 
+            { label: 'Start Time', value: 'startTime' },
             { label: 'End Time', value: 'endTime' },
             { label: 'Device', value: 'device' },
             { label: 'Severity', value: 'severity' },
-            { label: 'Rule', value: 'rule' }, 
+            { label: 'Rule', value: 'rule' },
         ],
         snmptraps: [
             { label: 'Status', value: 'status' },
             { label: 'Start Time', value: 'startTime' },
             { label: 'End Time', value: 'endTime' },
-            { label: 'Device', value: 'device' }, 
+            { label: 'Device', value: 'device' },
             { label: 'Severity', value: 'severity' },
-            { label: 'Rule', value: 'rule' }, 
+            { label: 'Rule', value: 'rule' },
+        ],
+        telemetry: [
+            { label: 'Status', value: 'status' },
+            { label: 'Start Time', value: 'startTime' },
+            { label: 'End Time', value: 'endTime' },
+            { label: 'Device', value: 'device' },
+            { label: 'Severity', value: 'severity' },
+            { label: 'Rule', value: 'rule' },
         ],
     };
     const [selectedDevice, setSelectedDevice] = useState(null);
@@ -80,6 +92,18 @@ function Signals({ currentUser, setDashboardTitle, keycloak }) {
     const { mnemonics, loading: mnemonicsLoading, reload: reloadMnemonics } = useMnemonics(keycloak);
     const { devices, loading: devicesLoading, reload: reloadDevices } = useDevices(keycloak);
     const { list: snmpTrapOids, loading: oidsLoading, loadList: reloadSnmpTrapOids } = useSnmpTrapOids(keycloak);
+    const {
+        rules: statefulTrapRules,
+        loading: statefulTrapRulesLoading,
+        error: statefulTrapRulesError,
+        reload: reloadStatefulTrapRules,
+    } = useStatefulSnmpTrapRules(keycloak);
+    const {
+        rules: statefulSyslogRules,
+        loading: statefulSyslogRulesLoading,
+        error: statefulSyslogRulesError,
+        reload: reloadStatefulSyslogRules,
+    } = useStatefulSyslogRules(keycloak);
 
     useEffect(() => {
         loadData(
@@ -154,7 +178,6 @@ function Signals({ currentUser, setDashboardTitle, keycloak }) {
             },
         });
 
-        // Only load when opening
         if (!newVisibility) return;
 
         switch (dropdownKey) {
@@ -188,7 +211,7 @@ function Signals({ currentUser, setDashboardTitle, keycloak }) {
     };
 
     useEffect(() => {
-        setDashboardTitle("Events Dashboard");
+        setDashboardTitle("Signals Dashboard");
         return () => setDashboardTitle('');
     }, [setDashboardTitle]);
 
@@ -273,6 +296,7 @@ function Signals({ currentUser, setDashboardTitle, keycloak }) {
                 <div className="headerTitles">
                     <h2 className={`eventsTitleHeader ${dataSource === 'syslogs' ? 'eventsTitleHeaderActive' : ''} `} onClick={() => handleHeaderClick('syslogs')}> Syslogs </h2>
                     <h2 className={`eventsTitleHeader ${dataSource === 'snmptraps' ? 'eventsTitleHeaderActive' : ''} `} onClick={() => handleHeaderClick('snmptraps')} > SNMP Traps </h2>
+                    <h2 className={`eventsTitleHeader ${dataSource === 'telemetry' ? 'eventsTitleHeaderActive' : ''} `} onClick={() => handleHeaderClick('telemetry')} > Telemetry </h2>
                 </div>
                 <div className="mainContainerButtons">
                     {view === "list" ? (<>
@@ -284,52 +308,88 @@ function Signals({ currentUser, setDashboardTitle, keycloak }) {
                                 <IoPieChartOutline className="defaultIcon" />
                                 <TfiLayoutListThumbAlt className="hoverIcon" />
                             </button> </>)}
-                    {dataSource === "syslogs" ? (<>
-                        <button
-                            className={`iconButton ${dropdowns.syslogSeverity.visible ? "active" : ""}`}
-                            onClick={(event) => handleButtonClick(event, "syslogSeverity")}
-                        >
-                            <PiBatteryWarningVerticalBold className="defaultIcon" />
-                            <PiBatteryWarningVerticalFill className="hoverIcon" />
-                        </button>
-                        <button
-                            className={`iconButton ${dropdowns.statefulSyslogRules.visible ? "active" : ""}`}
-                            style={{ marginRight: '20px' }}
-                            onClick={(event) => handleButtonClick(event, "statefulSyslogRules")}
-                        >
-                            <MdOutlineRuleFolder className="defaultIcon" />
-                            <MdRuleFolder className="hoverIcon" />
-                        </button>
-                        <button className={`iconButton ${dropdowns.syslogTags.visible ? 'active' : ''} `} onClick={(event) => handleButtonClick(event, 'syslogTags')} >
-                            <HiOutlineViewColumns className="defaultIcon" />
-                            <HiViewColumns className="hoverIcon" />
-                        </button>
-                        <button
-                            className={`iconButton ${dropdowns.syslogSignalFilters.visible ? "active" : ""}`}
-                            onClick={(event) => handleButtonClick(event, "syslogSignalFilters")}
-                        >
-                            <RiFilterLine className="defaultIcon" />
-                            <RiFilterFill className="hoverIcon" />
-                        </button> </>) : (<>
+                    {dataSource === "syslogs" && (
+                        <>
                             <button
-                                className={`iconButton ${dropdowns.statefulTrapRules.visible ? "active" : ""}`}
-                                style={{ marginRight: '20px' }}
-                                onClick={(event) => handleButtonClick(event, "statefulTrapRules")}
+                                className={`iconButton ${dropdowns.syslogSeverity.visible ? "active" : ""}`}
+                                onClick={(e) => handleButtonClick(e, "syslogSeverity")}
+                            >
+                                <PiBatteryWarningVerticalBold className="defaultIcon" />
+                                <PiBatteryWarningVerticalFill className="hoverIcon" />
+                            </button>
+
+                            <button
+                                className={`iconButton ${dropdowns.statefulSyslogRules.visible ? "active" : ""}`}
+                                onClick={(e) => handleButtonClick(e, "statefulSyslogRules")}
                             >
                                 <MdOutlineRuleFolder className="defaultIcon" />
                                 <MdRuleFolder className="hoverIcon" />
                             </button>
-                            <button className={`iconButton ${dropdowns.snmpTrapTags.visible ? 'active' : ''} `} onClick={(event) => handleButtonClick(event, 'snmpTrapTags')} >
+
+                            <button
+                                className={`iconButton ${dropdowns.syslogTags.visible ? "active" : ""}`}
+                                onClick={(e) => handleButtonClick(e, "syslogTags")}
+                            >
                                 <HiOutlineViewColumns className="defaultIcon" />
                                 <HiViewColumns className="hoverIcon" />
                             </button>
+
                             <button
-                                className={`iconButton ${dropdowns.trapSignalFilters.visible ? "active" : ""}`}
-                                onClick={(event) => handleButtonClick(event, "trapSignalFilters")}
+                                className={`iconButton ${dropdowns.syslogSignalFilters.visible ? "active" : ""}`}
+                                onClick={(e) => handleButtonClick(e, "syslogSignalFilters")}
                             >
                                 <RiFilterLine className="defaultIcon" />
                                 <RiFilterFill className="hoverIcon" />
-                            </button> </>)}
+                            </button>
+                        </>
+                    )}
+                    {dataSource === "snmptraps" && (
+                        <>
+                            <button
+                                className={`iconButton ${dropdowns.statefulTrapRules.visible ? "active" : ""}`}
+                                onClick={(e) => handleButtonClick(e, "statefulTrapRules")}
+                            >
+                                <MdOutlineRuleFolder className="defaultIcon" />
+                                <MdRuleFolder className="hoverIcon" />
+                            </button>
+
+                            <button
+                                className={`iconButton ${dropdowns.snmpTrapTags.visible ? "active" : ""}`}
+                                onClick={(e) => handleButtonClick(e, "snmpTrapTags")}
+                            >
+                                <HiOutlineViewColumns className="defaultIcon" />
+                                <HiViewColumns className="hoverIcon" />
+                            </button>
+
+                            <button
+                                className={`iconButton ${dropdowns.trapSignalFilters.visible ? "active" : ""}`}
+                                onClick={(e) => handleButtonClick(e, "trapSignalFilters")}
+                            >
+                                <RiFilterLine className="defaultIcon" />
+                                <RiFilterFill className="hoverIcon" />
+                            </button>
+                        </>
+                    )}
+
+                    {dataSource === "telemetry" && (
+                        <>
+                            <button
+                                className={`iconButton ${dropdowns.telemetryRules?.visible ? "active" : ""}`}
+                                onClick={(e) => handleButtonClick(e, "telemetryRules")}
+                            >
+                                <MdOutlineRuleFolder className="defaultIcon" />
+                                <MdRuleFolder className="hoverIcon" />
+                            </button>
+
+                            <button
+                                className={`iconButton ${dropdowns.telemetryFilters?.visible ? "active" : ""}`}
+                                onClick={(e) => handleButtonClick(e, "telemetryFilters")}
+                            >
+                                <RiFilterLine className="defaultIcon" />
+                                <RiFilterFill className="hoverIcon" />
+                            </button>
+                        </>
+                    )}
 
                     <button
                         className={`iconButton ${dropdowns.time.visible ? "active" : ""}`}
@@ -371,12 +431,12 @@ function Signals({ currentUser, setDashboardTitle, keycloak }) {
                 <div
                     className={`dropdownMenu ${dropdowns.statefulSyslogRules.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
                     style={{ width: 'auto', maxHeight: '740px', overflow: 'hidden' }}>
-                    <StatefulSyslogs keycloak={keycloak} devices={devices} mnemonics={mnemonics} tags={syslogTags} />
+                    <StatefulSyslogs keycloak={keycloak} devices={devices} mnemonics={mnemonics} tags={syslogTags} onReload={reloadStatefulSyslogRules} showNotification={showNotification} />
                 </div>
                 <div
                     className={`dropdownMenu ${dropdowns.statefulTrapRules.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
                     style={{ width: 'auto', maxHeight: '740px', overflow: 'hidden' }}>
-                    <StatefulTraps keycloak={keycloak} devices={devices} snmpTrapOids={snmpTrapOids} tags={snmpTrapTags} />
+                    <StatefulTraps keycloak={keycloak} devices={devices} snmpTrapOids={snmpTrapOids} tags={snmpTrapTags} onReload={reloadStatefulTrapRules} />
                 </div>
                 <div
                     className={`dropdownMenu ${dropdowns.syslogSignalFilters.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
