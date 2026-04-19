@@ -7,6 +7,7 @@ from datetime import datetime
 from pydantic import BaseModel
 from typing import Optional 
 from app.auth.keycloak import get_current_user, require_admin
+from opensearchpy.exceptions import NotFoundError, TransportError
 
 router = APIRouter(
     prefix="/api/telemetry/signals",
@@ -58,22 +59,33 @@ class TelemetrySignalRead(TelemetrySignalBase):
 # ======================
 @router.get("/")
 async def get_all_telemetry_signals(user: dict = Depends(get_current_user)):
-    body = {
-        "query": {"match_all": {}},
-        "size": 10000
-    }
-    response = opensearch_client.search(
-        index='telemetry-signals',
-        body=body
-    )
+    index_name = "telemetry-signals"
 
-    hits = response['hits']['hits']
-    total = response['hits']['total']['value']
+    try:
+        response = opensearch_client.search(
+            index=index_name,
+            body={
+                "query": {"match_all": {}},
+                "size": 10000
+            }
+        )
 
-    return {
-        "results": hits,
-        "total": total
-    }
+        return {
+            "results": response['hits']['hits'],
+            "total": response['hits']['total']['value']
+        }
+
+    except (NotFoundError, TransportError) as e:
+        # ✅ Handle missing index specifically
+        if hasattr(e, "status_code") and e.status_code == 404:
+            return {
+                "results": [],
+                "total": 0,
+                "message": f"Index '{index_name}' does not exist"
+            }
+
+        # ❗ re-raise if it's something else
+        raise
 
 @router.get("/{signal_id}")
 def get_signal(signal_id: int, user: dict = Depends(get_current_user)):

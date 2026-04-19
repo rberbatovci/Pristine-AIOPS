@@ -713,22 +713,22 @@ services:
     networks:
       - aiops
 
-  bgp-connection-statistics:
-    container_name: BGPConnectionStatistics
-    #image: ghcr.io/rberbato/telemetry-interface-stats:latest
-    build:
-      context: .
-      dockerfile: ./dockerfiles/Dockerfile.telemetry-bgp-connection-stats
-    depends_on:
-      kafka:
-        condition: service_healthy
-      opensearch-node1:
-        condition: service_healthy
-    labels:
-      - "traefik.enable=false"
-    restart: unless-stopped
-    networks:
-      - aiops
+  #bgp-connection-statistics:
+  #  container_name: BGPConnectionStatistics
+  #  #image: ghcr.io/rberbato/telemetry-interface-stats:latest
+  #  build:
+  #    context: .
+  #    dockerfile: ./dockerfiles/Dockerfile.telemetry-bgp-connection-stats
+  #  depends_on:
+  #    kafka:
+  #      condition: service_healthy
+  #    opensearch-node1:
+  #      condition: service_healthy
+  #  labels:
+  #    - "traefik.enable=false"
+  #  restart: unless-stopped
+  #  networks:
+  #    - aiops
   
 volumes:
   postgres_data:

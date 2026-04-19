@@ -21,6 +21,7 @@ import SyslogMnemonic from '../components/signals/config/SyslogMnemonic.js';
 import SyslogSeverity from '../components/signals/config/SyslogSeverity.js';
 import StatefulSyslogs from '../components/signals/config/StatefulSyslogs.js';
 import StatefulTraps from '../components/signals/config/StatefulTraps.js';
+import TelemetryRules from '../components/signals/config/TelemetryRules.js';
 
 import { useSyslogTags } from '../hooks/useSyslogTags';
 import { useSnmpTrapTags } from '../hooks/useSnmpTrapTags';
@@ -30,6 +31,7 @@ import { useSignalData } from '../hooks/useSignalData.js';
 import { useSnmpTrapOids } from '../hooks/useSnmpTrapOids.js';
 import { useStatefulSyslogRules } from '../hooks/useStatefulSyslogRules.js';
 import { useStatefulSnmpTrapRules } from '../hooks/useStatefulSnmpTrapRules.js';
+import { useTelemetryRules } from '../hooks/useTelemetryRules.js';
 
 function Signals({ currentUser, setDashboardTitle, keycloak, showNotification }) {
     const { signalData, totalSignals, totalPages, loading, error, loadData } = useSignalData();
@@ -104,6 +106,12 @@ function Signals({ currentUser, setDashboardTitle, keycloak, showNotification })
         error: statefulSyslogRulesError,
         reload: reloadStatefulSyslogRules,
     } = useStatefulSyslogRules(keycloak);
+    const {
+        rules: telemetryRules,
+        loading: telemetryRulesLoading,
+        error: telemetryRulesError,
+        reload: reloadTelemetryRules,
+    } = useTelemetryRules(keycloak);
 
     useEffect(() => {
         loadData(
@@ -432,6 +440,11 @@ function Signals({ currentUser, setDashboardTitle, keycloak, showNotification })
                     className={`dropdownMenu ${dropdowns.statefulSyslogRules.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
                     style={{ width: 'auto', maxHeight: '740px', overflow: 'hidden' }}>
                     <StatefulSyslogs keycloak={keycloak} devices={devices} mnemonics={mnemonics} tags={syslogTags} onReload={reloadStatefulSyslogRules} showNotification={showNotification} />
+                </div>
+                <div
+                    className={`dropdownMenu ${dropdowns.telemetryRules.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
+                    style={{ width: 'auto', maxHeight: '740px', overflow: 'hidden' }}>
+                    <TelemetryRules keycloak={keycloak} devices={devices} tags={syslogTags} onReload={reloadTelemetryRules} showNotification={showNotification} />
                 </div>
                 <div
                     className={`dropdownMenu ${dropdowns.statefulTrapRules.visible ? 'dropdownVisible' : 'dropdownHidden'} `}

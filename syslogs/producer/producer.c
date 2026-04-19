@@ -14,7 +14,7 @@
 #define KAFKA_BROKER "kafka:9092"
 #define KAFKA_EVENTS_TOPIC "syslog-events"
 
-#define EXPIRATION_YEAR 2026
+#define EXPIRATION_YEAR 2027
 #define EXPIRATION_MONTH 4
 #define EXPIRATION_DAY 18
 #define EXPIRATION_HOUR 17

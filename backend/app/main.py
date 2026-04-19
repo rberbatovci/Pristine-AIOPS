@@ -20,6 +20,9 @@ from fastapi.responses import JSONResponse
 from datetime import datetime
 from app.auth.keycloak import get_current_user
 
+from opensearchpy.exceptions import NotFoundError
+from fastapi.responses import JSONResponse
+
 load_dotenv()
 
 Base = declarative_base()
@@ -32,7 +35,7 @@ app = FastAPI(
 
 @app.middleware("http")
 async def expiration_middleware(request: Request, call_next):
-    expiration_date = datetime(2026, 4, 18)
+    expiration_date = datetime(2027, 4, 18)
     now = datetime.now()
 
     if now >= expiration_date:
@@ -117,3 +120,28 @@ async def startup_event():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+@app.middleware("http")
+async def expiration_middleware(request, call_next):
+    try:
+        response = await call_next(request)
+        return response
+
+    except NotFoundError as e:
+        # ✅ Handle OpenSearch missing index globally
+        if "index_not_found_exception" in str(e):
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "results": [],
+                    "total": 0,
+                    "message": "Index does not exist yet"
+                }
+            )
+
+        raise
+
+    except Exception as e:
+        # optional debug
+        print("Unhandled error:", repr(e))
+        raise

@@ -15,8 +15,7 @@ RUN go mod download
 
 COPY telemetry/cpu-util-stats/. .
 
-RUN go build -o consumer main.go
-
+RUN go build -o consumer . 
 
 FROM alpine:3.18
 
