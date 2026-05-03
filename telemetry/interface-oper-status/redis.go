@@ -1,21 +1,42 @@
 package main
 
 import (
-    "context"
-    "log" 
-    "github.com/redis/go-redis/v9"
+	"context"
+	"encoding/json" 
+	"log"
+
+	"github.com/redis/go-redis/v9"
 )
 
-func initRedis() {
-    redisClient = redis.NewClient(&redis.Options{
-        Addr:     "Redis:6379", // or your Redis host:port
-        Password: "",               // no password set
-        DB:       0,                // default DB
-    })
+func initRedis() *redis.Client {
+	client := redis.NewClient(&redis.Options{
+		Addr: "Redis:6379",
+	})
 
-    ctx := context.Background()
-    if err := redisClient.Ping(ctx).Err(); err != nil {
-        log.Fatalf("Failed to connect to Redis: %v", err)
-    }
-    log.Println("✅ Connected to Redis")
+	if err := client.Ping(context.Background()).Err(); err != nil {
+		log.Fatalf("Redis failed: %v", err)
+	}
+
+	return client
+} 
+
+/*
+========================================================
+REDIS WRITER
+========================================================
+*/
+
+func redisWriter(ctx context.Context, client *redis.Client, in <-chan RedisUpdate) {
+	for item := range in {
+		data, err := json.Marshal(item.Value)
+		if err != nil {
+			log.Printf("Redis marshal error: %v", err)
+			continue
+		}
+
+		err = client.Set(ctx, item.Key, data, 0).Err()
+		if err != nil {
+			log.Printf("Redis error: %v", err)
+		}
+	}
 }

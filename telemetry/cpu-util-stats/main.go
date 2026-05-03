@@ -1,109 +1,182 @@
 package main
 
-import ( 
-    "context"  
-    "log"  
-    "sync"
-    "time" 
-    "github.com/segmentio/kafka-go"
-    "github.com/redis/go-redis/v9"
+import (
+	"context"
+	"log" 
+	"fmt"
+	"encoding/json"  
+	"github.com/golang/protobuf/proto"
+	telemetryBis "telemetry/protobuf/telemetry"
 )
 
+/*
+========================================================
+CONFIG
+========================================================
+*/
 
 const (
-	kafkaBroker     = "kafka:9092"
-	kafkaTopic      = "cpu-utilization"
-	opensearchURL   = "http://opensearch:9200"
-	kafkaGroupID    = "cpu-utilization-group"
-    kafkaSignalTopic = "telemetry-signals"
-
+	kafkaBroker      = "kafka:9092" 
+	kafkaGroupID     = "cpu-utilization-group"
+	kafkaSignalTopic = "telemetry-signals"
+	telemetryTopic	 = "cpu-utilization" 
 	opensearch1 = "http://opensearch-node1:9200"
-    opensearch2 = "http://opensearch-node2:9200"
-    opensearch3 = "http://opensearch-node3:9200"
-    opensearchIndex = "cpu-utilization"
+	opensearch2 = "http://opensearch-node2:9200"
+	opensearch3 = "http://opensearch-node3:9200"
 )
 
-var (
-	bulkSize        int
-	bulkBuffer      []map[string]interface{}
-	bulkBufferLock  sync.Mutex
-    deviceAlertState = make(map[string]bool)
-    stateLock       sync.Mutex
-)
+/*
+========================================================
+PIPELINE TYPES
+========================================================
+*/
 
-var kafkaWriter *kafka.Writer
+// Main message flowing through pipeline
+type TelemetryMessage struct {
+	Device    string
+	Timestamp int64
+	Stats     map[string]interface{}
+	Value       []byte
+}
 
-var redisClient *redis.Client 
+// Redis update payload
+type RedisUpdate struct {
+	Key   string
+	Value interface{}
+}
 
-var (
-    highThreshold float64 = 80.0 // default fallback
-    lowThreshold  float64 = 20.0
-    thresholdLock sync.RWMutex
-) 
- 
+// Kafka signal message
+type KafkaSignal struct {
+	Payload []byte
+}
+
+type IncomingMessage struct {
+	Device string                 `json:"device"`
+	Stats  map[string]interface{} `json:"stats"`
+}
+
+/*
+========================================================
+MAIN
+========================================================
+*/
+
 func main() {
-    bulkSize = 1000                     
-    flushInterval := 1 * time.Second 
+	ctx := context.Background()
 
-    initRedis()
+	// Channels
+	ingestChan := make(chan TelemetryMessage, 1000)
+	bulkChan := make(chan TelemetryMessage, 2000)
+	redisChan := make(chan RedisUpdate, 1000)
+	signalChan := make(chan KafkaSignal, 1000)
 
-	initKafkaWriter()
+	/*
+	========================================================
+	INIT CLIENTS
+	========================================================
+	*/
 
-	reader := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:     []string{kafkaBroker},
-		Topic:       kafkaTopic,
-		GroupID:     kafkaGroupID,
-		StartOffset: kafka.FirstOffset,
-	})
-	defer reader.Close()
+	redisClient := initRedis()
+	kafkaWriter := initKafkaWriter()
 
 	osClient, err := setupOpenSearchClient()
 	if err != nil {
-		log.Fatalf("Application startup failed: %v", err)
+		log.Fatalf("Failed to init OpenSearch: %v", err)
 	}
 
-    ctx, cancel := context.WithCancel(context.Background())
-    defer cancel()
+	/*
+	========================================================
+	START PIPELINE
+	========================================================
+	*/
 
-    startPeriodicFlush(ctx, osClient, flushInterval)
+	go startKafkaReader(ctx, ingestChan)
 
-    conn, err := connectDB()
-    if err != nil {
-        log.Fatalf("❌ DB connection failed: %v", err)
-    }
-    defer conn.Close(context.Background())
+	workerCount := 8
+	for i := 0; i < workerCount; i++ {
+		go worker(ctx, ingestChan, bulkChan, redisChan, signalChan)
+	}
 
-    // Initial load
-    if err := loadCPUThresholds(conn); err != nil {
-        log.Fatalf("❌ Failed to load thresholds: %v", err)
-    }
+	go bulkIndexer(ctx, osClient, bulkChan)
+	go redisWriter(ctx, redisClient, redisChan)
+	go kafkaSignalWriter(ctx, kafkaWriter, signalChan)
 
-    // Refresh every 30 seconds
-    startThresholdRefresher(conn, 30*time.Second)
+	log.Println("🚀 Telemetry pipeline started...")
 
-	log.Println("Kafka consumer started. Waiting for telemetry messages...")
+	select {}
+} 
 
-	for {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		m, err := reader.ReadMessage(ctx)
-		cancel() 
+/*
+========================================================
+BUSINESS LOGIC
+========================================================
+*/
 
-		if err != nil {
-			if err == context.DeadlineExceeded {
-				log.Println("No new Kafka messages within timeout. Retrying...")
-				time.Sleep(5 * time.Second)
-				continue
-			}
-			time.Sleep(5 * time.Second) 
-			continue
+func processMessage(msg TelemetryMessage) (
+	TelemetryMessage,
+	*RedisUpdate,
+	*KafkaSignal,
+) {
+	// 🔴 1. Decode protobuf
+	t := new(telemetryBis.Telemetry)
+	if err := proto.Unmarshal(msg.Value, t); err != nil {
+		log.Printf("❌ Protobuf decode failed: %v", err)
+		return TelemetryMessage{}, nil, nil
+	}
+ 
+	//debugFields(t.DataGpbkv, "")
+
+	// 🔴 2. Extract CPU stats (reuse your old logic)
+	statsMap := extractCPUUtilization(t.DataGpbkv) 
+
+	if statsMap == nil {
+		//log.Println("📊 statsMap is NIL (no CPU data found)")
+		return TelemetryMessage{}, nil, nil
+	} 
+
+	// 🔴 3. Extract device
+	device := extractDeviceID(t)
+	if device == "" {
+		log.Printf("⚠️ Missing device ID")
+		return TelemetryMessage{}, nil, nil
+	}
+
+	log.Printf("📥 Device: %s | Stats: %+v", device, statsMap)
+
+	// 🔴 4. Build normalized message
+	doc := TelemetryMessage{
+		Device:    device,
+		Timestamp: int64(t.MsgTimestamp),
+		Stats:     statsMap,
+		Value:       msg.Value,
+	}
+
+	// 🔴 5. Redis update
+	redis := &RedisUpdate{
+		Key:   fmt.Sprintf("device:%s:cpu", device),
+		Value: map[string]interface{}{
+			"timestamp": t.MsgTimestamp,
+			"stats":     statsMap,
+		},
+	}
+
+	// 🔴 6. Alert logic
+	var signal *KafkaSignal
+	if isHighCPU(statsMap) {
+		payload, _ := json.Marshal(map[string]interface{}{
+			"device": device,
+			"alert":  "cpu_high",
+			"stats":  statsMap,
+		})
+
+		signal = &KafkaSignal{
+			Payload: payload,
 		}
-		processKafkaMessage(context.Background(), m, osClient)
 	}
+
+	return doc, redis, signal
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
+
+
+

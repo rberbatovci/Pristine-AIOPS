@@ -585,6 +585,8 @@ services:
       - aiops
 
   gobgp:
+    container_name: GoBGP
+    #image: ghcr.io/rberbato/gobgp-server:latest
     build:
       context: .
       dockerfile: ./dockerfiles/Dockerfile.gobgp-server

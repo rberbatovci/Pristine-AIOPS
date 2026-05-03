@@ -24,6 +24,7 @@ import UploadMIB from '../components/snmptraps/UploadMIB.js';
 import SnmpTrapOid from '../components/snmptraps/SnmpTrapOid.js';
 import SnmpTrapTags from '../components/snmptraps/SnmpTrapTags.js';
 import SnmpTrapTagConfig from '../components/snmptraps/SnmpTrapTagConfig.js';
+import Statistics from '../components/misc/Statistics.js';
 
 import { useMnemonics } from '../hooks/useMnemonics.js';
 import { useSyslogRegEx } from '../hooks/useSyslogRegEx.js';
@@ -47,18 +48,19 @@ function Faults({ currentUser, setDashboardTitle, showNotification, keycloak }) 
     const [dropdowns, setDropdowns] = useState({
         time: { visible: false, position: { x: 0, y: 0 } },
         tags: { visible: false, position: { x: 0, y: 0 } },
-        syslogTags: { visible: false, position: { x: 0, y: 0 } }, 
+        syslogTags: { visible: false, position: { x: 0, y: 0 } },
         syslogFilters: { visible: false, position: { x: 0, y: 0 } },
         syslogMnemonics: { visible: false, position: { x: 0, y: 0 } },
         syslogRegExes: { visible: false, position: { x: 0, y: 0 } },
         snmpTrapTags: { visible: false, position: { x: 0, y: 0 } },
-        snmpTrapFilters: { visible: false, position: { x: 0, y: 0 } }, 
+        snmpTrapFilters: { visible: false, position: { x: 0, y: 0 } },
         snmpTrapMibFiles: { visible: false, position: { x: 0, y: 0 } },
-        snmpTrapOids: { visible: false, position: { x: 0, y: 0 } }, 
+        snmpTrapOids: { visible: false, position: { x: 0, y: 0 } },
         snmpTrapTagConfig: { visible: false, position: { x: 0, y: 0 } },
         eventStatistics: { visible: false, position: { x: 0, y: 0 } },
     });
     const [page, setPage] = useState(1);
+    const [tags, setTags] = useState([]);
     const baseColumns = {
         syslogs: [
             { label: 'Timestamp', value: 'timestamp' },
@@ -84,18 +86,62 @@ function Faults({ currentUser, setDashboardTitle, showNotification, keycloak }) 
     const { devices, loading: devicesLoading, reload: reloadDevices } = useDevices(keycloak);
     const [view, setView] = useState("list")
 
+    const buildTags = (dataSource) => {
+        if (dataSource === 'syslogs') {
+            const staticTags = [ 
+                { label: 'Timestamp', value: 'timestamp' },
+                { label: 'Severity', value: 'severity' },
+                { label: 'Device', value: 'device' },
+                { label: 'Mnemonic', value: 'mnemonic' },
+                { label: 'Message', value: 'message' },
+            ];
+
+            const dynamicTags = (syslogTags || []).map(tag => ({
+                label: tag.label,    
+                value: tag.value
+            }));
+
+            return [...staticTags, ...dynamicTags];
+        }
+
+        if (dataSource === 'snmptraps') {
+            const staticTags = [
+                { label: 'Timestamp', value: 'timestamp' },
+                { label: 'SysUpTime', value: 'sysUpTime' },
+                { label: 'SNMP Trap OID', value: 'snmpTrapOid' },
+                { label: 'Device', value: 'device' },
+                { label: 'Content', value: 'content' }
+            ];
+
+            const dynamicTags = (snmpTrapTags || []).map(tag => ({
+                label: tag.label,
+                value: tag.value
+            }));
+
+            return [...staticTags, ...dynamicTags];
+        }
+
+        return [];
+    };
+
+    useEffect(() => {
+        const newTags = buildTags(dataSource);
+        setTags(newTags);
+    }, [dataSource, syslogTags, snmpTrapTags]);
+
     const loadSyslogTags = () => {
-        if (syslogTags.length === 0) reloadSyslogTags(keycloak); 
+        if (syslogTags.length === 0) reloadSyslogTags(keycloak);
+        console.log('Syslog tags loaded:', syslogTags);
     };
 
     const loadSyslogRegExes = () => {
-        if (regularExpressions.length === 0) reloadRegEx(); 
+        if (regularExpressions.length === 0) reloadRegEx();
     };
 
     const loadSyslogFilters = () => {
-        if (regularExpressions.length === 0) reloadRegEx(); 
-        if (devices.length === 0) reloadDevices(keycloak); 
-        if (mnemonics.length === 0) reloadMnemonics(keycloak); 
+        if (regularExpressions.length === 0) reloadRegEx();
+        if (devices.length === 0) reloadDevices(keycloak);
+        if (mnemonics.length === 0) reloadMnemonics(keycloak);
     };
 
     const loadSnmpTrapFilters = () => {
@@ -105,12 +151,12 @@ function Faults({ currentUser, setDashboardTitle, showNotification, keycloak }) 
     };
 
     const loadSyslogMnemonics = () => {
-        if (mnemonics.length === 0) reloadMnemonics(keycloak); 
+        if (mnemonics.length === 0) reloadMnemonics(keycloak);
         if (regularExpressions.length === 0) reloadRegEx();
     };
 
     const loadSnmpTrapMibFiles = () => {
-        if (syslogTags.length === 0) reloadSyslogTags(keycloak); 
+        if (syslogTags.length === 0) reloadSyslogTags(keycloak);
     };
 
     const loadSnmpTrapOids = () => {
@@ -120,12 +166,12 @@ function Faults({ currentUser, setDashboardTitle, showNotification, keycloak }) 
     };
 
     const loadSnmpTrapTags = () => {
-        if (snmpTrapTags.length === 0) reloadSnmpTrapTags(keycloak); 
+        if (snmpTrapTags.length === 0) reloadSnmpTrapTags(keycloak);
     };
 
     const loadSnmpTrapTagConfig = () => {
         if (snmpTrapTags.length === 0) reloadSnmpTrapTags(keycloak);
-        if (snmpTrapOids.length === 0) reloadSnmpTrapOids(keycloak); 
+        if (snmpTrapOids.length === 0) reloadSnmpTrapOids(keycloak);
     };
 
     useEffect(() => {
@@ -140,8 +186,10 @@ function Faults({ currentUser, setDashboardTitle, showNotification, keycloak }) 
         if (dataSource === 'syslogs') {
             reloadMnemonics(keycloak);
             reloadRegEx();
+            reloadSyslogTags(keycloak);
         } else if (dataSource === 'snmptraps') {
             reloadSnmpTrapOids(keycloak);
+            reloadSnmpTrapTags(keycloak);
         }
     }, [keycloak, dataSource, page, startTime, endTime, filters, loadData]);
 
@@ -199,7 +247,7 @@ function Faults({ currentUser, setDashboardTitle, showNotification, keycloak }) 
             case "snmpTrapMibFiles":
                 loadSnmpTrapMibFiles();
                 break;
-            
+
             case "snmpTrapOids":
                 loadSnmpTrapOids();
                 break;
@@ -233,15 +281,17 @@ function Faults({ currentUser, setDashboardTitle, showNotification, keycloak }) 
     const handleHeaderClick = (source) => {
         setDataSource(source);
         setPage(1);
-        setColumnConfigs(baseColumns);
+        setColumnConfigs(baseColumns[source]);
+        setSelectedTags([]);
+        setTags([]);
 
         if (source === 'syslogs') {
-            if (!mnemonics || mnemonics.length === 0) reloadMnemonics(keycloak);
-            if (!regularExpressions || regularExpressions.length === 0) reloadRegEx();
-            if (!syslogTags || syslogTags.length === 0) reloadSyslogTags(keycloak);
+            if (!mnemonics?.length) reloadMnemonics(keycloak);
+            if (!regularExpressions?.length) reloadRegEx();
+            if (!syslogTags?.length) reloadSyslogTags(keycloak);
         } else if (source === 'snmptraps') {
-            if (!snmpTrapOids || snmpTrapOids.length === 0) reloadSnmpTrapOids(keycloak);
-            if (!snmpTrapTags || snmpTrapTags.length === 0) reloadSnmpTrapTags(keycloak);
+            if (!snmpTrapOids?.length) reloadSnmpTrapOids(keycloak);
+            if (!snmpTrapTags?.length) reloadSnmpTrapTags(keycloak);
         }
     };
 
@@ -265,16 +315,16 @@ function Faults({ currentUser, setDashboardTitle, showNotification, keycloak }) 
     const handleTagsEditing = () => {
         reloadRegEx();
         setDropdowns(prev => ({ ...prev, regEx: { ...prev.regEx, visible: false } }));
-    } 
-    
+    }
+
     const handleSyslogTagsChange = (selectedTags) => {
         console.log('Selected tags:', selectedTags)
-    }; 
+    };
 
     const handleFiltersChange = (newFilters) => {
-        console.log("Filtering for:", newFilters); 
+        console.log("Filtering for:", newFilters);
         setFilters(newFilters);
-        setPage(1); 
+        setPage(1);
         loadData(keycloak, "syslogs", 1, startTime, endTime, newFilters);
     };
 
@@ -385,13 +435,20 @@ function Faults({ currentUser, setDashboardTitle, showNotification, keycloak }) 
             <div className="mainContainerContent">
                 {loading && <div className="loadingMessage">Loading...</div>}
                 {error && <div className="errorMessage">{error}</div>}
-                {!loading && !error && (view === 'list' ? (
-                    <div className="syslogsTableContainer">
-                        <EventsTable dataSource={dataSource} data={eventsData} totalPages={totalPages} columns={columnConfigs[dataSource]} signalSource={dataSource} onRowSelectChange={handleRowSelectChange} page={page} onPageChange={setPage} />
-                    </div>) : (
-                    <div className="syslogsTableContainer">
-                        <ChartView keycloak={keycloak} currentUser={currentUser} source='events' dataSource={dataSource} selectedTags={columnConfigs[dataSource]} />
-                    </div>))}
+                {!loading && !error && (
+                    <>
+                        {view === 'list' && (
+                            <div className="syslogsTableContainer">
+                                <EventsTable dataSource={dataSource} data={eventsData} totalPages={totalPages} tags={tags} signalSource={dataSource} onRowSelectChange={handleRowSelectChange} page={page} onPageChange={setPage} />
+                            </div>
+                        )}
+                        {view === 'chart' && (
+                            <div className="syslogsTableContainer">
+                                <Statistics keycloak={keycloak} source="events" dataSource={dataSource} selectedTags={columnConfigs[dataSource]} tags={tags} />
+                            </div>
+                        )}
+                    </>
+                )}
             </div>
             <div ref={dropdownMenuRef}>
                 <div

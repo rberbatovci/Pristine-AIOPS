@@ -1,10 +1,7 @@
 package main
 
-import (
-    "context"
-    "log"  
-    "time" 
-    "github.com/opensearch-project/opensearch-go"
+import ( 
+    "log"    
 
     telemetryBis "telemetry/protobuf/telemetry"
 )
@@ -102,6 +99,13 @@ func extractMemoryKey(fields []*telemetryBis.TelemetryField) string {
     return ""
 }
 
+func extractDeviceID(t *telemetryBis.Telemetry) string {
+	if nodeID, ok := t.NodeId.(*telemetryBis.Telemetry_NodeIdStr); ok {
+		return nodeID.NodeIdStr
+	}
+	return ""
+} 
+
 
 func printTelemetryFields(fields []*telemetryBis.TelemetryField, indent string) {
 	for _, field := range fields {
@@ -118,19 +122,19 @@ func isHighMemory(stats map[string]interface{}) bool {
     return false
 }
 
-func startPeriodicFlush(ctx context.Context, osClient *opensearch.Client, interval time.Duration) {
-    ticker := time.NewTicker(interval)
-    go func() {
-        for {
-            select {
-            case <-ticker.C:
-                if err := flushBulkToOpenSearch(ctx, osClient, opensearchIndex); err != nil {
-                    log.Printf("Periodic bulk flush failed: %v", err)
-                }
-            case <-ctx.Done():
-                ticker.Stop()
-                return
-            }
-        }
-    }()
+func debugFields(fields []*telemetryBis.TelemetryField, indent string) {
+	for _, f := range fields {
+		if f == nil {
+			continue
+		}
+
+		// print current node
+		log.Printf("%s- name=%q children=%d value=%v",
+			indent, f.Name, len(f.Fields), getValue(f))
+
+		// recursively print children
+		if len(f.Fields) > 0 {
+			debugFields(f.Fields, indent+"  ")
+		}
+	}
 }

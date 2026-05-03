@@ -127,7 +127,11 @@ const Info = ({ currentUser, selectedDevice, onDeviceDeselect, onConfig, onDevic
               <PiSwapFill className="defaultIcon" />
               <PiSwapDuotone className="hoverIcon" />
             </button>
-            <button className="iconButton" onClick={deleteDevice}>
+            <button className="iconButton" style={{ marginRight: '20px' }} onClick={() => onConfig(selectedDevice)}>
+              <RiShieldKeyholeLine className="defaultIcon" />
+              <RiShieldKeyholeFill className="hoverIcon" />
+            </button>
+            <button className="iconButton deleteButton" onClick={deleteDevice}>
               <RiDeleteBin2Line className="defaultIcon" />
               <RiDeleteBin2Fill className="hoverIcon" />
             </button>
@@ -135,10 +139,7 @@ const Info = ({ currentUser, selectedDevice, onDeviceDeselect, onConfig, onDevic
               <RiCloseCircleLine className="defaultIcon" />
               <RiCloseCircleFill className="hoverIcon" />
             </button>
-            <button className="iconButton" >
-              <RiShieldKeyholeLine className="defaultIcon" />
-              <RiShieldKeyholeFill className="hoverIcon" />
-            </button>
+            
           </div>
         </div>
       </div>

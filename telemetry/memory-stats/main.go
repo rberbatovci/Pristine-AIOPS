@@ -1,81 +1,218 @@
 package main
 
-import ( 
-	"context"  
+import (
+	"context"
 	"log" 
-	"time"
-	"sync"    
-	"github.com/segmentio/kafka-go"
-	"github.com/redis/go-redis/v9"
+	"fmt"
+	"encoding/json"  
+	"github.com/golang/protobuf/proto"
+	telemetryBis "telemetry/protobuf/telemetry"
 )
  
 const (
-	kafkaBroker     = "kafka:9092"
-	kafkaTopic      = "memory-statistics"
+	kafkaBroker     = "kafka:9092" 
 	kafkaGroupID    = "memory-statistics-group"
-	kafkaSignalTopic = "memory-alerts"
-
+	kafkaSignalTopic = "telemetry-signals"
+	telemetryTopic	 = "memory-statistics"  
 	opensearch1 = "http://opensearch-node1:9200"
     opensearch2 = "http://opensearch-node2:9200"
     opensearch3 = "http://opensearch-node3:9200"
-	opensearchIndex = "memory-statistics"
+	
 )
 
-var (
-    flushInterval time.Duration
-    bulkSize        int
-	bulkBuffer      []map[string]interface{}
-	bulkBufferLock  sync.Mutex
-	deviceAlertState = make(map[string]bool)
-	stateLock       sync.Mutex
-)
+/*
+========================================================
+PIPELINE TYPES
+========================================================
+*/
 
-var kafkaWriter *kafka.Writer
+// Main message flowing through pipeline
+type TelemetryMessage struct {
+	Device    string
+	Timestamp int64
+	Stats     map[string]interface{} 
+	Memory 	  string
+	Value       []byte
+}
 
-var redisClient *redis.Client
- 
+// Redis update payload
+type RedisUpdate struct {
+	Key   string
+	Value interface{}
+}
+
+// Kafka signal message
+type KafkaSignal struct {
+	Payload []byte
+}
+
+type IncomingMessage struct {
+	Device string                 `json:"device"`
+	Stats  map[string]interface{} `json:"stats"`
+}
+
 func main() {
-    bulkSize = 1000                     
-    flushInterval := 1 * time.Second
+	ctx := context.Background()
 
-	initRedis()
+	// Channels
+	ingestChan := make(chan TelemetryMessage, 1000)
+	bulkChan := make(chan TelemetryMessage, 2000)
+	redisChan := make(chan RedisUpdate, 1000)
+	signalChan := make(chan KafkaSignal, 1000)
 
-	initKafkaWriter()
+	/*
+	========================================================
+	INIT CLIENTS
+	========================================================
+	*/
 
-    reader := kafka.NewReader(kafka.ReaderConfig{
-        Brokers:     []string{"kafka:9092"}, // adjust your brokers
-        Topic:       kafkaTopic,
-        GroupID:     kafkaGroupID,
-        StartOffset: kafka.FirstOffset,
-    })
-    defer reader.Close()
+	redisClient := initRedis()
+	kafkaWriter := initKafkaWriter()
 
 	osClient, err := setupOpenSearchClient()
 	if err != nil {
-		log.Fatalf("Application startup failed: %v", err)
+		log.Fatalf("Failed to init OpenSearch: %v", err)
 	}
 
-    ctx, cancel := context.WithCancel(context.Background())
-    defer cancel()
+	/*
+	========================================================
+	START PIPELINE
+	========================================================
+	*/
 
-    startPeriodicFlush(ctx, osClient, flushInterval)
+	go startKafkaReader(ctx, ingestChan)
 
-	log.Println("Kafka consumer started. Waiting for telemetry messages...")
+	workerCount := 8
+	for i := 0; i < workerCount; i++ {
+		go worker(ctx, ingestChan, bulkChan, redisChan, signalChan)
+	}
 
-	for {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		m, err := reader.ReadMessage(ctx)
-		cancel() 
+	go bulkIndexer(ctx, osClient, bulkChan)
+	go redisWriter(ctx, redisClient, redisChan)
+	go kafkaSignalWriter(ctx, kafkaWriter, signalChan)
 
-		if err != nil {
-			if err == context.DeadlineExceeded {
-				log.Println("No new Kafka messages within timeout. Retrying...")
-				time.Sleep(5 * time.Second)
-				continue
-			}
-			time.Sleep(5 * time.Second) 
+	log.Println("🚀 Telemetry pipeline started...")
+
+	select {}
+} 
+
+/*
+========================================================
+BUSINESS LOGIC
+========================================================
+*/
+
+func processMessage(msg TelemetryMessage) (
+	TelemetryMessage,
+	*RedisUpdate,
+	*KafkaSignal,
+	bool,
+) {
+	// 🔴 1. Decode protobuf
+	t := new(telemetryBis.Telemetry)
+	if err := proto.Unmarshal(msg.Value, t); err != nil {
+		log.Printf("❌ Protobuf decode failed: %v", err)
+		return TelemetryMessage{}, nil, nil, false
+	}
+ 
+	//debugFields(t.DataGpbkv, "")
+
+	memory := extractMemoryKey(t.DataGpbkv)
+    if memory == "" {
+    	//log.Printf("No memory key found in message skipping")
+    	return TelemetryMessage{}, nil, nil, false
+	}
+	//log.Printf("💡 Memory pool name: %s", memory)
+
+	// 🔴 2. Extract memory stats (reuse your old logic)
+	statsMap := extractMemoryStats(t.DataGpbkv) 
+
+	if statsMap == nil {
+		//log.Println("📊 statsMap is NIL (no memory data found)")
+		return TelemetryMessage{}, nil, nil, false
+	} 
+
+	// 🔴 3. Extract device
+	device := extractDeviceID(t)
+	if device == "" {
+		log.Printf("⚠️ Missing device ID")
+		return TelemetryMessage{}, nil, nil, false
+	}
+
+	log.Printf(
+    	"📥 Device: %s | Memory: %s | Timestamp: %d | Stats: %+v",
+    	device,
+    	memory,
+    	t.MsgTimestamp,
+    	statsMap,
+	)
+
+	// 🔴 4. Build normalized message
+	doc := TelemetryMessage{
+		Device:    device,
+		Timestamp: int64(t.MsgTimestamp),
+		Stats:     statsMap, 
+		Memory:    memory,
+		Value:       msg.Value,
+	}
+
+	// 🔴 5. Redis update
+	redis := &RedisUpdate{
+		Key:   fmt.Sprintf("device:%s:memory", device),
+		Value: map[string]interface{}{
+			"timestamp": t.MsgTimestamp,
+			"stats":     statsMap,
+			"memory":    memory,
+		},
+	}
+
+	// 🔴 6. Alert logic
+	var signal *KafkaSignal
+	if isHighMemory(statsMap) {
+		payload, _ := json.Marshal(map[string]interface{}{
+			"device": device,
+			"alert":  "memory_high",
+			"stats":  statsMap,
+		})
+
+		signal = &KafkaSignal{
+			Payload: payload,
+		}
+	}
+
+	return doc, redis, signal, true
+}
+
+/*
+========================================================
+WORKER
+========================================================
+*/
+
+func worker(
+	ctx context.Context,
+	in <-chan TelemetryMessage,
+	bulkOut chan<- TelemetryMessage,
+	redisOut chan<- RedisUpdate,
+	signalOut chan<- KafkaSignal,
+) {
+	for msg := range in {
+
+		doc, redisUpdate, signal, ok := processMessage(msg)
+
+		// 🚨 skip EVERYTHING if invalid
+		if !ok {
 			continue
 		}
-		processKafkaMessage(context.Background(), m, osClient)
+
+		// only valid messages reach here
+		bulkOut <- doc
+
+		if redisUpdate != nil {
+			redisOut <- *redisUpdate
+		}
+		if signal != nil {
+			signalOut <- *signal
+		}
 	}
 }

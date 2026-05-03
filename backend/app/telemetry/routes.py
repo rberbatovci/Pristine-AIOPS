@@ -78,8 +78,7 @@ def get_memory_statistics(
             "memory": doc["_source"]["memory"],
             "stats": doc["_source"]["stats"],
             "timestamp": doc["_source"]["timestamp"],
-            "ingested_at": doc["_source"]["ingested_at"],
-            "collection_id": doc["_source"]["collection_id"],
+            "ingested_at": doc["_source"]["ingested_at"], 
         }
         for doc in hits
     ]
@@ -158,8 +157,7 @@ def get_interface_statistics(
             "interface": doc["_source"]["interface"],
             "stats": doc["_source"]["stats"],
             "timestamp": doc["_source"]["timestamp"],
-            "ingested_at": doc["_source"]["ingested_at"],
-            "collection_id": doc["_source"]["collection_id"],
+            "ingested_at": doc["_source"]["ingested_at"], 
             "subscription": doc["_source"].get("subscription", {}),
         }
         for doc in hits
@@ -167,6 +165,52 @@ def get_interface_statistics(
 
     return {"results": results}
 
+@router.get("/interface-oper-status/")
+def get_interface_oper_status(
+    device: Optional[str] = Query(None),
+    interface: Optional[str] = Query(None),
+    limit: int = Query(100),
+    user: dict = Depends(get_current_user)
+):
+    must_clauses = []
+
+    if device:
+        must_clauses.append({"term": {"device": device}})
+    if interface:
+        must_clauses.append({"term": {"interface": interface}})
+
+    query = {
+        "query": {
+            "bool": {
+                "must": must_clauses
+            }
+        },
+        "size": limit,
+        "sort": [
+            {"timestamp": {"order": "desc"}}
+        ]
+    }
+
+    try:
+        response = opensearch_client.search(index="interface-oper-status", body=query)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"OpenSearch query failed: {str(e)}")
+
+    hits = response["hits"]["hits"]
+
+    results = [
+        {
+            "device": doc["_source"]["device"],
+            "interface": doc["_source"]["interface"],
+            "status": doc["_source"]["status"],
+            "timestamp": doc["_source"]["timestamp"],
+            "ingested_at": doc["_source"]["ingested_at"], 
+        }
+        for doc in hits
+    ]
+
+    return {"results": results}
+ 
 @router.get("/interface-oper-status/interfaces/")
 def get_device_interfaces(device: Optional[str] = Query(None), user: dict = Depends(get_current_user)):
     must_clauses = []
@@ -200,54 +244,6 @@ def get_device_interfaces(device: Optional[str] = Query(None), user: dict = Depe
     interfaces = [bucket["key"] for bucket in buckets]
 
     return {"interfaces": interfaces}
-
-@router.get("/interface-oper-status/")
-def get_interface_statistics(
-    device: Optional[str] = Query(None),
-    interface: Optional[str] = Query(None),
-    limit: int = Query(100),
-    user: dict = Depends(get_current_user)
-):
-    must_clauses = []
-
-    if device:
-        must_clauses.append({"term": {"device": device}})
-    if interface:
-        must_clauses.append({"term": {"interface": interface}})
-
-    query = {
-        "query": {
-            "bool": {
-                "must": must_clauses
-            }
-        },
-        "size": limit,
-        "sort": [
-            {"timestamp": {"order": "desc"}}
-        ]
-    }
-
-    try:
-        response = opensearch_client.search(index="interface-oper-status", body=query)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"OpenSearch query failed: {str(e)}")
-
-    hits = response.get("hits", {}).get("hits", [])
-
-    results = [
-        {
-            "device": doc["_source"]["device"],
-            "interface": doc["_source"]["interface"],
-            "status": doc["_source"]["status"],
-            "timestamp": doc["_source"]["timestamp"],
-            "ingested_at": doc["_source"]["ingested_at"],
-            "collection_id": doc["_source"]["collection_id"],
-            "subscription": doc["_source"].get("subscription", {}),
-        }
-        for doc in hits
-    ]
-
-    return {"results": results}
 
 @router.get("/bgp-statistics/")
 def get_interface_statistics(
@@ -288,8 +284,7 @@ def get_interface_statistics(
             "neighbor": doc["_source"]["neighbor"],
             "stats": doc["_source"]["stats"],
             "timestamp": doc["_source"]["timestamp"],
-            "ingested_at": doc["_source"]["ingested_at"],
-            "collection_id": doc["_source"]["collection_id"],
+            "ingested_at": doc["_source"]["ingested_at"], 
             "subscription": doc["_source"].get("subscription", {}),
         }
         for doc in hits

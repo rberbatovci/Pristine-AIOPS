@@ -33,6 +33,8 @@
 .tableContainer {
   flex: 1;
   overflow: auto;
+  height: 300px;
+  margin-bottom: 15px;
 }
 
 .paginationContainer {

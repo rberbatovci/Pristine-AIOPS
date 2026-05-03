@@ -86,7 +86,7 @@
 
 .mainContainerContent {
     flex-grow: 1;
-    border-radius: 0 0 12px 12px;
+    border-radius: 0 0 12px 12px; 
 }
 
 /* Dropdown styling with transitions */
@@ -179,6 +179,10 @@
     font-size: 24px;
     transition: color .5s ease-in-out;
     color: var(--textColor2);
+}
+
+.deleteButton:hover {
+  color: #7c0713; /* red */
 }
 
 .iconButton.active .defaultIcon {
@@ -291,3 +295,8 @@ ul {
     height: 30px;
     gap: 20px;
 }
+
+.hover-header {
+    position: relative;
+}
+ 

@@ -49,6 +49,12 @@ func getValue(field *telemetryBis.TelemetryField) interface{} {
 	}
 }
 
+func isInterfaceDown(stats map[string]interface{}) bool {
+    // Temporary mock: always return false
+    // Replace with real logic later
+    return false
+}
+
 func printTelemetryFields(fields []*telemetryBis.TelemetryField, indent string) {
 	for _, field := range fields {
 		log.Printf("%s- %s (nested: %d)", indent, field.Name, len(field.Fields))
@@ -88,3 +94,10 @@ func telemetryFieldsToMap(fields []*telemetryBis.TelemetryField, parentPath stri
 
 	return result
 }
+
+func extractDeviceID(t *telemetryBis.Telemetry) string {
+	if nodeID, ok := t.NodeId.(*telemetryBis.Telemetry_NodeIdStr); ok {
+		return nodeID.NodeIdStr
+	}
+	return ""
+} 

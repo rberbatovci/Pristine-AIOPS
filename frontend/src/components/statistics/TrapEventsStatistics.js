@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
     PieChart, Pie, Cell, Tooltip as RechartsTooltip,
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend
+    BarChart, Bar, XAxis, YAxis, CartesianGrid
 } from 'recharts';
 import { Typography } from '@mui/material';
 import kcFetch from '../misc/kcFetch.js';
@@ -31,61 +31,63 @@ function TrapEventsStatistics({ keycloak, selectedTags = [] }) {
     const normalizedTags = normalizeTags(selectedTags);
 
     useEffect(() => {
-        if (!selectedTags || selectedTags.length === 0) return;
+        if (!normalizedTags.length) return;
 
-        const selectedValues = selectedTags.map(option => option.value);
+        const fetchStatistics = async (dataType) => {
+            setLoadingMap(prev => ({ ...prev, [dataType]: true }));
 
-        selectedTags.forEach(async (option) => {
-            const dataType = option.value;
+            const endpoint = `/traps/statistics/${dataType}`;
 
-            if (!chartDataMap[dataType] && !loadingMap[dataType]) {
-                setLoadingMap(prev => ({ ...prev, [dataType]: true }));
+            try {
+                const data = await kcFetch(keycloak, endpoint);
 
-                const endpoint = `/traps/statistics/${dataType}`;
+                let processedData = [];
 
-                try {
-                    const data = await kcFetch(keycloak, endpoint);
-
-                    let processedData = [];
-
-                    if (Array.isArray(data.statistics)) {
-                        processedData = data.statistics.map(item => ({
-                            name: item.value || "N/A",
-                            value: item.count ?? 0,
-                        }));
-                    } else if (typeof data === "object" && data !== null) {
-                        processedData = Object.entries(data).map(
-                            ([key, value]) => ({
-                                name: key,
-                                value: value
-                            })
-                        );
-                    }
-
-                    setChartDataMap(prev => ({
-                        ...prev,
-                        [dataType]: processedData,
+                if (Array.isArray(data?.statistics)) {
+                    processedData = data.statistics.map(item => ({
+                        name: item.value || item.name || "N/A",
+                        value: item.count ?? 0,
                     }));
-                } catch (error) {
-                    console.error(`Error fetching data for ${dataType}:`, error);
-                    setChartDataMap(prev => ({
-                        ...prev,
-                        [dataType]: [],
-                    }));
-                } finally {
-                    setLoadingMap(prev => ({
-                        ...prev,
-                        [dataType]: false,
-                    }));
+                } else if (typeof data === "object" && data !== null) {
+                    processedData = Object.entries(data).map(
+                        ([key, value]) => ({
+                            name: key,
+                            value: Number(value) || 0
+                        })
+                    );
                 }
+
+                setChartDataMap(prev => ({
+                    ...prev,
+                    [dataType]: processedData,
+                }));
+
+            } catch (error) {
+                console.error(`Error fetching data for ${dataType}:`, error);
+                setChartDataMap(prev => ({
+                    ...prev,
+                    [dataType]: [],
+                }));
+            } finally {
+                setLoadingMap(prev => ({
+                    ...prev,
+                    [dataType]: false,
+                }));
+            }
+        };
+
+        // Fetch new tags only
+        normalizedTags.forEach(tag => {
+            if (!chartDataMap[tag] && !loadingMap[tag]) {
+                fetchStatistics(tag);
             }
         });
 
-        // Cleanup removed chart data
+        // Cleanup removed tags
         setChartDataMap(prev => {
             const updated = { ...prev };
             Object.keys(updated).forEach(key => {
-                if (!selectedValues.includes(key)) {
+                if (!normalizedTags.includes(key)) {
                     delete updated[key];
                 }
             });
@@ -95,33 +97,30 @@ function TrapEventsStatistics({ keycloak, selectedTags = [] }) {
         setLoadingMap(prev => {
             const updated = { ...prev };
             Object.keys(updated).forEach(key => {
-                if (!selectedValues.includes(key)) {
+                if (!normalizedTags.includes(key)) {
                     delete updated[key];
                 }
             });
             return updated;
         });
 
-    }, [normalizedTags,selectedTags]);
+    }, [normalizedTags, keycloak]);
 
     const handleChartTypeChange = (dataType, type) => {
-        setChartTypeMap(prev => ({
-            ...prev,
-            [dataType]: type
-        }));
+        setChartTypeMap(prev => ({ ...prev, [dataType]: type }));
     };
 
-    const renderPieTooltip = ({ payload }) => {
+    const renderTooltip = ({ payload }) => {
         if (payload && payload.length) {
             const { name, value } = payload[0].payload;
             return (
                 <div style={{
                     backgroundColor: '#fff',
-                    padding: '5px',
+                    padding: '6px',
                     border: '1px solid #ccc'
                 }}>
                     <strong>{name}</strong>
-                    <p>{`Count: ${value}`}</p>
+                    <p>Count: {value}</p>
                 </div>
             );
         }
@@ -135,8 +134,7 @@ function TrapEventsStatistics({ keycloak, selectedTags = [] }) {
                 flexWrap: 'wrap',
                 justifyContent: 'space-around'
             }}>
-                {normalizedTags.map(option => {
-                    const dataType = option.value;
+                {normalizedTags.map(dataType => {
                     const chartType = chartTypeMap[dataType] || 'BarChart';
                     const chartData = chartDataMap[dataType] || [];
                     const isLoading = loadingMap[dataType];
@@ -147,6 +145,7 @@ function TrapEventsStatistics({ keycloak, selectedTags = [] }) {
                             className="signalRightElementContainer"
                             style={{ width: '540px', height: '380px' }}
                         >
+                            {/* Header */}
                             <div
                                 className="signalRightElementHeader"
                                 style={{ marginBottom: '20px' }}
@@ -158,7 +157,7 @@ function TrapEventsStatistics({ keycloak, selectedTags = [] }) {
                                         fontWeight: 'bold',
                                         color: 'var(--textColor)'
                                     }}>
-                                        {option.label}
+                                        {dataType.charAt(0).toUpperCase() + dataType.slice(1)}
                                     </h2>
                                     <span style={{
                                         fontSize: '14px',
@@ -185,7 +184,6 @@ function TrapEventsStatistics({ keycloak, selectedTags = [] }) {
                                             title="Pie Chart"
                                         />
                                     )}
-
                                     {chartType !== 'BarChart' && (
                                         <IoBarChartOutline
                                             size={24}
@@ -199,16 +197,21 @@ function TrapEventsStatistics({ keycloak, selectedTags = [] }) {
                                 </div>
                             </div>
 
-                            {isLoading && <Typography>Loading...</Typography>}
+                            {/* Loading */}
+                            {isLoading && (
+                                <Typography>Loading...</Typography>
+                            )}
 
+                            {/* No Data */}
                             {!isLoading && chartData.length === 0 && (
                                 <Typography>
-                                    No data available for {option.label}
+                                    No data available for {dataType}
                                 </Typography>
                             )}
 
+                            {/* Pie Chart */}
                             {!isLoading && chartData.length > 0 && chartType === 'PieChart' && (
-                                <PieChart width={480} height={300}>
+                                <PieChart width={440} height={270}>
                                     <Pie
                                         data={chartData}
                                         dataKey="value"
@@ -217,29 +220,32 @@ function TrapEventsStatistics({ keycloak, selectedTags = [] }) {
                                         cy="50%"
                                         innerRadius={60}
                                         outerRadius={80}
-                                        label
                                     >
-                                        {chartData.map((_, index) => (
+                                        {chartData.map((entry, index) => (
                                             <Cell
                                                 key={`cell-${index}`}
                                                 fill={colorPalette[index % colorPalette.length]}
                                             />
                                         ))}
                                     </Pie>
-                                    <RechartsTooltip content={renderPieTooltip} />
-                                    <Legend />
+                                    <RechartsTooltip content={renderTooltip} />
                                 </PieChart>
                             )}
 
+                            {/* Bar Chart */}
                             {!isLoading && chartData.length > 0 && chartType === 'BarChart' && (
-                                <BarChart width={480} height={300} data={chartData}>
+                                <BarChart
+                                    width={450}
+                                    height={270}
+                                    data={chartData}
+                                    margin={{ top: 20 }}
+                                >
                                     <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="name" />
                                     <YAxis />
-                                    <RechartsTooltip content={renderPieTooltip} />
-                                    <Legend />
+                                    <RechartsTooltip content={renderTooltip} />
                                     <Bar dataKey="value">
-                                        {chartData.map((_, index) => (
+                                        {chartData.map((entry, index) => (
                                             <Cell
                                                 key={`cell-${index}`}
                                                 fill={colorPalette[index % colorPalette.length]}

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(syslog_consumer C)
+project(netflow_consumer C)
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -g")
@@ -10,21 +10,20 @@ find_package(PostgreSQL REQUIRED)
 # List your source files
 set(SOURCES
     main.c
-    config.c
-    process.c
-    bulk.c
-    regex.c
-    globals.c
+    opensearch.c 
+    queue.c
+    worker.c
+    utils.c
 )
 
 # Create executable
-add_executable(syslog_consumer ${SOURCES})
+add_executable(netflow_consumer ${SOURCES})
 
 # Include PostgreSQL headers
-target_include_directories(syslog_consumer PRIVATE ${PostgreSQL_INCLUDE_DIRS})
+target_include_directories(netflow_consumer PRIVATE ${PostgreSQL_INCLUDE_DIRS})
 
 # Link against required libraries
-target_link_libraries(syslog_consumer
+target_link_libraries(netflow_consumer
     rdkafka
     jansson
     ${PostgreSQL_LIBRARIES}

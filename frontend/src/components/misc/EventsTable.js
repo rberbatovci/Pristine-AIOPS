@@ -12,7 +12,7 @@ const rowsPerPage = 21;
 const EventsTable = ({
   data,
   totalPages,
-  columns,
+  tags,
   signalSource,
   onRowSelectChange,
   page,
@@ -43,7 +43,7 @@ const EventsTable = ({
     setColumnWidths((prev) => {
       const updated = { ...prev };
 
-      columns.forEach(({ value }) => {
+      tags.forEach(({ value }) => {
         if (!updated[value]) {
           updated[value] =
             COLUMN_DEFAULT_WIDTHS[value] ?? DEFAULT_WIDTH;
@@ -57,7 +57,7 @@ const EventsTable = ({
     setFilterVisible((prev) => {
       const updated = { ...prev };
 
-      columns.forEach(({ value }) => {
+      tags.forEach(({ value }) => {
         if (!(value in updated)) {
           updated[value] = false;
         }
@@ -66,7 +66,7 @@ const EventsTable = ({
       return updated;
     });
 
-  }, [columns]);
+  }, [tags]);
 
 
   useEffect(() => {
@@ -173,7 +173,7 @@ const EventsTable = ({
 
   /* ---------------- FILTER + SORT ---------------- */
   let filteredData = (data || []).filter((row) =>
-    columns.every(({ value }) => {
+    tags.every(({ value }) => {
       if (!filterValues[value]) return true;
 
       const val = getValue(row, value);
@@ -204,7 +204,7 @@ const EventsTable = ({
           <thead>
             <tr>
               <th className="selectHeader">Select</th>
-              {columns.map(({ label, value }) => (
+              {tags.map(({ label, value }) => (
                 <th key={value} ref={(el) => (columnRefs.current[value] = el)} style={{ width: columnWidths[value] || 'auto' }} >
                   <div className="headerCell">
                     {filterVisible[value] ? (
@@ -232,7 +232,7 @@ const EventsTable = ({
                   <td className="checkboxColumn">
                     <input type="checkbox" checked={selectedRows.includes(index)} onChange={() => handleRowSelect(index)} />
                   </td>
-                  {columns.map(({ value }) => {
+                  {tags.map(({ value }) => {
                     const val = getValue(row, value);
                     return (
                       <td

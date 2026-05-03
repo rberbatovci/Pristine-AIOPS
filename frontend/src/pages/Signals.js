@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import '../css/SyslogDatabase.css';
 import EventsTable from '../components/misc/EventsTable.js';
 import ChartView from '../components/misc/ChartView.js';
+import Statistics from '../components/misc/Statistics.js';
 
 import { FaClock, FaRegClock } from "react-icons/fa";
 import { RiDownloadCloudLine, RiDownloadCloudFill } from "react-icons/ri";
@@ -56,6 +57,7 @@ function Signals({ currentUser, setDashboardTitle, keycloak, showNotification })
         telemetryFilters: { visible: false, position: { x: 0, y: 0 } },
     });
     const [page, setPage] = useState(1);
+    const [tags, setTags] = useState([]);
     const [pageSize, setPageSize] = useState(24);
     const baseColumns = {
         syslogs: [
@@ -83,14 +85,79 @@ function Signals({ currentUser, setDashboardTitle, keycloak, showNotification })
             { label: 'Rule', value: 'rule' },
         ],
     };
+    const { tags: syslogTags, loading: syslogTagsLoading, reload: reloadSyslogTags } = useSyslogTags(keycloak, false);
+    const { list: snmpTrapTags, loading: snmpTrapTagsLoading, reload: reloadSnmpTrapTags } = useSnmpTrapTags(keycloak, false);
+    const buildTags = (dataSource) => {
+        if (dataSource === 'syslogs') {
+            const staticTags = [
+                { label: 'Status', value: 'status' },
+                { label: 'Start Time', value: 'startTime' },
+                { label: 'End Time', value: 'endTime' },
+                { label: 'Device', value: 'device' },
+                { label: 'Severity', value: 'severity' },
+                { label: 'Rule', value: 'rule' },
+                { label: 'Mnemonic', value: 'mnemonic' },
+            ];
+
+            const dynamicTags = (syslogTags || []).map(tag => ({
+                label: tag.label,   // adjust based on your API shape
+                value: tag.value
+            }));
+
+            return [...staticTags, ...dynamicTags];
+        }
+
+        if (dataSource === 'snmptraps') {
+            const staticTags = [
+                { label: 'Status', value: 'status' },
+                { label: 'Start Time', value: 'startTime' },
+                { label: 'End Time', value: 'endTime' },
+                { label: 'Device', value: 'device' },
+                { label: 'Severity', value: 'severity' },
+                { label: 'Rule', value: 'rule' },
+                { label: 'SNMP Trap OID', value: 'snmpTrapOid' },
+            ];
+
+            const dynamicTags = (snmpTrapTags || []).map(tag => ({
+                label: tag.label,
+                value: tag.value
+            }));
+
+            return [...staticTags, ...dynamicTags];
+        }
+
+        if (dataSource === 'telemetry') {
+            const staticTags = [
+                { label: 'CPU Utilization', value: 'cpuUtilization' },
+                { label: 'Memory Utilization', value: 'memoryUtilization' },
+                { label: 'Interface Status', value: 'interfaceStatus' },
+                { label: 'Interface Errors', value: 'interfaceErrors' }, 
+            ];
+
+            const dynamicTags = (snmpTrapTags || []).map(tag => ({
+                label: tag.label,
+                value: tag.value
+            }));
+
+            return [...staticTags, ...dynamicTags];
+        }
+
+        return [];
+    };
+
+    useEffect(() => {
+        const newTags = buildTags(dataSource);
+        setTags(newTags);
+        console.log("Tags updated for dataSource", dataSource, newTags);
+    }, [dataSource, syslogTags, snmpTrapTags]);
+
     const [selectedDevice, setSelectedDevice] = useState(null);
-    const [columnConfigs, setColumnConfigs] = useState(baseColumns);
+    const [columnConfigs, setColumnConfigs] = useState(tags);
     const [startTime, setStartTime] = useState(() => new Date(Date.now() - 60 * 60 * 1000));
     const [endTime, setEndTime] = useState(() => new Date());
     const [filters, setFilters] = useState({});
     const [view, setView] = useState("list")
-    const { tags: syslogTags, loading: syslogTagsLoading, reload: reloadSyslogTags } = useSyslogTags(keycloak, false);
-    const { list: snmpTrapTags, loading: snmpTrapTagsLoading, reload: reloadSnmpTrapTags } = useSnmpTrapTags(keycloak, false);
+
     const { mnemonics, loading: mnemonicsLoading, reload: reloadMnemonics } = useMnemonics(keycloak);
     const { devices, loading: devicesLoading, reload: reloadDevices } = useDevices(keycloak);
     const { list: snmpTrapOids, loading: oidsLoading, loadList: reloadSnmpTrapOids } = useSnmpTrapOids(keycloak);
@@ -229,7 +296,7 @@ function Signals({ currentUser, setDashboardTitle, keycloak, showNotification })
 
     const handleHeaderClick = (source) => {
         setDataSource(source);
-        setColumnConfigs(baseColumns);
+        setColumnConfigs(tags);
     };
 
     const handleTimeRangeChange = (start, end) => {
@@ -417,11 +484,11 @@ function Signals({ currentUser, setDashboardTitle, keycloak, showNotification })
                 {error && <div className="errorMessage">{error}</div>}
                 {!loading && !error && (view === 'chart' ? (
                     <div className="syslogsTableContainer">
-                        <ChartView keycloak={keycloak} currentUser={currentUser} source='signals' dataSource={dataSource} selectedTags={columnConfigs[dataSource]} />
+                        <Statistics keycloak={keycloak} currentUser={currentUser} source='signals' dataSource={dataSource} selectedTags={columnConfigs[dataSource]} tags={tags} />
                     </div>
                 ) : (
                     <div className="syslogsTableContainer">
-                        <EventsTable currentUser={currentUser} dataSource={dataSource} data={signalData} columns={columnConfigs[dataSource]} signalSource={dataSource} onDownload={(downloadFn) => (downloadRef.current = downloadFn)} onRowSelectChange={handleRowSelectChange} />
+                        <EventsTable currentUser={currentUser} dataSource={dataSource} data={signalData} tags={tags} signalSource={dataSource} onDownload={(downloadFn) => (downloadRef.current = downloadFn)} onRowSelectChange={handleRowSelectChange} />
                     </div>
                 ))}
             </div>

@@ -7,80 +7,38 @@ import (
     "fmt"
     "io"
     "log"
-
+    "time" 
     "github.com/opensearch-project/opensearch-go"
     "github.com/opensearch-project/opensearch-go/opensearchapi"
 )
 
+//
+// ==========================
+// OpenSearch Setup
+// ==========================
+//
 
-func setupOpenSearchClient() (*opensearch.Client, error) {
-    client, err := opensearch.NewClient(opensearch.Config{
-        Addresses: []string{
-            opensearch1,
-            opensearch2,
-            opensearch3,
-        },
-        // Optional: set retry behavior
-        RetryOnStatus: []int{502, 503, 504, 429},
-        MaxRetries:    5,
-    })
-    if err != nil {
-        return nil, err
+// Creates index if it doesn't exist
+func createIndex(client *opensearch.Client, index string) error {
+    existsReq := opensearchapi.IndicesExistsRequest{
+        Index: []string{index},
     }
 
-    // Check connection
-    res, err := client.Info()
+    res, err := existsReq.Do(context.Background(), client)
     if err != nil {
-        return nil, err
+        return fmt.Errorf("failed to check index: %w", err)
     }
     defer res.Body.Close()
 
-    if res.IsError() {
-        bodyBytes, _ := io.ReadAll(res.Body)
-        return nil, fmt.Errorf("OpenSearch connection error: %s - %s", res.Status(), string(bodyBytes))
+    if res.StatusCode == 200 {
+        log.Printf("ℹ️ Index [%s] already exists", index)
+        return nil
     }
 
-    bodyBytes, err := io.ReadAll(res.Body)
-    if err != nil {
-        return nil, err
+    if res.StatusCode != 404 {
+        body, _ := io.ReadAll(res.Body)
+        return fmt.Errorf("unexpected response: %s", string(body))
     }
-
-    var info map[string]interface{}
-    if err := json.Unmarshal(bodyBytes, &info); err != nil {
-        return nil, err
-    }
-
-    version := "unknown"
-    if vMap, ok := info["version"].(map[string]interface{}); ok {
-        if vStr, ok := vMap["number"].(string); ok {
-            version = vStr
-        }
-    }
-
-    log.Printf("Connected to OpenSearch cluster version: %s", version)
-    return client, nil
-}
-
-func createIndexIfNotExists(client *opensearch.Client, indexName string) error {
-	// Check if index exists
-	existsReq := opensearchapi.IndicesExistsRequest{
-		Index: []string{indexName},
-	}
-	res, err := existsReq.Do(context.Background(), client)
-	if err != nil {
-		return fmt.Errorf("failed to check if index exists: %w", err)
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode == 200 {
-		log.Printf("ℹ Index [%s] already exists", indexName)
-		return nil
-	}
-
-	if res.StatusCode != 404 {
-		body, _ := io.ReadAll(res.Body)
-		return fmt.Errorf("unexpected response checking index: %s", string(body))
-	}
 
 	// Define index settings and mappings
 	indexSettings := map[string]interface{}{
@@ -91,39 +49,162 @@ func createIndexIfNotExists(client *opensearch.Client, indexName string) error {
     	"mappings": map[string]interface{}{
         	"properties": map[string]interface{}{
             	"device":        map[string]interface{}{"type": "keyword"},
-            	"interface":     map[string]interface{}{"type": "keyword"},
-            	"subscription":  map[string]interface{}{"type": "object"},
-            	"collection_id": map[string]interface{}{"type": "long"},
-            	"timestamp":     map[string]interface{}{"type": "date", "format": "epoch_millis"},
-            	"encoding_path": map[string]interface{}{"type": "keyword"},
+            	"interface":     map[string]interface{}{"type": "keyword"},  
+            	"timestamp":     map[string]interface{}{"type": "date", "format": "epoch_millis"}, 
             	"ingested_at":   map[string]interface{}{"type": "date"},
             	"status":        map[string]interface{}{"type": "keyword"},
         	},
     	},
 	}
 
-	body, err := json.Marshal(indexSettings)
+    body, err := json.Marshal(indexSettings)
 	if err != nil {
-		return fmt.Errorf("failed to marshal index settings: %w", err)
+		return fmt.Errorf("failed to marshal memory index settings: %w", err)
 	}
 
-	// Create index
-	createReq := opensearchapi.IndicesCreateRequest{
-		Index: indexName,
-		Body:  bytes.NewReader(body),
-	}
+    createReq := opensearchapi.IndicesCreateRequest{
+        Index: index,
+        Body:  bytes.NewReader(body),
+    }
 
-	res, err = createReq.Do(context.Background(), client)
-	if err != nil {
-		return fmt.Errorf("failed to create index: %w", err)
-	}
-	defer res.Body.Close()
+    res, err = createReq.Do(context.Background(), client)
+    if err != nil {
+        return err
+    }
+    defer res.Body.Close()
 
-	if res.IsError() {
-		body, _ := io.ReadAll(res.Body)
-		return fmt.Errorf("error creating index: %s", string(body))
-	}
+    if res.IsError() {
+        body, _ := io.ReadAll(res.Body)
+        return fmt.Errorf("create index error: %s", string(body))
+    }
 
-	log.Printf("✅ Created OpenSearch index: %s", indexName)
-	return nil
+    log.Printf("✅ Created index: %s", index)
+    return nil
+}
+
+//
+// ==========================
+// OpenSearch Client
+// ==========================
+//
+
+func setupOpenSearchClient() (*opensearch.Client, error) {
+    client, err := opensearch.NewClient(opensearch.Config{
+        Addresses: []string{
+            opensearch1,
+            opensearch2,
+            opensearch3,
+        },
+        RetryOnStatus: []int{502, 503, 504, 429},
+        MaxRetries:    5,
+    })
+    if err != nil {
+        return nil, err
+    }
+
+    res, err := client.Info()
+    if err != nil {
+        return nil, err
+    }
+    defer res.Body.Close()
+
+    if res.IsError() {
+        body, _ := io.ReadAll(res.Body)
+        return nil, fmt.Errorf("OpenSearch error: %s", string(body))
+    }
+
+    log.Println("✅ Connected to OpenSearch")
+
+    if err := createIndex(client, telemetryTopic); err != nil {
+        return nil, err
+    }
+
+    return client, nil
+}
+
+//
+// ==========================
+// Bulk Flush (NO GLOBALS)
+// ==========================
+//
+
+func flushBulk(
+    ctx context.Context,
+    client *opensearch.Client,
+    index string,
+    docs []TelemetryMessage,
+) {
+    var bulkBody bytes.Buffer
+
+    for _, msg := range docs {
+        meta := fmt.Sprintf(`{ "index": { "_index": "%s" } }%s`, index, "\n")
+        bulkBody.WriteString(meta)
+
+        doc := map[string]interface{}{
+            "device":      msg.Device,
+            "timestamp":   msg.Timestamp, 
+            "interface":   msg.Interface,
+            "status":      msg.Status,
+            "ingested_at": time.Now().UTC(),
+        }
+
+        data, err := json.Marshal(doc)
+        if err != nil {
+            log.Printf("❌ marshal error: %v", err)
+            continue
+        }
+
+        bulkBody.Write(data)
+        bulkBody.WriteString("\n")
+    }
+
+    req := opensearchapi.BulkRequest{
+        Body: bytes.NewReader(bulkBody.Bytes()),
+    }
+
+    res, err := req.Do(ctx, client)
+    if err != nil {
+        log.Printf("❌ bulk request failed: %v", err)
+        return
+    }
+    defer res.Body.Close()
+
+    if res.IsError() {
+        body, _ := io.ReadAll(res.Body)
+        log.Printf("❌ bulk error: %s", string(body))
+        return
+    }
+
+    //log.Printf("✅ Indexed %d documents", len(docs))
+}
+
+/*
+========================================================
+BULK INDEXER
+========================================================
+*/
+
+func bulkIndexer(ctx context.Context, client *opensearch.Client, in <-chan TelemetryMessage) {
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	buffer := make([]TelemetryMessage, 0, 1000)
+
+	for {
+		select {
+		case msg := <-in:
+			buffer = append(buffer, msg)
+
+			if len(buffer) >= 1000 {
+				flushBulk(ctx, client, telemetryTopic, buffer)
+				buffer = buffer[:0]
+			}
+
+		case <-ticker.C:
+			if len(buffer) > 0 {
+				flushBulk(ctx, client, telemetryTopic, buffer)
+				buffer = buffer[:0]
+			}
+		}
+	}
 }

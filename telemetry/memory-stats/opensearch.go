@@ -7,119 +7,23 @@ import (
     "fmt"
     "io"
     "log"
+    "time"
 
     "github.com/opensearch-project/opensearch-go"
     "github.com/opensearch-project/opensearch-go/opensearchapi"
 )
 
 
-func flushBulkToOpenSearch(ctx context.Context, osClient *opensearch.Client, index string) error {
-    bulkBufferLock.Lock()
-    defer bulkBufferLock.Unlock()
+//
+// ==========================
+// OpenSearch Index Setup
+// ==========================
+//
 
-    if len(bulkBuffer) == 0 {
-        return nil // nothing to do
-    }
-
-    var bulkBody bytes.Buffer
-    for _, doc := range bulkBuffer {
-        // Add metadata line for bulk API
-        meta := fmt.Sprintf(`{ "index": { "_index": "%s" } }%s`, index, "\n")
-        bulkBody.WriteString(meta)
-
-        // Add document JSON line
-        data, err := json.Marshal(doc)
-        if err != nil {
-            // skip bad docs but log error
-            log.Printf("Failed to marshal doc for bulk indexing: %v", err)
-            continue
-        }
-        bulkBody.Write(data)
-        bulkBody.WriteString("\n")
-    }
-
-    // Clear buffer since we copied data to bulkBody
-    bulkBuffer = nil
-
-    req := opensearchapi.BulkRequest{
-        Body:    bytes.NewReader(bulkBody.Bytes()),
-        Refresh: "true", // optional, can remove for performance
-    }
-
-    res, err := req.Do(ctx, osClient)
-    if err != nil {
-        return fmt.Errorf("bulk request failed: %w", err)
-    }
-    defer res.Body.Close()
-
-    body, _ := io.ReadAll(res.Body)
-	//log.Printf(" Bulk response: %s", body)
-
-	if res.IsError() {
-    	return fmt.Errorf("bulk request error: %s - %s", res.String(), string(body))
-	}
-
-    log.Printf(" Bulk indexed %d documents to OpenSearch", len(bulkBuffer))
-    return nil
-}
-
-func setupOpenSearchClient() (*opensearch.Client, error) {
-    client, err := opensearch.NewClient(opensearch.Config{
-        Addresses: []string{
-            opensearch1,
-            opensearch2,
-            opensearch3,
-        },
-        // Optional: set retry behavior
-        RetryOnStatus: []int{502, 503, 504, 429},
-        MaxRetries:    5,
-    })
-    if err != nil {
-        return nil, err
-    }
-
-    // Check connection
-    res, err := client.Info()
-    if err != nil {
-        return nil, err
-    }
-    defer res.Body.Close()
-
-    if res.IsError() {
-        bodyBytes, _ := io.ReadAll(res.Body)
-        return nil, fmt.Errorf("OpenSearch connection error: %s - %s", res.Status(), string(bodyBytes))
-    }
-
-    bodyBytes, err := io.ReadAll(res.Body)
-    if err != nil {
-        return nil, err
-    }
-
-    var info map[string]interface{}
-    if err := json.Unmarshal(bodyBytes, &info); err != nil {
-        return nil, err
-    }
-
-    version := "unknown"
-    if vMap, ok := info["version"].(map[string]interface{}); ok {
-        if vStr, ok := vMap["number"].(string); ok {
-            version = vStr
-        }
-    }
-
-    log.Printf("Connected to OpenSearch cluster version: %s", version)
-
-    if err := createMemoryIndexIfNotExists(client, opensearchIndex); err != nil {
-        return nil, fmt.Errorf("failed to ensure index exists: %w", err)
-    }
-
-    return client, nil
-}
-
-func createMemoryIndexIfNotExists(client *opensearch.Client, opensearchIndex string) error {
+func createIndexIfNotExists(client *opensearch.Client, index string) error {
 	// Check if index exists
 	existsReq := opensearchapi.IndicesExistsRequest{
-		Index: []string{opensearchIndex},
+		Index: []string{index},
 	}
 	res, err := existsReq.Do(context.Background(), client)
 	if err != nil {
@@ -128,7 +32,7 @@ func createMemoryIndexIfNotExists(client *opensearch.Client, opensearchIndex str
 	defer res.Body.Close()
 
 	if res.StatusCode == 200 {
-		log.Printf("ℹ️ Index [%s] already exists", opensearchIndex)
+		log.Printf("ℹ️ Index [%s] already exists", index)
 		return nil
 	}
 
@@ -145,10 +49,8 @@ func createMemoryIndexIfNotExists(client *opensearch.Client, opensearchIndex str
 		},
 		"mappings": map[string]interface{}{
 			"properties": map[string]interface{}{
-				"device":          map[string]interface{}{"type": "keyword"},
-				"collection_id":   map[string]interface{}{"type": "long"},
-				"timestamp":   map[string]interface{}{"type": "date"},
-				"encoding_path":   map[string]interface{}{"type": "keyword"},
+				"device":          map[string]interface{}{"type": "keyword"}, 
+				"timestamp":   map[string]interface{}{"type": "date"}, 
 				"ingested_at":     map[string]interface{}{"type": "date"},
 				"memory":          map[string]interface{}{"type": "keyword"}, // assuming memoryKey is string
 				"stats": map[string]interface{}{
@@ -171,7 +73,7 @@ func createMemoryIndexIfNotExists(client *opensearch.Client, opensearchIndex str
 	}
 
 	createReq := opensearchapi.IndicesCreateRequest{
-		Index: opensearchIndex,
+		Index: telemetryTopic,
 		Body:  bytes.NewReader(body),
 	}
 
@@ -186,6 +88,133 @@ func createMemoryIndexIfNotExists(client *opensearch.Client, opensearchIndex str
 		return fmt.Errorf("error creating memory index: %s", string(body))
 	}
 
-	log.Printf("✅ Created OpenSearch memory index: %s", opensearchIndex)
+	log.Printf("✅ Created OpenSearch memory index: %s", telemetryTopic)
 	return nil
+} 
+
+//
+// ==========================
+// OpenSearch Client
+// ==========================
+//
+
+func setupOpenSearchClient() (*opensearch.Client, error) {
+    client, err := opensearch.NewClient(opensearch.Config{
+        Addresses: []string{
+            opensearch1,
+            opensearch2,
+            opensearch3,
+        },
+        RetryOnStatus: []int{502, 503, 504, 429},
+        MaxRetries:    5,
+    })
+    if err != nil {
+        return nil, err
+    }
+
+    res, err := client.Info()
+    if err != nil {
+        return nil, err
+    }
+    defer res.Body.Close()
+
+    if res.IsError() {
+        body, _ := io.ReadAll(res.Body)
+        return nil, fmt.Errorf("OpenSearch error: %s", string(body))
+    }
+
+    log.Println("✅ Connected to OpenSearch")
+
+    if err := createIndexIfNotExists(client, telemetryTopic); err != nil {
+        return nil, err
+    }
+
+    return client, nil
+}
+
+//
+// ==========================
+// Bulk Flush (NO GLOBALS)
+// ==========================
+//
+
+func flushBulk(
+    ctx context.Context,
+    client *opensearch.Client,
+    index string,
+    docs []TelemetryMessage,
+) {
+    var bulkBody bytes.Buffer
+
+    for _, msg := range docs { 
+        meta := fmt.Sprintf(`{ "index": { "_index": "%s" } }%s`, index, "\n")
+        bulkBody.WriteString(meta)
+
+        doc := map[string]interface{}{
+            "device":      msg.Device,
+            "timestamp":   msg.Timestamp,
+            "stats":       msg.Stats,
+			"memory":      msg.Memory,
+            "ingested_at": time.Now().UTC(),
+        }
+
+        data, err := json.Marshal(doc)
+        if err != nil {
+            log.Printf("❌ marshal error: %v", err)
+            continue
+        }
+
+        bulkBody.Write(data)
+        bulkBody.WriteString("\n")
+    }
+
+    req := opensearchapi.BulkRequest{
+        Body: bytes.NewReader(bulkBody.Bytes()),
+    }
+
+    res, err := req.Do(ctx, client)
+    if err != nil {
+        log.Printf("❌ bulk request failed: %v", err)
+        return
+    }
+    defer res.Body.Close()
+
+    if res.IsError() {
+        body, _ := io.ReadAll(res.Body)
+        log.Printf("❌ bulk error: %s", string(body))
+        return
+    }
+
+    //log.Printf("✅ Indexed %d documents", len(docs))
+}
+
+/*
+========================================================
+BULK INDEXER
+========================================================
+*/
+
+func bulkIndexer(ctx context.Context, client *opensearch.Client, in <-chan TelemetryMessage) {
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	buffer := make([]TelemetryMessage, 0, 1000)
+
+	for {
+		select {
+		case msg := <-in:
+			buffer = append(buffer, msg)
+
+			if len(buffer) >= 1000 {
+				flushBulk(ctx, client, telemetryTopic, buffer)
+				buffer = buffer[:0]
+			}
+
+		case <-ticker.C:
+			if len(buffer) > 0 {
+				flushBulk(ctx, client, telemetryTopic, buffer)
+				buffer = buffer[:0]
+			}
+		}
+	}
 }

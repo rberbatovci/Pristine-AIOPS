@@ -1,0 +1,30 @@
+.statistics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(540px, 1fr));
+    gap: 9px;
+    width: 100%;
+    height: calc(100% - 20px);
+}
+
+.statistics-slot {
+    width: auto;
+    height: 87%;
+    margin: 10px;
+    min-width: 500px;
+    max-width: 100%;
+    background: var(--backgroundColor3);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.statistics-slot-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}

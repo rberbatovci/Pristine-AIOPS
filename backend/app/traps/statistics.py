@@ -5,8 +5,8 @@ from app.auth.keycloak import get_current_user, require_admin
 
 # Router instance
 router = APIRouter(
-    prefix="/api/traps/statistics",
-    tags=["traps,statistics"],
+    prefix="/api/events/traps/statistics",
+    tags=["traps,events/statistics"],
 )
 
 signalsRouter = APIRouter(

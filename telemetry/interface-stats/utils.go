@@ -89,3 +89,17 @@ func telemetryFieldsToMap(fields []*telemetryBis.TelemetryField, parentPath stri
 
 	return result
 }
+
+func extractDeviceID(t *telemetryBis.Telemetry) string {
+	if nodeID, ok := t.NodeId.(*telemetryBis.Telemetry_NodeIdStr); ok {
+		return nodeID.NodeIdStr
+	}
+	return ""
+} 
+
+
+func hasInterfaceErrors(stats map[string]interface{}) bool {
+    // Temporary mock: always return false
+    // Replace with real logic later
+    return false
+}

@@ -7,7 +7,7 @@ export function useFaultData() {
   const [totalEvents, setTotalEvents] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const PAGE_SIZE = 20;
+  const PAGE_SIZE = 21;
 
   const loadData = useCallback(async (
     keycloak,

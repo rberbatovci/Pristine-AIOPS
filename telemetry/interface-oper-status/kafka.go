@@ -1,92 +1,69 @@
 package main
 
-import (
-	"bytes"
-	"io" 
+import ( 
 	"context"
-	"encoding/json"
-	"fmt"
-	"log" 
-	"time"
-
-	telemetryBis "telemetry/protobuf/telemetry"
-
-	"github.com/opensearch-project/opensearch-go"
+	"log"   
 	"github.com/segmentio/kafka-go"
-	"github.com/golang/protobuf/proto"
-	"github.com/opensearch-project/opensearch-go/opensearchapi"
 ) 
 
-// processKafkaMessage unmarshals a Kafka message, extracts data, and indexes it into OpenSearch.
-func processKafkaMessage(ctx context.Context, m kafka.Message, osClient *opensearch.Client) {
-	t := new(telemetryBis.Telemetry)
-	if err := proto.Unmarshal(m.Value, t); err != nil {
-		log.Printf("❌ Failed to unmarshal protobuf message (Offset: %d): %v", m.Offset, err)
-		// Log a snippet of the malformed message for debugging
-		log.Printf("Malformed protobuf message content (first %d bytes): %x...", min(100, len(m.Value)), m.Value[:min(100, len(m.Value))])
-		return
+/*
+========================================================
+KAFKA INITIALIZATION
+========================================================
+*/
+func initKafkaWriter() *kafka.Writer {
+	return &kafka.Writer{
+		Addr:  kafka.TCP(kafkaBroker),
+		Topic: kafkaSignalTopic,
 	}
+}
 
-	printTelemetryFields(t.DataGpbkv, "")
 
-	device := ""
-	if nodeID, ok := t.NodeId.(*telemetryBis.Telemetry_NodeIdStr); ok {
-		device = nodeID.NodeIdStr
+/*
+========================================================
+KAFKA SIGNAL WRITER
+========================================================
+*/
+
+func kafkaSignalWriter(ctx context.Context, writer *kafka.Writer, in <-chan KafkaSignal) {
+	for msg := range in {
+		err := writer.WriteMessages(ctx, kafka.Message{
+    		Value: msg.Payload,
+		})
+		if err != nil {
+			log.Printf("Kafka signal error: %v", err)
+		}
 	}
+}
 
-	interfaceStats := telemetryFieldsToMap(t.DataGpbkv, "")
+/*
+========================================================
+KAFKA READER
+========================================================
+*/
 
-	interfaceName, _ := interfaceStats["keys.name"].(string)
+func startKafkaReader(ctx context.Context, out chan<- TelemetryMessage) {
+	reader := kafka.NewReader(kafka.ReaderConfig{
+		Brokers: []string{kafkaBroker},
+		Topic:   telemetryTopic,
+		GroupID: kafkaGroupID,
+	})
+	defer reader.Close()
 
-	interfaceStatus, _ := interfaceStats["oper-status"].(string)
+	for {
+		msg, err := reader.ReadMessage(ctx)
+		if err != nil {
+			log.Printf("Kafka read error: %v", err)
+			continue
+		}
 
-    // Save latest interface status in Redis (hash field)
-    redisKey := fmt.Sprintf("telemetry:%s:interface:%s", device, interfaceName)
+		// ✅ Only log size (safe)
+		//log.Printf("📨 Kafka message size: %d bytes", len(msg.Value))
 
-    if err := redisClient.HSet(ctx, redisKey, map[string]interface{}{
-        "timestamp": t.MsgTimestamp,
-        "status":    interfaceStatus,
-    }).Err(); err != nil {
-        log.Printf("❌ Failed to save interface status to Redis for %s: %v", redisKey, err)
-    } else {
-        log.Printf("✅ Updated Redis key %s with latest interface status", redisKey)
-    }
-
-	doc := map[string]interface{}{
-		"device":        device,
-		"interface":	 interfaceName,
-		"collection_id": t.CollectionId,
-		"timestamp": 	 t.MsgTimestamp,
-		"encoding_path": t.EncodingPath,
-		"ingested_at":   time.Now().UTC(),
-		"status":		 interfaceStatus,
-	}
-
-	data, err := json.Marshal(doc)
-	if err != nil {
-		log.Printf("❌ Failed to marshal document to JSON (Offset: %d): %v", m.Offset, err)
-		return
-	}
-
-	log.Printf("Parsed telemetry stats for indexing (Offset: %d): %s", m.Offset, string(data))
-
-	req := opensearchapi.IndexRequest{
-		Index:   opensearchIndex,
-		Body:    bytes.NewReader(data),
-		Refresh: "true",
-	}
-
-	res, err := req.Do(ctx, osClient)
-	if err != nil {
-		log.Printf("❌ Failed to index document to OpenSearch (Offset: %d): %v", m.Offset, err)
-		return
-	}
-	defer res.Body.Close()
-
-	if res.IsError() {
-		errorBody, _ := io.ReadAll(res.Body)
-		log.Printf("❌ OpenSearch indexing error for Offset %d: %s - %s", m.Offset, res.String(), string(errorBody))
-	} else {
-		log.Printf("✅ Document from Offset %d indexed successfully. OpenSearch response: %s", m.Offset, res.String())
+		// ✅ DO NOT parse here
+		out <- TelemetryMessage{
+			Value:       msg.Value,
+			Timestamp: msg.Time.Unix(),
+		}
 	}
 }

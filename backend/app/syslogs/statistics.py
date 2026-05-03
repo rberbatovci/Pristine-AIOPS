@@ -4,8 +4,8 @@ from app.db.session import opensearch_client
 from app.auth.keycloak import get_current_user, require_admin
 
 router = APIRouter(
-    prefix="/api/syslogs/statistics",
-    tags=["syslogs,statistics"],
+    prefix="/api/events/syslogs/statistics",
+    tags=["syslogs,events/statistics"],
 )
 
 signalsRouter = APIRouter(

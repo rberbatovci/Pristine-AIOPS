@@ -7,6 +7,7 @@ import { RiDownloadCloudLine, RiDownloadCloudFill } from "react-icons/ri";
 import SearchTime from '../components/misc/SearchTime.js';
 import FilterTraffic from '../components/netflow/FilterTraffic.js';
 import ChartView from '../components/misc/ChartView.js';
+import Statistics from '../components/misc/Statistics.js';
 
 import { RiFilterLine, RiFilterFill } from "react-icons/ri";
 import { TfiLayoutListThumb, TfiLayoutListThumbAlt } from "react-icons/tfi";
@@ -14,11 +15,11 @@ import { IoPieChartOutline, IoPieChartSharp, IoRefreshCircleOutline, IoRefreshCi
 
 function Traffic({ currentUser, setDashboardTitle, keycloak }) {
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(false);  
+    const [error, setError] = useState(false);
     const [eventsData, setEventsData] = useState([]);
     const downloadRef = useRef(null);
     const dropdownWrapperRef = useRef(null);
-    const dropdownMenuRef = useRef(null); 
+    const dropdownMenuRef = useRef(null);
     const [dropdowns, setDropdowns] = useState({
         search: { visible: false, position: { x: 0, y: 0 } },
         time: { visible: false, position: { x: 0, y: 0 } },
@@ -28,7 +29,7 @@ function Traffic({ currentUser, setDashboardTitle, keycloak }) {
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(20);
     const [totalEvents, setTotalEvents] = useState(0);
-    const baseColumns = [
+    const tags = [
         { label: 'Timestamp', value: 'timestamp' },
         { label: 'Device', value: 'device' },
         { label: 'Source IP', value: 'source_ip' },
@@ -40,7 +41,7 @@ function Traffic({ currentUser, setDashboardTitle, keycloak }) {
         { label: 'Output Interface', value: 'output_if' },
         { label: 'Bytes', value: 'bytes' },
         { label: 'Packets', value: 'packets' },
-    ]; 
+    ];
     const [startTime, setStartTime] = useState(() => new Date(Date.now() - 60 * 60 * 1000));
     const [endTime, setEndTime] = useState(() => new Date());
     const [filters, setFilters] = useState({});
@@ -147,18 +148,6 @@ function Traffic({ currentUser, setDashboardTitle, keycloak }) {
         console.log('Testing!!!');
     };
 
-    const handleNextPage = () => {
-        if (page * pageSize < totalEvents) {
-            setPage(prevPage => prevPage + 1);
-        }
-    };
-
-    const handlePrevPage = () => {
-        if (page > 1) {
-            setPage(prevPage => prevPage - 1);
-        }
-    };
-
     const handleTimeRangeChange = (start, end) => {
         setStartTime(start);
         setEndTime(end);
@@ -219,31 +208,17 @@ function Traffic({ currentUser, setDashboardTitle, keycloak }) {
     };
 
     return (
-        <div className="mainContainer" ref={dropdownWrapperRef}>
+        <div className="mainContainer" ref={dropdownWrapperRef} >
             <div className="mainContainerHeader">
                 <div className="headerTitles">
-                    <h2
-                        className={"eventsTitleHeader eventsTitleHeaderActive"}
-                    >
-                        Netflow
-                    </h2>
+                    <h2 className={"eventsTitleHeader eventsTitleHeaderActive"} > Netflow </h2>
                 </div>
                 <div className="mainContainerButtons">
-                    {view === "list" ? (
-                        <button
-                            className="iconButton"
-                            onClick={toggleView}
-                            style={{ marginRight: '20px' }}
-                        >
-                            <TfiLayoutListThumb className="defaultIcon" />
-                            <IoPieChartSharp className="hoverIcon" />
-                        </button>
-                    ) : (
-                        <button
-                            className="iconButton"
-                            onClick={toggleView}
-                            style={{ marginRight: '20px' }}
-                        >
+                    {view === "list" ? (<button className="iconButton" onClick={toggleView} style={{ marginRight: '20px' }} >
+                        <TfiLayoutListThumb className="defaultIcon" />
+                        <IoPieChartSharp className="hoverIcon" />
+                    </button>) : (
+                        <button className="iconButton" onClick={toggleView} style={{ marginRight: '20px' }} >
                             <IoPieChartOutline className="defaultIcon" />
                             <TfiLayoutListThumbAlt className="hoverIcon" />
                         </button>
@@ -252,62 +227,41 @@ function Traffic({ currentUser, setDashboardTitle, keycloak }) {
                         <IoRefreshCircleOutline className="defaultIcon" />
                         <IoRefreshCircleSharp className="hoverIcon" />
                     </button>
-                    <button
-                        className={`iconButton ${dropdowns.search.visible ? 'active' : ''} `}
-                        onClick={(event) => handleButtonClick(event, 'search')}
-                    >
+                    <button className={`iconButton ${dropdowns.search.visible ? 'active' : ''} `} onClick={(event) => handleButtonClick(event, 'search')} >
                         <RiFilterLine className="defaultIcon" />
                         <RiFilterFill className="hoverIcon" />
                     </button>
-                    <button
-                        className="iconButton"
-                        onClick={(event) => handleButtonClick(event, 'time')}
-                    >
+                    <button className="iconButton" onClick={(event) => handleButtonClick(event, 'time')} >
                         <FaRegClock className="defaultIcon hasFilters" />
                         <FaClock className="hoverIcon" />
                     </button>
-                    <button
-                        className="iconButton"
-                    >
+                    <button className="iconButton" >
                         <RiDownloadCloudLine className="defaultIcon" />
                         <RiDownloadCloudFill className="hoverIcon" />
                     </button>
-
                 </div>
             </div>
-
             <div className="mainContainerContent">
                 {loading && <div className="loadingMessage">Loading...</div>}
                 {error && <div className="errorMessage">{error}</div>}
-                {!loading && !error && (view === "list" ? (
-                    <div className="syslogsTableContainer">
-                        <EventsTable currentUser={currentUser} data={eventsData} columns={baseColumns} signalSource='netflow' onDownload={(downloadFn) => (downloadRef.current = downloadFn)} onRowSelectChange={handleRowSelectChange} />
-                    </div>) : (
-                    <div className="syslogsTableContainer">
-                        <ChartView keycloak={keycloak} currentUser={currentUser} source='events' dataSource='netflow' selectedTags={baseColumns} />
-                    </div>))}
+                {!loading && !error && (
+                    <> {view === 'list' && (
+                        <div className="syslogsTableContainer">
+                            <EventsTable dataSource='netflow' data={eventsData} totalPages={totalPages} tags={tags} signalSource='netflow' onRowSelectChange={handleRowSelectChange} page={page} onPageChange={setPage} />
+                        </div>
+                    )} {view === 'chart' && (
+                        <div className="syslogsTableContainer">
+                            <Statistics keycloak={keycloak} source="events" dataSource='netflow' selectedTags={tags} tags={tags}/>
+                        </div>
+                    )} </>
+                )}
             </div>
             <div ref={dropdownMenuRef}>
-                <div
-                    className={`dropdownMenu ${dropdowns.time.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
-                    style={{ width: 'auto' }}
-                >
-                    <SearchTime
-                        startTime={startTime}
-                        endTime={endTime}
-                        onTimeRangeChange={handleTimeRangeChange}
-                    />
+                <div className={`dropdownMenu ${dropdowns.time.visible ? 'dropdownVisible' : 'dropdownHidden'} `} style={{ width: 'auto' }} >
+                    <SearchTime startTime={startTime} endTime={endTime} onTimeRangeChange={handleTimeRangeChange} />
                 </div>
-                <div
-                    className={`dropdownMenu ${dropdowns.search.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
-                    style={{ width: '420px' }}
-                >
-                    <FilterTraffic
-                        columns={baseColumns}
-                        devices={devices}
-                        onSelectedTagsChange={handleSyslogTagsChange}
-                        onSelectedTagsSearch={handleSearchAndCloseDropdown}
-                    />
+                <div className={`dropdownMenu ${dropdowns.search.visible ? 'dropdownVisible' : 'dropdownHidden'} `} style={{ width: '420px' }} >
+                    <FilterTraffic columns={tags} devices={devices} onSelectedTagsChange={handleSyslogTagsChange} onSelectedTagsSearch={handleSearchAndCloseDropdown} />
                 </div>
             </div>
         </div>

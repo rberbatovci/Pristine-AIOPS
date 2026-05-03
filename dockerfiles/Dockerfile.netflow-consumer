@@ -5,11 +5,14 @@ FROM debian:bookworm-slim
 ENV TZ=Etc/UTC
 
 RUN apt-get update && apt-get install -y \
+    cmake \
     tzdata \
+    libpq-dev \
     build-essential \
     librdkafka-dev \
     libcurl4-openssl-dev \
     libjansson-dev \
+    uuid-dev \
     curl \
     && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
     && echo $TZ > /etc/timezone \
@@ -22,6 +25,6 @@ COPY netflow/consumer/ /app/netflow/consumer/
 
 WORKDIR /app/netflow/consumer/
 
-RUN gcc -o consumer consumer.c -lrdkafka -lcurl -ljansson
+RUN cmake . && make
 
-CMD ["./consumer"]
+CMD ["./netflow_consumer"]

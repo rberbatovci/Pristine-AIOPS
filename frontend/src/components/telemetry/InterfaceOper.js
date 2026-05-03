@@ -127,8 +127,8 @@ const InterfaceOper = ({ keycloak, currentUser, selectedDevice }) => {
 
   const formatStatus = (tick) => {
 
-    if (tick === 1) return 'Ready';
-    if (tick === 0) return 'No-Pass';
+    if (tick === 1) return 'Up';
+    if (tick === 0) return 'Down';
 
     return '';
 

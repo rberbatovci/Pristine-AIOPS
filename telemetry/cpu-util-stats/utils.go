@@ -1,16 +1,16 @@
 package main
 
 import (
-    "context"
-    "log"
-    "reflect"
-    "strconv"
-    "time"
+	"log"
+	"reflect" 
+	"strconv" 
+	"sync"
+	telemetryBis "telemetry/protobuf/telemetry"
+)
 
-    "github.com/jackc/pgx/v5"
-    "github.com/opensearch-project/opensearch-go"
-
-    telemetryBis "telemetry/protobuf/telemetry"
+var (
+	thresholdLock sync.RWMutex
+	highThreshold float64 = 80.0 
 )
 
 func getValue(field *telemetryBis.TelemetryField) interface{} {
@@ -40,21 +40,21 @@ func getValue(field *telemetryBis.TelemetryField) interface{} {
 }
 
 func convertToFloat(v interface{}) (float64, bool) {
-    switch val := v.(type) {
-    case float64:
-        return val, true
-    case float32:
-        return float64(val), true
-    case int, int32, int64:
-        return float64(reflect.ValueOf(val).Int()), true
-    case uint, uint32, uint64:
-        return float64(reflect.ValueOf(val).Uint()), true
-    case string:
-        parsed, err := strconv.ParseFloat(val, 64)
-        return parsed, err == nil
-    default:
-        return 0, false
-    }
+	switch val := v.(type) {
+	case float64:
+		return val, true
+	case float32:
+		return float64(val), true
+	case int, int32, int64:
+		return float64(reflect.ValueOf(val).Int()), true
+	case uint, uint32, uint64:
+		return float64(reflect.ValueOf(val).Uint()), true
+	case string:
+		parsed, err := strconv.ParseFloat(val, 64)
+		return parsed, err == nil
+	default:
+		return 0, false
+	}
 }
 
 func extractCPUUtilization(fields []*telemetryBis.TelemetryField) map[string]interface{} {
@@ -78,31 +78,103 @@ func extractCPUUtilization(fields []*telemetryBis.TelemetryField) map[string]int
 	return nil
 }
 
-func startThresholdRefresher(conn *pgx.Conn, interval time.Duration) {
-    go func() {
-        for {
-            err := loadCPUThresholds(conn)
-            if err != nil {
-                log.Printf("❌ Failed to refresh thresholds: %v", err)
-            }
-            time.Sleep(interval)
-        }
-    }()
+func extractDeviceID(t *telemetryBis.Telemetry) string {
+	if nodeID, ok := t.NodeId.(*telemetryBis.Telemetry_NodeIdStr); ok {
+		return nodeID.NodeIdStr
+	}
+	return ""
 } 
 
-func startPeriodicFlush(ctx context.Context, osClient *opensearch.Client, interval time.Duration) {
-    ticker := time.NewTicker(interval)
-    go func() {
-        for {
-            select {
-            case <-ticker.C:
-                if err := flushBulkToOpenSearch(ctx, osClient, opensearchIndex); err != nil {
-                    log.Printf("Periodic bulk flush failed: %v", err)
-                }
-            case <-ctx.Done():
-                ticker.Stop()
-                return
-            }
+func isHighCPU(stats map[string]interface{}) bool {
+    if stats == nil {
+        return false
+    }
+
+    thresholdLock.RLock()
+    high := highThreshold
+    thresholdLock.RUnlock()
+
+    keys := []string{"five-seconds", "one-minute", "five-minutes"}
+
+    for _, k := range keys {
+        val, ok := stats[k]
+        if !ok {
+            return false
         }
-    }()
+
+        floatVal, ok := convertToFloat(val)
+        if !ok || floatVal <= high {
+            return false
+        }
+    }
+
+    return true
+}
+ 
+func extractCPUFromParsed(data map[string]interface{}) map[string]interface{} {
+	stats := make(map[string]interface{})
+
+	// Example path (you must adjust based on your actual data)
+	if cpuUsage, ok := data["cpu-usage"].(map[string]interface{}); ok {
+
+		if v, ok := cpuUsage["one-minute"]; ok {
+			stats["cpu_1m"] = v
+		}
+		if v, ok := cpuUsage["five-minutes"]; ok {
+			stats["cpu_5m"] = v
+		}
+		if v, ok := cpuUsage["five-seconds"]; ok {
+			stats["cpu_5s"] = v
+		}
+	}
+
+	return stats
 } 
+
+func debugTopLevel(fields []*telemetryBis.TelemetryField) {
+	for i, f := range fields {
+		if f == nil {
+			continue
+		}
+
+		log.Printf("TOP[%d]: %s (children=%d)", i, f.Name, len(f.Fields))
+	}
+}
+
+func walkCPUFields(fields []*telemetryBis.TelemetryField, path string, result map[string]interface{}) {
+	for _, f := range fields {
+		currentPath := path + "/" + f.Name
+
+		// 🔥 Detect CPU block by node name ONLY
+		if f.Name == "cpu-utilization" {
+			for _, sub := range f.Fields {
+				switch sub.Name {
+				case "five-seconds", "one-minute", "five-minutes":
+					result[sub.Name] = getValue(sub)
+				}
+			}
+		}
+
+		// recurse
+		if len(f.Fields) > 0 {
+			walkCPUFields(f.Fields, currentPath, result)
+		}
+	}
+}
+
+func debugFields(fields []*telemetryBis.TelemetryField, indent string) {
+	for _, f := range fields {
+		if f == nil {
+			continue
+		}
+
+		// print current node
+		log.Printf("%s- name=%q children=%d value=%v",
+			indent, f.Name, len(f.Fields), getValue(f))
+
+		// recursively print children
+		if len(f.Fields) > 0 {
+			debugFields(f.Fields, indent+"  ")
+		}
+	}
+}

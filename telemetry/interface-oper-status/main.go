@@ -1,88 +1,220 @@
 package main
 
-import ( 
-	"context" 
-	"log"
-	"time" 
-	"github.com/segmentio/kafka-go"
-	"github.com/redis/go-redis/v9"
+import (
+	"context"
+	"log" 
+	"fmt" 
+	"github.com/golang/protobuf/proto"
+	"encoding/json"
+	telemetryBis "telemetry/protobuf/telemetry"
 )
 
 const (
-	kafkaBroker     = "kafka:9092"
-	kafkaTopic      = "interface-oper-status"
-	opensearchURL   = "http://opensearch:9200"
-	opensearchIndex = "interface-oper-status"
+	kafkaBroker     = "kafka:9092"  
 	kafkaGroupID    = "interface-oper-status-group"
+	telemetryTopic	= "interface-oper-status"
+	kafkaSignalTopic = "telemetry-signals"
 	opensearch1 = "http://opensearch-node1:9200"
     opensearch2 = "http://opensearch-node2:9200"
     opensearch3 = "http://opensearch-node3:9200"
 )
 
-var redisClient *redis.Client
- 
+/*
+========================================================
+PIPELINE TYPES
+========================================================
+*/
 
+// Main message flowing through pipeline
+type TelemetryMessage struct {
+	Device    string
+	Timestamp int64 
+	Status     string
+	Interface 	  string
+	Value       []byte
+}
+
+// Redis update payload
+type RedisUpdate struct {
+	Key   string
+	Value interface{}
+}
+
+// Kafka signal message
+type KafkaSignal struct {
+	Payload []byte
+}
+
+type IncomingMessage struct {
+	Device string                 `json:"device"`
+	Stats  map[string]interface{} `json:"stats"`
+}
+
+
+/*
+========================================================
+MAIN
+========================================================
+*/
 
 func main() {
-	
-	reader := kafka.NewReader(kafka.ReaderConfig{
-		Brokers: []string{kafkaBroker},
-		Topic:   kafkaTopic,
-		GroupID: kafkaGroupID,
-		StartOffset: kafka.FirstOffset,
-		CommitInterval: 1 * time.Second,
-		MaxBytes: 10e6, // 10MB
-	})
-	defer func() {
-		if err := reader.Close(); err != nil {
-			log.Printf("❌ Error closing Kafka reader: %v", err)
-		} else {
-			log.Println("✅ Kafka reader closed successfully.")
-		}
-	}()
+	ctx := context.Background()
 
-	initRedis()
+	// Channels
+	ingestChan := make(chan TelemetryMessage, 1000)
+	bulkChan := make(chan TelemetryMessage, 2000)
+	redisChan := make(chan RedisUpdate, 1000)
+	signalChan := make(chan KafkaSignal, 1000)
+
+	/*
+	========================================================
+	INIT CLIENTS
+	========================================================
+	*/
+
+	redisClient := initRedis()
+	kafkaWriter := initKafkaWriter()
 
 	osClient, err := setupOpenSearchClient()
 	if err != nil {
-		log.Fatalf("❌ Application startup failed: %v", err)
+		log.Fatalf("Failed to init OpenSearch: %v", err)
 	}
 
-	if err := createIndexIfNotExists(osClient, opensearchIndex); err != nil {
-		log.Fatalf("Failed to create index: %v", err)
+	/*
+	========================================================
+	START PIPELINE
+	========================================================
+	*/
+
+	go startKafkaReader(ctx, ingestChan)
+
+	workerCount := 8
+	for i := 0; i < workerCount; i++ {
+		go worker(ctx, ingestChan, bulkChan, redisChan, signalChan)
 	}
 
-	log.Println("🚀 Kafka consumer started. Waiting for telemetry messages...")
+	go bulkIndexer(ctx, osClient, bulkChan)
+	go redisWriter(ctx, redisClient, redisChan)
+	go kafkaSignalWriter(ctx, kafkaWriter, signalChan)
 
-	for {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		m, err := reader.ReadMessage(ctx)
-		cancel() 
+	log.Println("🚀 Telemetry pipeline started...")
 
-		if err != nil {
-			if err == context.DeadlineExceeded {
-				log.Println("⏰ No new Kafka messages within timeout. Retrying...")
-				time.Sleep(5 * time.Second) 
-				continue
-			}
-			log.Printf("❌ Failed to read message from Kafka: %v", err)
-			time.Sleep(5 * time.Second) 
+	select {}
+} 
+
+/*
+========================================================
+BUSINESS LOGIC
+========================================================
+*/
+
+func processMessage(msg TelemetryMessage) (
+	TelemetryMessage,
+	*RedisUpdate,
+	*KafkaSignal,
+	bool,
+) {
+	// 🔴 1. Decode protobuf
+	t := new(telemetryBis.Telemetry)
+	if err := proto.Unmarshal(msg.Value, t); err != nil {
+		log.Printf("❌ Protobuf decode failed: %v", err)
+		return TelemetryMessage{}, nil, nil, false
+	}
+ 
+	//printTelemetryFields(t.DataGpbkv, "")
+
+	// 🔴 2. Extract CPU stats (reuse your old logic)
+	interfaceStats := telemetryFieldsToMap(t.DataGpbkv, "")
+
+	interfaceName, _ := interfaceStats["keys.name"].(string)
+
+	interfaceStatus, _ := interfaceStats["oper-status"].(string)
+
+	if interfaceStatus == "" {
+		//log.Println("📊 interfaceStatus is NIL (no CPU data found)")
+		return TelemetryMessage{}, nil, nil, false
+	} 
+
+	// 🔴 3. Extract device
+	device := extractDeviceID(t)
+	if device == "" {
+		log.Printf("⚠️ Missing device ID")
+		return TelemetryMessage{}, nil, nil, false
+	}
+
+	log.Printf(
+    	"📥 Device: %s | Interface: %s | Timestamp: %d | Stats: %+v",
+    	device,
+    	interfaceName,
+    	t.MsgTimestamp,
+    	interfaceStats,
+	)
+
+	// 🔴 4. Build normalized message
+	doc := TelemetryMessage{
+		Device:    device,
+		Timestamp: int64(t.MsgTimestamp), 
+		Interface: interfaceName,
+		Status:    interfaceStatus,
+		Value:     msg.Value,
+	}
+
+	// 🔴 5. Redis update
+	redis := &RedisUpdate{
+		Key:   fmt.Sprintf("device:%s:cpu", device),
+		Value: map[string]interface{}{
+			"timestamp": t.MsgTimestamp,
+			"stats":     interfaceStats,
+		},
+	}
+ 
+	// 🔴 6. Alert logic
+	var signal *KafkaSignal
+	if isInterfaceDown(interfaceStats) {
+		payload, _ := json.Marshal(map[string]interface{}{
+			"device": device,
+			"alert":  "interface_down",
+			"stats":  interfaceStats,
+		})
+
+		signal = &KafkaSignal{
+			Payload: payload,
+		}
+	} 
+
+	return doc, redis, signal, true
+}
+ 
+/*
+========================================================
+WORKER
+========================================================
+*/
+
+func worker(
+	ctx context.Context,
+	in <-chan TelemetryMessage,
+	bulkOut chan<- TelemetryMessage,
+	redisOut chan<- RedisUpdate,
+	signalOut chan<- KafkaSignal,
+) {
+	for msg := range in {
+
+		doc, redisUpdate, signal, ok := processMessage(msg)
+
+		// 🚨 skip EVERYTHING if invalid
+		if !ok {
 			continue
 		}
 
-		processKafkaMessage(context.Background(), m, osClient)
+		// only valid messages reach here
+		bulkOut <- doc
 
-		if err := reader.CommitMessages(context.Background(), m); err != nil {
-			log.Printf("❌ Failed to commit offset for message (Offset: %d): %v", m.Offset, err)
-		} else {
-			log.Printf("✅ Committed offset %d for message.", m.Offset)
+		if redisUpdate != nil {
+			redisOut <- *redisUpdate
+		}
+		if signal != nil {
+			signalOut <- *signal
 		}
 	}
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

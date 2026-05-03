@@ -9,7 +9,7 @@ import '../../css/SyslogDatabase.css';
 import { IoBarChartOutline } from "react-icons/io5";
 import { AiOutlinePieChart } from "react-icons/ai";
 
-function SyslogEventsStatistics({ keycloak, selectedTags = [] }) {
+function SyslogEventsStatistics({ keycloak, source, dataSource, selectedTags = [] }) {
     const [chartDataMap, setChartDataMap] = useState({});
     const [loadingMap, setLoadingMap] = useState({});
     const [chartTypeMap, setChartTypeMap] = useState({});

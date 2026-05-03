@@ -25,117 +25,117 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      #- name: Build and push backend image
-      #  uses: docker/build-push-action@v5
-      #  with:
-      #    context: .
-      #    file: ./dockerfiles/Dockerfile.backend
-      #    push: true
-      #    tags: ghcr.io/rberbatovci/backend:latest
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.backend
+          push: true
+          tags: ghcr.io/rberbatovci/backend:latest
 
-      #- name: Build and push frontend image
-      #  uses: docker/build-push-action@v5
-      #  with:
-      #    context: .
-      #    file: ./dockerfiles/Dockerfile.frontend
-      #    push: true
-      #    tags: ghcr.io/rberbatovci/frontend:latest
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.frontend
+          push: true
+          tags: ghcr.io/rberbatovci/frontend:latest
 
-      #- name: Build and push PostgreSQL image
-      #  uses: docker/build-push-action@v5
-      #  with:
-      #    context: .
-      #    file: ./dockerfiles/Dockerfile.postgresql
-      #    push: true
-      #    tags: ghcr.io/rberbatovci/postgresql:latest
+      - name: Build and push PostgreSQL image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.postgresql
+          push: true
+          tags: ghcr.io/rberbatovci/postgresql:latest
 
-      #- name: Build and push syslog producer image
-      #  uses: docker/build-push-action@v5
-      #  with:
-      #    context: .
-      #    file: ./dockerfiles/Dockerfile.syslog-producer
-      #    push: true
-      #    tags: ghcr.io/rberbatovci/syslog-producer:latest
+      - name: Build and push syslog producer image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.syslog-producer
+          push: true
+          tags: ghcr.io/rberbatovci/syslog-producer:latest
 
-      #- name: Build and push syslog consumer image
-      #  uses: docker/build-push-action@v5
-      #  with:
-      #    context: .
-      #    file: ./dockerfiles/Dockerfile.syslog-consumer
-      #    push: true
-      #    tags: ghcr.io/rberbatovci/syslog-consumer:latest
+      - name: Build and push syslog consumer image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.syslog-consumer
+          push: true
+          tags: ghcr.io/rberbatovci/syslog-consumer:latest
 
-      #- name: Build and push syslog signals image
-      #  uses: docker/build-push-action@v5
-      #  with:
-      #    context: .
-      #    file: ./dockerfiles/Dockerfile.syslog-signals
-      #    push: true
-      #    tags: ghcr.io/rberbatovci/syslog-signals:latest
+      - name: Build and push syslog signals image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.syslog-signals
+          push: true
+          tags: ghcr.io/rberbatovci/syslog-signals:latest
 
-      #- name: Build and push traps producer image
-      #  uses: docker/build-push-action@v5
-      #  with:
-      #    context: .
-      #    file: ./dockerfiles/Dockerfile.traps-producer
-      #    push: true
-      #    tags: ghcr.io/rberbatovci/traps-producer:latest
+      - name: Build and push traps producer image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.traps-producer
+          push: true
+          tags: ghcr.io/rberbatovci/traps-producer:latest
 
-      #- name: Build and push traps consumer image
-      #  uses: docker/build-push-action@v5
-      #  with:
-      #    context: .
-      #    file: ./dockerfiles/Dockerfile.traps-consumer
-      #    push: true
-      #    tags: ghcr.io/rberbatovci/traps-consumer:latest
+      - name: Build and push traps consumer image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.traps-consumer
+          push: true
+          tags: ghcr.io/rberbatovci/traps-consumer:latest
 
-      #- name: Build and push traps signals image
-      #  uses: docker/build-push-action@v5
-      #  with:
-      #    context: .
-      #    file: ./dockerfiles/Dockerfile.traps-signals
-      #    push: true
-      #    tags: ghcr.io/rberbatovci/traps-signals:latest
+      - name: Build and push traps signals image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.traps-signals
+          push: true
+          tags: ghcr.io/rberbatovci/traps-signals:latest
 
-      #- name: Build and push netflow producer image
-      #  uses: docker/build-push-action@v5
-      #  with:
-      #    context: .
-      #    file: ./dockerfiles/Dockerfile.netflow-producer
-      #    push: true
-      #    tags: ghcr.io/rberbatovci/netflow-producer:latest
+      - name: Build and push netflow producer image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.netflow-producer
+          push: true
+          tags: ghcr.io/rberbatovci/netflow-producer:latest
 
-      #- name: Build and push netflow consumer image
-      #  uses: docker/build-push-action@v5
-      #  with:
-      #    context: .
-      #    file: ./dockerfiles/Dockerfile.netflow-consumer
-      #    push: true
-      #    tags: ghcr.io/rberbatovci/netflow-consumer:latest
+      - name: Build and push netflow consumer image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.netflow-consumer
+          push: true
+          tags: ghcr.io/rberbatovci/netflow-consumer:latest
 
-      #- name: Build and push cisco telemetry producer image
-      #  uses: docker/build-push-action@v5
-      #  with:
-      #    context: .
-      #    file: ./dockerfiles/Dockerfile.telemetry-producer
-      #    push: true
-      #    tags: ghcr.io/rberbatovci/telemetry-producer:latest
+      - name: Build and push cisco telemetry producer image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.telemetry-producer
+          push: true
+          tags: ghcr.io/rberbatovci/telemetry-producer:latest
 
-      #- name: Build and push cpu utilization statistics consumer image
-      #  uses: docker/build-push-action@v5
-      #  with:
-      #    context: .
-      #    file: ./dockerfiles/Dockerfile.telemetry-cpu-util-stats
-      #    push: true
-      #    tags: ghcr.io/rberbatovci/telemetry-cpu-util-stats:latest
+      - name: Build and push cpu utilization statistics consumer image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.telemetry-cpu-util-stats
+          push: true
+          tags: ghcr.io/rberbatovci/telemetry-cpu-util-stats:latest
 
-      #- name: Build and push memory statistics consumer image
-      #  uses: docker/build-push-action@v5
-      #  with:
-      #    context: .
-      #    file: ./dockerfiles/Dockerfile.telemetry-memory-stats
-      #    push: true
-      #    tags: ghcr.io/rberbatovci/telemetry-memory-stats:latest
+      - name: Build and push memory statistics consumer image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.telemetry-memory-stats
+          push: true
+          tags: ghcr.io/rberbatovci/telemetry-memory-stats:latest
 
       - name: Build and push interface statistics consumer image
         uses: docker/build-push-action@v5
@@ -161,13 +161,13 @@ jobs:
       #    push: true
       #    tags: ghcr.io/rberbatovci/telemetry-interface-stats:latest
       
-      #- name: Build and push GoBGP Server image
-      #  uses: docker/build-push-action@v5 
-      #  with:
-      #    context: .
-      #    file: ./dockerfiles/Dockerfile.gobgp-server
-      #    push: true
-      #    tags: ghcr.io/rberbatovci/gobgp-server:latest
+      - name: Build and push GoBGP Server image
+        uses: docker/build-push-action@v5 
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.gobgp-server
+          push: true
+          tags: ghcr.io/rberbatovci/gobgp-server:latest
 
       #- name: Build and push topology producer image
       #  uses: docker/build-push-action@v5
