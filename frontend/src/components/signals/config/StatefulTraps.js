@@ -5,13 +5,15 @@ import customStyles from '../../misc/SelectStyles';
 import { TailSpin } from 'react-loader-spinner';
 
 import { useStatefulSnmpTrapRules } from "../../../hooks/useStatefulSnmpTrapRules";
+import { useSnmpTrapTags } from "../../../hooks/useSnmpTrapTags";
+import { useSnmpTrapOids } from "../../../hooks/useSnmpTrapOids";
 
-const StatefulTraps = ({ keycloak, devices, onReload, snmpTrapOids, tags, showNotification }) => {
-    const [snmpTrapRule, setSnmpTrapRule] = useState([]);
-    const { rules, ruleDetails, loading: isLoading, error, selectRule, addRule, updateRule, deleteRule } = useStatefulSnmpTrapRules(keycloak);
+const StatefulTraps = ({ keycloak, showNotification }) => { 
+    const { rules, ruleDetails, loading: isLoading, reload: reloadSnmpTrapRules, error, selectRule, addRule, updateRule, deleteRule } = useStatefulSnmpTrapRules(keycloak);
+    const { list: tags, loading: snmpTrapTagsLoading, loadList: reloadSnmpTrapTags } = useSnmpTrapTags(keycloak, false);
+    const { list: snmpTrapOids, loading: oidsLoading, loadList: reloadSnmpTrapOids } = useSnmpTrapOids(keycloak);
     const emptyRule = {
-        name: '',
-        devices: [],
+        name: '', 
         opensignaltrap: '',
         opensignaltag: '',
         opensignalvalue: '',
@@ -65,7 +67,7 @@ const StatefulTraps = ({ keycloak, devices, onReload, snmpTrapOids, tags, showNo
         try {
             console.log("SENDING FORM:", selectedRule); // 👈 ADD THIS
             await addRule(selectedRule);
-            await onReload();
+            await reloadSnmpTrapRules();
             //await loadList(); // 🔥 refresh list
             showNotification("Rule created successfully", "success");
             setSelectedRule(emptyRule);
@@ -87,7 +89,7 @@ const StatefulTraps = ({ keycloak, devices, onReload, snmpTrapOids, tags, showNo
         try {
             console.log("SENDING FORM:", selectedRule); // 👈 ADD THIS
             await updateRule(selectedRule.name, selectedRule);
-            await onReload();
+            await reloadSnmpTrapRules();
             //await loadList(); // 🔥 refresh list
             showNotification("Rule updated successfully", "success");
             setSelectedRule(emptyRule);
@@ -104,7 +106,7 @@ const StatefulTraps = ({ keycloak, devices, onReload, snmpTrapOids, tags, showNo
         setLoadingState('deleting');
         try {
             await deleteRule(selectedRule.name);
-            await onReload();
+            await reloadSnmpTrapRules();
             //await loadList(); // 🔥 refresh list
             showNotification("Rule deleted successfully", "success");
             setSelectedRule(emptyRule);
@@ -114,9 +116,7 @@ const StatefulTraps = ({ keycloak, devices, onReload, snmpTrapOids, tags, showNo
             showNotification(err.message || String(err), "error");
         }
     };
-
-
-    console.log("Devices:", devices);
+ 
     console.log("SNMP Trap OIDs:", snmpTrapOids);
     console.log("Tags:", tags);
     console.log("Selected Rule:", selectedRule);

@@ -1,10 +1,15 @@
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
-    username VARCHAR NOT NULL UNIQUE,
-    email VARCHAR NOT NULL UNIQUE,
-    hashed_password VARCHAR NOT NULL,
-    is_active BOOLEAN DEFAULT TRUE,
-    is_staff BOOLEAN DEFAULT FALSE
+    keycloak_user_id VARCHAR(255) NOT NULL UNIQUE,
+    username VARCHAR(255),
+    email VARCHAR(255),
+    theme VARCHAR(20) NOT NULL DEFAULT 'light',
+    timezone VARCHAR(100) NOT NULL DEFAULT 'UTC',
+    language VARCHAR(20) NOT NULL DEFAULT 'en',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    is_staff BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS devices (
@@ -17,7 +22,26 @@ CREATE TABLE IF NOT EXISTS devices (
     version VARCHAR,
     gps_latitude DOUBLE PRECISION,
     gps_longitude DOUBLE PRECISION,
-    features JSONB
+    features JSONB DEFAULT $${
+        "syslogs": false,
+        "snmp_traps": false,
+        "netflow": false,
+        "telemetry": {
+            "enabled": false,
+            "features": {
+                "system_util": false,
+                "rib_table": false,
+                "fib_entry": false,
+                "interface_stats": false,
+                "bgp_connections": false,
+                "isis_stats": false,
+                "ospf_stats": false,
+                "lldp_stats": false
+            }
+        },
+        "topology": false,
+        "authentication": false
+    }$$::jsonb
 );
 
 -- Create table syslogTags
@@ -202,7 +226,8 @@ VALUES (
     'CPU utilization monitoring rule',
     30,
     60
-);
+)
+ON CONFLICT (name) DO NOTHING;
 
 -- Create the function
 CREATE OR REPLACE FUNCTION update_mnemonics_alert()

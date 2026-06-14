@@ -1,0 +1,274 @@
+import { useState, useEffect, useMemo } from 'react';
+import { useLocation } from "react-router-dom";
+import {
+    PieChart, Pie, Cell, Tooltip as RechartsTooltip,
+    BarChart, Bar, XAxis, YAxis, CartesianGrid
+} from 'recharts';
+import { Typography } from '@mui/material';
+import kcFetch from '../misc/kcFetch.js';
+import '../../css/SyslogDatabase.css';
+import { IoBarChartOutline } from "react-icons/io5";
+import { AiOutlinePieChart } from "react-icons/ai";
+
+function SyslogSignalsStatistics({ currentUser, setDashboardTitle, keycloak, showNotification, selectedTags = [] }) {
+    const [chartDataMap, setChartDataMap] = useState({});
+    const [loadingMap, setLoadingMap] = useState({});
+    const [chartTypeMap, setChartTypeMap] = useState({});
+    const defaultTags = ["device", "severity", "mnemonic"];
+    const colorPalette = [
+        '#FF6347', '#32CD32', '#FFD700',
+        '#87CEEB', '#8A2BE2', '#FF69B4', '#20B2AA'
+    ];
+
+    // Normalize selectedTags (handles string OR react-select object)
+    const normalizedTags = useMemo(() => {
+        const excluded = ["timestamp", "message"];
+        const combined = [...defaultTags, ...selectedTags];
+
+        return combined
+            .map(tag => typeof tag === "string" ? tag : tag?.value)
+            .filter(tag => tag && !excluded.includes(tag.toLowerCase()));
+    }, [selectedTags, defaultTags]);
+
+    const location = useLocation();
+
+    console.log("Statistics rendered:", location.pathname);
+
+    useEffect(() => {
+        if (!normalizedTags.length) return;
+
+        const fetchStatistics = async (dataType) => {
+            setLoadingMap(prev => ({ ...prev, [dataType]: true }));
+
+            const endpoint = `/signals/syslogs/statistics/${dataType}`;
+
+            try {
+                const data = await kcFetch(keycloak, endpoint);
+
+                let processedData = [];
+
+                if (Array.isArray(data?.statistics)) {
+                    processedData = data.statistics.map(item => ({
+                        name: item.value || item.name || "N/A",
+                        value: item.count ?? 0,
+                    }));
+                } else if (typeof data === "object" && data !== null) {
+                    processedData = Object.entries(data).map(
+                        ([key, value]) => ({
+                            name: key,
+                            value: Number(value) || 0
+                        })
+                    );
+                }
+
+                setChartDataMap(prev => ({
+                    ...prev,
+                    [dataType]: processedData,
+                }));
+
+            } catch (error) {
+                console.error(`Error fetching data for ${dataType}:`, error);
+                setChartDataMap(prev => ({
+                    ...prev,
+                    [dataType]: [],
+                }));
+            } finally {
+                setLoadingMap(prev => ({
+                    ...prev,
+                    [dataType]: false,
+                }));
+            }
+        };
+
+        // Fetch new tags only
+        normalizedTags.forEach(tag => {
+            if (!chartDataMap[tag] && !loadingMap[tag]) {
+                fetchStatistics(tag);
+            }
+        });
+
+        // Cleanup removed tags
+        setChartDataMap(prev => {
+            const updated = { ...prev };
+            Object.keys(updated).forEach(key => {
+                if (!normalizedTags.includes(key)) {
+                    delete updated[key];
+                }
+            });
+            return updated;
+        });
+
+        setLoadingMap(prev => {
+            const updated = { ...prev };
+            Object.keys(updated).forEach(key => {
+                if (!normalizedTags.includes(key)) {
+                    delete updated[key];
+                }
+            });
+            return updated;
+        });
+
+    }, [normalizedTags, keycloak]);
+
+    const handleChartTypeChange = (dataType, type) => {
+        setChartTypeMap(prev => ({ ...prev, [dataType]: type }));
+    };
+
+    const renderTooltip = ({ payload }) => {
+        if (payload && payload.length) {
+            const { name, value } = payload[0].payload;
+            return (
+                <div style={{
+                    backgroundColor: '#fff',
+                    padding: '6px',
+                    border: '1px solid #ccc'
+                }}>
+                    <strong>{name}</strong>
+                    <p>Count: {value}</p>
+                </div>
+            );
+        }
+        return null;
+    };
+
+    useEffect(() => {
+        setDashboardTitle("Signals Dashboard");
+        return () => setDashboardTitle('');
+    }, [setDashboardTitle]);
+
+    return (
+        <div>
+            <div style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'space-around'
+            }}>
+                {normalizedTags.map(dataType => {
+                    const chartType = chartTypeMap[dataType] || 'BarChart';
+                    const chartData = chartDataMap[dataType] || [];
+                    const isLoading = loadingMap[dataType];
+
+                    return (
+                        <div
+                            key={dataType}
+                            className="signalRightElementContainer"
+                            style={{ width: '540px', height: '380px' }}
+                        >
+                            {/* Header */}
+                            <div
+                                className="signalRightElementHeader"
+                                style={{ marginBottom: '20px' }}
+                            >
+                                <div style={{ display: 'flex', alignItems: 'center' }}>
+                                    <h2 style={{
+                                        fontSize: '15px',
+                                        marginLeft: '20px',
+                                        fontWeight: 'bold',
+                                        color: 'var(--textColor)'
+                                    }}>
+                                        {dataType.charAt(0).toUpperCase() + dataType.slice(1)}
+                                    </h2>
+                                    <span style={{
+                                        fontSize: '14px',
+                                        marginLeft: '5px',
+                                        color: 'var(--textColor)'
+                                    }}>
+                                        - Event Statistics
+                                    </span>
+                                </div>
+
+                                <div style={{
+                                    display: 'flex',
+                                    gap: '10px',
+                                    alignItems: 'center',
+                                    marginRight: '10px'
+                                }}>
+                                    {chartType !== 'PieChart' && (
+                                        <AiOutlinePieChart
+                                            size={24}
+                                            onClick={() =>
+                                                handleChartTypeChange(dataType, 'PieChart')
+                                            }
+                                            style={{ cursor: 'pointer', color: '#999' }}
+                                            title="Pie Chart"
+                                        />
+                                    )}
+                                    {chartType !== 'BarChart' && (
+                                        <IoBarChartOutline
+                                            size={24}
+                                            onClick={() =>
+                                                handleChartTypeChange(dataType, 'BarChart')
+                                            }
+                                            style={{ cursor: 'pointer', color: '#999' }}
+                                            title="Bar Chart"
+                                        />
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Loading */}
+                            {isLoading && (
+                                <Typography>Loading...</Typography>
+                            )}
+
+                            {/* No Data */}
+                            {!isLoading && chartData.length === 0 && (
+                                <Typography>
+                                    No data available for {dataType}
+                                </Typography>
+                            )}
+
+                            {/* Pie Chart */}
+                            {!isLoading && chartData.length > 0 && chartType === 'PieChart' && (
+                                <PieChart width={440} height={270}>
+                                    <Pie
+                                        data={chartData}
+                                        dataKey="value"
+                                        nameKey="name"
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={80}
+                                    >
+                                        {chartData.map((entry, index) => (
+                                            <Cell
+                                                key={`cell-${index}`}
+                                                fill={colorPalette[index % colorPalette.length]}
+                                            />
+                                        ))}
+                                    </Pie>
+                                    <RechartsTooltip content={renderTooltip} />
+                                </PieChart>
+                            )}
+
+                            {/* Bar Chart */}
+                            {!isLoading && chartData.length > 0 && chartType === 'BarChart' && (
+                                <BarChart
+                                    width={450}
+                                    height={270}
+                                    data={chartData}
+                                    margin={{ top: 20 }}
+                                >
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis dataKey="name" />
+                                    <YAxis />
+                                    <RechartsTooltip content={renderTooltip} />
+                                    <Bar dataKey="value">
+                                        {chartData.map((entry, index) => (
+                                            <Cell
+                                                key={`cell-${index}`}
+                                                fill={colorPalette[index % colorPalette.length]}
+                                            />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+export default SyslogSignalsStatistics;

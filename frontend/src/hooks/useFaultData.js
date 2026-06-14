@@ -7,7 +7,7 @@ export function useFaultData() {
   const [totalEvents, setTotalEvents] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const PAGE_SIZE = 21;
+  const PAGE_SIZE = 22;
 
   const loadData = useCallback(async (
     keycloak,
@@ -30,6 +30,8 @@ export function useFaultData() {
         url = `/syslogs/?page=${page}&page_size=${PAGE_SIZE}`;
       } else if (dataSource === "snmptraps") {
         url = `/traps/?page=${page}&page_size=${PAGE_SIZE}`;
+      } else if (dataSource === "netflow") {
+        url = `/netflow/?page=${page}&page_size=${PAGE_SIZE}`;
       } else {
         throw new Error(`Unknown dataSource: ${dataSource}`);
       }

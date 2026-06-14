@@ -11,12 +11,11 @@ import InterfaceOper from '../components/telemetry/InterfaceOper.js';
 import MemoryStats from '../components/telemetry/MemoryStats.js';
 import kcFetch from '../components/misc/kcFetch';
 
-function Performance({ currentUser, setDashboardTitle, keycloak }) {
+function Performance({ currentUser, setDashboardTitle, keycloak, showNotification, selectedDevice }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(false);
     const dropdownWrapperRef = useRef(null);
-    const dropdownMenuRef = useRef(null);
-    const [selectedDevice, setSelectedDevice] = useState(null);
+    const dropdownMenuRef = useRef(null); 
     const [devices, setDevices] = useState([]);
     const [startTime, setStartTime] = useState(() => new Date(Date.now() - 60 * 60 * 1000));
     const [endTime, setEndTime] = useState(() => new Date());
@@ -69,6 +68,11 @@ function Performance({ currentUser, setDashboardTitle, keycloak }) {
     };
 
     useEffect(() => {
+            setDashboardTitle("Performance Dashboard");
+            return () => setDashboardTitle('');
+        }, [setDashboardTitle]);
+
+    useEffect(() => {
         const handleClickOutside = (event) => {
             if (dropdownMenuRef.current && !dropdownMenuRef.current.contains(event.target)) {
                 // Click is outside the dropdown area, so close all dropdowns
@@ -91,78 +95,18 @@ function Performance({ currentUser, setDashboardTitle, keycloak }) {
     }, []);
 
     return (
-        <div className="mainContainer" ref={dropdownWrapperRef}>
-            <div className="mainContainerHeader">
-                <div className="headerTitles">
-                    <h2
-                        className={"eventsTitleHeader eventsTitleHeaderActive"}
-                    >
-                        Telemetry
-                    </h2>
-                </div>
-                <div className="mainContainerButtons">
-                    <button
-                        className={`iconButton ${dropdowns.devices.visible ? 'active' : ''} `}
-                        onClick={(event) => handleButtonClick(event, 'devices')}
-                    >
-                        <RiFilterLine className="defaultIcon" />
-                        <RiFilterFill
-                            className="hoverIcon"
-                        />
-                    </button>
-                    <button
-                        className={`iconButton ${dropdowns.time.visible ? 'active' : ''} `}
-                        onClick={(event) => handleButtonClick(event, 'time')}
-                    >
-                        <FaRegClock className="defaultIcon hasFilters" />
-                        <FaClock className="hoverIcon" />
-                    </button>
-                    <button
-                        className={`iconButton ${dropdowns.download.visible ? 'active' : ''} `}
-                    >
-                        <RiDownloadCloudLine className="defaultIcon" />
-                        <RiDownloadCloudFill className="hoverIcon" />
-                    </button>
-                </div>
-            </div>
-
+        <div >  
             <div className="mainContainerContent">
                 {loading && <div className="loadingMessage">Loading...</div>}
                 {error && <div className="errorMessage">{error}</div>}
                 {!loading && !error && (
-                    <div style={{ height: 'calc(100vh - 140px)', overflowY: 'auto', width: '100%' }}
-                    >
+                    <div style={{ height: 'calc(100vh - 60px)', overflowY: 'auto', width: '1200px' }} >
                         <CPUUtilsStats selectedDevice={selectedDevice} keycloak={keycloak} />
                         <MemoryStats selectedDevice={selectedDevice} keycloak={keycloak} />
                         <InterfaceOper selectedDevice={selectedDevice} keycloak={keycloak} />
                         <InterfaceStats selectedDevice={selectedDevice} keycloak={keycloak} />
                     </div>
                 )}
-            </div>
-            <div ref={dropdownMenuRef}>
-                <div
-                    className={`dropdownMenu ${dropdowns.time.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
-                    style={{ width: 'auto' }}
-                >
-                    <SearchTime
-                        startTime={startTime}
-                        endTime={endTime}
-                        onTimeRangeChange={handleTimeRangeChange}
-                    />
-                </div>
-                <div
-                    className={`dropdownMenu ${dropdowns.devices.visible ? 'dropdownVisible' : 'dropdownHidden'} `}
-                    style={{
-                        width: '420px',
-                        height: '110px'
-                    }}>
-                    <TelemetryStats
-                        currentUser={currentUser}
-                        devices={devices}
-                        onDeviceSelect={setSelectedDevice}
-                    />
-                </div>
-
             </div>
         </div>
     );

@@ -13,8 +13,7 @@ set(SOURCES
     config.c
     process.c
     bulk.c
-    regex.c
-    globals.c
+    regex.c 
 )
 
 # Create executable

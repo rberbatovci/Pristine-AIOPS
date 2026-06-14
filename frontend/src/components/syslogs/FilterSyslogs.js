@@ -22,7 +22,6 @@ const FilterSyslogs = ({
 }) => {
 
   const [selectedTags, setSelectedTags] = useState({});
-
   const { options, loading, loadOptions } = useSyslogTagOptions(keycloak);
 
   /* ---------------- HANDLE CHANGE ---------------- */
@@ -39,12 +38,12 @@ const FilterSyslogs = ({
   };
 
   /* ---------------- MAP VALUES ---------------- */
-  // ✅ convert stored strings -> react-select format
-  const mapValuesToOptions = (values = [], options = []) => {
-    if (!Array.isArray(values)) return [];
+  // ✅ Single, clean declaration that handles fallback elements gracefully
+  const mapValuesToOptions = (values = [], availableOptions = []) => {
+    if (!values || !Array.isArray(values)) return [];
 
     return values
-      .map(v => options.find(o => o.value === v))
+      .map(val => availableOptions.find(opt => opt.value === val) || { value: val, label: val })
       .filter(Boolean);
   };
 
@@ -83,9 +82,9 @@ const FilterSyslogs = ({
         {/* DEVICE */}
         <FilterSelect
           label="Device"
-          options={options.device || []}
-          value={mapValuesToOptions(selectedTags.device, options.device)}
-          loading={loading.device}
+          options={options?.device || []}
+          value={mapValuesToOptions(selectedTags.device, options?.device)}
+          loading={loading?.device}
           onChange={(v) => handleChange(v, "device")}
           onFocus={() => handleFocus("device")}
         />
@@ -93,9 +92,9 @@ const FilterSyslogs = ({
         {/* MNEMONIC */}
         <FilterSelect
           label="Mnemonic"
-          options={options.mnemonic || []}
-          value={mapValuesToOptions(selectedTags.mnemonic, options.mnemonic)}
-          loading={loading.mnemonic}
+          options={options?.mnemonic || []}
+          value={mapValuesToOptions(selectedTags.mnemonic, options?.mnemonic)}
+          loading={loading?.mnemonic}
           onChange={(v) => handleChange(v, "mnemonic")}
           onFocus={() => handleFocus("mnemonic")}
         />
@@ -108,18 +107,22 @@ const FilterSyslogs = ({
           onChange={(v) => handleChange(v, "severity")}
         />
 
-        {/* DYNAMIC TAGS */}
-        {tags.map(tag => (
-          <FilterSelect
-            key={tag.value}
-            label={tag.label}
-            options={options[tag.value] || []}
-            value={mapValuesToOptions(selectedTags[tag.value], options[tag.value])}
-            loading={loading[tag.value]}
-            onFocus={() => handleFocus(tag.value)}
-            onChange={(v) => handleChange(v, tag.value)}
-          />
-        ))}
+        {tags && Array.isArray(tags) && tags.map(tag => {
+          const currentOptions = options?.[tag.value] || [];
+          const currentSelected = selectedTags?.[tag.value] || [];
+
+          return (
+            <FilterSelect
+              key={tag.value}
+              label={tag.label}
+              options={currentOptions}
+              value={mapValuesToOptions(currentSelected, currentOptions)}
+              loading={loading?.[tag.value] || false}
+              onFocus={() => handleFocus(tag.value)}
+              onChange={(v) => handleChange(v, tag.value)}
+            />
+          );
+        })}
 
       </div>
 

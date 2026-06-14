@@ -1,0 +1,19 @@
+FROM golang:1.25-alpine AS builder
+
+WORKDIR /app
+
+COPY icmp-pinger/producer/ .
+
+RUN go mod download
+
+RUN go build -o ping-service .
+
+FROM alpine:latest
+
+RUN apk add --no-cache ca-certificates
+
+WORKDIR /root/
+
+COPY --from=builder /app/ping-service .
+
+CMD ["./ping-service"]

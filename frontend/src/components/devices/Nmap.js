@@ -42,13 +42,12 @@ function Nmap({ onDeviceAdded, keycloak }) {
     setError('');
     setSuccess(false);
 
-    if (!ipAddress || !hostname) {
+    if (!ipAddress) {
       setError('Please fill in all required fields.');
       setLoading(false);
       return;
     }
 
-    // ✅ Validate CIDR before sending
     if (!isValidCIDR(ipAddress)) {
       setError('Please enter a valid network (e.g. 10.10.1.0/24)');
       setLoading(false);
@@ -81,13 +80,12 @@ function Nmap({ onDeviceAdded, keycloak }) {
   return (
     <div className="searchSyslogsContainer">
       <span className="searchSignalFilterText">Scan a network</span>
-
-      <div className="searchSyslogsFilterEntries" style={{ marginTop: '-10px' }} >
-        <div className="searchSyslogsFilterEntry">
+      <div>
+        <div>
           <span className="searchSignalFilterText">
             Network address:
           </span>
-          <div style={{ marginTop: '6px', width: '300px' }}>
+          <div>
             <input
               placeholder="e.g. 10.10.1.0/24"
               value={ipAddress}

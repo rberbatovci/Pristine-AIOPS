@@ -1,53 +1,24 @@
 import { useState, useEffect } from 'react';
-import { IoPushOutline, IoPushSharp } from "react-icons/io5";
-import { pushConfiguration } from '../../hooks/pushConfiguration';
+import { 
+  PiArrowDownDuotone, 
+  PiArrowUpDuotone, 
+  PiChartLineUpDuotone,
+  PiWarningCircleDuotone,
+  PiSquaresFourDuotone
+} from "react-icons/pi";
 import kcFetch from '../misc/kcFetch';
+import '../../css/InterfaceStatisticsModern.css'; // New styles matching your dashboard theme
 
-function InterfaceStatistics({ keycloak, selectedDevice, onSuccess, showNotification }) {
+function InterfaceStatistics({ keycloak, selectedDevice }) {
   const [device, setDevice] = useState(selectedDevice);
   const [interfaces, setInterfaces] = useState([]);
   const [interfacesLoading, setInterfacesLoading] = useState(false);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setDevice(selectedDevice);
   }, [selectedDevice]);
 
-  const handlePush = async () => {
-    setLoading(true);
-    setError('');
-
-    try {
-      await pushConfiguration({
-        keycloak,
-        device,
-        featureKey: "interface_stats",
-        endpoint: "interface_stats",
-        showNotification
-      });
-
-      // Optimistic UI update
-      setDevice(prev => ({
-        ...prev,
-        features: {
-          ...prev.features,
-          telemetry: {
-            ...prev.features.telemetry,
-            interface_stats: true
-          }
-        }
-      }));
-
-      onSuccess?.();
-    } catch (err) {
-      setError(err?.message || 'Failed to configure interface statistics telemetry');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fetch interfaces
   useEffect(() => {
     const fetchInterfaces = async () => {
       if (!selectedDevice?.hostname) {
@@ -64,16 +35,16 @@ function InterfaceStatistics({ keycloak, selectedDevice, onSuccess, showNotifica
         const interfacesArray = Object.entries(response).map(([name, stats]) => ({
           name,
           status: stats.status ?? '',
-          rx_kbps: stats['rx-kbps'] ?? '',
-          rx_pps: stats['rx-pps'] ?? '',
-          tx_kbps: stats['tx-kbps'] ?? '',
-          tx_pps: stats['tx-pps'] ?? ''
+          rx_kbps: stats['rx-kbps'] ?? 0,
+          rx_pps: stats['rx-pps'] ?? 0,
+          tx_kbps: stats['tx-kbps'] ?? 0,
+          tx_pps: stats['tx-pps'] ?? 0
         }));
 
         setInterfaces(interfacesArray);
       } catch (err) {
         console.error("Error fetching interfaces:", err);
-        setError(err.response?.data?.detail || err.message || 'Error fetching interfaces');
+        setError(err.message || 'Failed to sync networking interface maps.');
         setInterfaces([]);
       } finally {
         setInterfacesLoading(false);
@@ -83,88 +54,94 @@ function InterfaceStatistics({ keycloak, selectedDevice, onSuccess, showNotifica
     fetchInterfaces();
   }, [selectedDevice, keycloak]);
 
-  const enabled = device?.features?.telemetry?.interface_stats;
+  // Safely drilling into your nested telemetry feature check
+  const enabled = device?.features?.telemetry?.features?.interface_stats;
 
   return (
-    <div className="signalRightElementContainer" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-      <div className="signalRightElementHeader">
-        <h2 className="signalRightElementHeaderTxt">Interface Statistics</h2>
-
-        {!enabled && (
-          <div className="zoom-buttons-container">
-            <div className="headerButtons">
-              <button
-                className={`iconButton ${enabled ? 'active' : ''}`}
-                onClick={handlePush}
-                disabled={loading}
-              >
-                <IoPushOutline className="defaultIcon" />
-                <IoPushSharp className="hoverIcon" />
-              </button>
-            </div>
-          </div>
-        )}
+    <div className="interface-stats-panel">
+      <div className="panel-header">
+        <div className="header-title-box">
+          <PiChartLineUpDuotone className="panel-icon" />
+          <h3>Interface Metrics</h3>
+        </div>
+        <span className="interface-counter">
+          Active Links: {interfaces.filter(i => i.status?.toLowerCase() === "if-oper-state-ready").length}/{interfaces.length}
+        </span>
       </div>
 
-      <div style={{ padding: '8px', marginLeft: '15px', fontSize: '14px', color: 'var(--textColor)', opacity: '0.9' }}>
+      <div className="panel-content-scroll">
         {!enabled ? (
-          <div style={{ padding: "10px", color: "gray" }}>
-            Interface statistics telemetry not enabled for this device.
+          <div className="telemetry-disabled-banner">
+            <PiWarningCircleDuotone className="warning-icon" />
+            <p>Interface telemetry metrics streaming is not configured or activated on this device node.</p>
           </div>
         ) : (
           <>
-            {error && <div style={{ color: 'red', marginBottom: '10px' }}>{error}</div>}
+            {error && <div className="metrics-error-banner">{error}</div>}
 
             {interfacesLoading ? (
-              <div style={{ color: 'var(--spanTextColor)' }}>Loading interfaces...</div>
+              <div className="panel-loading-state">
+                <div className="loading-bar-pulse"></div>
+                <p>Polling interface pipeline telemetry matrices...</p>
+              </div>
+            ) : interfaces.length === 0 ? (
+              <div className="panel-empty-state">
+                <PiSquaresFourDuotone />
+                <p>No valid interfaces mapped to this host routing domain.</p>
+              </div>
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ textAlign: 'left', borderBottom: '1px solid #ccc' }}>
-                    <th style={{ padding: '10px 12px' }}>Interface</th>
-                    <th style={{ padding: '10px 12px' }}>Oper Status</th>
-                    <th style={{ padding: '10px 12px' }}>Rx kbps</th>
-                    <th style={{ padding: '10px 12px' }}>Rx pps</th>
-                    <th style={{ padding: '10px 12px' }}>Tx kbps</th>
-                    <th style={{ padding: '10px 12px' }}>Tx pps</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {interfaces
-                    .filter(intf => intf.name && intf.name.trim() !== "")
-                    .map((intf, idx) => {
-                      const isReady = intf.status?.toLowerCase() === "if-oper-state-ready";
-                      return (
-                        <tr key={idx} style={{ borderBottom: "1px solid #eee", height: "42px" }}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(0,0,0,0.05)")}
-                          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                        >
-                          <td style={{ padding: "8px 10px" }}>{intf.name}</td>
-                          <td style={{ padding: "8px 10px" }}>
-                            <span style={{
-                              display: "inline-block",
-                              padding: "4px 10px",
-                              borderRadius: "20px",
-                              fontSize: "12px",
-                              fontWeight: "600",
-                              color: "white",
-                              backgroundColor: isReady ? "#4CAF50" : "#E74C3C",
-                              boxShadow: isReady
-                                ? "0 0 8px rgba(76,175,80,0.6)"
-                                : "0 0 8px rgba(231,76,60,0.6)"
-                            }}>
-                              {isReady ? "READY" : "DOWN"}
-                            </span>
-                          </td>
-                          <td style={{ padding: "8px 10px" }}>{intf.rx_kbps || "--"} kbps</td>
-                          <td style={{ padding: "8px 10px" }}>{intf.rx_pps || "--"} pps</td>
-                          <td style={{ padding: "8px 10px" }}>{intf.tx_kbps || "--"} kbps</td>
-                          <td style={{ padding: "8px 10px" }}>{intf.tx_pps || "--"} pps</td>
-                        </tr>
-                      );
-                    })}
-                </tbody>
-              </table>
+              <div className="interfaces-grid-list">
+                {interfaces
+                  .filter(intf => intf.name && intf.name.trim() !== "")
+                  .map((intf, idx) => {
+                    const isReady = intf.status?.toLowerCase() === "if-oper-state-ready";
+                    
+                    return (
+                      <div className={`interface-row-card ${!isReady ? 'link-down' : ''}`} key={idx}>
+                        
+                        {/* Interface Identity Column */}
+                        <div className="interface-identity">
+                          <span className="interface-name" title={intf.name}>
+                            {intf.name}
+                          </span>
+                          <span className={`status-pill ${isReady ? 'is-ready' : 'is-down'}`}>
+                            {isReady ? 'READY' : 'DOWN'}
+                          </span>
+                        </div>
+
+                        {/* Bandwidth Telemetry Grid Blocks */}
+                        <div className="interface-telemetry-grid">
+                          
+                          {/* RX Stats */}
+                          <div className="telemetry-lane rx-lane">
+                            <div className="lane-label">
+                              <PiArrowDownDuotone className="lane-arrow" />
+                              <span>RX Traffic</span>
+                            </div>
+                            <div className="lane-metrics">
+                              <span className="metric-primary">{intf.rx_kbps.toLocaleString()} <span className="metric-unit">kbps</span></span>
+                              <span className="metric-secondary">{intf.rx_pps.toLocaleString()} <span className="metric-unit">pps</span></span>
+                            </div>
+                          </div>
+
+                          {/* TX Stats */}
+                          <div className="telemetry-lane tx-lane">
+                            <div className="lane-label">
+                              <PiArrowUpDuotone className="lane-arrow" />
+                              <span>TX Traffic</span>
+                            </div>
+                            <div className="lane-metrics">
+                              <span className="metric-primary">{intf.tx_kbps.toLocaleString()} <span className="metric-unit">kbps</span></span>
+                              <span className="metric-secondary">{intf.tx_pps.toLocaleString()} <span className="metric-unit">pps</span></span>
+                            </div>
+                          </div>
+
+                        </div>
+
+                      </div>
+                    );
+                  })}
+              </div>
             )}
           </>
         )}

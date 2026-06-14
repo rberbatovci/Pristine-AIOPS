@@ -6,17 +6,9 @@ import { TailSpin } from "react-loader-spinner";
 
 import { useSnmpTrapTags } from "../../hooks/useSnmpTrapTags";
 
-const SnmpTrapTagConfig = ({ keycloak, snmpTrapTags, onReload, showNotification }) => {
+const SnmpTrapTagConfig = ({ keycloak, showNotification }) => {
   /* ---------------- hooks ---------------- */
-  const {
-    details,
-    loading,
-    error,
-    get,
-    create,
-    update,
-    remove
-  } = useSnmpTrapTags(keycloak);
+  const { list: snmpTrapTags, details, get, create, update, remove, loading: snmpTrapTagsLoading, loadList: reloadSnmpTrapTags } = useSnmpTrapTags(keycloak, false);
 
   /* ---------------- UI state ---------------- */
   const [selectedTag, setSelectedTag] = useState(null);
@@ -59,7 +51,7 @@ const SnmpTrapTagConfig = ({ keycloak, snmpTrapTags, onReload, showNotification 
       };
 
       await create(payload);
-      await onReload();
+      await reloadSnmpTrapTags();
       showNotification("Tag created successfully", "success");
       setForm(emptyForm);
       setIsAddNew(true);
@@ -81,7 +73,7 @@ const SnmpTrapTagConfig = ({ keycloak, snmpTrapTags, onReload, showNotification 
       };
 
       await update(form.name, payload);
-      await onReload();
+      await reloadSnmpTrapTags();
       showNotification("Tag updated successfully", "success");
       setSelectedTag(null);
       setForm(emptyForm);
@@ -98,7 +90,7 @@ const SnmpTrapTagConfig = ({ keycloak, snmpTrapTags, onReload, showNotification 
     setLoadingState('deleting');
     try {
       await remove(selectedTag.name);
-      await onReload();
+      await reloadSnmpTrapTags();
       //await loadList() 
       setSelectedTag(null);
       showNotification("Tag deleted successfully", "success");

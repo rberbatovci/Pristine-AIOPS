@@ -92,7 +92,7 @@ def parse_prefix(nlri):
 def fetch_lsdb():
     nodes, links, prefixes = [], [], []
 
-    with grpc.insecure_channel("gobgp:50051") as channel:
+    with grpc.insecure_channel("192.168.1.201:50051") as channel:
         stub = gobgp_pb2_grpc.GobgpApiStub(channel)
 
         req = gobgp_pb2.ListPathRequest(

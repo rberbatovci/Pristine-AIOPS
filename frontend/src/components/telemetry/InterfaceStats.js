@@ -161,13 +161,9 @@ const InterfaceStats = ({ keycloak, currentUser, selectedDevice }) => {
   }, [interfaceStatistics]);
 
   return (
-    <div className={`signalRightElementContainer ${showData ? "expanded" : "collapsed"}`}>
+    <div className="mainContainer" style={{ maxHeight: '220px', marginBottom: '10px' }}>
 
-      <div className="signalRightElementHeader">
-
-        <span style={{ fontSize: "14px", color: "var(--textColor)", paddingLeft: "10px" }}>
-          {selectedDevice || ""} - Interface Statistics
-        </span>
+      <div > 
 
         {showData && (
           <div className="zoom-buttons-container">

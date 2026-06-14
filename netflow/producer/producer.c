@@ -16,6 +16,9 @@
 #define MAX_BATCH_SIZE 6
 #define FLUSH_INTERVAL_SEC 5
 
+#define KAFKA_BROKER "kafka:9092"
+#define KAFKA_EVENTS_TOPIC "netflow-events"
+
 #define EXPIRATION_YEAR 2027
 #define EXPIRATION_MONTH 4
 #define EXPIRATION_DAY 18
@@ -24,7 +27,7 @@
 
 volatile sig_atomic_t running = 1;
 
-rd_kafka_t *rk = NULL;
+rd_kafka_t *kafka_producer = NULL;
 rd_kafka_topic_t *rkt = NULL;
 rd_kafka_conf_t *conf = NULL;
 
@@ -138,7 +141,7 @@ void flush_kafka_bulk() {
     }
 
     json_buffer_count = 0;
-    rd_kafka_poll(rk, 100);
+    rd_kafka_poll(kafka_producer, 100);
     last_flush_time = time(NULL);
 }
 
@@ -299,8 +302,7 @@ void parse_data_flowset(const unsigned char *ptr, size_t len, uint16_t flowset_i
         } else {
             // If buffer is full, the main loop will flush it, but we log the drop for now
             printf("⚠️ JSON buffer full, skipping flow record.\n");
-        }
-
+        } 
         ptr += record_len;
     }
 }
@@ -308,23 +310,59 @@ void parse_data_flowset(const unsigned char *ptr, size_t len, uint16_t flowset_i
 // -----------------------------------------------------
 // ✅ CONVERT FLOW RECORD TO JSON (FIXED)
 // -----------------------------------------------------
-char* flow_record_to_json(const FlowRecord *r, const char *sender_ip) {
+char* flow_record_to_json(const FlowRecord *r, const char *sender_ip)
+{
     struct in_addr src_addr_net, dst_addr_net;
+
     src_addr_net.s_addr = htonl(r->source_addr);
     dst_addr_net.s_addr = htonl(r->dest_addr);
 
     char src_ip_str[INET_ADDRSTRLEN];
     char dst_ip_str[INET_ADDRSTRLEN];
 
-    if (inet_ntop(AF_INET, &src_addr_net, src_ip_str, sizeof(src_ip_str)) == NULL)
+    if (inet_ntop(AF_INET,
+                  &src_addr_net,
+                  src_ip_str,
+                  sizeof(src_ip_str)) == NULL)
+    {
         strcpy(src_ip_str, "N/A");
-    if (inet_ntop(AF_INET, &dst_addr_net, dst_ip_str, sizeof(dst_ip_str)) == NULL)
-        strcpy(dst_ip_str, "N/A");
+    }
 
-    // ⚡ No fancy Unicode spaces or tabs — just plain ASCII JSON
-    char buf[512];
-    int len = snprintf(buf, sizeof(buf),
+    if (inet_ntop(AF_INET,
+                  &dst_addr_net,
+                  dst_ip_str,
+                  sizeof(dst_ip_str)) == NULL)
+    {
+        strcpy(dst_ip_str, "N/A");
+    }
+
+    // =====================================================
+    // Generate ISO8601 UTC timestamp
+    // =====================================================
+
+    time_t now = time(NULL);
+
+    struct tm *tm_info = gmtime(&now);
+
+    char timestamp[64];
+
+    strftime(timestamp,
+             sizeof(timestamp),
+             "%Y-%m-%dT%H:%M:%SZ",
+             tm_info);
+
+    // =====================================================
+    // Build JSON
+    // =====================================================
+
+    char buf[1024];
+
+    int len = snprintf(
+        buf,
+        sizeof(buf),
+
         "{"
+        "\"@timestamp\":\"%s\","
         "\"device\":\"%s\","
         "\"protocol\":%u,"
         "\"source_ip\":\"%s\","
@@ -338,20 +376,30 @@ char* flow_record_to_json(const FlowRecord *r, const char *sender_ip) {
         "\"first_switched\":%u,"
         "\"last_switched\":%u"
         "}",
-        sender_ip, r->protocol,
-        src_ip_str, r->source_port,
-        dst_ip_str, r->dest_port,
-        r->bytes_count, r->packets_count,
-        r->input_snmp, r->output_snmp,
-        r->first_timestamp, r->last_timestamp
+
+        timestamp,
+        sender_ip,
+        r->protocol,
+        src_ip_str,
+        r->source_port,
+        dst_ip_str,
+        r->dest_port,
+        r->bytes_count,
+        r->packets_count,
+        r->input_snmp,
+        r->output_snmp,
+        r->first_timestamp,
+        r->last_timestamp
     );
 
-    if (len < 0 || len >= (int)sizeof(buf)) {
-        fprintf(stderr, "❌ JSON encoding error or buffer overflow.\n");
+    if (len < 0 || len >= (int)sizeof(buf))
+    {
+        fprintf(stderr,
+                "❌ JSON encoding error or buffer overflow.\n");
+
         return NULL;
     }
 
-    // Return a heap copy
     return strdup(buf);
 }
 
@@ -372,12 +420,7 @@ int process_netflow_v9(const unsigned char *data, size_t len, void *packet, cons
         .flow_sequence = ntohl(hdr->flow_sequence),
         .source_id = ntohl(hdr->source_id)
     };
-
-    printf("🔹 NetFlow v9 packet from %s (len=%zu bytes)\n", sender_ip, len);
-    printf("  Version: %u, Count: %u, SysUptime: %u, UnixSecs: %u\n",
-        host_hdr.version, host_hdr.count, host_hdr.sysUptime, host_hdr.unix_secs);
-    printf("  FlowSequence: %u, SourceID: %u\n", host_hdr.flow_sequence, host_hdr.source_id);
-
+ 
     const unsigned char *ptr = data + sizeof(NetFlowV9Header);
     const unsigned char *end = data + len;
 
@@ -441,31 +484,154 @@ void print_banner() {
     printf("║           Thanks for using our tool          ║\n");
     printf("╚══════════════════════════════════════════════╝\n");
 }
+ 
 
-int setup_kafka_producer(const char *brokers, const char *topic) {
+void delivery_report(rd_kafka_t *rk,
+                     const rd_kafka_message_t *rkmessage,
+                     void *opaque)
+{
+    if (rkmessage->err)
+    {
+        fprintf(stderr, "❌ Delivery failed: %s\n", rd_kafka_err2str(rkmessage->err));
+    }
+    else
+    {
+        printf("✅ Delivered to %s [%d] offset %lld\n", rd_kafka_topic_name(rkmessage->rkt), rkmessage->partition, (long long)rkmessage->offset);
+    }
+}
+
+
+/* =========================================================
+ * KAFKA TOPIC CREATION
+ * ========================================================= */
+
+void create_topic_if_needed(rd_kafka_t *rk)
+{
+    rd_kafka_NewTopic_t *new_topic;
+    rd_kafka_AdminOptions_t *options;
+    rd_kafka_queue_t *queue;
+
+    /* Create topic definition */
+    new_topic = rd_kafka_NewTopic_new(
+        KAFKA_EVENTS_TOPIC,
+        3,      /* partitions */
+        1,      /* replication factor */
+        NULL,
+        0
+    );
+
+    rd_kafka_NewTopic_t *topics[] = { new_topic };
+
+    /* Admin options */
+    options = rd_kafka_AdminOptions_new(
+        rk,
+        RD_KAFKA_ADMIN_OP_CREATETOPICS
+    );
+
+    /* Temporary queue for admin response */
+    queue = rd_kafka_queue_new(rk);
+
+    /* Send create topic request */
+    rd_kafka_CreateTopics(
+        rk,
+        topics,
+        1,
+        options,
+        queue
+    );
+
+    printf("⏳ Creating Kafka topic '%s'...\n",
+           KAFKA_EVENTS_TOPIC);
+
+    /* Wait for result */
+    rd_kafka_event_t *event =
+        rd_kafka_queue_poll(queue, 10000);
+
+    if (!event)
+    {
+        fprintf(stderr, "❌ No response from Kafka admin API\n");
+    }
+    else if (rd_kafka_event_error(event))
+    {
+        /*
+         * IMPORTANT:
+         * Topic already exists is NOT fatal
+         */
+        if (rd_kafka_event_error(event) ==
+            RD_KAFKA_RESP_ERR_TOPIC_ALREADY_EXISTS)
+        {
+            printf("✅ Topic already exists\n");
+        }
+        else
+        {
+            fprintf(stderr,
+                    "❌ Topic creation failed: %s\n",
+                    rd_kafka_event_error_string(event));
+        }
+    }
+    else
+    {
+        printf("✅ Topic '%s' created successfully\n",
+               KAFKA_EVENTS_TOPIC);
+    }
+
+    /* Cleanup */
+    if (event)
+        rd_kafka_event_destroy(event);
+
+    rd_kafka_queue_destroy(queue);
+    rd_kafka_AdminOptions_destroy(options);
+    rd_kafka_NewTopic_destroy(new_topic);
+}
+
+/* =========================================================
+ * KAFKA INIT
+ * ========================================================= */
+
+void init_kafka_producer()
+{
     char errstr[512];
-    conf = rd_kafka_conf_new();
-    rd_kafka_conf_set_dr_msg_cb(conf, NULL);
 
-    if (rd_kafka_conf_set(conf, "bootstrap.servers", brokers, errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK) {
-        fprintf(stderr, "Kafka config error: %s\n", errstr);
-        return -1;
+    rd_kafka_conf_t *conf = rd_kafka_conf_new();
+
+    /* Bootstrap server */
+    if (rd_kafka_conf_set(conf, "bootstrap.servers", KAFKA_BROKER, errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK)
+    {
+        fprintf(stderr, "❌ %s\n", errstr);
+        exit(1);
+    }
+ 
+    rd_kafka_conf_set(conf, "enable.idempotence", "true", errstr, sizeof(errstr)); 
+    rd_kafka_conf_set(conf, "acks", "all", errstr, sizeof(errstr)); 
+    rd_kafka_conf_set(conf, "retries", "10", errstr, sizeof(errstr)); 
+    rd_kafka_conf_set(conf, "max.in.flight.requests.per.connection", "5", errstr, sizeof(errstr)); 
+    rd_kafka_conf_set(conf, "compression.codec", "zstd", errstr, sizeof(errstr)); 
+    rd_kafka_conf_set(conf, "linger.ms", "5", errstr, sizeof(errstr)); 
+    rd_kafka_conf_set(conf, "batch.num.messages", "1000", errstr, sizeof(errstr)); 
+    rd_kafka_conf_set(conf, "queue.buffering.max.messages", "100000", errstr, sizeof(errstr)); 
+    rd_kafka_conf_set(conf, "socket.keepalive.enable", "true", errstr, sizeof(errstr)); 
+    rd_kafka_conf_set_dr_msg_cb(conf, delivery_report); 
+    kafka_producer = rd_kafka_new(RD_KAFKA_PRODUCER, conf, errstr, sizeof(errstr));
+
+    if (!kafka_producer)
+    {
+        fprintf(stderr, "❌ Failed to create Kafka producer: %s\n", errstr); 
+        exit(1);
     }
 
-    rk = rd_kafka_new(RD_KAFKA_PRODUCER, conf, errstr, sizeof(errstr));
-    if (!rk) {
-        fprintf(stderr, "Failed to create Kafka producer: %s\n", errstr);
-        return -1;
+    rkt = rd_kafka_topic_new(
+        kafka_producer,
+        KAFKA_EVENTS_TOPIC,
+        NULL
+    );
+
+    if (!rkt)
+    {
+        fprintf(stderr, "❌ Failed to create Kafka topic object\n");
+        exit(1);
     }
 
-    rkt = rd_kafka_topic_new(rk, topic, NULL);
-    if (!rkt) {
-        fprintf(stderr, "Failed to create Kafka topic: %s\n", errstr);
-        return -1;
-    }
-
-    printf("✅ Connected to Kafka broker: %s (topic: %s)\n", brokers, topic);
-    return 0;
+    printf("✅ Kafka producer initialized\n");
 }
 
 int setup_udp_socket() {
@@ -497,19 +663,18 @@ int main() {
         fprintf(stderr, "⛔ Pristine-AIOPS v1.2 is out of date.\n Please contact the developer to get Pristine-AIOPS v1.3.\n");
         return 1;
     }
-
+     
     setbuf(stdout, NULL);
     print_banner();
-    signal(SIGINT, handle_sigint);
-    
-    // ⭐ Initialize the static template
+    signal(SIGINT, handle_sigint); 
+     
     initialize_static_template();
 
+    init_kafka_producer();
+
+    create_topic_if_needed(kafka_producer);
+
     int sockfd = setup_udp_socket();
-    if (setup_kafka_producer("kafka:9092", "netflow-events") != 0) {
-        close(sockfd);
-        return 1;
-    }
 
     unsigned char buffer[BUFFER_SIZE];
     struct sockaddr_in cliaddr;
@@ -546,7 +711,7 @@ int main() {
         if (json_buffer_count >= MAX_BATCH_SIZE || (now - last_flush_time) >= FLUSH_INTERVAL_SEC)
             flush_kafka_bulk();
 
-        rd_kafka_poll(rk, 0);
+        rd_kafka_poll(kafka_producer, 0);
 
         if (is_expired()) {
             fprintf(stderr, "⛔ License expired during runtime.\n");
@@ -556,10 +721,10 @@ int main() {
 
     printf("💾 Final flush before exit...\n");
     flush_kafka_bulk();
-    rd_kafka_flush(rk, 3000);
+    rd_kafka_flush(kafka_producer, 3000);
 
     rd_kafka_topic_destroy(rkt);
-    rd_kafka_destroy(rk);
+    rd_kafka_destroy(kafka_producer);
     close(sockfd);
 
     printf("✅ Clean shutdown complete.\n");

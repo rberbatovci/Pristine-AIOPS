@@ -3,6 +3,8 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, jwk
 import requests
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 security = HTTPBearer()
 
@@ -60,3 +62,4 @@ def require_admin(user: dict = Depends(get_current_user)):
             detail="Admin role required",
         )
     return user
+

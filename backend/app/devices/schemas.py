@@ -3,6 +3,8 @@ from typing import Optional, List, Dict, Any
 
 class TelemetryFeatures(BaseModel):
     system_util: Optional[bool] = False
+    cpu_util: Optional[bool] = False
+    memory_util: Optional[bool] = False
     rib_table: Optional[bool] = False
     fib_entry: Optional[bool] = False
     interface_stats: Optional[bool] = False
@@ -11,11 +13,17 @@ class TelemetryFeatures(BaseModel):
     ospf_stats: Optional[bool] = False
     lldp_stats: Optional[bool] = False
 
+class TelemetryConfig(BaseModel):
+    enabled: Optional[bool] = False
+    features: Optional[TelemetryFeatures] = None
+
 class DeviceFeatures(BaseModel):
     syslogs: Optional[bool] = False
     snmp_traps: Optional[bool] = False
     netflow: Optional[bool] = False
-    telemetry: Optional[TelemetryFeatures] = None
+    telemetry: Optional[TelemetryConfig] = None
+    topology: Optional[bool] = False
+    authentication: Optional[bool] = False
 
 class DeviceBase(BaseModel):
     hostname: str

@@ -182,6 +182,11 @@ function Traffic({ currentUser, setDashboardTitle, keycloak }) {
     };
 
     useEffect(() => {
+        setDashboardTitle("Traffic Dashboard");
+        return () => setDashboardTitle('');
+    }, [setDashboardTitle]);
+
+    useEffect(() => {
         const handleClickOutside = (event) => {
             if (dropdownMenuRef.current && !dropdownMenuRef.current.contains(event.target)) {
                 // Click is outside the dropdown area, so close all dropdowns
@@ -208,39 +213,7 @@ function Traffic({ currentUser, setDashboardTitle, keycloak }) {
     };
 
     return (
-        <div className="mainContainer" ref={dropdownWrapperRef} >
-            <div className="mainContainerHeader">
-                <div className="headerTitles">
-                    <h2 className={"eventsTitleHeader eventsTitleHeaderActive"} > Netflow </h2>
-                </div>
-                <div className="mainContainerButtons">
-                    {view === "list" ? (<button className="iconButton" onClick={toggleView} style={{ marginRight: '20px' }} >
-                        <TfiLayoutListThumb className="defaultIcon" />
-                        <IoPieChartSharp className="hoverIcon" />
-                    </button>) : (
-                        <button className="iconButton" onClick={toggleView} style={{ marginRight: '20px' }} >
-                            <IoPieChartOutline className="defaultIcon" />
-                            <TfiLayoutListThumbAlt className="hoverIcon" />
-                        </button>
-                    )}
-                    <button className="iconButton">
-                        <IoRefreshCircleOutline className="defaultIcon" />
-                        <IoRefreshCircleSharp className="hoverIcon" />
-                    </button>
-                    <button className={`iconButton ${dropdowns.search.visible ? 'active' : ''} `} onClick={(event) => handleButtonClick(event, 'search')} >
-                        <RiFilterLine className="defaultIcon" />
-                        <RiFilterFill className="hoverIcon" />
-                    </button>
-                    <button className="iconButton" onClick={(event) => handleButtonClick(event, 'time')} >
-                        <FaRegClock className="defaultIcon hasFilters" />
-                        <FaClock className="hoverIcon" />
-                    </button>
-                    <button className="iconButton" >
-                        <RiDownloadCloudLine className="defaultIcon" />
-                        <RiDownloadCloudFill className="hoverIcon" />
-                    </button>
-                </div>
-            </div>
+        <div className="mainContainer" ref={dropdownWrapperRef} > 
             <div className="mainContainerContent">
                 {loading && <div className="loadingMessage">Loading...</div>}
                 {error && <div className="errorMessage">{error}</div>}
@@ -251,7 +224,7 @@ function Traffic({ currentUser, setDashboardTitle, keycloak }) {
                         </div>
                     )} {view === 'chart' && (
                         <div className="syslogsTableContainer">
-                            <Statistics keycloak={keycloak} source="events" dataSource='netflow' selectedTags={tags} tags={tags}/>
+                            <Statistics keycloak={keycloak} source="events" dataSource='netflow' selectedTags={tags} tags={tags} />
                         </div>
                     )} </>
                 )}

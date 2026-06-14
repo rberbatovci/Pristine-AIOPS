@@ -9,8 +9,7 @@ import '../../css/SyslogDatabase.css';
 import { IoBarChartOutline } from "react-icons/io5";
 import { AiOutlinePieChart } from "react-icons/ai";
 
-function NetflowChart({ keycloak }) {
-
+function NetflowChart({ keycloak }) { 
     const [selEventsTags, setSelEventsTags] = useState([
         { label: 'Device', value: 'device' },
         { label: 'Source IP', value: 'source_ip' },

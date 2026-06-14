@@ -57,7 +57,7 @@ function Topology({ keycloak, currentUser, setDashboardTitle }) {
 
   // Title
   useEffect(() => {
-    setDashboardTitle("Topology");
+    setDashboardTitle("Topology Dashboard");
     return () => setDashboardTitle('');
   }, [setDashboardTitle]);
 
@@ -78,43 +78,8 @@ function Topology({ keycloak, currentUser, setDashboardTitle }) {
   };
 
   return (
-    <div className="mainContainer">
-
-      {/* HEADER */}
-      <div className="mainContainerHeader">
-        <div className="headerTitles">
-          <h2 className="eventsTitleHeader eventsTitleHeaderActive">
-            Topology Overview
-          </h2>
-        </div>
-
-        <div className="mainContainerButtons">
-          <button
-            className="iconButton"
-            style={{ marginRight: '20px' }}
-            onClick={toggleView}
-          >
-            {view === "list" ? (
-              <>
-                <TfiLayoutListThumb className="defaultIcon" />
-                <FaMap className="hoverIcon" />
-              </>
-            ) : (
-              <>
-                <FaRegMap className="defaultIcon" />
-                <TfiLayoutListThumbAlt className="hoverIcon" />
-              </>
-            )}
-          </button>
-
-          <div className="headerButtons">
-            {currentUser?.is_staff && (
-              <button className="headerButton">Settings</button>
-            )}
-          </div>
-        </div>
-      </div>
-
+    <div>
+  
       {/* CONTENT */}
       <div className="mainContainerContent">
         {loading && <div>Loading topology...</div>}
@@ -125,7 +90,7 @@ function Topology({ keycloak, currentUser, setDashboardTitle }) {
               <div className="syslogsTableContainer">
 
                 {/* PREFIXES */}
-                <div className="topologyTable">
+                <div className="mainContainer" style={{ width: '500px', marginRight: '20px' }}>
                   <h2 className="tableTitle">Prefixes</h2>
                   {bgpPrefixes.length === 0 ? (
                     <div>No prefixes data available</div>
@@ -140,7 +105,7 @@ function Topology({ keycloak, currentUser, setDashboardTitle }) {
                 </div>
 
                 {/* NODES */}
-                <div className="topologyTable">
+                <div className="mainContainer" style={{ width: '600px', marginRight: '20px' }}>
                   <h2 className="tableTitle">Nodes</h2>
                   {bgpNodes.length === 0 ? (
                     <div>No nodes data available</div>
@@ -155,7 +120,7 @@ function Topology({ keycloak, currentUser, setDashboardTitle }) {
                 </div>
 
                 {/* LINKS */}
-                <div className="topologyTable">
+                <div className="mainContainer" style={{ width: '500px' }}>
                   <h2 className="tableTitle">Links</h2>
 
                   {bgpLinks.length === 0 ? (

@@ -27,13 +27,13 @@
   width: calc(100% - 40px);
   display: flex;
   flex-direction: column;
-  height: calc(100% - 30px);
+  height: calc(100% - 90px);
+  top: 10px;
 }
 
 .tableContainer {
   flex: 1;
-  overflow: auto;
-  height: 300px;
+  overflow: auto; 
   margin-bottom: 15px;
 }
 
@@ -55,6 +55,10 @@
 }
 
 /* ---------- CELLS ---------- */
+
+.eventsTable th {
+  height: 40px;
+}
 
 .eventsTable th,
 .eventsTable td {

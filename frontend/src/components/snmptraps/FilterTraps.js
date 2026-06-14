@@ -7,17 +7,6 @@ import { useDevices } from "../../hooks/useDevices";
 import { useSyslogTags } from "../../hooks/useSyslogTags";
 import { useStatefulSyslogRules } from "../../hooks/useStatefulSyslogRules";
 
-const severityOptions = [
-  { value: "emergency", label: "Emergency" },
-  { value: "alert", label: "Alert" },
-  { value: "critical", label: "Critical" },
-  { value: "error", label: "Error" },
-  { value: "warning", label: "Warning" },
-  { value: "notice", label: "Notice" },
-  { value: "info", label: "Info" },
-  { value: "debug", label: "Debug" }
-];
-
 const FilterTraps = ({
   keycloak,
   onSelectedSyslogFiltersChange,
@@ -47,8 +36,9 @@ const FilterTraps = ({
       const initialized = { ...prev };
 
       tags.forEach(tag => {
-        if (!initialized[tag.name]) {
-          initialized[tag.name] = [];
+        const keyName = tag.value || tag.name; // handles both payload structures
+        if (!initialized[keyName]) {
+          initialized[keyName] = [];
         }
       });
 
@@ -57,18 +47,32 @@ const FilterTraps = ({
     });
   }, [tags, onSelectedSyslogFiltersChange]);
 
-  /* -------------------- generic change handler -------------------- */
-  const handleChange = useCallback((values, tagName) => {
+  /* -------------------- handle change -------------------- */
+  // ✅ ONLY store clean string arrays matching FilterSyslogs implementation
+  const handleChange = useCallback((values, key) => {
+    const safeValues = Array.isArray(values)
+      ? values.map(v => v.value)
+      : [];
+
     setSelectedTags(prev => {
       const updated = {
         ...prev,
-        [tagName]: values || []
+        [key]: safeValues
       };
-
       onSelectedSyslogFiltersChange(updated);
       return updated;
     });
   }, [onSelectedSyslogFiltersChange]);
+
+  /* -------------------- map values -------------------- */
+  // ✅ Convert stored strings -> react-select object format safely
+  const mapValuesToOptions = (selectedValues = [], availableOptions = []) => {
+    if (!selectedValues || !Array.isArray(selectedValues)) return [];
+
+    return selectedValues
+      .map(val => availableOptions.find(opt => opt.value === val) || { value: val, label: val })
+      .filter(Boolean);
+  };
 
   /* -------------------- focus handler (lazy load) -------------------- */
   const handleFocus = useCallback((tagName) => {
@@ -95,13 +99,11 @@ const FilterTraps = ({
       }));
       return;
     }
-
-    // Future dynamic loader here
   }, [tagOptions, mnemonics, rules]);
 
   /* -------------------- render -------------------- */
   if (tagsLoading) {
-    return <p style={{ textAlign: "center" }}>Loading Syslog Tags…</p>;
+    return <p style={{ textAlign: "center" }}>Loading Trap Filters…</p>;
   }
 
   return (
@@ -109,69 +111,74 @@ const FilterTraps = ({
       <div className="searchSyslogsFilterEntries">
 
         {/* Devices */}
-        <div className="searchSyslogsFilterEntry">
-          <span className="searchSignalFilterText">Device:</span>
-          <div style={{ marginTop: '6px' }}>
-            <Select
-              options={deviceOptions}
-              isMulti
-              value={selectedTags.device || []}
-              onChange={(v) => handleChange(v, "device")}
-              styles={{
-                ...customStyles('375px'),
-                menuPortal: base => ({ ...base, zIndex: 9999 })
-              }}
-              menuPortalTarget={document.body}
-              placeholder="Select devices"
-            />
-          </div>
-        </div>
+        <FilterSelect
+          label="Device"
+          options={deviceOptions}
+          value={mapValuesToOptions(selectedTags.device, deviceOptions)}
+          onChange={(v) => handleChange(v, "device")}
+        />
 
         {/* SNMP Trap OIDs */}
-        <div className="searchSyslogsFilterEntry">
-          <span className="searchSignalFilterText">SNMP Trap OID:</span>
-          <div style={{ marginTop: '6px' }}>
-            <Select
-              options={tagOptions.snmpTrapOids || []}
-              isMulti
-              value={selectedTags.snmpTrapOids || []}
-              onChange={(v) => handleChange(v, 'snmpTrapOids')}
-              onFocus={() => handleFocus("snmpTrapOids")}
-              styles={{
-                ...customStyles('375px'),
-                menuPortal: base => ({ ...base, zIndex: 9999 })
-              }}
-              menuPortalTarget={document.body}
-              placeholder="Select snmpTrapOids"
+        <FilterSelect
+          label="SNMP Trap OID"
+          options={tagOptions.snmpTrapOids || []}
+          value={mapValuesToOptions(selectedTags.snmpTrapOids, tagOptions.snmpTrapOids || [])}
+          onChange={(v) => handleChange(v, "snmpTrapOids")}
+          onFocus={() => handleFocus("snmpTrapOids")}
+        />
+
+        {/* Dynamic Tags */}
+        {Array.isArray(tags) && tags.map((tag) => {
+          const tagKey = tag.value || tag.name;
+          const tagLabel = tag.label || tag.name;
+          const currentOptions = tagOptions?.[tagKey] || [];
+          const currentSelected = selectedTags?.[tagKey] || [];
+
+          return (
+            <FilterSelect
+              key={tagKey}
+              label={tagLabel}
+              options={currentOptions}
+              value={mapValuesToOptions(currentSelected, currentOptions)}
+              onChange={(v) => handleChange(v, tagKey)}
+              onFocus={() => handleFocus(tagKey)}
             />
-          </div>
-        </div> 
-        
-        {/* Dynamic Tags (optional) */}
-        {tags.map((tag) => (
-          <div key={tag.name} className="searchSyslogsFilterEntry">
-            <span className="searchSignalFilterText">{tag.label}:</span>
-            <div style={{ marginTop: '6px' }}>
-              <Select
-                options={tagOptions[tag.name] || []}
-                isMulti
-                value={selectedTags[tag.name] || []}
-                onChange={(v) => handleChange(v, tag.name)}
-                onFocus={() => handleFocus(tag.name)}
-                styles={{
-                  ...customStyles('375px'),
-                  menuPortal: base => ({ ...base, zIndex: 9999 })
-                }}
-                menuPortalTarget={document.body}
-                placeholder={`Select ${tag.label}`}
-              />
-            </div>
-          </div>
-        ))}
+          );
+        })}
 
       </div>
     </div>
   );
 };
+
+/* ---------------- SAFE SELECT COMPONENT ---------------- */
+const FilterSelect = ({
+  label,
+  options,
+  value,
+  onChange,
+  onFocus,
+  loading
+}) => (
+  <div className="searchSyslogsFilterEntry">
+    <span className="searchSignalFilterText">{label}:</span>
+    <div style={{ marginTop: "6px" }}>
+      <Select
+        options={options}
+        isMulti
+        isLoading={loading}
+        value={Array.isArray(value) ? value : []}
+        onChange={onChange}
+        onFocus={onFocus}
+        styles={{
+          ...customStyles("375px"),
+          menuPortal: base => ({ ...base, zIndex: 9999 })
+        }}
+        menuPortalTarget={document.body}
+        placeholder={`Select ${label.toLowerCase()}`}
+      />
+    </div>
+  </div>
+);
 
 export default FilterTraps;

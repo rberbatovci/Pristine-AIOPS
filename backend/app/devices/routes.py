@@ -16,15 +16,22 @@ router = APIRouter(
 default_features = {
     "syslogs": False,
     "snmp_traps": False,
-    "netflow": False,
+    "netflow": False, 
     "telemetry": {
-        "system_util": False,
-        "interface_stats": False,
-        "bgp_connections": False,
-        "isis_stats": False,
-        "rib_table": False,
-        "fib_entry": False,
+        "enabled": False,
+        "features": {
+            "system_util": False,
+            "interface_stats": False,
+            "bgp_connections": False,
+            "isis_stats": False,
+            "rib_table": False,
+            "fib_entry": False,
+            "ospf_stats": False,
+            "lldp_stats": False
+        },
     },
+    "topology": False,
+    "authentication": False
 }
 
 

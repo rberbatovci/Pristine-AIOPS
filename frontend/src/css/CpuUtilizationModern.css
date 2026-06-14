@@ -1,0 +1,200 @@
+:root {
+  /* Dark Mode Palette (Default Tech Dashboard Look) */
+  --bg-monitor: #0f172a;
+  --bg-sidebar: #1e293b;
+  --bg-track: rgba(51, 65, 85, 0.4);
+  --border-monitor: #334155;
+  --text-title: #f8fafc;
+  --text-subtitle: #64748b;
+  --text-label: #94a3b8;
+  
+  --color-healthy: #0ed5b1;
+  --color-warning: #f59e0b;
+  --color-critical: #ef4444;
+  
+  --center-btn-bg: #1e293b;
+  --center-btn-border: #334155;
+  --center-btn-icon: #0ed5b1;
+  
+  --shadow-glow: 0 0 20px rgba(14, 213, 177, 0.15);
+}
+
+/* Automatic Light Mode Transition */
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg-monitor: #ffffff;
+    --bg-sidebar: #f8fafc;
+    --bg-track: #e2e8f0;
+    --border-monitor: #e2e8f0;
+    --text-title: #0f172a;
+    --text-subtitle: #64748b;
+    --text-label: #475569;
+    
+    --color-healthy: #0d9488;
+    --color-warning: #d97706;
+    --color-critical: #dc2626;
+    
+    --center-btn-bg: #ffffff;
+    --center-btn-border: #cbd5e1;
+    --center-btn-icon: #0d9488;
+    --shadow-glow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+}
+
+/* Master Grid Wrapper */
+.cpu-monitor-card {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  align-items: center;
+  gap: 20px;
+  background: var(--contentBackground);
+  border-top: var(--borderLight);
+  border-bottom: var(--borderDark);
+  border-radius: 14px;
+  padding: 16px;
+  max-width: 420px;
+  backdrop-filter: blur(20px);
+  box-shadow: var(--contentShadow);
+  font-family: system-ui, -apple-system, sans-serif;
+  transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+/* Left Column: Radial Chart Frame */
+.chart-container {
+  position: relative;
+  width: 140px;
+  height: 140px;
+}
+
+/* Floating Center Controller Button */
+.center-action-btn {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid var(--center-btn-border);
+  background: var(--center-btn-bg);
+  color: var(--center-btn-icon);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.center-action-btn:hover:not(:disabled) {
+  border-color: var(--color-healthy);
+  transform: translate(-50%, -50%) scale(1.05);
+  box-shadow: 0 0 12px rgba(14, 213, 177, 0.3);
+}
+
+.center-action-btn.is-loading {
+  border-color: var(--color-warning);
+  color: var(--color-warning);
+}
+
+/* Icons inside Button */
+.cpu-core-icon {
+  font-size: 22px;
+}
+
+.refresh-spinner {
+  font-size: 22px;
+  animation: spinTelemetry 1.2s linear infinite;
+}
+
+@keyframes spinTelemetry {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Right Column: Sidebar Metrics Panel */
+.metrics-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sidebar-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-title);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.timestamp-badge {
+  font-size: 11px;
+  color: var(--text-subtitle);
+}
+
+/* Semantic Telemetry Lists */
+.telemetry-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--dropdownBackground);
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-monitor);
+}
+
+.metric-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.metric-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-label);
+}
+
+.metric-value {
+  font-family: monospace;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.percent-sign {
+  font-size: 11px;
+  font-weight: 400;
+  opacity: 0.7;
+  margin-left: 1px;
+}
+
+/* Dynamic State Colors */
+.text-healthy  { color: var(--color-healthy); }
+.text-warning  { color: var(--color-warning); }
+.text-critical { color: var(--color-critical); }
+
+.status-dot.text-healthy  { background-color: var(--color-healthy); }
+.status-dot.text-warning  { background-color: var(--color-warning); }
+.status-dot.text-critical { background-color: var(--color-critical); }
+
+.metrics-error-banner {
+  font-size: 11px;
+  color: var(--color-critical);
+  background: rgba(239, 68, 68, 0.1);
+  padding: 4px 8px;
+  border-radius: 4px;
+  border-left: 2px solid var(--color-critical);
+}

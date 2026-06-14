@@ -14,70 +14,17 @@ function SystemUtilization({ keycloak, selectedDevice, onSuccess, showNotificati
     setDevice(selectedDevice);
   }, [selectedDevice]);
 
-  const handlePush = async () => {
-    setLoading(true);
-    setError('');
 
-    try {
-      await pushConfiguration({
-        keycloak,
-        device,
-        featureKey: "system_util",
-        endpoint: "system_util",
-        showNotification
-      });
 
-      // Optimistic UI update (nested telemetry)
-      setDevice(prev => ({
-        ...prev,
-        features: {
-          ...prev.features,
-          telemetry: {
-            ...prev.features.telemetry,
-            system_util: true
-          }
-        }
-      }));
-
-      onSuccess?.();
-    } catch (err) {
-      setError(err?.message || 'Failed to configure system utilization');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const enabled = device?.features?.telemetry?.system_util;
+  const enabled = device?.features?.telemetry?.features?.system_util;
 
   return (
-    <div className="signalRightElementContainer" style={{ maxHeight: '450px' }}>
-      <div className="signalRightElementHeader">
-        <h2 className="signalRightElementHeaderTxt">System Utilization</h2>
-
-        {!enabled && (
-          <div className="zoom-buttons-container">
-            <div className="headerButtons">
-              <button
-                className={`iconButton ${enabled ? 'active' : ''}`}
-                onClick={handlePush}
-                disabled={loading}
-              >
-                <IoPushOutline className="defaultIcon" />
-                <IoPushSharp className="hoverIcon" />
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
+    <div  style={{ maxHeight: '200px', marginTop: '10px', marginBottom: '10px' }}> 
       <div
         style={{
-          display: "flex",
-          padding: '8px',
-          marginLeft: '15px',
+          display: "flex", 
           fontSize: '14px',
-          color: 'var(--textColor)',
-          opacity: '0.9'
+          color: 'var(--textColor)', 
         }}
       >
         {loading ? (

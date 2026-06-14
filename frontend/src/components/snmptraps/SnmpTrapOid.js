@@ -5,17 +5,14 @@ import customStyles from "../misc/SelectStyles";
 import { TailSpin } from "react-loader-spinner";
 
 import { useSnmpTrapOids } from "../../hooks/useSnmpTrapOids";
+import { useSnmpTrapTags } from "../../hooks/useSnmpTrapTags"; 
+import { useStatefulSyslogRules } from "../../hooks/useStatefulSyslogRules"; 
 
-const SnmpTrapOid = ({ keycloak, snmpTrapOids, snmpTrapTags, showNotification }) => {
+const SnmpTrapOid = ({ keycloak, showNotification }) => {
   /* ---------------- hooks ---------------- */
-  const {
-    details,
-    loading,
-    error,
-    get,
-    update,
-    remove
-  } = useSnmpTrapOids(keycloak);
+  const { details, loading, error, get, update, remove } = useSnmpTrapOids(keycloak);
+  const { list: snmpTrapTags, loading: snmpTrapTagsLoading, loadList: reloadSnmpTrapTags } = useSnmpTrapTags(keycloak, false);
+  const { list: snmpTrapOids, loading: oidsLoading, loadList: reloadSnmpTrapOids } = useSnmpTrapOids(keycloak);
 
   /* ---------------- UI state ---------------- */
   const [searchTerm, setSearchTerm] = useState("");

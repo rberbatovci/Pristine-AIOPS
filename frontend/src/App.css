@@ -6,9 +6,11 @@
   --listElementOddBackground: rgba(224, 224, 224, 0.4);
   --listElementEvenBackground: rgba(224, 224, 224, 0.3);
   --listElementHoverBackground: rgba(241, 241, 241, .8);
-  --background1: rgba(255, 255, 255, 0.3);
+  --background1: rgb(182, 182, 182);
   --sidebarBck: rgba(255, 255, 255, 0.05);
   --textColor: rgb(83, 83, 83);
+  --iconTextColor: rgba(255, 255, 255, 0.7);
+  --iconTextColorHover: rgb(255, 255, 255);
   --textColor2: rgb(1, 32, 53);
   --textColor3: rgba(0, 0, 0, .4);
   --iconHoverColor: rgb(25, 111, 161);
@@ -17,12 +19,12 @@
   --borderDarkHvr: 1px solid rgba(3, 92, 151, 0.4);
   --elementBg: cyan;
   --darkBack: rgba(244, 244, 244, .2);
-  --contentBackground: rgba(228, 228, 228, 0.6);
+  --contentBackground: rgba(255, 255, 255, 0.6);
   --searchButtonBack: rgb(204, 204, 204);
   --searchButtonBackHover: rgb(17, 140, 223);
   --inputTextBck: rgba(255, 255, 255, .2);
   --inputTextBck2: rgba(255, 255, 255, 0.4);
-  --contentShadow: 8px 40px 40px rgba(109, 109, 109, 0.1);
+  --contentShadow: 2px 5px 12px 1px rgba(0,0,0,0.15);
   --detailBack: rgba(123, 169, 190, 0.1);
   --sidebarActiveBackground: rgb(129, 71, 184);
   --listElementBack: rgb(87, 133, 155);
@@ -59,22 +61,58 @@
   --cpu-5s: #1d4ed8;   /* blue */
   --cpu-1m: #16a34a;   /* green */
   --cpu-5m: #dc2626;   /* red */
+
+
+  --bg-surface: rgba(255, 255, 255, 0.6);
+  --bg-card: #f8fafc;
+  --bg-card-hover: #f1f5f9;
+  --bg-card-active: rgba(2, 132, 199, 0.08);
+  --border-color: #e2e8f0;
+  --border-hover: #0284c7;
+  --text-primary: #0f172a;
+  --text-muted: #64748b;
+  --brand-accent: #0284c7;
+  --danger-accent: #e11d48;
+  --danger-bg-hover: rgba(225, 29, 72, 0.06);
+  --close-bg-hover: rgba(15, 23, 42, 0.05);
+  --shadow-main: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+
+  --color-healthy: #0ed5b1;
+  --color-warning: #f59e0b;
+  --color-critical: #ef4444;
+
+  --color-header: #042c47;
+
+  --bg-monitor: #0f172a;
+  --bg-sidebar: #1e293b;
+  --bg-track: rgba(51, 65, 85, 0.4);
+  --border-monitor: #485f80;
+  --text-title: #f8fafc;
+  --text-subtitle: #64748b;
+  --text-label: #94a3b8;
+  
+  /* Structural Constants */
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --transition-smooth: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 [data-theme='dark'] {
   --backgroundColor: rgb(1, 47, 68);
   --backgroundColor2: rgba(1, 47, 68, .8);
-  --backgroundColor3: rgba(2, 21, 29, 0.17);
+  --backgroundColor3: rgba(0, 57, 77, .6);
   --listElementOddBackground: rgba(0, 58, 85, 0.4);
   --listElementEvenBackground: rgba(0, 80, 117, 0.6);
   --listElementHoverBackground: rgba(0, 34, 49, 0.8);
-  --background1: rgba(93, 154, 247, 0.1);
+  --background1: rgba(93, 154, 247, 0.4);
   --background2: rgba(3, 45, 61, 0.3);
   --sidebarBck: rgba(11, 72, 97, 0.18);
   --wallpaperBackground: radial-gradient(circle, rgba(1, 78, 107, 1) 0%, rgba(20, 77, 98, 1) 15%, rgba(0, 43, 59, 1) 100%);
   --textColor: rgba(180, 180, 180, 0.8);
   --textColor2: rgb(255, 255, 255);
   --textColor3: rgba(255, 255, 255, .4);
+  --iconTextColor: rgba(236, 236, 236, 0.6);
+  --iconTextColorHover: rgb(255, 255, 255);
   --headerBackground: purple;
   --darkBack: rgba(0, 57, 77, .6);
   --inputTextBck: rgba(8, 46, 61, 0.35);
@@ -83,7 +121,7 @@
   --borderLight: 1px solid rgba(235, 235, 235, 0.2);
   --borderDark: 1px solid rgba(1, 32, 49, 0.5);
   --borderDarkHvr: 1px solid rgba(0, 20, 39, 0.7);
-  --contentShadow: 8px 40px 40px rgba(0, 7, 15, 0.4);
+  --contentShadow: 2px 5px 5px 1px rgba(0,0,0,0.25);
   --sidebarActiveBackground: rgb(2, 84, 122);
   --listElementBack: rgb(2, 44, 68);
   --listElementBackHover: rgba(2, 44, 68, .7);
@@ -121,6 +159,57 @@
   --cpu-5s: #60a5fa;
   --cpu-1m: #4ade80;
   --cpu-5m: #f87171;
+
+  --color-header: #5c798d;
+
+  --bg-surface: #1e293b;
+  --bg-card: #0f172a;
+  --bg-card-hover: #1e293b;
+  --bg-card-active: rgba(14, 165, 233, 0.15);
+  --border-color: #334155;
+  --border-hover: #0ea5e9;
+  --text-primary: #f8fafc;
+  --text-muted: #94a3b8;
+  --brand-accent: #0ea5e9;
+  --danger-accent: #f43f5e;
+  --danger-bg-hover: rgba(244, 63, 94, 0.1);
+  --close-bg-hover: rgba(255, 255, 255, 0.05);
+  --shadow-main: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+  --bg-monitor: #0f172a;
+  --bg-sidebar: #1e293b;
+  --bg-track: rgba(51, 65, 85, 0.4);
+  --border-monitor: #334155;
+  --text-title: #f8fafc;
+  --text-subtitle: #64748b;
+  --text-label: #94a3b8;
+  
+  --color-healthy: #0ed5b1;
+  --color-warning: #f59e0b;
+  --color-critical: #ef4444;
+  
+  --center-btn-bg: #1e293b;
+  --center-btn-border: #334155;
+  --center-btn-icon: #0ed5b1;
+  
+  --shadow-glow: 0 0 20px rgba(14, 213, 177, 0.15);
+  --bg-monitor: #0f172a;
+  --bg-sidebar: #1e293b;
+  --bg-track: rgba(51, 65, 85, 0.4);
+  --border-monitor: #334155;
+  --text-title: #f8fafc;
+  --text-subtitle: #64748b;
+  --text-label: #94a3b8;
+  
+  --color-healthy: #0ed5b1;
+  --color-warning: #f59e0b;
+  --color-critical: #ef4444;
+  
+  --center-btn-bg: #1e293b;
+  --center-btn-border: #334155;
+  --center-btn-icon: #0ed5b1;
+  
+  --shadow-glow: 0 0 20px rgba(14, 213, 177, 0.15);  
+
 }
 
 #tsparticles {
@@ -650,11 +739,22 @@ header {
 }
 
 .userProfile {
-  position: absolute;
-
+  position: absolute; 
 }
 
+.menuOption {
+  display: flex; 
+  backdrop-filter: blur(25px); 
+  border-radius: 8px;
+  box-shadow: var(--contentShadow);
+  background-color: var(--contentBackground);
+  position: absolute;
+  top: 60px;
+  right: 20px;
+  z-index: 1000;
+}
 
+.m
 
 .user-profile-container {
   position: relative;
@@ -704,8 +804,7 @@ header {
 .userProfile {
   display: flex;
   background-color: var(--contentBackground);
-  backdrop-filter: blur(25px);
-  padding: 1rem;
+  backdrop-filter: blur(25px); 
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   position: absolute;
@@ -715,6 +814,8 @@ header {
 }
 
 .signalTagItemX {
+  display: flex;
+  align-items: center;
   background-color: var(--buttonBackground);
   transform: scale(1.01);
   padding: 10px 21px;
@@ -723,12 +824,10 @@ header {
   outline: none;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
   transition:
-    background-color 0.3s ease,
-    padding 0.3s ease,
-    margin 0.3s ease,
-    transform 0.3s ease,
-    color 0.3s ease,
-    box-shadow 0.3s ease;
+  background-color 0.3s ease,
+  padding 0.3s ease,
+  transform 0.3s ease,
+  color 0.3s ease,
 }
 
 .signalTagItemX:hover {

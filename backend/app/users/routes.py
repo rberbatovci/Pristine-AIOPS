@@ -1,79 +1,110 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from datetime import datetime
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.session import get_db
-from .schemas import UserCreate, UserResponse, UserUpdate
-from .services import get_user_by_username, verify_password, create_user_in_db
-from typing import List
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
-from jose import jwt, JWTError
-from datetime import datetime, timedelta
-from app.core.config import settings
-from app.users.models import User
 
-router = APIRouter()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+from ..db.session import get_db
+from .models import User
+from .schemas import (
+    UserPreferencesResponse,
+    ThemeUpdate,
+    TimezoneUpdate
+)
+from app.auth.keycloak import get_current_user
+ 
+router = APIRouter(
+    prefix="/api/users/me",
+    tags=["User Preferences"],
+)
 
-def create_access_token(data: dict, expires_delta: timedelta | None = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
-    return encoded_jwt
+async def get_or_create_user(
+    db: AsyncSession,
+    token_data: dict
+):
+    keycloak_user_id = token_data["sub"]
 
-async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
+    result = await db.execute(
+        select(User).where(
+            User.keycloak_user_id == keycloak_user_id
+        )
     )
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise credentials_exception
-    except JWTError:
-        raise credentials_exception
-    user = await get_user_by_username(db, username)
-    if user is None:
-        raise credentials_exception
+
+    user = result.scalar_one_or_none()
+
+    if user:
+        return user
+
+    user = User(
+        keycloak_user_id=keycloak_user_id,
+        username=token_data.get("preferred_username"),
+        email=token_data.get("email"),
+        theme="light",
+        timezone="UTC"
+    )
+
+    db.add(user)
+
+    await db.commit()
+    await db.refresh(user)
+
     return user
 
-@router.post("/users/register/", response_model=UserResponse)
-async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
-    try:
-        print("Received user:", user.dict())
-        db_user = await get_user_by_username(db, user.username)
-        if db_user:
-            raise HTTPException(status_code=400, detail="Username already registered")
-        return await create_user_in_db(db, user)
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=400, detail=f"Registration error: {str(e)}")
-
-@router.get("/users/me/", response_model=UserResponse)
-async def read_users_me(current_user: User = Depends(get_current_user)):
-    return current_user
-
-@router.post("/token")
-async def login_for_access_token(
-    form_data: OAuth2PasswordRequestForm = Depends(), 
-    db: AsyncSession = Depends(get_db)
+@router.get("/preferences")
+async def get_preferences(
+    db: AsyncSession = Depends(get_db),
+    token_data=Depends(get_current_user)
 ):
-    user = await get_user_by_username(db, form_data.username)
-    if not user or not verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    access_token = create_access_token(data={"sub": user.username})
+    user = await get_or_create_user(
+        db,
+        token_data
+    )
+
     return {
-        "access_token": access_token, 
-        "token_type": "bearer",
-        "username": user.username,
-        "is_staff": user.is_staff  # Add this
+        "theme": user.theme,
+        "timezone": user.timezone
     }
+
+@router.patch("/preferences/theme")
+async def update_theme(
+    data: ThemeUpdate,
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_current_user)
+):
+    result = await db.execute(
+        select(User).where(User.keycloak_user_id == user_id)
+    )
+
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.theme = data.theme
+
+    await db.commit()
+    await db.refresh(user)
+
+    return {"theme": user.theme}
+
+@router.patch("/preferences/timezone")
+async def update_timezone(
+    data: TimezoneUpdate,
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_current_user)
+):
+    result = await db.execute(
+        select(User).where(User.keycloak_user_id == user_id)
+    )
+
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.timezone = data.timezone
+
+    await db.commit()
+    await db.refresh(user)
+
+    return {"timezone": user.timezone}

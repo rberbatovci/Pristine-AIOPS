@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	conn, err := grpc.Dial("gobgp:50051", grpc.WithInsecure())
+	conn, err := grpc.Dial("192.168.1.201:50051", grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("failed to connect to GoBGP: %v", err)
 	}

@@ -1,0 +1,135 @@
+/* ==========================================================================
+   Device Node Info Statistics Panel Layout
+   ========================================================================== */
+
+.device-info-panel {
+  background: var(--contentBackground); 
+  border-top: var(--borderLight);
+  border-bottom: var(--borderDark);
+  border-radius: 14px;
+  max-width: 880px;
+  width: 100%;
+  box-shadow: var(--contentShadow);
+  backdrop-filter: blur(20px);
+  font-family: system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+  transition: all 0.25s ease;
+}
+
+/* Header Area Container layout */
+.info-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border-monitor);
+  background: var(--contentBackground);
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.info-icon {
+  font-size: 18px;
+  color: var(--textColor);
+}
+
+.info-header h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-title);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Minimalist Action Closing Button Element */
+.info-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-subtitle);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.info-close-btn:hover {
+  background: var(--bg-sidebar);
+  color: var(--color-critical);
+}
+
+/* Unified Layout Data Metadata Grid blocks */
+.info-grid-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  padding: 16px 20px;
+}
+
+.info-data-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Spreading across columns for longer fields or accent blocks */
+.full-width-tile {
+  grid-column: 1 / -1;
+  border-top: 1px dashed var(--border-monitor);
+  padding-top: 12px;
+  margin-top: 4px;
+}
+
+.tile-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-subtitle);
+  text-transform: uppercase;
+  letter-spacing: 0.25px;
+}
+
+.tile-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-title);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.value-highlight {
+  color: var(--color-healthy);
+  font-weight: 600;
+}
+
+.monospace-data {
+  font-family: monospace;
+  font-size: 14px;
+  color: var(--text-label);
+}
+
+/* Dynamic State Badging system */
+.health-status-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+.status-indicator-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+}

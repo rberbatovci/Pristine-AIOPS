@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { TailSpin } from 'react-loader-spinner';
 import kcFetch from '../misc/kcFetch';
 
-function AddNewDevice({ onDeviceAdded, keycloak }) {
+function AddNewDevice({ onDeviceAdded, keycloak, showNotification }) {
   const [ipAddress, setIpAddress] = useState('');
   const [hostname, setHostname] = useState('');
   const [error, setError] = useState('');
@@ -39,6 +39,7 @@ function AddNewDevice({ onDeviceAdded, keycloak }) {
       });
 
       setSuccess(true);
+      showNotification("Device added successfully", "success");
       if (onDeviceAdded) onDeviceAdded(res);
 
       handleClear();
@@ -53,7 +54,7 @@ function AddNewDevice({ onDeviceAdded, keycloak }) {
   return (
     <div className="searchSyslogsContainer">
       <span className="searchSignalFilterText">Add a new device</span>
-      <div className="searchSyslogsFilterEntries" style={{ marginTop: '-10px' }}>
+      <div>
         <div className="searchSyslogsFilterEntry">
           <span className="searchSignalFilterText">Agent IP address:</span>
           <div style={{ marginTop: '6px', width: '300px' }}>

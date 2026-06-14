@@ -9,7 +9,7 @@
 #include <netinet/in.h>
 
 // Kafka configuration
-#define KAFKA_BROKER "Kafka:9092"
+#define KAFKA_BROKER "kafka:9092"
 #define KAFKA_EVENTS_TOPIC "trap-events"
 #define KAFKA_DEBUG 0
 #define NETSNMP_DEBUG 0
@@ -46,36 +46,71 @@ static int hex_to_binary(unsigned char **out, size_t max_len, const char *hex)
 
     return hex_len / 2;
 }
+ 
 
-// Initialize Kafka producer
-int initialize_kafka_producer()
+void delivery_report(rd_kafka_t *rk,
+                     const rd_kafka_message_t *rkmessage,
+                     void *opaque)
+{
+    if (rkmessage->err)
+    {
+        fprintf(stderr,
+                "❌ Delivery failed: %s\n",
+                rd_kafka_err2str(rkmessage->err));
+    }
+    else
+    {
+        if (KAFKA_DEBUG)
+        {
+            printf("✅ Message delivered to topic %s [%d] at offset %lld\n",
+                   rd_kafka_topic_name(rkmessage->rkt),
+                   rkmessage->partition,
+                   (long long)rkmessage->offset);
+        }
+    }
+}
+
+/* =========================================================
+ * KAFKA INIT
+ * ========================================================= */
+
+void init_kafka_producer()
 {
     char errstr[512];
 
-    // Create configuration object
     rd_kafka_conf_t *conf = rd_kafka_conf_new();
 
-    // Set bootstrap servers
-    if (rd_kafka_conf_set(conf, "bootstrap.servers", KAFKA_BROKER,
-                          errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK)
+    /* Bootstrap server */
+    if (rd_kafka_conf_set(conf, "bootstrap.servers", KAFKA_BROKER, errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK)
     {
-        fprintf(stderr, "Kafka config error: %s\n", errstr);
-        rd_kafka_conf_destroy(conf);
-        return -1;
+        fprintf(stderr, "❌ %s\n", errstr);
+        exit(1);
     }
+ 
+    rd_kafka_conf_set(conf, "acks", "1", errstr, sizeof(errstr));
 
-    // Create producer instance
-    kafka_producer = rd_kafka_new(RD_KAFKA_PRODUCER, conf,
-                                  errstr, sizeof(errstr));
+    ///rd_kafka_conf_set(conf, "enable.idempotence", "true", errstr, sizeof(errstr)); 
+ 
+    rd_kafka_conf_set(conf, "compression.codec", "zstd", errstr, sizeof(errstr));
+ 
+    rd_kafka_conf_set(conf, "linger.ms", "50", errstr, sizeof(errstr));
+
+    rd_kafka_conf_set(conf, "batch.num.messages", "10000", errstr, sizeof(errstr));
+
+    rd_kafka_conf_set(conf, "queue.buffering.max.messages", "100000", errstr, sizeof(errstr));
+ 
+    rd_kafka_conf_set_dr_msg_cb(conf, delivery_report);
+ 
+    kafka_producer = rd_kafka_new(RD_KAFKA_PRODUCER, conf, errstr, sizeof(errstr));
+
     if (!kafka_producer)
     {
-        fprintf(stderr, "Failed to create Kafka producer: %s\n", errstr);
-        return -1;
+        fprintf(stderr, "❌ Failed to create Kafka producer: %s\n", errstr); 
+        exit(1);
     }
 
-    if (KAFKA_DEBUG)
-        printf("✅ Kafka producer initialized\n");
-    return 0;
+    printf("✅ Kafka producer initialized\n");
+
 }
 
 // Clean up Kafka producer
@@ -261,6 +296,89 @@ int trap_callback(int operation, netsnmp_session *sp, int reqid,
     return 1;
 }
 
+/* =========================================================
+ * KAFKA TOPIC CREATION
+ * ========================================================= */
+
+void create_topic_if_needed(rd_kafka_t *rk)
+{
+    rd_kafka_NewTopic_t *new_topic;
+    rd_kafka_AdminOptions_t *options;
+    rd_kafka_queue_t *queue;
+
+    /* Create topic definition */
+    new_topic = rd_kafka_NewTopic_new(
+        KAFKA_EVENTS_TOPIC,
+        3,      /* partitions */
+        1,      /* replication factor */
+        NULL,
+        0
+    );
+
+    rd_kafka_NewTopic_t *topics[] = { new_topic };
+
+    /* Admin options */
+    options = rd_kafka_AdminOptions_new(
+        rk,
+        RD_KAFKA_ADMIN_OP_CREATETOPICS
+    );
+
+    /* Temporary queue for admin response */
+    queue = rd_kafka_queue_new(rk);
+
+    /* Send create topic request */
+    rd_kafka_CreateTopics(
+        rk,
+        topics,
+        1,
+        options,
+        queue
+    );
+
+    printf("⏳ Creating Kafka topic '%s'...\n",
+           KAFKA_EVENTS_TOPIC);
+
+    /* Wait for result */
+    rd_kafka_event_t *event =
+        rd_kafka_queue_poll(queue, 10000);
+
+    if (!event)
+    {
+        fprintf(stderr, "❌ No response from Kafka admin API\n");
+    }
+    else if (rd_kafka_event_error(event))
+    {
+        /*
+         * IMPORTANT:
+         * Topic already exists is NOT fatal
+         */
+        if (rd_kafka_event_error(event) ==
+            RD_KAFKA_RESP_ERR_TOPIC_ALREADY_EXISTS)
+        {
+            printf("✅ Topic already exists\n");
+        }
+        else
+        {
+            fprintf(stderr,
+                    "❌ Topic creation failed: %s\n",
+                    rd_kafka_event_error_string(event));
+        }
+    }
+    else
+    {
+        printf("✅ Topic '%s' created successfully\n",
+               KAFKA_EVENTS_TOPIC);
+    }
+
+    /* Cleanup */
+    if (event)
+        rd_kafka_event_destroy(event);
+
+    rd_kafka_queue_destroy(queue);
+    rd_kafka_AdminOptions_destroy(options);
+    rd_kafka_NewTopic_destroy(new_topic);
+}
+
 int is_expired() {
     time_t current_time = time(NULL);
     struct tm *now = gmtime(&current_time);  // Use gmtime() for UTC or localtime() for local
@@ -294,130 +412,265 @@ int main(int argc, char **argv)
 
     setbuf(stdout, NULL);
 
-    if (is_expired()) {
-        fprintf(stderr, "⛔ Pristine-AIOPS v1.2 is out of date.\n Please contact the developer to get Pristine-AIOPS v1.3.\n");
+    if (is_expired())
+    {
+        fprintf(stderr,
+                "⛔ Pristine-AIOPS v1.2 is out of date.\n"
+                "Please contact the developer to get Pristine-AIOPS v1.3.\n");
+
         return 1;
     }
 
-    netsnmp_session session, *ss;
+    netsnmp_session session, *ss = NULL;
     netsnmp_transport *transport = NULL;
+
+    unsigned char *engineID = NULL;
+
     int exit_status = 0;
 
-    // Initialize Kafka producer
-    if (initialize_kafka_producer() != 0)
-    {
-        fprintf(stderr, "⚠️ Continuing without Kafka support\n");
-    }
+    /* =====================================================
+     * Initialize Kafka Producer
+     * ===================================================== */
 
-    // Initialize SNMP library
+    init_kafka_producer();
+
+    create_topic_if_needed(kafka_producer);
+
+    /* =====================================================
+     * Initialize SNMP
+     * ===================================================== */
+
     setenv("MIBS", "ALL", 1);
     setenv("MIBDIRS", "/app/traps/producer/mibs", 1);
+
     init_snmp("consumer");
-    //snmp_enable_stderrlog();
-    //snmp_set_do_debugging(1);
+
+    // snmp_enable_stderrlog();
+    // snmp_set_do_debugging(1);
 
     init_mib();
     read_all_mibs();
 
-    // Set up SNMP session
+    /* =====================================================
+     * Setup SNMP Session
+     * ===================================================== */
+
     snmp_sess_init(&session);
+
     session.version = SNMP_VERSION_3;
 
-    // Security parameters
+    /* =====================================================
+     * Environment Variables
+     * ===================================================== */
+
     char *authPass = getenv("SNMP_AUTH_PASS");
     char *privPass = getenv("SNMP_PRIV_PASS");
     char *username = getenv("SNMP_USERNAME");
-    const char *contextEngineIDStr = getenv("SNMP_ENGINE_ID");
 
-    // Convert hex string to binary for securityEngineID
-    unsigned char *engineID = NULL;
-    int engineIDLen = hex_to_binary(&engineID, 32, contextEngineIDStr);
-    if (engineIDLen < 0)
+    const char *contextEngineIDStr =
+        getenv("SNMP_ENGINE_ID");
+
+    if (!authPass || !privPass || !username || !contextEngineIDStr)
     {
-        fprintf(stderr, "Error converting securityEngineID from hex.\n");
+        fprintf(stderr,
+                "❌ Missing SNMP environment variables\n");
+
         exit_status = 1;
         goto cleanup;
     }
+
+    /* =====================================================
+     * Convert Engine ID
+     * ===================================================== */
+
+    engineID = NULL;
+
+    int engineIDLen =
+        hex_to_binary(&engineID,
+                      32,
+                      contextEngineIDStr);
+
+    if (engineIDLen < 0)
+    {
+        fprintf(stderr,
+                "❌ Error converting securityEngineID\n");
+
+        exit_status = 1;
+        goto cleanup;
+    }
+
+    /* =====================================================
+     * SNMPv3 Security
+     * ===================================================== */
 
     session.securityName = (u_char *)username;
     session.securityNameLen = strlen(username);
+
     session.securityLevel = SNMP_SEC_LEVEL_AUTHPRIV;
+
     session.securityEngineID = engineID;
     session.securityEngineIDLen = engineIDLen;
 
-    // Set authentication protocol (SHA-1)
-    session.securityAuthProto = usmHMACSHA1AuthProtocol;
-    session.securityAuthProtoLen = USM_AUTH_PROTO_SHA_LEN;
-    session.securityAuthKeyLen = USM_AUTH_KU_LEN;
+    /* =====================================================
+     * Authentication (SHA1)
+     * ===================================================== */
+
+    session.securityAuthProto =
+        usmHMACSHA1AuthProtocol;
+
+    session.securityAuthProtoLen =
+        USM_AUTH_PROTO_SHA_LEN;
+
+    session.securityAuthKeyLen =
+        USM_AUTH_KU_LEN;
+
     if (generate_Ku(session.securityAuthProto,
                     session.securityAuthProtoLen,
-                    (u_char *)authPass, strlen(authPass),
+                    (u_char *)authPass,
+                    strlen(authPass),
                     session.securityAuthKey,
-                    &session.securityAuthKeyLen) != SNMPERR_SUCCESS)
+                    &session.securityAuthKeyLen)
+        != SNMPERR_SUCCESS)
     {
-        fprintf(stderr, "Error generating authentication key.\n");
+        fprintf(stderr,
+                "❌ Error generating authentication key\n");
+
         exit_status = 1;
         goto cleanup;
     }
 
-    // Set privacy protocol (AES)
-    session.securityPrivProto = usmAESPrivProtocol;
-    session.securityPrivProtoLen = USM_PRIV_PROTO_AES_LEN;
-    session.securityPrivKeyLen = USM_PRIV_KU_LEN;
+    /* =====================================================
+     * Privacy (AES)
+     * ===================================================== */
+
+    session.securityPrivProto =
+        usmAESPrivProtocol;
+
+    session.securityPrivProtoLen =
+        USM_PRIV_PROTO_AES_LEN;
+
+    session.securityPrivKeyLen =
+        USM_PRIV_KU_LEN;
+
     if (generate_Ku(session.securityAuthProto,
                     session.securityAuthProtoLen,
-                    (u_char *)privPass, strlen(privPass),
+                    (u_char *)privPass,
+                    strlen(privPass),
                     session.securityPrivKey,
-                    &session.securityPrivKeyLen) != SNMPERR_SUCCESS)
+                    &session.securityPrivKeyLen)
+        != SNMPERR_SUCCESS)
     {
-        fprintf(stderr, "Error generating privacy key.\n");
+        fprintf(stderr,
+                "❌ Error generating privacy key\n");
+
         exit_status = 1;
         goto cleanup;
     }
+
+    /* =====================================================
+     * Context
+     * ===================================================== */
 
     session.contextEngineID = engineID;
     session.contextEngineIDLen = engineIDLen;
+
     session.callback = trap_callback;
     session.callback_magic = NULL;
 
+    /* =====================================================
+     * Trap Port
+     * ===================================================== */
+
     char *trapPort = getenv("SNMP_TRAP_PORT");
+
     if (!trapPort)
     {
-        trapPort = "1161"; // fallback default
+        trapPort = "1161";
     }
 
-    char listen_addr[32];
-    snprintf(listen_addr, sizeof(listen_addr), "udp:%s", trapPort);
-    
-    printf("🚀Producer is listening for SNMPv3 traps on port %s...\n", trapPort);
+    char listen_addr[64];
 
-    transport = netsnmp_tdomain_transport(listen_addr, 1, "snmptrap");
+    snprintf(listen_addr,
+             sizeof(listen_addr),
+             "udp:%s",
+             trapPort);
+
+    printf("🚀 Producer is listening for SNMPv3 traps on port %s...\n",
+           trapPort);
+
+    /* =====================================================
+     * Create Transport
+     * ===================================================== */
+
+    transport =
+        netsnmp_tdomain_transport(listen_addr,
+                                  1,
+                                  "snmptrap");
+
     if (!transport)
     {
-        fprintf(stderr, "❌ Failed to open SNMP trap listener on %s\n", listen_addr);
+        fprintf(stderr,
+                "❌ Failed to open SNMP trap listener on %s\n",
+                listen_addr);
+
         perror("Error details");
+
         exit_status = 1;
         goto cleanup;
     }
 
-    ss = snmp_add(&session, transport, NULL, NULL);
+    /* =====================================================
+     * Add SNMP Session
+     * ===================================================== */
+
+    ss = snmp_add(&session,
+                  transport,
+                  NULL,
+                  NULL);
+
     if (!ss)
     {
         snmp_perror("snmp_add");
+
         exit_status = 1;
         goto cleanup;
     }
 
+    /* =====================================================
+     * Main Loop
+     * ===================================================== */
+
     while (1)
     {
-        int fds = 0, block = 1, result;
+        /*
+         * IMPORTANT:
+         * Processes delivery callbacks,
+         * retries,
+         * internal Kafka queues
+         */
+        rd_kafka_poll(kafka_producer, 0);
+
+        int fds = 0;
+        int block = 1;
+        int result;
+
         fd_set fdset;
+
         struct timeval timeout;
 
         FD_ZERO(&fdset);
-        snmp_select_info(&fds, &fdset, &timeout, &block);
 
-        result = select(fds + 1, &fdset, NULL, NULL, block ? NULL : &timeout);
+        snmp_select_info(&fds,
+                         &fdset,
+                         &timeout,
+                         &block);
+
+        result = select(fds + 1,
+                        &fdset,
+                        NULL,
+                        NULL,
+                        block ? NULL : &timeout);
+
         if (result > 0)
         {
             snmp_read(&fdset);
@@ -432,18 +685,49 @@ int main(int argc, char **argv)
             break;
         }
 
-        if (is_expired()) {
-            fprintf(stderr, "⛔ Pristine-AIOPS v1.1 beta is out of date.\n Please contact the developer to get Pristine-AIOPS v1.2.\n");
+        if (is_expired())
+        {
+            fprintf(stderr,
+                    "⛔ Pristine-AIOPS v1.2 is out of date.\n"
+                    "Please contact the developer to get "
+                    "Pristine-AIOPS v1.3.\n");
+
             break;
         }
     }
 
 cleanup:
+
+    /* =====================================================
+     * Cleanup Kafka
+     * ===================================================== */
+
+    if (kafka_producer)
+    {
+        /*
+         * Wait for queued messages
+         * to be delivered
+         */
+        rd_kafka_flush(kafka_producer, 10000);
+
+        cleanup_kafka_producer();
+    }
+
+    /* =====================================================
+     * Cleanup SNMP
+     * ===================================================== */
+
     if (engineID)
+    {
         free(engineID);
+    }
+
     if (ss)
+    {
         snmp_close(ss);
-    cleanup_kafka_producer();
+    }
+
     SOCK_CLEANUP;
+
     return exit_status;
 }

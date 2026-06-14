@@ -10,12 +10,11 @@ import { RiSearchEyeLine, RiSearchEyeFill } from "react-icons/ri";
 import kcFetch from '../components/misc/kcFetch';
 import { RiAddCircleLine, RiAddCircleFill } from "react-icons/ri";
 
-function Devices({ currentUser, setDashboardTitle, showNotification, keycloak }) {
+function Devices({ currentUser, setDashboardTitle, showNotification, keycloak, selectedDevice, setSelectedDevice, devicesRefreshKey }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [devices, setDevices] = useState([]);
     const [showComponents, setShowComponents] = useState(false);
-    const [selectedDevice, setSelectedDevice] = useState(null);
     const [activeDropdown, setActiveDropdown] = useState(null);
     const dropdownRef = useRef(null);
     const [hostname, setHostname] = useState('');
@@ -24,7 +23,7 @@ function Devices({ currentUser, setDashboardTitle, showNotification, keycloak })
 
     useEffect(() => {
         setDashboardTitle("Devices Dashboard");
-        return () => setDashboardTitle(''); // Clean up when navigating away
+        return () => setDashboardTitle('');
     }, [setDashboardTitle]);
 
     const handleConfigClick = (type) => {
@@ -48,10 +47,11 @@ function Devices({ currentUser, setDashboardTitle, showNotification, keycloak })
 
     useEffect(() => {
         fetchDevices()
-    }, []);
+    }, [devicesRefreshKey]);
 
     const handleDeviceAdded = (newDevice) => {
-        setDevices((prevDevices) => [...prevDevices, newDevice]);
+        setDevices(prev => [...prev, newDevice]); // instant UI update
+        fetchDevices(); // then sync with backend
     };
 
     const handleDeviceSelect = async (device) => {
@@ -127,39 +127,16 @@ function Devices({ currentUser, setDashboardTitle, showNotification, keycloak })
 
     return (
         <div className="signals-container" style={{ display: 'flex', width: showComponents ? '80%' : '40%', transition: 'width 1s ease' }}>
-            <div style={{ width: showComponents ? '40%' : '100%', transition: 'width 1s ease-in-out, opacity 1s ease-in-out', overflow: 'hidden', height: 'calc(100vh - 60px)' }} >
-                <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <button className={`iconButton ${activeDropdown === 'scan' ? 'active' : ''}`} onClick={() => toggleDropdown('scan')}>
-                            <RiSearchEyeLine className="defaultIcon" />
-                            <RiSearchEyeFill className="hoverIcon" />
-                        </button>
-                        <button className={`iconButton ${activeDropdown === 'addNew' ? 'active' : ''}`} onClick={() => toggleDropdown('addNew')}>
-                            <RiAddCircleLine className="defaultIcon" />
-                            <RiAddCircleFill className="hoverIcon" />
-                        </button>
-                    </div>
-                </div>
-                {activeDropdown === 'addNew' && (
-                    <div ref={dropdownRef} className="dropdownMenu dropdownVisible" style={{ width: '370px', height: '260px' }}>
-                        <AddNew onDeviceAdded={handleNewDevice} keycloak={keycloak} />
-                    </div>
-                )}
-
-                {activeDropdown === 'scan' && (
-                    <div ref={dropdownRef} className="dropdownMenu dropdownVisible" style={{ width: '370px', height: '170px' }}>
-                        <Nmap onDeviceAdded={handleNewDevice} keycloak={keycloak} />
-                    </div>
-                )}
-                <div style={{ margin: '10px', background: 'var(--backgroundColor3)', padding: '10px', borderRadius: '10px', height: 'calc(100vh - 170px)', overflowY: 'auto' }}>
-                    <List devices={devices} onDeviceSelect={handleDeviceSelect} />
+            <div style={{ width: showComponents ? '40%' : '100%', transition: 'width 1s ease-in-out, opacity 1s ease-in-out', overflow: 'hidden', height: 'calc(100vh - 90px)', padding: '10px' }} >
+                <div className="mainContainer" style={{ padding: '10px', height: '100%' }}>
+                    <List devices={devices} keycloak={keycloak} onDeviceSelect={handleDeviceSelect} />
                 </div>
             </div>
             <div className="right-column" style={{ width: showComponents ? '60%' : '0', transition: 'width 1s ease-in-out', overflow: 'auto' }}>
                 <div className="right-content-wrapper">
-                    <div className="right-content" style={{ transition: 'width 1s ease-in-out' }}>
+                    <div className="right-content" style={{ transition: 'width 1s ease-in-out', paddingLeft: '10px', paddingRight: '10px' }}>
                         {showComponents && selectedDevice && (<>
-                            <Info currentUser={currentUser} selectedDevice={selectedDevice} onDeviceDeselect={handleDeviceDeselect} onConfigClick={handleConfigClick} onDeviceDelete={handleDeviceDelete} showNotification={showNotification} keycloak={keycloak} />
+                            <Info selectedDevice={selectedDevice} onDeviceDeselect={handleDeviceDeselect} />
                             <SystemUtilization keycloak={keycloak} selectedDevice={selectedDevice} onSuccess={fetchDevices} showNotification={showNotification} />
                             <InterfaceStatistics keycloak={keycloak} selectedDevice={selectedDevice} onSuccess={fetchDevices} showNotification={showNotification} /> </>
                         )}

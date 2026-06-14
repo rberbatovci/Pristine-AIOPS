@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
     PieChart, Pie, Cell, Tooltip as RechartsTooltip,
     BarChart, Bar, XAxis, YAxis, CartesianGrid
@@ -13,22 +13,21 @@ function SyslogEventsStatistics({ keycloak, source, dataSource, selectedTags = [
     const [chartDataMap, setChartDataMap] = useState({});
     const [loadingMap, setLoadingMap] = useState({});
     const [chartTypeMap, setChartTypeMap] = useState({});
-
+    const defaultTags = ["device", "severity", "mnemonic"];
     const colorPalette = [
         '#FF6347', '#32CD32', '#FFD700',
         '#87CEEB', '#8A2BE2', '#FF69B4', '#20B2AA'
     ];
 
     // Normalize selectedTags (handles string OR react-select object)
-    const normalizeTags = (tags) => {
+    const normalizedTags = useMemo(() => {
         const excluded = ["timestamp", "message"];
+        const combined = [...defaultTags, ...selectedTags];
 
-        return tags
+        return combined
             .map(tag => typeof tag === "string" ? tag : tag?.value)
             .filter(tag => tag && !excluded.includes(tag.toLowerCase()));
-    };
-
-    const normalizedTags = normalizeTags(selectedTags);
+    }, [selectedTags, defaultTags]);
 
     useEffect(() => {
         if (!normalizedTags.length) return;

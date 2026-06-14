@@ -96,9 +96,8 @@ useEffect(() => {
   }, [memoryStatistics]);
 
   return (
-    <div className={`signalRightElementContainer ${showData ? 'expanded' : 'collapsed'}`}>
-      <div className="signalRightElementHeader">
-        <span style={{ fontSize: '14px', color: 'var(--textColor)', paddingLeft: '10px' }}> {selectedDevice || ''} - Memory Statistics</span>
+    <div className="mainContainer" style={{ maxHeight: '220px', marginBottom: '10px', width: '100%' }}>
+      <div > 
         {showData && (
           <div className="zoom-buttons-container">
             <div className="headerButtons" style={{ display: 'flex', gap: '10px' }}>

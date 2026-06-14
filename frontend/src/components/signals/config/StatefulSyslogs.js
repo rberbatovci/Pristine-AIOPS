@@ -3,8 +3,10 @@ import { useEffect, useState } from "react";
 import Select from "react-select";
 import customStyles from "../../misc/SelectStyles";
 import { useStatefulSyslogRules } from "../../../hooks/useStatefulSyslogRules"; 
+import { useMnemonics } from "../../../hooks/useMnemonics"; 
+import { useSyslogTags } from "../../../hooks/useSyslogTags"; 
 
-const StatefulSyslogs = ({ keycloak, devices, mnemonics, tags, onReload, showNotification }) => {
+const StatefulSyslogs = ({ keycloak, showNotification }) => {
     const {
         rules,
         selectedRule,
@@ -15,14 +17,13 @@ const StatefulSyslogs = ({ keycloak, devices, mnemonics, tags, onReload, showNot
         addRule,
         updateRule,
         deleteRule
-    } = useStatefulSyslogRules(keycloak);
-
+    } = useStatefulSyslogRules(keycloak); 
+    const { mnemonics, loading: mnemonicsLoading, reload: reloadMnemonics } = useMnemonics(keycloak);
+    const { tags: tags, loading: syslogTagsLoading, reload: reloadSyslogTags } = useSyslogTags(keycloak, false);
     const [editedData, setEditedData] = useState({});
     const [isAddingNewRule, setIsAddingNewRule] = useState(true);
     const [newRule, setNewRule] = useState({
-        name: "",
-        devices: [],
-        devicesFilter: "",
+        name: "", 
         opensignalmnemonic: "",
         opensignaltag: "",
         opensignalvalue: "",
@@ -106,9 +107,7 @@ const StatefulSyslogs = ({ keycloak, devices, mnemonics, tags, onReload, showNot
                                         setIsAddingNewRule(true);
                                         //setSelectedOption(null);
                                         setNewRule({
-                                            name: '',
-                                            devices: [],
-                                            devicesFilter: '',
+                                            name: '', 
                                             mnemonic: [],
                                             opensignalmnemonic: '',
                                             opensignaltag: '',

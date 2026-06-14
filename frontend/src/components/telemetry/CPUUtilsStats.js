@@ -67,21 +67,9 @@ const CpuUtilsStats = ({ selectedDevice, keycloak }) => {
 
   return (
     <div
-      className={`signalRightElementContainer ${showData ? "expanded" : "collapsed"
-        }`}
+      className="mainContainer"
+      style={{ maxHeight: '220px', marginBottom: '10px', width: '100%' }}
     >
-      <div className="signalRightElementHeader">
-        <span
-          style={{
-            fontSize: "14px",
-            color: "var(--textColor)",
-            paddingLeft: "10px",
-          }}
-        >
-          {selectedDevice || ""} - CPU Utilization Statistics
-        </span>
-      </div>
-
       <div style={{ paddingTop: "10px" }}>
         {loading ? (
           <div className="p-4 text-gray-500">Loading CPU stats...</div>

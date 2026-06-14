@@ -1,15 +1,10 @@
 .signals-container {
   display: flex;
-  height: calc(100vh - 90px);
-  background: var(--contentBackground);
-  backdrop-filter: blur(25px);
-  border-top: var(--dropdownTopBorder);
-  border-bottom: var(--dropdownBottomBorder);
-  border-radius: 10px;
-  box-shadow: 3px 10px 20px rgba(0, 0, 0, 0.2);
+  height: calc(100vh - 50px);  
+  border-radius: 10px; 
   transition: width 0.5s ease-in-out;
   justify-content: center;
-  min-width: 900px;
+  min-width: 900px; 
 }
 
 .left-column {
@@ -18,25 +13,22 @@
 }
 
 .right-content-wrapper {
-  flex: 1;
-
+  flex: 1; 
 }
 
 .right-content {
   display: flex;
   flex-direction: column;
-  white-space: nowrap;
-
+  white-space: nowrap; 
 }
 
-.right-column {
-  padding-top: 10px;
-  padding-bottom: 20px;
+.right-column { 
+  padding-bottom: 10px;
   display: flex;
   flex-direction: column;
-  height: calc(100% - 40px);
+  height: calc(100% - 60px);
   position: relative;
-  width: 60%;
+  width: 80%;
   flex-grow: 0;
   overflow-y: auto;
   scrollbar-width: none;
@@ -49,22 +41,17 @@
 }
 
 .right-column>div:first-child {
-  flex: 0 0 25%;
-  /* Set height of the first div to 30% */
-  margin-bottom: 20px;
-  /* Add margin between divs */
+  flex: 0 0 25%; 
+  margin-bottom: 20px; 
 }
 
 .right-column>div:nth-child(2) {
-  flex: 0 0 25%;
-  /* Set height of the second div to 30% */
-  margin-bottom: 20px;
-  /* Add margin between divs */
+  flex: 0 0 25%; 
+  margin-bottom: 20px; 
 }
 
 .right-column>div:last-child {
-  flex: 0 0 50%;
-  /* Set height of the third div to 40% */
+  flex: 0 0 50%; 
 }
 
 .signalRightElementContainer {
@@ -121,16 +108,14 @@
   height: 200px;
 }
 
-.signalRightElementHeader {
-  background: var(--signalRightElementHeaderBackground);
+.signalRightElementHeader { 
   position: relative;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  backdrop-filter: blur(10px);
-  height: 45px;
-  color: white;
-  font-size: 18px;
+  backdrop-filter: blur(10px); 
+  color: var(--textColor);
+  font-size: 16px;
   flex-grow: 1;
 }
 

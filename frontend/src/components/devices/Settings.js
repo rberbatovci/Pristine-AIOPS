@@ -1,0 +1,156 @@
+import { useState } from "react";
+import "../../css/DeviceSettingsModern.css"; // Path to your new stylesheet
+
+import {
+    PiTerminalDuotone,
+    PiPulseDuotone,          // Replaces PiActivityDuotone (Great for Netflow)
+    PiShieldCheckeredDuotone,
+    PiTreeStructureDuotone,
+    PiShareNetworkDuotone,
+    PiSlidersHorizontalDuotone,
+    PiSpinnerGapDuotone
+} from "react-icons/pi";
+
+import {
+    RiDeleteBin6Line,
+    RiCloseLine
+} from "react-icons/ri";
+
+import kcFetch from "../misc/kcFetch";
+
+const DeviceSettings = ({
+    selectedDevice,
+    onConfig,
+    onDeviceDelete,
+    onDeviceDeselect,
+    showNotification,
+    keycloak
+}) => {
+    // Track which feature is currently loading to show micro-animations on the button itself
+    const [loadingFeature, setLoadingFeature] = useState(null);
+
+    const deselectDevice = () => {
+        onDeviceDeselect(true);
+    };
+
+    const deleteDevice = async () => {
+        if (!window.confirm(`Are you sure you want to delete ${selectedDevice?.hostname}?`)) {
+            return;
+        }
+
+        try {
+            await kcFetch(
+                keycloak,
+                `/devices/${selectedDevice.hostname}`,
+                { method: "DELETE" }
+            );
+
+            onDeviceDeselect(true);
+            onDeviceDelete(selectedDevice.id);
+            showNotification("Device deleted successfully", "success");
+        } catch (err) {
+            if (err.status === 403) {
+                showNotification("You are not authorized to delete devices", "error");
+            } else {
+                showNotification("Failed to delete device", "error");
+            }
+        }
+    };
+
+    const pushConfiguration = (featureName) => async () => {
+        if (!selectedDevice?.hostname) {
+            showNotification("No device selected", "error");
+            return;
+        }
+
+        const messages = {
+            syslogs: { loading: `Configuring syslogs on ${selectedDevice.hostname}...` },
+            snmp_traps: { loading: `Configuring SNMP Traps on ${selectedDevice.hostname}...` },
+            netflow: { loading: `Configuring Netflow/IPFIX on ${selectedDevice.hostname}...` },
+            telemetry: { loading: `Configuring Telemetry on ${selectedDevice.hostname}...` },
+            topology: { loading: `Configuring Topology on ${selectedDevice.hostname}...` },
+            authentication: { loading: `Configuring Authentication on ${selectedDevice.hostname}...` }
+        };
+
+        const msg = messages[featureName];
+        showNotification(msg.loading, "loading");
+        setLoadingFeature(featureName);
+
+        try {
+            await kcFetch(
+                keycloak,
+                `/devices/${selectedDevice.hostname}/configure/${featureName}/`,
+                { method: "POST" }
+            );
+            showNotification("Configuration applied successfully", "success");
+        } catch (err) {
+            if (err.status === 403) {
+                showNotification("You are not authorized to configure devices", "error");
+            } else {
+                showNotification("Configuration failed", "error");
+            }
+        } finally {
+            setLoadingFeature(null);
+        }
+    };
+
+    // Configuration features map for cleaner JSX layout
+    const features = [
+        { id: "syslogs", label: "Syslogs", icon: <PiTerminalDuotone />, active: selectedDevice?.features?.syslogs },
+        { id: "snmp_traps", label: "SNMP Traps", icon: <PiShareNetworkDuotone />, active: selectedDevice?.features?.snmp_traps },
+        { id: "netflow", label: "Netflow / IPFIX", icon: <PiPulseDuotone />, active: selectedDevice?.features?.netflow },
+        { id: "telemetry", label: "Telemetry", icon: <PiSlidersHorizontalDuotone />, active: selectedDevice?.features?.telemetry?.enabled },
+        { id: "topology", label: "Topology", icon: <PiTreeStructureDuotone />, active: selectedDevice?.features?.topology },
+        { id: "authentication", label: "Authentication", icon: <PiShieldCheckeredDuotone />, active: selectedDevice?.features?.authentication },
+    ];
+
+    return (
+        <div className="settings-panel">
+            {/* Header section giving context to the panel */}
+            <div className="settings-header">
+                <h3>Device Control Center</h3>
+                <p>{selectedDevice?.hostname || "Unknown Device"}</p>
+            </div>
+
+            {/* Feature Action Grid */}
+            <div className="features-grid">
+                {features.map((feature) => (
+                    <button
+                        key={feature.id}
+                        className={`feature-card ${feature.active ? "active" : ""} ${loadingFeature === feature.id ? "loading" : ""}`}
+                        onClick={pushConfiguration(feature.id)}
+                        disabled={loadingFeature !== null}
+                    >
+                        <div className="feature-icon-wrapper">
+                            {loadingFeature === feature.id ? (
+                                <PiSpinnerGapDuotone className="spin-animation" />
+                            ) : (
+                                feature.icon
+                            )}
+                        </div>
+                        <div className="feature-info">
+                            <span className="feature-label">{feature.label}</span>
+                            <span className="feature-status">
+                                {feature.active ? "Active" : "Not Configured"}
+                            </span>
+                        </div>
+                    </button>
+                ))}
+            </div>
+
+            {/* Destructive / Global Action Footer */}
+            <div className="settings-footer">
+                <button className="footer-btn delete-btn" onClick={deleteDevice}>
+                    <RiDeleteBin6Line />
+                    <span>Delete Device</span>
+                </button>
+                <button className="footer-btn close-btn" onClick={deselectDevice}>
+                    <RiCloseLine />
+                    <span>Close Panel</span>
+                </button>
+            </div>
+        </div>
+    );
+};
+
+export default DeviceSettings;

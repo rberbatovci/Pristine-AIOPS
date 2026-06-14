@@ -3,12 +3,12 @@ import Select from 'react-select';
 import customStyles from '../misc/SelectStyles';
 import '../../css/SyslogTagsList.css';
 import { TailSpin } from 'react-loader-spinner';
-import { useSyslogRegEx } from '../../hooks/useSyslogRegEx';
+import { useSyslogRegEx } from '../../hooks/useSyslogRegEx'; 
 
-function RegEx({ keycloak, regularExpressions, onReload, showNotification }) {
-  const { details, loading, error, get, create, update, remove } = useSyslogRegEx(keycloak);
+function RegEx({ keycloak, showNotification }) { 
   const [selectedRegex, setSelectedRegex] = useState(null);
   const [isAddNew, setIsAddNew] = useState(true);
+  const { list: regularExpressions, details, get, create, update, remove, loadingList: loading, errorList: error, loadList: reloadSyslogRegEx } = useSyslogRegEx(keycloak);
   const [loadingState, setLoadingState] = useState(null);
 
   const emptyForm = {
@@ -65,7 +65,7 @@ function RegEx({ keycloak, regularExpressions, onReload, showNotification }) {
     try {
       console.log("SENDING FORM:", form); // 👈 ADD THIS
       await create(form);
-      await onReload();
+      await reloadSyslogRegEx();
       //await loadList(); // 🔥 refresh list
       showNotification("Rule created successfully", "success");
       setForm(emptyForm);
@@ -88,7 +88,7 @@ function RegEx({ keycloak, regularExpressions, onReload, showNotification }) {
     try {
       console.log("SENDING FORM:", form); // 👈 ADD THIS
       await update(form.name, form);
-      await onReload();
+      await reloadSyslogRegEx();
       //await loadList(); // 🔥 refresh list
       showNotification("Rule updated successfully", "success");
       setSelectedRegex(null);
@@ -107,7 +107,7 @@ function RegEx({ keycloak, regularExpressions, onReload, showNotification }) {
     setLoadingState('deleting');
     try {
       await remove(selectedRegex.name);
-      await onReload();
+      await reloadSyslogRegEx();
       //await loadList(); // 🔥 refresh list
       showNotification("Rule deleted successfully", "success");
       setSelectedRegex(null);

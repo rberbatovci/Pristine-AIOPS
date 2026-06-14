@@ -1,0 +1,23 @@
+FROM golang:1.25 AS builder
+
+RUN apt-get update && \
+    apt-get install -y librdkafka-dev
+
+WORKDIR /app
+
+COPY icmp-pinger/consumer/ .
+
+RUN go mod tidy
+RUN go build -o consumer .
+
+FROM debian:bookworm-slim
+
+RUN apt-get update && \
+    apt-get install -y librdkafka1 ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /root
+
+COPY --from=builder /app/consumer .
+
+CMD ["./consumer"]

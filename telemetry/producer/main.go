@@ -10,8 +10,7 @@ import (
 	"strconv"
 	"sync"
 	"time"
-	"os/signal"
-
+	"os/signal" 
 	dialout "telemetry/protobuf/mdt_dialout"
 	telemetryBis "telemetry/protobuf/telemetry"
 
@@ -205,6 +204,94 @@ func flushAllBatchers() {
 	}
 }
 
+func createAllTopics() {
+	created := make(map[string]bool)
+
+	for _, topic := range pathTopicMap {
+		if created[topic] {
+			continue
+		}
+
+		err := createTopicIfNotExists(topic, 3, 1)
+		if err != nil {
+			log.Printf("❌ Topic creation failed for %s: %v", topic, err)
+		}
+
+		created[topic] = true
+	}
+
+	/*
+	 * Optional unknown topic
+	 */
+	err := createTopicIfNotExists("unknown", 1, 1)
+	if err != nil {
+		log.Printf("❌ Failed creating unknown topic: %v", err)
+	}
+}
+
+func createTopicIfNotExists(topic string, partitions int, replicationFactor int) error {
+	/*
+	 * Connect to Kafka broker
+	 */
+	conn, err := kafka.Dial("tcp", kafkaBroker)
+	if err != nil {
+		return fmt.Errorf("failed to dial kafka: %w", err)
+	}
+	defer conn.Close()
+
+	/*
+	 * Get controller broker
+	 */
+	controller, err := conn.Controller()
+	if err != nil {
+		return fmt.Errorf("failed to get controller: %w", err)
+	}
+
+	controllerConn, err := kafka.Dial(
+		"tcp",
+		net.JoinHostPort(controller.Host, strconv.Itoa(controller.Port)),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to connect to controller: %w", err)
+	}
+	defer controllerConn.Close()
+
+	/*
+	 * Check existing topics
+	 */
+	partitionsInfo, err := controllerConn.ReadPartitions()
+	if err != nil {
+		return fmt.Errorf("failed to read partitions: %w", err)
+	}
+
+	for _, p := range partitionsInfo {
+		if p.Topic == topic {
+			log.Printf("✅ Kafka topic already exists: %s", topic)
+			return nil
+		}
+	}
+
+	/*
+	 * Create topic
+	 */
+	topicConfigs := []kafka.TopicConfig{
+		{
+			Topic:             topic,
+			NumPartitions:     partitions,
+			ReplicationFactor: replicationFactor,
+		},
+	}
+
+	err = controllerConn.CreateTopics(topicConfigs...)
+	if err != nil {
+		return fmt.Errorf("failed to create topic %s: %w", topic, err)
+	}
+
+	log.Printf("🛠️ Created Kafka topic: %s", topic)
+
+	return nil
+}
+
 func main() {
 	fmt.Println("🚀 Starting gRPC Telemetry Collector on", telemetryPort)
 
@@ -218,6 +305,11 @@ func main() {
 		os.Exit(0)
 	}()
 
+	/*
+	* CREATE TOPICS HERE
+	*/
+	log.Println("⏳ Creating Kafka topics...")
+	createAllTopics()
 
 	lis, err := net.Listen("tcp", telemetryPort)
 	if err != nil {

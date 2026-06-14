@@ -1,0 +1,28 @@
+FROM golang:1.25-alpine AS builder
+
+# Needed for some Go deps (net + crypto + websocket builds)
+RUN apk add --no-cache git ca-certificates
+
+WORKDIR /app
+
+# copy only consumer service
+COPY websocket/ ./
+
+# download deps
+RUN go mod download
+
+# build binary
+RUN go build -o websocket .
+
+# ---- runtime image ----
+FROM alpine:latest
+
+RUN apk add --no-cache ca-certificates
+
+WORKDIR /root/
+
+COPY --from=builder /app/websocket .
+
+EXPOSE 8080
+
+CMD ["./websocket"]

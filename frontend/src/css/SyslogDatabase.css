@@ -14,15 +14,17 @@
 }
 
 .mainContainer {
-    box-shadow: 4px 4px 20px rgba(29, 29, 29, 0.1);
+    box-shadow: var(--contentShadow);
     border-top: var(--borderLight);
     border-bottom: var(--borderDark2);
     border-radius: 12px;
     color: var(--textColor);
     background: var(--contentBackground);
-    backdrop-filter: blur(8px);
-    width: calc(100% - 40px);
+    backdrop-filter: blur(8px); 
     height: calc(100vh - 90px);
+    display: flex;
+    flex-direction: column;
+    width: calc(100% - 20px); 
 }
 
 .mainContainerHeader {
@@ -145,7 +147,7 @@
 .iconButton {
     background-color: transparent;
     border: none;
-    color: var(--textColor);
+    color: var(--iconTextColor);
     cursor: pointer;
     font-size: 20px;
     display: flex;
@@ -159,6 +161,7 @@
 .iconButton .defaultIcon {
     transition: color .5s ease-in-out;
     display: block;
+    color: var(--iconTextColor);
 }
 
 /* Hover icon is hidden by default */
@@ -178,7 +181,7 @@
     display: block;
     font-size: 24px;
     transition: color .5s ease-in-out;
-    color: var(--textColor2);
+    color: var(--iconTextColorHover);
 }
 
 .deleteButton:hover {
@@ -283,7 +286,7 @@ ul {
     display: flex;
     width: 100%;
     justify-content: center;
-    height: calc(100vh - 120px);
+    height: calc(100vh - 20px);
 }
 
 .paginationContainer {

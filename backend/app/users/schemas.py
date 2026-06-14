@@ -1,19 +1,27 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional
+from pydantic import BaseModel
+from typing import Literal
 
-class UserBase(BaseModel):
-    username: str
-    email: EmailStr
-    is_staff: bool = False
 
-class UserCreate(UserBase):
-    password: str
-
-class UserUpdate(UserBase):
-    password: Optional[str] = None
-
-class UserResponse(UserBase):
-    id: int
+# -------------------------
+# Base response model
+# -------------------------
+class UserPreferencesResponse(BaseModel):
+    theme: Literal["light", "dark"]
+    timezone: str
 
     class Config:
         from_attributes = True
+
+
+# -------------------------
+# Update theme only
+# -------------------------
+class ThemeUpdate(BaseModel):
+    theme: Literal["light", "dark"]
+
+
+# -------------------------
+# Update timezone only
+# -------------------------
+class TimezoneUpdate(BaseModel):
+    timezone: str

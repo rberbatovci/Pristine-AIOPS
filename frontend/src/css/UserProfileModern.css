@@ -1,0 +1,142 @@
+/* ==========================================================================
+   User Profile Dashboard Card Customizations
+   ========================================================================== */
+
+.profile-card-wrapper {
+  max-width: 420px;
+  width: 100%;
+}
+
+/* Overriding the Chart frame to mount our Admin Avatar space */
+.profile-avatar-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-avatar-circle {
+  position: relative;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: var(--bg-sidebar);
+  border: 2px dashed var(--border-monitor);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s ease;
+}
+
+.profile-avatar-circle:hover {
+  border-color: var(--color-healthy);
+  box-shadow: 0 0 12px rgba(14, 213, 177, 0.15);
+}
+
+.avatar-icon {
+  font-size: 42px;
+  color: var(--text-label);
+}
+
+.avatar-online-indicator {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--bg-monitor);
+  box-shadow: 0 0 8px var(--color-healthy);
+}
+
+/* Typography Identity Blocks */
+.profile-content-sidebar {
+  gap: 8px !important;
+}
+
+.profile-identity-info {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 4px;
+}
+
+.profile-username {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-title);
+}
+
+.profile-email {
+  font-size: 12px;
+  color: var(--text-subtitle);
+}
+
+/* Control Configurations & Interaction Matrices */
+.profile-control-rows {
+  gap: 8px !important;
+}
+
+.control-interactive-row {
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.control-interactive-row:hover {
+  border-color: var(--text-subtitle);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.control-icon {
+  font-size: 16px;
+}
+
+.toggle-display-text {
+  font-size: 11px !important;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+}
+
+/* Dropdown Choice Select Element adjustments */
+.selector-row {
+  cursor: default !important;
+}
+.selector-row:hover {
+  border-color: var(--border-monitor) !important;
+  background: var(--bg-sidebar) !important;
+}
+
+.timezone-native-select {
+  background: var(--bg-monitor);
+  color: var(--text-title);
+  border: 1px solid var(--border-monitor);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: system-ui, sans-serif;
+  cursor: pointer;
+  outline: none;
+  max-width: 110px;
+}
+
+.timezone-native-select:focus {
+  border-color: var(--color-healthy);
+}
+
+/* Interactive Session Destruct Button rules */
+.logout-trigger-row:hover {
+  border-color: var(--color-critical) !important;
+  background: rgba(239, 68, 68, 0.05) !important;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.1);
+}
+
+.logout-label {
+  transition: color 0.2s ease;
+}
+.logout-trigger-row:hover .logout-label {
+  color: var(--text-title);
+}
+
+.monospace-data {
+  font-family: monospace;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}

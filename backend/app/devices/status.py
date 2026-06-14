@@ -34,8 +34,6 @@ async def get_device_by_hostname(hostname: str, db: AsyncSession):
         raise HTTPException(status_code=404, detail=f"Device '{hostname}' not found")
     return device
 
-
-
 # Helper to select RESTCONF path based on version and type
 def get_restconf_path(device_version: str, metric: str) -> str:
     if "ios-xr" in device_version:

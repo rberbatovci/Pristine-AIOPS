@@ -7,6 +7,7 @@ export function useDevices(keycloak, autoLoad = true) {
   const [error, setError] = useState(null);
 
   const fetchDevices = useCallback(async () => {
+    // If we aren't authenticated yet, don't flip loading to true
     if (!keycloak?.authenticated) return;
 
     setLoading(true);
@@ -14,8 +15,12 @@ export function useDevices(keycloak, autoLoad = true) {
 
     try {
       const response = await kcFetch(keycloak, `/devices/`);
+      
+      // Safety check: ensure response is an array before mapping
+      const dataArray = Array.isArray(response) ? response : [];
 
-      const mapped = response.map(device => ({
+      const mapped = dataArray.map(device => ({
+        ...device,
         id: device.id,
         hostname: device.hostname,
         ip_address: device.ip_address,

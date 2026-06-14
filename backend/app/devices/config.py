@@ -20,7 +20,8 @@ default_features = {
     "syslogs": False,
     "snmp_traps": False,
     "netflow": False,
-    "telemetry": {
+    "telemetry": False,
+    "telemetry_features": {
         "system_util": False,
         "interface_stats": False
     }
@@ -37,7 +38,8 @@ telemetry_playbook_map = {
     "interface_stats": os.path.join(BASE_DIR, '..', 'ansible', 'xe-interface-stats.yml'),
     "bgp_connections": os.path.join(BASE_DIR, '..', 'ansible', 'xe-bgp-connections.yml'),
     "rib_table": os.path.join(BASE_DIR, '..', 'ansible', 'rib-table.yml'),
-    "fib_entry": os.path.join(BASE_DIR, '..', 'ansible', 'fib-entry.yml')
+    "fib_entry": os.path.join(BASE_DIR, '..', 'ansible', 'fib-entry.yml'),
+    "telemetry": os.path.join(BASE_DIR, '..', 'ansible', 'xe-telemetry.yml'),
 }
 
 async def configureDevice(router_ip: str, playbook: str, extra_vars: dict):
@@ -75,10 +77,7 @@ async def configure_telemetry_feature(
 ):
     playbook = telemetry_playbook_map.get(feature_name)
     if not playbook:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported telemetry feature: {feature_name}"
-        )
+        raise HTTPException(status_code=400, detail="Unsupported telemetry feature")
 
     result = await db.execute(
         select(models.Device).where(models.Device.hostname == hostname)
@@ -88,6 +87,15 @@ async def configure_telemetry_feature(
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
 
+    # ---------------------------
+    # Ensure feature container exists
+    # ---------------------------
+    if device.features is None:
+        device.features = schemas.DeviceFeatures()
+
+    # ---------------------------
+    # Base ansible vars
+    # ---------------------------
     vars = {
         "router_ip": device.ip_address,
         "username": os.getenv("SSH_USERNAME"),
@@ -95,11 +103,16 @@ async def configure_telemetry_feature(
         "receiver_ip": os.getenv("RECEIVING_ADDRESS"),
     }
 
+    # ---------------------------
+    # Feature handling (Dictionary bracket/get notation)
+    # ---------------------------
     if feature_name == "syslogs":
         vars.update({
             "receiver_port": os.getenv("SYSLOG_PORT"),
-            "syslog_severity": os.getenv("SYSLOG_SEVERITY", "notifications"),
+            "syslog_severity": os.getenv("SYSLOG_SEVERITY", "informational"),
         })
+        device.features["syslogs"] = True
+
     elif feature_name == "snmp_traps":
         vars.update({
             "receiver_port": os.getenv("SNMP_TRAP_PORT"),
@@ -108,16 +121,48 @@ async def configure_telemetry_feature(
             "snmp_priv_pass": os.getenv("SNMP_PRIV_PASS"),
             "snmp_auth_pass": os.getenv("SNMP_AUTH_PASS"),
         })
+        device.features["snmp_traps"] = True
+
     elif feature_name == "netflow":
         vars.update({
             "receiver_port": os.getenv("NETFLOW_PORT"),
         })
-    else:
+        device.features["netflow"] = True
+
+    elif feature_name == "telemetry":
         vars.update({
             "receiver_port": os.getenv("TELEMETRY_PORT"),
             "telemetry_period_seconds": os.getenv("TELEMETRY_PERIOD_SECONDS", "3000"),
         })
 
+        # Ensure nested dictionary structures exist safely
+        if device.features.get("telemetry") is None:
+            device.features["telemetry"] = {"enabled": False, "features": {}}
+    
+        # If it is an existing dict but missing the nested 'features' key
+        if "features" not in device.features["telemetry"] or device.features["telemetry"]["features"] is None:
+            device.features["telemetry"]["features"] = {}
+
+        # Enable telemetry block + modify features
+        device.features["telemetry"]["enabled"] = True
+    
+        tf = device.features["telemetry"]["features"]
+        tf["cpu_util"] = True
+        tf["memory_util"] = True
+        tf["system_util"] = True
+        tf["interface_stats"] = True
+
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported feature")
+
+    # Explicitly flag modification to SQLAlchemy if you notice updates aren't tracking
+    # (Though MutableDict usually listens for inside mutations automatically)
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(device, "features")
+
+    # ---------------------------
+    # Run ansible
+    # ---------------------------
     ansible_result = await configureDevice(
         router_ip=device.ip_address,
         playbook=playbook,
@@ -133,16 +178,9 @@ async def configure_telemetry_feature(
             },
         )
 
-    if device.features is None:
-        device.features = {}
-
-    if feature_name in ["syslogs", "snmp_traps", "netflow"]:
-        device.features[feature_name] = True
-    else:
-        telemetry = device.features.get("telemetry", {}) or {}
-        telemetry[feature_name] = True
-        device.features["telemetry"] = telemetry
-
+    # ---------------------------
+    # persist
+    # ---------------------------
     db.add(device)
     await db.commit()
     await db.refresh(device)

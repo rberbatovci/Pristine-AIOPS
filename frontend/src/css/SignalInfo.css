@@ -92,3 +92,113 @@
     font-size: 16px;
     color: var(--text-color2);
   }
+
+  .settingsDropdownButton {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    background: var(--button-bg);
+    border: none;
+    border-radius: 10px;
+
+    padding: 10px 14px;
+
+    cursor: pointer;
+    color: white;
+
+    font-size: 14px;
+    transition: 0.2s;
+}
+
+.settingsDropdownButton:hover {
+    opacity: 0.9;
+}
+
+.settingsDropdownMenu {
+    margin-top: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 12px;
+}
+
+.dropdownItem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: transparent;
+    border: none;
+    padding: 12px 14px;
+    border-radius: 10px;
+    color: white;
+    cursor: pointer;
+    transition: 0.2s;
+    font-size: 14px;
+}
+
+.dropdownItem:hover {
+    background: rgba(255,255,255,0.08);
+}
+
+.dropdownItem.active {
+    background: rgba(0, 255, 150, 0.15);
+    color: #4dffb8;
+}
+
+.dropdownItem svg {
+    font-size: 18px;
+}
+
+.dropdownDivider {
+    height: 1px;
+    background: rgba(255,255,255,0.08);
+    margin: 4px 0;
+}
+
+.deleteItem {
+    color: #ff6b6b;
+}
+
+.listItem { 
+  cursor: pointer;
+  padding: 8px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--tagListBack);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--tagListCol);
+  transition: 
+  background-color 1s ease,
+  transform 0.2s ease,
+  text-shadow 0.2s ease,
+  padding 0.3s ease,
+  color 0.5s ease;
+  will-change: transform;
+}
+
+.listItem:hover {
+  padding: 10px 12px;
+  background-color: var(--tagListBackHover);
+  transform: scale(1.01);
+  margin-top: 12px;
+  margin-bottom: 12px;
+  color: #fafafa;
+  border-top: 1px solid var(--dropdownTopBorder);
+  border-bottom: 1px solid var(--dropdownBottomBorder);
+}
+
+.listItem .selected {
+  padding: 10px 12px;
+  background-color: var(--tagListBackHover);
+  transform: scale(1.01);
+  margin-top: 12px;
+  margin-bottom: 12px;
+  color: #fafafa;
+  border-top: 1px solid var(--dropdownTopBorder);
+  border-bottom: 1px solid var(--dropdownBottomBorder);
+}

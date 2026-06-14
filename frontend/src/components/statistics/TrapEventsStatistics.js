@@ -9,11 +9,11 @@ import '../../css/SyslogDatabase.css';
 import { IoBarChartOutline } from "react-icons/io5";
 import { AiOutlinePieChart } from "react-icons/ai";
 
-function TrapEventsStatistics({ keycloak, selectedTags = [] }) {
+function SyslogEventsStatistics({ keycloak, source, dataSource, selectedTags = [] }) {
     const [chartDataMap, setChartDataMap] = useState({});
     const [loadingMap, setLoadingMap] = useState({});
     const [chartTypeMap, setChartTypeMap] = useState({});
-
+    const defaultTags = ["device","severity", "mnemonic"];
     const colorPalette = [
         '#FF6347', '#32CD32', '#FFD700',
         '#87CEEB', '#8A2BE2', '#FF69B4', '#20B2AA'
@@ -36,7 +36,7 @@ function TrapEventsStatistics({ keycloak, selectedTags = [] }) {
         const fetchStatistics = async (dataType) => {
             setLoadingMap(prev => ({ ...prev, [dataType]: true }));
 
-            const endpoint = `/traps/statistics/${dataType}`;
+            const endpoint = `/events/traps/statistics/${dataType}`;
 
             try {
                 const data = await kcFetch(keycloak, endpoint);
@@ -262,4 +262,4 @@ function TrapEventsStatistics({ keycloak, selectedTags = [] }) {
     );
 }
 
-export default TrapEventsStatistics;
+export default SyslogEventsStatistics;

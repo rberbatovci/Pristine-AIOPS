@@ -24,12 +24,16 @@ void *worker_thread(void *arg) {
         const char *device = json_string_value(json_object_get(root, "device"));
         const char *src_ip = json_string_value(json_object_get(root, "source_ip"));
         const char *dst_ip = json_string_value(json_object_get(root, "dest_ip"));
+        const char *protocol = json_string_value(json_object_get(root, "protocol"));
+        int src_port = json_integer_value(json_object_get(root, "source_port"));
+        int dst_port = json_integer_value(json_object_get(root, "dest_port"));
+        const time_t timestamp = json_integer_value(json_object_get(root, "@timestamp"));
 
         int bytes = json_integer_value(json_object_get(root, "bytes"));
         int packets = json_integer_value(json_object_get(root, "packets"));
 
-        printf("📥 Flow: device=%s | %s → %s | bytes=%d | packets=%d\n",
-               device, src_ip, dst_ip, bytes, packets);
+        printf("📥 Flow: device=%s | %s:%d → %s:%d | protocol=%s | timestamp=%ld | bytes=%d | packets=%d\n",
+               device, src_ip, src_port, dst_ip, dst_port, protocol, timestamp, bytes, packets);
 
         json_decref(root);
 
