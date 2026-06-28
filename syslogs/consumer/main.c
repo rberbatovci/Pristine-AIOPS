@@ -197,9 +197,9 @@ rd_kafka_t *setup_kafka_consumer(
 void print_banner()
 {
     printf("╔══════════════════════════════════════════════╗\n");
-    printf("║           Welcome to Pristine-AIOPS         ║\n");
-    printf("║                  v1.2 stable                ║\n");
-    printf("║          Syslog Kafka Consumer              ║\n");
+    printf("║           Welcome to Pristine-AIOPS          ║\n");
+    printf("║                  v1.2                        ║\n");
+    printf("║          Syslog Kafka Consumer               ║\n");
     printf("╚══════════════════════════════════════════════╝\n");
 
     printf("\n");
