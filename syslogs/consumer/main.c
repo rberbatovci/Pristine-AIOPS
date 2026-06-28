@@ -36,18 +36,11 @@ void *flush_loop(void *arg)
     {
         sleep(DATA_FLUSH_INTERVAL);
 
-        printf("[DEBUG] Entering flush loop. "
-               "Current OpenSearch buffer count: %d\n",
-               opensearch_events_count);
-
-        /* =========================================
-         * OpenSearch flush
-         * ========================================= */
-
+        //printf("[DEBUG] Entering flush loop. " //"Current OpenSearch buffer count: %d\n", //opensearch_events_count);
+ 
         if (opensearch_events_count > 0)
         {
-            printf("[DEBUG] Flushing %d events to OpenSearch...\n",
-                   opensearch_events_count);
+            //printf("[DEBUG] Flushing %d events to OpenSearch...\n", //opensearch_events_count);
 
             send_bulk_to_opensearch(
                 opensearch_events_buffer,
@@ -59,18 +52,10 @@ void *flush_loop(void *arg)
             }
 
             opensearch_events_count = 0;
-        }
-
-        /* =========================================
-         * Kafka flush
-         * ========================================= */
+        } 
 
         send_bulk_to_kafka(signal_producer);
-
-        /*
-         * IMPORTANT:
-         * serve producer callbacks
-         */
+ 
         rd_kafka_poll(signal_producer, 0);
     }
 
@@ -197,8 +182,8 @@ rd_kafka_t *setup_kafka_consumer(
         return NULL;
     }
 
-    printf("[DEBUG] Successfully subscribed to topic: %s\n",
-           topic);
+    //printf("[DEBUG] Successfully subscribed to topic: %s\n",
+    //       topic);
 
     *topics_out = topics;
 
@@ -252,8 +237,7 @@ int main()
     if (!signal_producer)
     {
         fprintf(stderr,
-                "[ERROR] Failed to initialize Kafka alert producer.\n");
-
+                "[ERROR] Failed to initialize Kafka alert producer.\n"); 
         return 1;
     }
 
@@ -330,7 +314,7 @@ int main()
         return 1;
     }
 
-    printf("[DEBUG] Starting process_message()\n");
+    //printf("[DEBUG] Starting process_message()\n");
 
     /*
      * IMPORTANT:

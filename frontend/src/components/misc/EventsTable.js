@@ -10,6 +10,7 @@ const MIN_WIDTH = 80;
 
 const COLUMN_DEFAULT_WIDTHS = {
   timestamp: 180,
+  "@timestamp": 180,
   host: 200,
   severity: 120,
   facility: 140,
@@ -44,7 +45,7 @@ const EventsTable = ({
   });
 
   const { preferences, loading: preferencesLoading, reload: reloadPreferences } = useUserPreferences(keycloak);
-  
+
   // Resolve active timezone safely
   const activeTimezone = preferences?.timezone || timezone || "UTC";
 
@@ -86,6 +87,12 @@ const EventsTable = ({
     if (!row) return "";
 
     const source = row._source || row;
+
+    // 1. If the column is 'timestamp' or '@timestamp', check both variants in the source
+    if (column === "timestamp" || column === "@timestamp") {
+      const timeVal = source.timestamp ?? source["@timestamp"];
+      if (timeVal !== undefined && timeVal !== null) return timeVal;
+    }
 
     if (source[column] !== undefined && source[column] !== null) {
       return source[column];
@@ -192,7 +199,7 @@ const EventsTable = ({
       if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
       return 0;
     });
-  }
+  } 
 
   return (
     <div className="eventsTableWrapper">
@@ -257,7 +264,7 @@ const EventsTable = ({
                 {validTags.map(({ value }) => {
                   const val = getValue(row, value);
                   const cellWidth = columnWidths[value] || DEFAULT_WIDTH;
-
+                  const isTimestampColumn = value === "timestamp" || value === "@timestamp";
                   return (
                     <td
                       key={value}
@@ -267,8 +274,8 @@ const EventsTable = ({
                       }}
                     >
                       <span className="cellContent">
-                        {value === "timestamp" && val ? (
-                          /* PASS ACTIVE TIMEZONE HERE */
+                        {isTimestampColumn && val ? (
+                          /* Safely passes the backend string and user timezone preferences */
                           <FormatDate dateStr={val} timezone={activeTimezone} />
                         ) : typeof val === "object" ? (
                           JSON.stringify(val)

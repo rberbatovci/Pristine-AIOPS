@@ -15,15 +15,11 @@ import SearchTime from './components/misc/SearchTime.js';
 import { useUserPreferences } from "./hooks/useUserPreferences";
 
 import Incidents from "./pages/Incidents";
-import Signals from "./pages/Signals";
 import Devices from "./pages/Devices";
-import Faults from "./pages/Faults";
-import Traffic from "./pages/Traffic";
 import Performance from "./pages/Performance";
 import Topology from "./pages/Topology";
-import SyslogEvents from "./pages/SyslogEvents";
 
-import AddNew from './components/devices/AddNew';
+import AddNewDevice from './components/devices/AddNew';
 import Nmap from './components/devices/Nmap';
 import DeviceSettings from './components/devices/Settings';
 import FilterTraffic from './components/netflow/FilterTraffic.js';
@@ -32,8 +28,8 @@ import SyslogEventFilters from "./components/faults/syslogs/Filters.js";
 import Mnemonics from "./components/faults/syslogs/Mnemonics.js";
 import RegularExpressions from "./components/faults/syslogs/RegEx.js";
 import SyslogEventsTags from "./components/faults/syslogs/Tags.js";
-import SyslogEventsTable from "./components/faults/syslogs/Table.js";
-import SyslogEventsStatistics from "./components/faults/syslogs/Statistics.js";
+import SyslogEventTable from "./components/faults/syslogs/Table.js";
+import SyslogEventStatistics from "./components/faults/syslogs/Statistics.js";
 import SyslogEventTableTags from "./components/faults/syslogs/TableTags.js";
 import SyslogEventStatisticTags from "./components/faults/syslogs/StatisticTags.js";
 
@@ -84,14 +80,90 @@ const App = ({ keycloak, keycloakAuthenticated }) => {
   const [dashboardTitle, setDashboardTitle] = useState("");
   const [selectedTags, setSelectedTags] = useState([]);
   const [syslogTags, setSyslogTags] = useState([]);
-  const [selSyslogEventsTableTags, setSelSyslogEventsTableTags] = useState([]);
-  const [selSyslogSignalTableTags, setSelSyslogSignalTableTags] = useState([]);
-  const [selSnmpTrapSignalTableTags, setSelSnmpTrapSignalTableTags] = useState([]);
-  const [selSnmpTrapEventsTableTags, setSelSnmpTrapEventsTableTags] = useState([]);
-  const [selSyslogEventsStatisticsTags, setSelSyslogEventsStatisticsTags] = useState([]);
-  const [selSnmpTrapEventsStatisticsTags, setSelSnmpTrapEventsStatisticsTags] = useState([]);
-  const [selSyslogSignalStatisticTags, setSelSyslogSignalStatisticTags] = useState([]);
-  const [selSnmpTrapSignalStatisticTags, setSelSnmpTrapSignalStatisticTags] = useState([]);
+  const [selSyslogEventTableTags, setSelSyslogEventTableTags] = useState([
+    { label: 'Timestamp', value: 'timestamp' },
+    { label: 'Device', value: 'device' },
+    { label: 'Severity', value: 'severity' },
+    { label: 'Mnemonic', value: 'mnemonic' },
+    { label: 'Message', value: 'message' },
+  ]);
+  const [selSyslogEventStatisticsTags, setSelSyslogEventStatisticsTags] = useState([
+    { label: 'Device', value: 'device' },
+    { label: 'Severity', value: 'severity' },
+    { label: 'Mnemonic', value: 'mnemonic' },
+    { label: 'State', value: 'state' },
+    { label: 'Interface', value: 'interface' },
+    { label: 'Neighbor', value: 'neighbor' }
+  ]);
+  const [selSyslogSignalTableTags, setSelSyslogSignalTableTags] = useState([
+    { label: 'Status', value: 'status' },
+    { label: 'Start Time', value: 'start_time' },
+    { label: 'End Time', value: 'end_time' },
+    { label: 'Device', value: 'device' },
+    { label: 'Severity', value: 'severity' },
+    { label: 'Mnemonic', value: 'mnemonic' }
+  ]);
+  const [selSnmpTrapSignalTableTags, setSelSnmpTrapSignalTableTags] = useState([
+    { label: 'Status', value: 'status' },
+    { label: 'Start Time', value: 'start_time' },
+    { label: 'End Time', value: 'end_time' },
+    { label: 'Device', value: 'device' },
+    { label: 'Severity', value: 'severity' },
+    { label: 'SNMP Trap OID', value: 'snmpTrapOid' }
+  ]);
+  const [selSnmpTrapEventTableTags, setSelSnmpTrapEventTableTags] = useState([
+    { label: 'Timestamp', value: 'timestamp' }, 
+    { label: 'Device', value: 'device' },
+    { label: 'System Uptime', value: 'sysUptime' },
+    { label: 'SNMP Trap OID', value: 'snmpTrapOid' }
+  ]);
+  const [selSnmpTrapEventStatisticsTags, setSelSnmpTrapEventStatisticsTags] = useState([
+    { label: 'Device', value: 'device' },
+    { label: 'SNMP Trap OID', value: 'snmpTrapOid' },
+    { label: 'Interface', value: 'interface' },
+    { label: 'Tag 1', value: 'tag1' },
+    { label: 'Tag 2', value: 'tag2' },
+    { label: 'Tag 3', value: 'tag3' }
+  ]);
+  const [selSyslogSignalStatisticTags, setSelSyslogSignalStatisticTags] = useState([
+    { label: 'Device', value: 'device' },
+    { label: 'Severity', value: 'severity' },
+    { label: 'Mnemonic', value: 'mnemonic' },
+    { label: 'State', value: 'state' },
+    { label: 'Interface', value: 'interface' },
+    { label: 'Neighbor', value: 'neighbor' }
+  ]);
+  const [selSnmpTrapSignalStatisticTags, setSelSnmpTrapSignalStatisticTags] = useState([
+    { label: 'Device', value: 'device' },
+    { label: 'Severity', value: 'severity' },
+    { label: 'Mnemonic', value: 'mnemonic' },
+    { label: 'State', value: 'state' },
+    { label: 'Interface', value: 'interface' },
+    { label: 'Neighbor', value: 'neighbor' }
+  ]);
+  const [selTrafficStatisticTags, setSelTrafficStatisticTags] = useState([
+    { label: 'Timestamp', value: 'timestamp' },
+    { label: 'Device', value: 'device' },
+    { label: 'Protocol', value: 'protocol' },
+    { label: 'Source IP', value: 'source_ip' },
+    { label: 'Source Port', value: 'source_port' },
+    { label: 'Destination IP', value: 'dest_ip' },
+    { label: 'Destination Port', value: 'dest_port' },
+    { label: 'Bytes', value: 'bytes' },
+    { label: 'Packets', value: 'packets' },
+    { label: 'Input Interface', value: 'input_interface' },
+    { label: 'Output Interface', value: 'output_interface' },
+    { label: 'First Switched', value: 'first_switched' },
+    { label: 'Last Switched', value: 'last_switched' }
+  ]);
+  const [selTrafficTableTags, setSelTrafficTableTags] = useState([
+    { label: 'Device', value: 'device' },
+    { label: 'Protocol', value: 'protocol' },
+    { label: 'Source IP', value: 'source_ip' },
+    { label: 'Source Port', value: 'source_port' },
+    { label: 'Destination IP', value: 'dest_ip' },
+    { label: 'Destination Port', value: 'dest_port' },
+  ]);
   const [snmpTrapTags, setSnmpTrapTags] = useState([]);
   const [dataSource, setDataSource] = useState("syslogs");
   const [startTime, setStartTime] = useState(null);
@@ -124,17 +196,14 @@ const App = ({ keycloak, keycloakAuthenticated }) => {
 
   const toggleTheme = () => {
     const newTheme = currentUser?.theme === "dark" ? "light" : "dark";
-
-    // 1. Update the current user state
+ 
     setCurrentUser(prev => ({
       ...prev,
       theme: newTheme
     }));
-
-    // 2. Fix: Keep the local boolean state synchronized!
+ 
     setIsDarkTheme(newTheme === "dark");
-
-    // 3. Persist via your hook
+ 
     updateTheme(newTheme);
   };
 
@@ -269,74 +338,74 @@ const App = ({ keycloak, keycloakAuthenticated }) => {
 
       case "filter-syslog-signals":
         return (
-          <div className="menuOption" style={{ width: '300px' }} >
+          <div className="menuOption" style={{ width: '480px' }} >
             <SyslogSignalFilters keycloak={keycloak} onSelectedSyslogFiltersChange={handleFiltersChange} />
           </div>
         );
       case "filter-snmptrap-signals":
         return (
           <div className="menuOption" >
-            <SnmpTrapSignalFilters keycloak={keycloak} onSelectedTagsSearch={handleSearchAndCloseDropdown} />
+            <SnmpTrapSignalFilters keycloak={keycloak} style={{ width: '480px' }} onSelectedTagsSearch={handleSearchAndCloseDropdown} />
           </div>
         );
       case "filter-syslog-events":
         return (
-          <div className="menuOption" style={{ width: '300px' }}>
+          <div className="menuOption" style={{ width: '480px' }}>
             <SyslogEventFilters keycloak={keycloak} onSelectedSyslogFiltersChange={handleFiltersChange} />
           </div>
         );
       case "filter-snmptrap-events":
         return (
           <div className="menuOption" >
-            <SnmpTrapEventFilters keycloak={keycloak} onSelectedTagsSearch={handleSearchAndCloseDropdown} />
+            <SnmpTrapEventFilters keycloak={keycloak} style={{ width: '480px' }} onSelectedSnmpTrapFiltersChange={handleSearchAndCloseDropdown} />
           </div>
         );
       case "syslog-event-table-tags":
         return (
           <div className="menuOption" style={{ width: '300px' }}>
-            <SyslogEventTableTags tags={syslogTags.map(t => t.value)} selectedTags={selectedTags} onTagChange={(updated) => setSelectedTags(updated)} />
+            <SyslogEventTableTags keycloak={keycloak} selectedTags={selSyslogEventTableTags} onTagChange={(updated) => setSelSyslogEventTableTags(updated)} />
           </div>
         );
       case "syslog-event-statistics-tags":
         return (
           <div className="menuOption" style={{ width: '300px' }}>
-            <SyslogEventStatisticTags tags={syslogTags.map(t => t.value)} selectedTags={selectedTags} onTagChange={(updated) => setSelectedTags(updated)} />
+            <SyslogEventStatisticTags keycloak={keycloak} selectedTags={selSyslogEventStatisticsTags} onTagChange={(updated) => setSelSyslogEventStatisticsTags(updated)} />
           </div>
         );
       case "syslog-signal-table-tags":
         return (
           <div className="menuOption" style={{ width: '300px' }} >
-            <SyslogSignalTableTags tags={syslogTags.map(t => t.value)} selectedTags={selectedTags} onTagChange={(updated) => setSelectedTags(updated)} />
+            <SyslogSignalTableTags keycloak={keycloak} selectedTags={selSyslogSignalTableTags} onTagChange={(updated) => setSelSyslogSignalTableTags(updated)} />
           </div>
         );
       case "syslog-signal-statistics-tags":
         return (
           <div className="menuOption" style={{ width: '300px' }} >
-            <SyslogSignalStatisticTags tags={syslogTags.map(t => t.value)} selectedTags={selectedTags} onTagChange={(updated) => setSelectedTags(updated)} />
+            <SyslogSignalStatisticTags keycloak={keycloak} selectedTags={selSyslogSignalStatisticTags} onTagChange={(updated) => setSelSyslogSignalStatisticTags(updated)} />
           </div>
         );
       case "snmptrap-event-table-tags":
         return (
           <div className="menuOption" >
-            <SnmpTrapEventTableTags tags={snmpTrapTags.map(t => t.value)} selectedTags={selectedTags} onTagChange={(updated) => setSelectedTags(updated)} />
+            <SnmpTrapEventTableTags keycloak={keycloak} selectedTags={selSnmpTrapEventTableTags} onTagChange={(updated) => setSelSnmpTrapEventTableTags(updated)} />
           </div>
         );
       case "snmptrap-event-statistics-tags":
         return (
           <div className="menuOption" >
-            <SnmpTrapEventStatisticTags tags={snmpTrapTags.map(t => t.value)} selectedTags={selectedTags} onTagChange={(updated) => setSelectedTags(updated)} />
+            <SnmpTrapEventStatisticTags keycloak={keycloak} selectedTags={selSnmpTrapEventStatisticsTags} onTagChange={(updated) => setSelSnmpTrapEventStatisticsTags(updated)} />
           </div>
         );
       case "snmptrap-signal-table-tags":
         return (
           <div className="menuOption" >
-            <SnmpTrapSignalTableTags tags={snmpTrapTags.map(t => t.value)} selectedTags={selectedTags} onTagChange={(updated) => setSelectedTags(updated)} />
+            <SnmpTrapSignalTableTags keycloak={keycloak} selectedTags={selSnmpTrapSignalTableTags} onTagChange={(updated) => setSelSnmpTrapSignalTableTags(updated)} />
           </div>
         );
       case "snmptrap-signal-statistic-tags":
         return (
           <div className="menuOption" >
-            <SnmpTrapSignalStatisticTags tags={snmpTrapTags.map(t => t.value)} selectedTags={selectedTags} onTagChange={(updated) => setSelectedTags(updated)} />
+            <SnmpTrapSignalStatisticTags keycloak={keycloak} selectedTags={selSnmpTrapSignalStatisticTags} onTagChange={(updated) => setSelSnmpTrapSignalStatisticTags(updated)} />
           </div>
         );
       case "timerange":
@@ -378,7 +447,7 @@ const App = ({ keycloak, keycloakAuthenticated }) => {
       case "add-device":
         return (
           <div className="menuOption" style={{ width: '400px' }} >
-            <AddNew keycloak={keycloak} showNotification={showNotification} onDeviceAdded={handleDeviceAdded} />
+            <AddNewDevice keycloak={keycloak} showNotification={showNotification} onDeviceAdded={handleDeviceAdded} />
           </div>
         );
       case "device-settings":
@@ -537,6 +606,8 @@ const App = ({ keycloak, keycloakAuthenticated }) => {
                         keycloak={keycloak}
                         showNotification={showNotification}
                         selectedTags={selSyslogSignalTableTags}
+                        startTime={startTime}
+                        endTime={endTime}
                       />
                     </ProtectedRoute>
                   }
@@ -551,6 +622,8 @@ const App = ({ keycloak, keycloakAuthenticated }) => {
                         keycloak={keycloak}
                         showNotification={showNotification}
                         selectedTags={selSyslogSignalStatisticTags}
+                        startTime={startTime}
+                        endTime={endTime}
                       />
                     </ProtectedRoute>
                   }
@@ -565,6 +638,8 @@ const App = ({ keycloak, keycloakAuthenticated }) => {
                         keycloak={keycloak}
                         showNotification={showNotification}
                         selectedTags={selSnmpTrapSignalTableTags}
+                        startTime={startTime}
+                        endTime={endTime}
                       />
                     </ProtectedRoute>
                   }
@@ -579,6 +654,8 @@ const App = ({ keycloak, keycloakAuthenticated }) => {
                         keycloak={keycloak}
                         showNotification={showNotification}
                         selectedTags={selSnmpTrapSignalStatisticTags}
+                        startTime={startTime}
+                        endTime={endTime}
                       />
                     </ProtectedRoute>
                   }
@@ -592,6 +669,8 @@ const App = ({ keycloak, keycloakAuthenticated }) => {
                         setDashboardTitle={setDashboardTitle}
                         keycloak={keycloak}
                         showNotification={showNotification}
+                        startTime={startTime}
+                        endTime={endTime}
                       />
                     </ProtectedRoute>
                   }
@@ -605,6 +684,8 @@ const App = ({ keycloak, keycloakAuthenticated }) => {
                         setDashboardTitle={setDashboardTitle}
                         keycloak={keycloak}
                         showNotification={showNotification}
+                        startTime={startTime}
+                        endTime={endTime}
                       />
                     </ProtectedRoute>
                   }
@@ -613,12 +694,14 @@ const App = ({ keycloak, keycloakAuthenticated }) => {
                   path="/events/syslogs/table"
                   element={
                     <ProtectedRoute isAuthenticated={isAuthenticated}>
-                      <SyslogEventsTable
+                      <SyslogEventTable
                         currentUser={currentUser}
                         setDashboardTitle={setDashboardTitle}
                         keycloak={keycloak}
                         showNotification={showNotification}
-                        selectedTags={selSyslogEventsTableTags}
+                        selectedTags={selSyslogEventTableTags}
+                        startTime={startTime}
+                        endTime={endTime}
                       />
                     </ProtectedRoute>
                   }
@@ -627,12 +710,14 @@ const App = ({ keycloak, keycloakAuthenticated }) => {
                   path="/events/syslogs/statistics"
                   element={
                     <ProtectedRoute isAuthenticated={isAuthenticated}>
-                      <SyslogEventsStatistics
+                      <SyslogEventStatistics
                         currentUser={currentUser}
                         setDashboardTitle={setDashboardTitle}
                         keycloak={keycloak}
                         showNotification={showNotification}
-                        selectedTags={selSyslogEventsStatisticsTags}
+                        selectedTags={selSyslogEventStatisticsTags}
+                        startTime={startTime}
+                        endTime={endTime}
                       />
                     </ProtectedRoute>
                   }
@@ -646,7 +731,9 @@ const App = ({ keycloak, keycloakAuthenticated }) => {
                         setDashboardTitle={setDashboardTitle}
                         keycloak={keycloak}
                         showNotification={showNotification}
-                        selectedTags={selSnmpTrapEventsTableTags}
+                        selectedTags={selSnmpTrapEventTableTags}
+                        startTime={startTime}
+                        endTime={endTime}
                       />
                     </ProtectedRoute>
                   }
@@ -660,7 +747,9 @@ const App = ({ keycloak, keycloakAuthenticated }) => {
                         setDashboardTitle={setDashboardTitle}
                         keycloak={keycloak}
                         showNotification={showNotification}
-                        selectedTags={selSnmpTrapEventsStatisticsTags}
+                        selectedTags={selSnmpTrapEventStatisticsTags}
+                        startTime={startTime}
+                        endTime={endTime}
                       />
                     </ProtectedRoute>
                   }
@@ -674,6 +763,8 @@ const App = ({ keycloak, keycloakAuthenticated }) => {
                         setDashboardTitle={setDashboardTitle}
                         keycloak={keycloak}
                         showNotification={showNotification}
+                        startTime={startTime}
+                        endTime={endTime}
                       />
                     </ProtectedRoute>
                   }
@@ -687,6 +778,9 @@ const App = ({ keycloak, keycloakAuthenticated }) => {
                         setDashboardTitle={setDashboardTitle}
                         keycloak={keycloak}
                         showNotification={showNotification}
+                        selectedTags={selTrafficStatisticTags}
+                        startTime={startTime}
+                        endTime={endTime}
                       />
                     </ProtectedRoute>
                   }

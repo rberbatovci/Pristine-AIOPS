@@ -1,3 +1,13 @@
+.devices-container {
+    display: flex;
+    height: calc(100vh - 70px);  
+    border-radius: 10px; 
+    transition: width 0.5s ease-in-out;
+    justify-content: center;
+    min-width: 900px;
+    top: -10px;
+}
+
 .device-list, .device-elements {
     flex: 1;
     padding: 16px;

@@ -213,9 +213,9 @@ void* reload_data_thread(void* args) {
         pthread_mutex_lock(&config_mutex);
 
         load_mnemonics(conn);
-        print_loaded_mnemonics();
+        //print_loaded_mnemonics();
         load_regexes(conn);
-        print_loaded_regexes();
+        //print_loaded_regexes();
         load_severity(conn);
 
         pthread_mutex_unlock(&config_mutex);

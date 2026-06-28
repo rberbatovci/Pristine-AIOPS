@@ -19,7 +19,7 @@ function SystemUtilization({ keycloak, selectedDevice, onSuccess, showNotificati
   const enabled = device?.features?.telemetry?.features?.system_util;
 
   return (
-    <div  style={{ maxHeight: '200px', marginTop: '10px', marginBottom: '10px' }}> 
+    <div  style={{ maxHeight: '180px', marginTop: '10px', marginBottom: '10px' }}> 
       <div
         style={{
           display: "flex", 

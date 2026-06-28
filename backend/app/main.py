@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Depends
 from app.users import routes as users
-from app.devices import routes as devices
+from app.devices import routes as devices, scan as deviceScan
 from app.syslogs import events as syslogEvents, signals as syslogSignals, mnemonics, regex, rules as syslogRules, tags as syslogTags, statistics as syslogStatistics
 from app.traps import events as trapEvents, signals as trapSignals, snmptrapoids, tags as trapTags, statistics as trapStatistics, rules as trapRules, mibs
 from app.netflow import routes as netflow, statistics as netflowStatistics
@@ -77,6 +77,7 @@ app.add_middleware(
 
 app.include_router(users.router)
 app.include_router(devices.router)
+app.include_router(deviceScan.router)
 
 app.include_router(syslogEvents.router)
 app.include_router(mnemonics.router)

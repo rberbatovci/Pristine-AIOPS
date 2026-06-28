@@ -5,8 +5,7 @@ import kcFetch from '../components/misc/kcFetch';
 import { FaClock, FaRegClock } from "react-icons/fa";
 import { RiDownloadCloudLine, RiDownloadCloudFill } from "react-icons/ri";
 import SearchTime from '../components/misc/SearchTime.js';
-import FilterTraffic from '../components/netflow/FilterTraffic.js';
-import ChartView from '../components/misc/ChartView.js';
+import FilterTraffic from '../components/netflow/FilterTraffic.js'; 
 import Statistics from '../components/misc/Statistics.js';
 
 import { RiFilterLine, RiFilterFill } from "react-icons/ri";

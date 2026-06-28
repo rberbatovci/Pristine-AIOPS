@@ -61,15 +61,13 @@ void process_message(rd_kafka_t *rk, rd_kafka_t *signal_producer)
             continue;
         }
 
-        fprintf(stderr, "[DEBUG] Message received. Length: %zd\n", rkmessage->len);
+        //fprintf(stderr, "[DEBUG] Message received. Length: %zd\n", rkmessage->len);
         char *payload = strndup(rkmessage->payload, rkmessage->len);
         if (!payload) {
             fprintf(stderr, "[ERROR] Memory allocation failed for payload\n");
             rd_kafka_message_destroy(rkmessage);
             continue;
         }
-
-        fprintf(stderr, "[DEBUG] Payload copied. Content:\n%s\n", payload);
 
         json_error_t error;
         json_t *root = json_loads(payload, 0, &error);
@@ -80,7 +78,24 @@ void process_message(rd_kafka_t *rk, rd_kafka_t *signal_producer)
             continue;
         }
 
-        fprintf(stderr, "[DEBUG] JSON parsed successfully\n");
+        /* =========================================================
+         * NEW LOGGING: PRINT DEVICE AND TIMESTAMP
+         * ========================================================= */
+        json_t *log_device = json_object_get(root, "device");
+        json_t *log_msg = json_object_get(root, "message");
+        
+        const char *print_device = json_is_string(log_device) ? json_string_value(log_device) : "UNKNOWN_DEVICE";
+        char print_timestamp[64] = "UNKNOWN_TIMESTAMP";
+
+        // Try extracting syslog internal timestamp from the raw inner message string if it exists
+        if (json_is_string(log_msg)) {
+            extract_timestamp(json_string_value(log_msg), print_timestamp, sizeof(print_timestamp));
+        }
+
+        printf("📥 [NEW MESSAGE] Device: %s | Timestamp: %s\n", print_device, print_timestamp);
+        /* ========================================================= */
+
+        //fprintf(stderr, "[DEBUG] JSON parsed successfully\n");
 
         json_t *msg_field = json_object_get(root, "message");
         if (!json_is_string(msg_field)) {
@@ -92,44 +107,38 @@ void process_message(rd_kafka_t *rk, rd_kafka_t *signal_producer)
         }
 
         const char *msg_str = json_string_value(msg_field);
-        fprintf(stderr, "[DEBUG] Extracted message field: %s\n", msg_str);
+        //fprintf(stderr, "[DEBUG] Extracted message field: %s\n", msg_str);
 
         SyslogEvent event = {0};
         uuid_t uuid;
         uuid_generate(uuid);
         uuid_unparse_lower(uuid, event.eventId);
-        fprintf(stderr, "[DEBUG] Generated eventId: %s\n", event.eventId);
+        //fprintf(stderr, "[DEBUG] Generated eventId: %s\n", event.eventId);
 
         json_t *device_field = json_object_get(root, "device");
         if (json_is_string(device_field)) {
             snprintf(event.device, sizeof(event.device), "%s", json_string_value(device_field));
-            fprintf(stderr, "[DEBUG] Device field set: %s\n", event.device);
+            //fprintf(stderr, "[DEBUG] Device field set: %s\n", event.device);
         }
 
         snprintf(event.message, sizeof(event.message), "%s", msg_str);
 
-        //fprintf(stderr, "[DEBUG] Extracting LSN...\n");
         event.lsn = extract_lsn(msg_str);
-        //fprintf(stderr, "[DEBUG] LSN extracted: %d\n", event.lsn);
-
-        //fprintf(stderr, "[DEBUG] Extracting timestamp...\n");
+        
+        // Re-extracting here directly into the struct to maintain your existing logic flow safely
         extract_timestamp(msg_str, event.timestamp, sizeof(event.timestamp));
-        //fprintf(stderr, "[DEBUG] Timestamp extracted: %s\n", event.timestamp);
 
         char mnemonic[64] = {0};
-        //fprintf(stderr, "[DEBUG] Extracting mnemonic...\n");
         if (extract_mnemonic(msg_str, mnemonic, sizeof(mnemonic))) {
-            //fprintf(stderr, "[DEBUG] Mnemonic extracted: %s\n", mnemonic);
             snprintf(event.mnemonic, sizeof(event.mnemonic), "%s", mnemonic);
 
             MnemonicInfo *info = findMnemonic(mnemonic);
             if (info) {
-                //fprintf(stderr, "[DEBUG] Mnemonic info found. Severity: %s\n", info->severity);
                 snprintf(event.severity, sizeof(event.severity), "%s", info->severity);
 
                 event.tags = json_object();
                 for (int i = 0; i < info->regex_count; i++) {
-                    Regex *matched[10];  // up to 10 per regex name
+                    Regex *matched[10];  
                     int matched_count = get_mnemonic_regexes(info->regexes[i], matched, 10);
 
                     for (int j = 0; j < matched_count; j++) {
@@ -149,20 +158,17 @@ void process_message(rd_kafka_t *rk, rd_kafka_t *signal_producer)
                     fprintf(stderr, "[ERROR] Failed to serialize event\n");
                 } else {
                     char *event_str = json_dumps(event_json, JSON_COMPACT);
-                    fprintf(stderr, "[DEBUG] Serialized event JSON:\n%s\n", event_str); 
+                    //fprintf(stderr, "[DEBUG] Serialized event JSON:\n%s\n", event_str); 
 
                     if (info->alert) {
-                        //printf("[INFO] Alert syslog detected. Sending to Kafka 'syslog-signals' topic...\n");
                         add_alert_to_kafka_bulk(event_json, signal_producer);
                     }
 
-                    //printf("[TRACE] Handling OpenSearch buffer...\n");
-
                     if (opensearch_events_count < DATA_FLUSH_SIZE) {
-                        printf("[INFO] [BUFFER] Appending syslog to OpenSearch buffer...\n");
+                        //printf("[INFO] [BUFFER] Appending syslog to OpenSearch buffer...\n");
                         opensearch_events_buffer[opensearch_events_count++] = json_deep_copy(event_json);
                     } else {
-                        printf("[INFO] OpenSearch buffer full (%d events). Sending bulk...\n", opensearch_events_count);
+                        //printf("[INFO] OpenSearch buffer full (%d events). Sending bulk...\n", opensearch_events_count);
                         send_bulk_to_opensearch(opensearch_events_buffer, opensearch_events_count);
                         for (int i = 0; i < opensearch_events_count; i++) {
                             json_decref(opensearch_events_buffer[i]);

@@ -258,7 +258,7 @@ void send_bulk_to_opensearch(json_t **buffer, int count) {
 
             CURLcode res = curl_easy_perform(curl);
             if (res == CURLE_OK) {
-                fprintf(stdout, "[INFO] Successfully sent %d events to OpenSearch node %s.\n", count, OPENSEARCH_NODES[node_idx]);
+                //fprintf(stdout, "[INFO] Successfully sent %d events to OpenSearch node %s.\n", count, OPENSEARCH_NODES[node_idx]);
                 success = 1;
                 break;
             } else {

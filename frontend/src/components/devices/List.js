@@ -14,24 +14,107 @@ import {
 import "../../css/DevicesList.css";
 
 function List({ keycloak, onDeviceSelect }) {
-  const { devices: initialDevices, loading: hookLoading, error } = useDevices(keycloak); 
+  const { devices: initialDevices, loading: hookLoading, error } =
+    useDevices(keycloak);
+
   const [devices, setDevices] = useState([]);
   const [selectedDevice, setSelectedDevice] = useState(null);
- 
-  // Sync initial hook devices to local component state when they arrive
-  useEffect(() => {
-    if (!initialDevices || initialDevices.length === 0) return;
 
-    setDevices(
-      initialDevices.map((d) => ({
-        ...d,
-        status: d.status ?? "unknown",
-        rtt_ms: d.rtt_ms ?? 0
-      }))
+  // -----------------------------
+  // Sync initial devices
+  // -----------------------------
+useEffect(() => {
+  if (!initialDevices?.length) return;
+
+  setDevices(
+    initialDevices.map((d) => ({
+      ...d,
+
+      // Always start as unknown
+      status: "unknown",
+      rtt_ms: 0,
+
+      nmap: {
+        discovered: false,
+        ...(d.nmap || {})
+      }
+    }))
+  );
+}, [initialDevices]);
+
+  // -----------------------------
+  // ICMP handler
+  // -----------------------------
+  const handlePingUpdate = (msg) => {
+    setDevices((prev) =>
+      prev.map((device) => {
+        const match =
+          (device.hostname ?? "").toLowerCase() ===
+          (msg.hostname ?? "").toLowerCase();
+
+        if (!match) return device;
+
+        return {
+          ...device,
+          status: msg.status,
+          rtt_ms: msg.rtt_ms
+        };
+      })
     );
-  }, [initialDevices]);
- 
-  // Handle WebSocket Connection
+  };
+
+  const handleNmapUpdate = (payload) => {
+    const hostList = payload?.hosts;
+    if (!Array.isArray(hostList)) return;
+
+    const discoveredSet = new Set(hostList);
+
+    setDevices((prev) => {
+      const existingIPs = new Set(prev.map(d => d.ip_address));
+
+      // 1. Update existing devices
+      const updated = prev.map((device) => {
+        const isDiscovered = discoveredSet.has(device.ip_address);
+
+        return {
+          ...device,
+          nmap: {
+            ...device.nmap,
+            status: "scanned",
+            discovered: isDiscovered,
+            last_scan: payload.target,
+            scan_time: new Date().toISOString()
+          }
+        };
+      });
+
+      // 2. Add NEW discovered hosts
+      const newDevices = hostList
+        .filter(ip => !existingIPs.has(ip))
+        .map(ip => ({
+          id: ip,
+          hostname: ip,
+          ip_address: ip,
+
+          status: "unknown",
+          rtt_ms: 0,
+
+          features: {},
+
+          nmap: {
+            discovered: true,
+            last_scan: payload.target,
+            scan_time: new Date().toISOString()
+          }
+        }));
+
+      return [...updated, ...newDevices];
+    });
+  };
+
+  // -----------------------------
+  // WebSocket
+  // -----------------------------
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
     const ws = new WebSocket(`${protocol}://${window.location.host}/ws`);
@@ -39,24 +122,29 @@ function List({ keycloak, onDeviceSelect }) {
     ws.onopen = () => console.log("🔌 WebSocket connected");
 
     ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
-      if (msg.type !== "icmp_ping") return;
+      try {
+        const rawMsg = JSON.parse(event.data);
 
-      setDevices((prev) =>
-        prev.map((device) => {
-          const match =
-            (device.hostname ?? "").trim().toLowerCase() ===
-            (msg.hostname ?? "").trim().toLowerCase();
+        // Normalize structure if backend wraps fields inside a 'payload' object
+        const msg = rawMsg.payload && rawMsg.type === undefined
+          ? { ...rawMsg.payload, type: rawMsg.type || rawMsg.payload.type }
+          : rawMsg;
 
-          if (!match) return device;
+        switch (msg.type) {
+          case "icmp_ping":
+            handlePingUpdate(msg);
+            break;
 
-          return {
-            ...device,
-            status: msg.status,
-            rtt_ms: msg.rtt_ms
-          };
-        })
-      );
+          case "nmap_scan":
+            handleNmapUpdate(msg.payload);
+            break;
+
+          default:
+            console.warn("Unknown websocket message:", msg);
+        }
+      } catch (err) {
+        console.error("Error parsing WebSocket message:", err);
+      }
     };
 
     ws.onerror = (err) => console.error("WebSocket error:", err);
@@ -65,6 +153,9 @@ function List({ keycloak, onDeviceSelect }) {
     return () => ws.close();
   }, []);
 
+  // -----------------------------
+  // UI helpers
+  // -----------------------------
   const handleDeviceClick = (device) => {
     setSelectedDevice(device);
     onDeviceSelect?.(device);
@@ -73,14 +164,14 @@ function List({ keycloak, onDeviceSelect }) {
   const getDeviceHealth = (device) => {
     if (device.status === "down") return "critical";
     if ((device.rtt_ms ?? 0) > 150) return "warning";
+    if (device.status === "scanned") return "scanned";
+    if (device.status === "unknown") return "scanned";
     return "healthy";
   };
 
-  // ===================================
-  // DETERMINISTIC LOADING & RENDER GUARDS
-  // ===================================
-  
-  // 1. If keycloak is not ready, we are authenticating
+  // -----------------------------
+  // Guards
+  // -----------------------------
   if (!keycloak?.authenticated) {
     return (
       <div className="signals-list-container">
@@ -89,7 +180,6 @@ function List({ keycloak, onDeviceSelect }) {
     );
   }
 
-  // 2. If the hook is fetching, we are loading
   if (hookLoading) {
     return (
       <div className="signals-list-container">
@@ -98,7 +188,6 @@ function List({ keycloak, onDeviceSelect }) {
     );
   }
 
-  // 3. If there's a backend error
   if (error) {
     return (
       <div className="signals-list-container">
@@ -107,7 +196,6 @@ function List({ keycloak, onDeviceSelect }) {
     );
   }
 
-  // 4. If we finished loading, are authenticated, and truly have 0 devices
   if (initialDevices.length === 0) {
     return (
       <div className="signals-list-container">
@@ -116,8 +204,6 @@ function List({ keycloak, onDeviceSelect }) {
     );
   }
 
-  // Fallback check: If initialDevices has data but our local state mapping hasn't 
-  // caught up yet on this specific tick, show a temporary loading indicator
   if (devices.length === 0 && initialDevices.length > 0) {
     return (
       <div className="signals-list-container">
@@ -126,9 +212,9 @@ function List({ keycloak, onDeviceSelect }) {
     );
   }
 
-  // =========================
-  // RENDER
-  // =========================
+  // -----------------------------
+  // Render
+  // -----------------------------
   return (
     <div className="signals-list-container">
       <ul className="signals-list">
@@ -151,35 +237,71 @@ function List({ keycloak, onDeviceSelect }) {
               {/* CENTER INFO */}
               <div className="device-metadata-box">
                 <div className="hostname-row">
-                  <span className="device-hostname">{device.hostname}</span>
+                  <span className="device-hostname">
+                    {device.hostname}
+                  </span>
                 </div>
+
                 <div className="hardware-sub-row">
-                  <span className="meta-item">IP: {device.ip_address}</span>
+                  <span className="meta-item">
+                    IP: {device.ip_address}
+                  </span>
+
                   <span className="meta-divider">•</span>
-                  <span className="meta-item">Status: {device.status ?? "unknown"}</span>
-                  <span className="meta-divider">•</span>
-                  <span className="meta-item">RTT: {device.rtt_ms ?? 0}ms</span>
+ 
                 </div>
               </div>
 
               {/* RIGHT FEATURES */}
-              <div className="device-features-matrix" onClick={(e) => e.stopPropagation()}>
-                <div className={`feature-status-indicator ${device.features?.syslogs ? "enabled" : "disabled"}`}>
+              <div
+                className="device-features-matrix"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div
+                  className={`feature-status-indicator ${device.features?.syslogs ? "enabled" : "disabled"
+                    }`}
+                >
                   <PiTerminalDuotone />
                 </div>
-                <div className={`feature-status-indicator ${device.features?.netflow ? "enabled" : "disabled"}`}>
+
+                <div
+                  className={`feature-status-indicator ${device.features?.netflow ? "enabled" : "disabled"
+                    }`}
+                >
                   <PiShareNetworkDuotone />
                 </div>
-                <div className={`feature-status-indicator ${device.features?.telemetry?.enabled ? "enabled" : "disabled"}`}>
+
+                <div
+                  className={`feature-status-indicator ${device.features?.telemetry?.enabled
+                    ? "enabled"
+                    : "disabled"
+                    }`}
+                >
                   <PiPulseDuotone />
                 </div>
-                <div className={`feature-status-indicator ${device.features?.snmp_traps ? "enabled" : "disabled"}`}>
+
+                <div
+                  className={`feature-status-indicator ${device.features?.snmp_traps
+                    ? "enabled"
+                    : "disabled"
+                    }`}
+                >
                   <PiSlidersHorizontalDuotone />
                 </div>
-                <div className={`feature-status-indicator ${device.features?.topology ? "enabled" : "disabled"}`}>
+
+                <div
+                  className={`feature-status-indicator ${device.features?.topology ? "enabled" : "disabled"
+                    }`}
+                >
                   <PiTreeStructureDuotone />
                 </div>
-                <div className={`feature-status-indicator ${device.features?.authentication ? "enabled" : "disabled"}`}>
+
+                <div
+                  className={`feature-status-indicator ${device.features?.authentication
+                    ? "enabled"
+                    : "disabled"
+                    }`}
+                >
                   <PiShieldCheckeredDuotone />
                 </div>
               </div>

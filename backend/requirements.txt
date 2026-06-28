@@ -48,3 +48,4 @@ xmltodict==0.14.2
 grpcio
 grpcio-tools
 protobuf
+kafka-python

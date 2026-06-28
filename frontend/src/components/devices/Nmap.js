@@ -55,12 +55,12 @@ function Nmap({ onDeviceAdded, keycloak }) {
     }
 
     try {
+      // 1. ✅ Change the key name to 'target' to match FastAPI's ScanRequest Pydantic model
       const payload = {
-        ip_address: ipAddress,
-        hostname: hostname,
+        target: ipAddress,
       };
 
-      const res = await kcFetch(keycloak, "/devices/", {
+      const res = await kcFetch(keycloak, "/devices/scan", {
         method: "POST",
         body: JSON.stringify(payload),
       });
@@ -71,7 +71,7 @@ function Nmap({ onDeviceAdded, keycloak }) {
       handleClear();
     } catch (err) {
       console.error(err);
-      setError('Failed to add device. Make sure the hostname is unique.');
+      setError('Failed to dispatch scan task to the worker queue.');
     } finally {
       setLoading(false);
     }

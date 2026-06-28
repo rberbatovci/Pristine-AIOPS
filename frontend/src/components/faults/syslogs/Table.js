@@ -1,27 +1,26 @@
 import { useState, useEffect, useRef } from 'react';
 import '../../../css/SyslogDatabase.css';
-import EventsTable from '../../../components/misc/EventsTable.js';
-import ChartView from '../../../components/misc/ChartView.js';
+import EventsTable from '../../../components/misc/EventsTable.js'; 
 import { useSyslogTags } from '../../../hooks/useSyslogTags';
 import { useMnemonics } from '../../../hooks/useMnemonics';
 import { useSyslogRegEx } from '../../../hooks/useSyslogRegEx';
 import { useFaultData } from '../../../hooks/useFaultData';
 import { NavLink, useLocation } from 'react-router-dom';
 
-function SyslogEventTable({ currentUser, setDashboardTitle, showNotification, keycloak }) {
+function SyslogEventTable({ currentUser, setDashboardTitle, showNotification, selectedTags = [], keycloak, startTime, endTime }) {
     const [view, setView] = useState('list');
     const { eventsData, totalEvents, totalPages, loading, error, loadData } = useFaultData();
-    const [page, setPage] = useState(1);
-    const [startTime, setStartTime] = useState(null);
-    const [endTime, setEndTime] = useState(null);
+    const [page, setPage] = useState(1); 
     const [filters, setFilters] = useState({ device: [], mnemonic: [] });
     const dropdownWrapperRef = useRef(null);
-    const [selectedRows, setSelectedRows] = useState([]);
-    const [selectedTags, setSelectedTags] = useState([]);
+    const [selectedRows, setSelectedRows] = useState([]); 
     //const { tags: syslogTags, reload: reloadSyslogTags } = useSyslogTags(keycloak);
     //const { mnemonics, reload: reloadMnemonics } = useMnemonics(keycloak);
     const { regexes, reload: reloadRegEx } = useSyslogRegEx(keycloak);
     const location = useLocation();
+
+    console.log("Start Time in Syslog Events Table:", startTime);
+    console.log("End Time in Syslog Events Table:", endTime);
 
     useEffect(() => {
         loadData(
@@ -54,7 +53,7 @@ function SyslogEventTable({ currentUser, setDashboardTitle, showNotification, ke
     console.log("Table mounted");
 
     useEffect(() => {
-        console.log("Selected tags in EventsTable:", selectedTags);
+        console.log("Selected tags in Syslog Events Table:", selectedTags);
     }, [selectedTags]);
 
     return (
@@ -69,13 +68,13 @@ function SyslogEventTable({ currentUser, setDashboardTitle, showNotification, ke
                                 dataSource="syslogs"
                                 data={eventsData}
                                 totalPages={totalPages}
-                                tags={tags}
+                                tags={selectedTags}
                                 signalSource="syslogs"
                                 onRowSelectChange={handleRowSelectChange}
                                 page={page}
                                 onPageChange={setPage}
                                 selectedTags={selectedTags}
-                                onTagSelectChange={setSelectedTags}
+                                onTagSelectChange={handleRowSelectChange}
                             />
                         </div>
                     </>

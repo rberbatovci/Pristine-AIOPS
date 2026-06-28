@@ -68,8 +68,8 @@ const DeviceSettings = ({
             snmp_traps: { loading: `Configuring SNMP Traps on ${selectedDevice.hostname}...` },
             netflow: { loading: `Configuring Netflow/IPFIX on ${selectedDevice.hostname}...` },
             telemetry: { loading: `Configuring Telemetry on ${selectedDevice.hostname}...` },
-            topology: { loading: `Configuring Topology on ${selectedDevice.hostname}...` },
-            authentication: { loading: `Configuring Authentication on ${selectedDevice.hostname}...` }
+            "bgp-link-state": { loading: `Configuring BGP Link State on ${selectedDevice.hostname}...` },
+            "aaa-radius": { loading: `Configuring AAA RADIUS on ${selectedDevice.hostname}...` }
         };
 
         const msg = messages[featureName];
@@ -100,8 +100,8 @@ const DeviceSettings = ({
         { id: "snmp_traps", label: "SNMP Traps", icon: <PiShareNetworkDuotone />, active: selectedDevice?.features?.snmp_traps },
         { id: "netflow", label: "Netflow / IPFIX", icon: <PiPulseDuotone />, active: selectedDevice?.features?.netflow },
         { id: "telemetry", label: "Telemetry", icon: <PiSlidersHorizontalDuotone />, active: selectedDevice?.features?.telemetry?.enabled },
-        { id: "topology", label: "Topology", icon: <PiTreeStructureDuotone />, active: selectedDevice?.features?.topology },
-        { id: "authentication", label: "Authentication", icon: <PiShieldCheckeredDuotone />, active: selectedDevice?.features?.authentication },
+        { id: "bgp-link-state", label: "BGP Link State", icon: <PiTreeStructureDuotone />, active: selectedDevice?.features?.["bgp-link-state"] },
+        { id: "aaa-radius", label: "AAA RADIUS", icon: <PiShieldCheckeredDuotone />, active: selectedDevice?.features?.["aaa-radius"] },
     ];
 
     return (

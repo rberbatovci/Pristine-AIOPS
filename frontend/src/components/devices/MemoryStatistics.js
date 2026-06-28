@@ -59,7 +59,14 @@ function MemoryStatistics({ keycloak, selectedDevice }) {
   }, [device]);
 
   return (
-    <div className="cpu-monitor-card" style={{width: 'calc(50% - 20px)', marginLeft: '10px'}}>
+    <div className="cpu-monitor-card" style={{ width: 'calc(50% - 10px)', marginLeft: '20px' }}>
+          <div className="info-header">
+            <div className="header-title">
+              <PiDatabaseDuotone style={{ color: 'var(--textColor)', fontSize: '18px' }} />
+              <h2 style={{ color: 'var(--textColor)', fontSize: '14px' }}>Memory Statistics</h2>
+            </div> 
+          </div>
+          <div className="cpu-monitor-content">
       
       {/* Visual Chart Area */}
       <div className="chart-container">
@@ -108,12 +115,13 @@ function MemoryStatistics({ keycloak, selectedDevice }) {
 
       {/* Metrics & Metadata Sidebar */}
       <div className="metrics-sidebar">
+        {/*
         <div className="sidebar-header">
           <h4>Memory Pools</h4>
           <span className="timestamp-badge">
             {memoryTimestamp ? `Synced: ${memoryTimestamp}` : 'No Sync Data'}
           </span>
-        </div>
+        </div>*/}
 
         {error && <div className="metrics-error-banner">{error}</div>}
 
@@ -135,7 +143,7 @@ function MemoryStatistics({ keycloak, selectedDevice }) {
           })}
         </div>
       </div>
-
+          </div>
     </div>
   );
 }

@@ -2,20 +2,7 @@
    Signals List Card - Structural Themes
    ========================================================================== */
 
-.interface-stats-panel {
-  background: var(--contentBackground);
-  border-top: var(--borderLight);
-  border-bottom: var(--borderDark);
-  border-radius: 14px;
-  max-width: 880px;
-  width: 100%;
-  box-shadow: var(--contentShadow);
-  backdrop-filter: blur(20px);
-  font-family: system-ui, -apple-system, sans-serif;
-  overflow: hidden;
-  transition: all 0.25s ease;
-}
-
+ 
 .signals-list {
   padding: 0;
   margin: 0;
@@ -150,6 +137,8 @@
 .badge-healthy { color: var(--color-healthy); }
 .badge-warning { color: var(--color-warning); }
 .badge-critical { color: var(--color-critical); }
+.badge-scanned { color: var(--color-scanned); }
+
 
 .pulse-dot {
   position: absolute;

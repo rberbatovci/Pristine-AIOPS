@@ -9,21 +9,30 @@ import '../../../css/SyslogDatabase.css';
 import { IoBarChartOutline } from "react-icons/io5";
 import { AiOutlinePieChart } from "react-icons/ai";
 
-function SnmpTrapEventStatistics({ currentUser, setDashboardTitle, keycloak, showNotification, selectedTags = [] }) {
+function SnmpTrapEventStatistics({ 
+    currentUser, 
+    setDashboardTitle, 
+    keycloak, 
+    showNotification, 
+    selectedTags = [
+    { label: 'Device', value: 'device' },
+    { label: 'SNMP Trap OID', value: 'snmpTrapOid' },
+    { label: 'Interface', value: 'interface' },
+    { label: 'Tag 1', value: 'tag1' },
+    { label: 'Tag 2', value: 'tag2' },
+    { label: 'Tag 3', value: 'tag3' }
+  ], 
+    startTime, 
+    endTime 
+}) {
     const [chartDataMap, setChartDataMap] = useState({});
     const [loadingMap, setLoadingMap] = useState({});
     const [chartTypeMap, setChartTypeMap] = useState({});
     const colorPalette = [
         '#FF6347', '#32CD32', '#FFD700',
         '#87CEEB', '#8A2BE2', '#FF69B4', '#20B2AA'
-    ];
-
-    console.log("Statistics mounted");
-
-    useEffect(() => {
-        console.log("Selected tags in EventsStatistics:", selectedTags);
-    }, [selectedTags]);
-
+    ]; 
+    
     useEffect(() => {
         if (!selectedTags.length) return;
 
@@ -133,7 +142,9 @@ function SnmpTrapEventStatistics({ currentUser, setDashboardTitle, keycloak, sho
                 flexWrap: 'wrap',
                 justifyContent: 'space-around'
             }}>
-                {selectedTags.map(dataType => {
+                {selectedTags.map(tag => {
+                    const dataType = tag.value;
+                    const displayLabel = tag.label;
                     const chartType = chartTypeMap[dataType] || 'BarChart';
                     const chartData = chartDataMap[dataType] || [];
                     const isLoading = loadingMap[dataType];
@@ -156,7 +167,7 @@ function SnmpTrapEventStatistics({ currentUser, setDashboardTitle, keycloak, sho
                                         fontWeight: 'bold',
                                         color: 'var(--textColor)'
                                     }}>
-                                        {dataType.charAt(0).toUpperCase() + dataType.slice(1)}
+                                        {displayLabel}
                                     </h2>
                                     <span style={{
                                         fontSize: '14px',
@@ -204,7 +215,7 @@ function SnmpTrapEventStatistics({ currentUser, setDashboardTitle, keycloak, sho
                             {/* No Data */}
                             {!isLoading && chartData.length === 0 && (
                                 <Typography>
-                                    No data available for {dataType}
+                                    No data available for {displayLabel}
                                 </Typography>
                             )}
 
@@ -238,6 +249,7 @@ function SnmpTrapEventStatistics({ currentUser, setDashboardTitle, keycloak, sho
                                     height={270}
                                     data={chartData}
                                     margin={{ top: 20 }}
+                                Mention to keep it simple
                                 >
                                     <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="name" />

@@ -58,11 +58,11 @@ function InterfaceStatistics({ keycloak, selectedDevice }) {
   const enabled = device?.features?.telemetry?.features?.interface_stats;
 
   return (
-    <div className="interface-stats-panel">
-      <div className="panel-header">
-        <div className="header-title-box">
-          <PiChartLineUpDuotone className="panel-icon" />
-          <h3>Interface Metrics</h3>
+    <div className="interface-stats-panel" style={{ marginTop: '20px' }}>
+      <div className="info-header">
+        <div className="header-title">
+          <PiChartLineUpDuotone style={{ color: 'var(--textColor)', fontSize: '18px' }} />
+          <h3 style={{ color: 'var(--textColor)', fontSize: '14px' }}>Interface Metrics</h3>
         </div>
         <span className="interface-counter">
           Active Links: {interfaces.filter(i => i.status?.toLowerCase() === "if-oper-state-ready").length}/{interfaces.length}

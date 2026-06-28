@@ -1,8 +1,8 @@
 configure terminal
 !
 radius server FREERADIUS
- address ipv4 192.168.10.10 auth-port 1812 acct-port 1813
- key D3nv3r.C0
+ address ipv4 192.168.1.201 auth-port 1812 acct-port 1813
+ key Pa$$w0rd123!
  exit
 !
 aaa group server radius RAD-GRP

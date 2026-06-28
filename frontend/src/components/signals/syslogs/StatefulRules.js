@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 //import "./SignalConfigElement.css";
 import Select from "react-select";
 import customStyles from "../../misc/SelectStyles";
-import { useStatefulSyslogRules } from "../../../hooks/useStatefulSyslogRules"; 
-import { useMnemonics } from "../../../hooks/useMnemonics"; 
-import { useSyslogTags } from "../../../hooks/useSyslogTags"; 
+import { useStatefulSyslogRules } from "../../../hooks/useStatefulSyslogRules";
+import { useMnemonics } from "../../../hooks/useMnemonics";
+import { useSyslogTags } from "../../../hooks/useSyslogTags";
 
 const StatefulSyslogRules = ({ keycloak, showNotification }) => {
     const {
@@ -17,13 +17,13 @@ const StatefulSyslogRules = ({ keycloak, showNotification }) => {
         addRule,
         updateRule,
         deleteRule
-    } = useStatefulSyslogRules(keycloak); 
+    } = useStatefulSyslogRules(keycloak);
     const { mnemonics, loading: mnemonicsLoading, reload: reloadMnemonics } = useMnemonics(keycloak);
-    const { tags: tags, loading: syslogTagsLoading, reload: reloadSyslogTags } = useSyslogTags(keycloak, false);
+    const { tags: tags, loading: syslogTagsLoading, reload: reloadSyslogTags } = useSyslogTags(keycloak, true);
     const [editedData, setEditedData] = useState({});
     const [isAddingNewRule, setIsAddingNewRule] = useState(true);
     const [newRule, setNewRule] = useState({
-        name: "", 
+        name: "",
         opensignalmnemonic: "",
         opensignaltag: "",
         opensignalvalue: "",
@@ -35,13 +35,13 @@ const StatefulSyslogRules = ({ keycloak, showNotification }) => {
         description: "",
         warmup: "",
         cooldown: ""
-    }); 
+    });
 
-      useEffect(() => {
+    useEffect(() => {
         if (ruleDetails) {
-          setNewRule(ruleDetails);
+            setNewRule(ruleDetails);
         }
-      }, [ruleDetails]);
+    }, [ruleDetails]);
 
     const handleOptionChange = async (rule) => {
         setIsAddingNewRule(false);
@@ -88,7 +88,7 @@ const StatefulSyslogRules = ({ keycloak, showNotification }) => {
             ...prev,
             devices: selectedIds
         }));
-    }; 
+    };
 
     return (
         <div className="signalTagContainer">
@@ -107,7 +107,7 @@ const StatefulSyslogRules = ({ keycloak, showNotification }) => {
                                         setIsAddingNewRule(true);
                                         //setSelectedOption(null);
                                         setNewRule({
-                                            name: '', 
+                                            name: '',
                                             mnemonic: [],
                                             opensignalmnemonic: '',
                                             opensignaltag: '',
@@ -229,7 +229,10 @@ const StatefulSyslogRules = ({ keycloak, showNotification }) => {
                                         <Select
                                             name="opensignaltag"
                                             value={tags.find(option => option.value === newRule.opensignaltag) || null}
-                                            options={tags}
+                                            options={tags.map(tag => ({
+                                                value: tag.value,
+                                                label: tag.label,
+                                            }))}
                                             onChange={(selectedRule) =>
                                                 setNewRule({ ...newRule, opensignaltag: selectedRule ? selectedRule.value : null })
                                             }
@@ -277,7 +280,10 @@ const StatefulSyslogRules = ({ keycloak, showNotification }) => {
                                         <Select
                                             name="closesignaltag"
                                             value={tags.find(option => option.value === newRule.closesignaltag) || null}
-                                            options={tags}
+                                            options={tags.map(tag => ({
+                                                value: tag.value,
+                                                label: tag.label,
+                                            }))}
                                             onChange={(selectedRule) =>
                                                 setNewRule({ ...newRule, closesignaltag: selectedRule ? selectedRule.value : null })
                                             }

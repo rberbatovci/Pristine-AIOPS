@@ -151,16 +151,40 @@ jobs:
           context: .
           file: ./dockerfiles/Dockerfile.telemetry-interface-oper-status
           push: true
-          tags: ghcr.io/rberbatovci/telemetry-interface-oper-status:latest
-
-      #- name: Build and push bgp connections consumer image
-      #  uses: docker/build-push-action@v5
-      #  with:
-      #    context: .
-      #    file: ./dockerfiles/Dockerfile.telemetry-bgp-connection-stats
-      #    push: true
-      #    tags: ghcr.io/rberbatovci/telemetry-interface-stats:latest
+          tags: ghcr.io/rberbatovci/telemetry-interface-oper-status:latest 
       
+      - name: Build and push ICMP Redis Consumer image
+        uses: docker/build-push-action@v5 
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.Dockerfile.icmp-redis-consumer 
+          push: true
+          tags: ghcr.io/rberbatovci/icmp-ping-consumer:latest
+
+      - name: Build and push ICMP Redis Consumer image
+        uses: docker/build-push-action@v5 
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.Dockerfile.icmp-pinger-producer
+          push: true
+          tags: ghcr.io/rberbatovci/icmp-ping-producer:latest
+
+      - name: Build and push Websocket Bridge image
+        uses: docker/build-push-action@v5 
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.Dockerfile.websocket-bridge
+          push: true
+          tags: ghcr.io/rberbatovci/websocket-bridge:latest
+
+      - name: Build and push NMAP Scanner image
+        uses: docker/build-push-action@v5 
+        with:
+          context: .
+          file: ./dockerfiles/Dockerfile.Dockerfile.nmap-scanner
+          push: true
+          tags: ghcr.io/rberbatovci/nmap-scanner:latest
+
       - name: Build and push GoBGP Server image
         uses: docker/build-push-action@v5 
         with:

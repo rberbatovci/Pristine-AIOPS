@@ -142,7 +142,7 @@ void extract_timestamp(const char *message, char *timestamp_out, size_t timestam
         strftime(iso_part, sizeof(iso_part), "%Y-%m-%dT%H:%M:%S", &tm_time);
         snprintf(timestamp_out, timestamp_size, "%s.%sZ", iso_part, millis);
 
-        printf("[DEBUG] Extracted ISO timestamp: %s\n", timestamp_out);
+        //printf("[DEBUG] Extracted ISO timestamp: %s\n", timestamp_out);
     } else {
         printf("[DEBUG] No timestamp found in message.\n");
     }

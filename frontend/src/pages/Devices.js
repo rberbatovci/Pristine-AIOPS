@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import '../css/Devices.css';
-import AddNew from '../components/devices/AddNew';
-import Nmap from '../components/devices/Nmap';
+import '../css/Devices.css';  
 import List from '../components/devices/List';
 import InterfaceStatistics from '../components/devices/InterfaceStatistics';
 import SystemUtilization from '../components/devices/SystemUtilization';
@@ -126,9 +124,9 @@ function Devices({ currentUser, setDashboardTitle, showNotification, keycloak, s
     }, []);
 
     return (
-        <div className="signals-container" style={{ display: 'flex', width: showComponents ? '80%' : '40%', transition: 'width 1s ease' }}>
+        <div className="devices-container" style={{ display: 'flex', width: showComponents ? '80%' : '40%', transition: 'width 1s ease' }}>
             <div style={{ width: showComponents ? '40%' : '100%', transition: 'width 1s ease-in-out, opacity 1s ease-in-out', overflow: 'hidden', height: 'calc(100vh - 90px)', padding: '10px' }} >
-                <div className="mainContainer" style={{ padding: '10px', height: '100%' }}>
+                <div className="mainContainer" style={{ padding: '10px' }}>
                     <List devices={devices} keycloak={keycloak} onDeviceSelect={handleDeviceSelect} />
                 </div>
             </div>

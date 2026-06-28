@@ -9,7 +9,7 @@ import '../../../css/SyslogDatabase.css';
 import { IoBarChartOutline } from "react-icons/io5";
 import { AiOutlinePieChart } from "react-icons/ai";
 
-function TelemetrySignalStatistics({ currentUser, setDashboardTitle, keycloak, showNotification, selectedTags = [] }) {
+function TelemetrySignalStatistics({ currentUser, setDashboardTitle, keycloak, showNotification, selectedTags = [], startTime, endTime }) {
     const [chartDataMap, setChartDataMap] = useState({});
     const [loadingMap, setLoadingMap] = useState({});
     const [chartTypeMap, setChartTypeMap] = useState({});
@@ -18,7 +18,8 @@ function TelemetrySignalStatistics({ currentUser, setDashboardTitle, keycloak, s
         '#87CEEB', '#8A2BE2', '#FF69B4', '#20B2AA'
     ];
 
-    console.log("Statistics mounted");
+    console.log("Start Time in Telemetry Statistics:", startTime);
+    console.log("End Time in Telemetry Statistics:", endTime); 
 
     useEffect(() => {
         console.log("Selected tags in EventsStatistics:", selectedTags);

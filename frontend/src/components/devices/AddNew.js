@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'; 
+import { useState, useEffect } from 'react';
 import { TailSpin } from 'react-loader-spinner';
 import kcFetch from '../misc/kcFetch';
 
@@ -21,7 +21,7 @@ function AddNewDevice({ onDeviceAdded, keycloak, showNotification }) {
     setError('');
     setSuccess(false);
 
-    if (!ipAddress || !hostname ) {
+    if (!ipAddress || !hostname) {
       setError('Please fill in all required fields.');
       SetLoading(false); // important to stop loading
       return;
@@ -40,7 +40,9 @@ function AddNewDevice({ onDeviceAdded, keycloak, showNotification }) {
 
       setSuccess(true);
       showNotification("Device added successfully", "success");
-      if (onDeviceAdded) onDeviceAdded(res);
+      if (onDeviceAdded) {
+        onDeviceAdded();
+      }
 
       handleClear();
     } catch (err) {
@@ -95,7 +97,7 @@ function AddNewDevice({ onDeviceAdded, keycloak, showNotification }) {
                 : '',
           }}
         >
-          {loading ? ( <TailSpin height={16} width={16} color="#fff" /> ) : success ? ( 'Added!' ) : error ? ( 'Error' ) : ( 'Save' )}
+          {loading ? (<TailSpin height={16} width={16} color="#fff" />) : success ? ('Added!') : error ? ('Error') : ('Save')}
         </button>
       </div>
     </div>

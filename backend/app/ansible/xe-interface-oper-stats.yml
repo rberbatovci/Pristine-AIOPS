@@ -13,7 +13,7 @@
 
   tasks:
     - name: Configure telemetry subscription 103 (interfaces statistics)
-      ios_config:
+      ios_config: 
         lines:
           - telemetry ietf subscription 103
           -  encoding encode-kvgpb

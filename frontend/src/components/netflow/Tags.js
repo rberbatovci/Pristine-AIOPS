@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
-import "../../css/SyslogTagsList.css";
+import "../../../css/SyslogTagsList.css";
 
-const SyslogTags = ({
+const TrafficTags = ({
   tags = [],
   selectedTags = [],
   onTagChange
@@ -79,4 +79,4 @@ const SyslogTags = ({
   );
 };
 
-export default SyslogTags;
+export default TrafficTags;

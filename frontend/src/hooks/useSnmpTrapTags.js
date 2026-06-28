@@ -27,11 +27,9 @@ export function useSnmpTrapTags(keycloak) {
     if (!keycloak?.authenticated || !name) {
       console.warn("Skipping GET: not authenticated or no name", { keycloak, name });
       return;
-    }
-
+    } 
     setLoading(true);
-    setError(null);
-
+    setError(null); 
     try {
       const data = await kcFetch(
         keycloak,
@@ -47,11 +45,9 @@ export function useSnmpTrapTags(keycloak) {
   }, [keycloak]);
 
   const update = useCallback(async (name, payload) => {
-    if (!keycloak?.authenticated || !name) return;
-
+    if (!keycloak?.authenticated || !name) return; 
     setLoading(true);
-    setError(null);
-
+    setError(null); 
     try {
       const updated = await kcFetch(
         keycloak,
@@ -75,11 +71,9 @@ export function useSnmpTrapTags(keycloak) {
   }, [keycloak]);
 
   const remove = useCallback(async (name) => {
-    if (!keycloak?.authenticated || !name) return;
-
+    if (!keycloak?.authenticated || !name) return; 
     setLoading(true);
-    setError(null);
-
+    setError(null); 
     try {
       await kcFetch(
         keycloak,
@@ -96,11 +90,9 @@ export function useSnmpTrapTags(keycloak) {
   }, [keycloak]);
 
   const create = useCallback(async (payload) => {
-    if (!keycloak?.authenticated) return;
-
+    if (!keycloak?.authenticated) return; 
     setLoading(true);
-    setError(null);
-
+    setError(null); 
     try {
       const created = await kcFetch(
         keycloak,

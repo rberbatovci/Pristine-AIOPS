@@ -338,7 +338,7 @@ func main() {
 		os.Exit(0)
 	}()
 
-	ticker := time.NewTicker(60 * time.Second)
+	ticker := time.NewTicker(1 * time.Second)
 
 	for {
 

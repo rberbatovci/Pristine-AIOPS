@@ -1,42 +1,78 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import "../../../css/SyslogTagsList.css";
+import { useSyslogTags } from "../../../hooks/useSyslogTags";
 
 const SyslogEventStatisticTags = ({
-  tags = [],
-  selectedTags = [],
+  keycloak,
+  selectedTags = [
+    { label: 'Device', value: 'device' },
+    { label: 'Severity', value: 'severity' },
+    { label: 'Mnemonic', value: 'mnemonic' },
+    { label: 'State', value: 'state' },
+    { label: 'Interface', value: 'interface' },
+    { label: 'Neighbor', value: 'neighbor' }
+  ],
   onTagChange
 }) => {
   const [searchValue, setSearchValue] = useState("");
-  const [selTags, setSelTags] = useState(selectedTags);
 
-  // Keep local state in sync with parent
-  useEffect(() => {
-    setSelTags(selectedTags);
-  }, [selectedTags]);
+  const {
+    tags: fetchedTagObjects = [], loading, error } = useSyslogTags(keycloak);
 
-  // Notify parent
-  useEffect(() => {
-    onTagChange && onTagChange(selTags);
-  }, [selTags]);
+  const allTags = useMemo(() => {
+    const predefinedTags = [
+      { label: 'Device', value: 'device' },
+      { label: 'Severity', value: 'severity' },
+      { label: 'Mnemonic', value: 'mnemonic' },
+      { label: 'State', value: 'state' },
+      { label: 'Interface', value: 'interface' },
+      { label: 'Neighbor', value: 'neighbor' }
+    ];
+
+    const apiTags = fetchedTagObjects
+      .filter(tag => tag && tag.label && tag.value);
+
+    const combined = [...predefinedTags, ...apiTags];
+
+    const uniqueTags = [];
+    const seen = new Set();
+
+    for (const tag of combined) {
+      if (!seen.has(tag.value)) {
+        seen.add(tag.value);
+        uniqueTags.push(tag);
+      }
+    }
+
+    return uniqueTags;
+  }, [fetchedTagObjects]);
+
+  const filteredTags = useMemo(() => {
+    const search = searchValue.toLowerCase();
+
+    return allTags.filter(
+      tag =>
+        tag.label?.toLowerCase().includes(search) ||
+        tag.value?.toLowerCase().includes(search)
+    );
+  }, [allTags, searchValue]);
+
+  console.log("All Tags:", allTags);
+  console.log("Filtered Tags:", filteredTags);
 
   const handleTagSelection = (tag) => {
-    const updated = selTags.includes(tag)
-      ? selTags.filter((t) => t !== tag)
-      : [...selTags, tag];
+    if (!onTagChange) return;
 
-    setSelTags(updated);
+    const updatedTags = selectedTags.some(
+      t => t.value === tag.value
+    )
+      ? selectedTags.filter(
+        t => t.value !== tag.value
+      )
+      : [...selectedTags, tag];
+
+    onTagChange(updatedTags);
   };
-
-  // Always include "LSN" at the top
-  const allTags = useMemo(() => {
-    const tagValues = tags.includes("LSN") ? tags : ["LSN", ...tags];
-    return tagValues;
-  }, [tags]);
-
-  // Filter by search
-  const filteredTags = allTags.filter(tag =>
-    tag.toLowerCase().includes(searchValue.toLowerCase())
-  );
 
   return (
     <div className="signalTagContainer">
@@ -47,32 +83,48 @@ const SyslogEventStatisticTags = ({
           value={searchValue}
           onChange={(e) => setSearchValue(e.target.value)}
           className="signalSearchItem"
-          style={{ width: "220px", outline: "none" }}
+          style={{
+            width: "220px",
+            outline: "none"
+          }}
         />
 
+        {loading && (
+          <div className="tag-status">
+            Loading tags...
+          </div>
+        )}
+
+        {error && (
+          <div className="tag-status error">
+            Error loading tags
+          </div>
+        )}
+
+        {!loading && filteredTags.length === 0 && (
+          <div className="tag-status">
+            No tags found
+          </div>
+        )}
+
         <ul>
-          {filteredTags.map((tag, index) => (
-            <li
-              key={index}
-              className={`signalTagItem ${
-                selTags.includes(tag) ? "selected" : ""
-              }`}
-              onClick={() => handleTagSelection(tag)}
-            >
-              <div style={{ display: "flex", alignItems: "center" }}>
-                <input
-                  type="checkbox"
-                  checked={selTags.includes(tag)}
-                  readOnly
-                  style={{
-                    marginRight: "6px",
-                    accentColor: "#2196f3"
-                  }}
-                />
-                <span style={{ paddingLeft: "8px" }}>{tag}</span>
-              </div>
-            </li>
-          ))}
+          {filteredTags.map((tag) => {
+            const isSelected = selectedTags.some(
+              t => t.value === tag.value
+            );
+
+            return (
+              <li
+                key={tag.value}
+                className={`signalTagItem ${isSelected ? "selected" : "" }`}
+                onClick={() => handleTagSelection(tag)} > 
+                  <input type="checkbox" checked={isSelected} readOnly />
+                  <span style={{ paddingLeft: "8px" }}>
+                    {tag.label}
+                  </span> 
+              </li>
+            );
+          })}
         </ul>
       </div>
     </div>

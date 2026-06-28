@@ -9,7 +9,7 @@ import '../../../css/SyslogDatabase.css';
 import { IoBarChartOutline } from "react-icons/io5";
 import { AiOutlinePieChart } from "react-icons/ai";
 
-function SnmpTrapSignalStatistics({ currentUser, setDashboardTitle, keycloak, showNotification, selectedTags = [] }) {
+function SnmpTrapSignalStatistics({ currentUser, setDashboardTitle, keycloak, showNotification, selectedTags = [], startTime, endTime }) {
     const [chartDataMap, setChartDataMap] = useState({});
     const [loadingMap, setLoadingMap] = useState({});
     const [chartTypeMap, setChartTypeMap] = useState({});
@@ -18,7 +18,8 @@ function SnmpTrapSignalStatistics({ currentUser, setDashboardTitle, keycloak, sh
         '#87CEEB', '#8A2BE2', '#FF69B4', '#20B2AA'
     ];
 
-    console.log("Statistics mounted");
+    console.log("Start Time in SnmpTrap Statistics:", startTime);
+    console.log("End Time in SnmpTrap Statistics:", endTime); 
 
     useEffect(() => {
         console.log("Selected tags in EventsStatistics:", selectedTags);

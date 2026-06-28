@@ -40,6 +40,8 @@ telemetry_playbook_map = {
     "rib_table": os.path.join(BASE_DIR, '..', 'ansible', 'rib-table.yml'),
     "fib_entry": os.path.join(BASE_DIR, '..', 'ansible', 'fib-entry.yml'),
     "telemetry": os.path.join(BASE_DIR, '..', 'ansible', 'xe-telemetry.yml'),
+    "bgp-link-state": os.path.join(BASE_DIR, '..', 'ansible', 'xe-bgp-link-state.yml'),
+    "aaa-radius": os.path.join(BASE_DIR, '..', 'ansible', 'xe-aaa-radius.yml'),
 }
 
 async def configureDevice(router_ip: str, playbook: str, extra_vars: dict):
@@ -151,7 +153,21 @@ async def configure_telemetry_feature(
         tf["memory_util"] = True
         tf["system_util"] = True
         tf["interface_stats"] = True
-
+    elif feature_name == "bgp-link-state":
+        vars.update({
+            "isis_instance": os.getenv("ISIS_INSTANCE_NAME"),
+            "bgp_asn": os.getenv("BGP_AS_NUMBER", "500"),
+            "bgp_neighbor_ip": os.getenv("BGP_NEIGHBOR_IP"),
+            "bgp_neighbor_asn": os.getenv("BGP_NEIGHBOR_AS", "500"),
+            "bgp_source_interface": os.getenv("BGP_SOURCE_INTERFACE", "Loopback0"),
+        })
+        device.features["bgp-link-state"] = True
+    elif feature_name == "aaa-radius":
+        vars.update({
+            "radius_server_ip": os.getenv("DOMAIN_CONTROLLER_ADDRESS"),
+            "radius_key": os.getenv("ISIS_INSTANCE_NAME"),
+        })
+        device.features["telemetry"] = True
     else:
         raise HTTPException(status_code=400, detail="Unsupported feature")
 

@@ -433,13 +433,12 @@ const Header = ({ currentUser, dashboardTitle, onTogglePopup, selectedDevice }) 
                 <TfiLayoutListThumbAlt className="hoverIcon" />
               </button>
             )}
-            {!isStatisticsView ? (
-              <button className="iconButton" onClick={() => onTogglePopup("traffic-table-tags")} title="Toggle Traffic Table Tags" >
-                <HiOutlineViewColumns className="defaultIcon" />
-                <HiViewColumns className="hoverIcon" />
-              </button>
-            ) : (
-              <button className="iconButton" onClick={() => onTogglePopup("traffic-statistics-tags")} title="Toggle Traffic Statistics Tags" >
+            {isStatisticsView && (
+              <button
+                className="iconButton"
+                onClick={() => onTogglePopup("traffic-statistics-tags")}
+                title="Toggle Traffic Statistics Tags"
+              >
                 <HiOutlineViewColumns className="defaultIcon" />
                 <HiViewColumns className="hoverIcon" />
               </button>
@@ -456,7 +455,7 @@ const Header = ({ currentUser, dashboardTitle, onTogglePopup, selectedDevice }) 
               <FaRegUserCircle className="defaultIcon" />
               <FaUserCircle className="hoverIcon" />
             </button>
-            
+
           </>
         );
       case 'Performance Dashboard':

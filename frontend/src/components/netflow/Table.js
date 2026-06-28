@@ -1,19 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import '../../css/SyslogDatabase.css';
-import EventsTable from '../../components/misc/EventsTable.js';
-import ChartView from '../../components/misc/ChartView.js';
+import EventsTable from '../../components/misc/EventsTable.js'; 
 import { useSyslogTags } from '../../hooks/useSyslogTags';
 import { useMnemonics } from '../../hooks/useMnemonics';
 import { useSyslogRegEx } from '../../hooks/useSyslogRegEx';
 import { useFaultData } from '../../hooks/useFaultData';
 import { NavLink, useLocation } from 'react-router-dom';
 
-function TrafficTable({ currentUser, setDashboardTitle, showNotification, keycloak }) {
+function TrafficTable({ currentUser, setDashboardTitle, showNotification, keycloak, startTime, endTime }) {
     const [view, setView] = useState('list');
     const { eventsData, totalEvents, totalPages, loading, error, loadData } = useFaultData(); 
-    const [page, setPage] = useState(1);
-    const [startTime, setStartTime] = useState(null);
-    const [endTime, setEndTime] = useState(null);
+    const [page, setPage] = useState(1); 
     const [filters, setFilters] = useState({ device: [], mnemonic: [] });
     const dropdownWrapperRef = useRef(null);
     const [selectedRows, setSelectedRows] = useState([]);
@@ -21,6 +18,9 @@ function TrafficTable({ currentUser, setDashboardTitle, showNotification, keyclo
     const { syslogTags, reload: reloadSyslogTags } = useSyslogTags(keycloak);
     const { mnemonics, reload: reloadMnemonics } = useMnemonics(keycloak);
     const { regexes, reload: reloadRegEx } = useSyslogRegEx(keycloak);
+
+    console.log("Start Time in Traffic Events Table:", startTime);
+    console.log("End Time in Traffic Events Table:", endTime);
 
     useEffect(() => {
         loadData(

@@ -43,20 +43,48 @@
 
 /* Master Grid Wrapper */
 .cpu-monitor-card {
-  display: grid;
-  grid-template-columns: 140px 1fr;
-  align-items: center;
-  gap: 20px;
-  background: var(--contentBackground);
+  background: var(--contentBackground); 
   border-top: var(--borderLight);
   border-bottom: var(--borderDark);
   border-radius: 14px;
-  padding: 16px;
-  max-width: 420px;
-  backdrop-filter: blur(20px);
+  max-width: 880px;
+  width: 100%;
   box-shadow: var(--contentShadow);
+  backdrop-filter: blur(20px);
   font-family: system-ui, -apple-system, sans-serif;
+  overflow: hidden;
   transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.cpu-monitor-content {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  align-items: center;
+  gap: 20px;  
+  padding: 16px;
+  max-width: 420px;  
+  font-family: system-ui, -apple-system, sans-serif; 
+}
+
+.cpu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-monitor);
+  background: var(--contentBackground);
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--textColor);
+}
+
+.info-icon {
+  font-size: 18px;
+  color: var(--textColor);
 }
 
 /* Left Column: Radial Chart Frame */

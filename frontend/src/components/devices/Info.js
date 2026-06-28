@@ -22,8 +22,8 @@ const Info = ({ selectedDevice, onDeviceDeselect }) => {
       {/* Dynamic Action Header Area */}
       <div className="info-header">
         <div className="header-title">
-          <PiInfoDuotone className="info-icon" />
-          <h2>Node Specifications</h2>
+          <PiInfoDuotone style={{ color: 'var(--textColor)', fontSize: '18px' }} />
+          <h2 style={{ color: 'var(--textColor)', fontSize: '14px' }}>Node Specifications</h2>
         </div>
         <button 
           onClick={onDeviceDeselect} 

@@ -1,0 +1,42 @@
+---
+- name: Configure BGP Link-State on Cisco IOS-XE
+  hosts: all
+  gather_facts: no
+  connection: network_cli
+
+  vars:
+    ansible_network_os: ios
+    ansible_user: "{{ username }}"
+    ansible_password: "{{ password }}"
+    ansible_host: "{{ router_ip }}"
+
+    bgp_asn: "{{ bgp_asn }}"
+    bgp_neighbor_ip: "{{ bgp_neighbor_ip }}"
+    bgp_neighbor_asn: "{{ bgp_neighbor_asn }}"
+    bgp_source_interface: "{{ bgp_source_interface }}"
+    isis_instance: "{{ isis_instance }}"
+
+  tasks:
+
+    - name: Enable ISIS Link-State Distribution
+      cisco.ios.ios_config:
+        parents:
+          - "router isis {{ isis_instance }}"
+        lines:
+          - distribute link-state
+
+    - name: Configure BGP Neighbor
+      cisco.ios.ios_config:
+        parents:
+          - "router bgp {{ bgp_asn }}"
+        lines:
+          - "neighbor {{ bgp_neighbor_ip }} remote-as {{ bgp_neighbor_asn }}"
+          - "neighbor {{ bgp_neighbor_ip }} update-source {{ bgp_source_interface }}"
+
+    - name: Activate BGP-LS Address Family
+      cisco.ios.ios_config:
+        parents:
+          - "router bgp {{ bgp_asn }}"
+          - "address-family link-state link-state"
+        lines:
+          - "neighbor {{ bgp_neighbor_ip }} activate"

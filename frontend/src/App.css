@@ -11,7 +11,7 @@
   --textColor: rgb(83, 83, 83);
   --iconTextColor: rgba(255, 255, 255, 0.7);
   --iconTextColorHover: rgb(255, 255, 255);
-  --textColor2: rgb(1, 32, 53);
+  --textColor2: rgb(141, 141, 141);
   --textColor3: rgba(0, 0, 0, .4);
   --iconHoverColor: rgb(25, 111, 161);
   --borderLight: 1px solid rgba(0, 112, 204, .1);
@@ -80,6 +80,7 @@
   --color-healthy: #0ed5b1;
   --color-warning: #f59e0b;
   --color-critical: #ef4444;
+  --color-scanned: #868686;
 
   --color-header: #042c47;
 
@@ -109,7 +110,7 @@
   --sidebarBck: rgba(11, 72, 97, 0.18);
   --wallpaperBackground: radial-gradient(circle, rgba(1, 78, 107, 1) 0%, rgba(20, 77, 98, 1) 15%, rgba(0, 43, 59, 1) 100%);
   --textColor: rgba(180, 180, 180, 0.8);
-  --textColor2: rgb(255, 255, 255);
+  --textColor2: rgb(156, 185, 197);
   --textColor3: rgba(255, 255, 255, .4);
   --iconTextColor: rgba(236, 236, 236, 0.6);
   --iconTextColorHover: rgb(255, 255, 255);
@@ -186,6 +187,7 @@
   --color-healthy: #0ed5b1;
   --color-warning: #f59e0b;
   --color-critical: #ef4444;
+  --color-scanned: #868686;
   
   --center-btn-bg: #1e293b;
   --center-btn-border: #334155;
@@ -273,7 +275,7 @@ header {
   display: flex;                 /* Required for flexbox to work */
   justify-content: center;      /* Center horizontally */
   align-items: flex-start;      /* Keep at top vertically, or use center for full centering */
-  padding: 20px;                /* Optional spacing */
+  margin: 20px;                /* Optional spacing */
   overflow-y: hidden;             /* Prevent overflow issues */
 }
 

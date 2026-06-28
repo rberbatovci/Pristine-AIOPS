@@ -67,11 +67,7 @@ void delivery_report(rd_kafka_t *rk,
     if (rkmessage->err)
     {
         fprintf(stderr, "❌ Delivery failed: %s\n", rd_kafka_err2str(rkmessage->err));
-    }
-    else
-    {
-        printf("✅ Delivered to %s [%d] offset %lld\n", rd_kafka_topic_name(rkmessage->rkt), rkmessage->partition, (long long)rkmessage->offset);
-    }
+    } 
 }
 
 /* =========================================================
@@ -393,7 +389,7 @@ int main()
         if (batch_count >= MAX_BATCH_SIZE ||
             difftime(now, last_flush_time) >= FLUSH_INTERVAL_SEC)
         {
-            printf("📦 Sending %d messages to Kafka...\n", batch_count);
+            /* printf("📦 Sending %d messages to Kafka...\n", batch_count); */
 
             for (int i = 0; i < batch_count; i++)
             {
@@ -410,14 +406,10 @@ int main()
                 if (err)
                 {
                     fprintf(stderr, "❌ Produce failed: %s\n", rd_kafka_err2str(err));
-                }
-                else
-                {
-                    printf("📤 Queued message\n");
-                }
+                } 
             }
   
-            printf("📊 Kafka out queue: %d\n", rd_kafka_outq_len(kafka_producer));
+            /* printf("📊 Kafka out queue: %d\n", rd_kafka_outq_len(kafka_producer)); */
 
             batch_count = 0;
 

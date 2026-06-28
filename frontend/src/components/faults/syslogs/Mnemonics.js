@@ -1,39 +1,35 @@
 import { useState, useEffect, useMemo } from 'react';
 import Select from 'react-select';
 import customStyles from '../../misc/SelectStyles';
-import { useMnemonicDetails } from '../../../hooks/useMnemonicDetails'; 
+import { useMnemonics } from '../../../hooks/useMnemonics';
+import { useMnemonicDetails } from '../../../hooks/useMnemonicDetails';
+import { useSyslogRegEx } from '../../../hooks/useSyslogRegEx';
 import '../../../css/SyslogTagsList.css';
 
-// Added 'keycloak' to props to support the hook
-function Mnemonics({ 
-  mnemonics = [], 
-  regularExpressions = [], 
-  showNotification, 
-  keycloak 
-}) {
+function Mnemonics({ showNotification, keycloak }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMnemonic, setSelectedMnemonic] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
 
-  // 1. Initialize the hook
-  const { 
-    details, 
-    loading, 
-    error, 
-    loadMnemonic, 
-    updateMnemonic, 
-    deleteMnemonic 
+  const { mnemonics, reload: reloadMnemonics } = useMnemonics(keycloak);
+  const { list: regularExpressions } = useSyslogRegEx(keycloak);
+
+  const {
+    details,
+    loading,
+    error,
+    loadMnemonic,
+    updateMnemonic,
+    deleteMnemonic
   } = useMnemonicDetails(keycloak);
 
-  // 2. Auto-select first mnemonic and trigger initial fetch
   useEffect(() => {
-    if (!selectedMnemonic && mnemonics.length > 0) {
+    if (!selectedMnemonic && mnemonics && mnemonics.length > 0) {
       const first = mnemonics[0];
       loadMnemonic(first.name);
     }
   }, [mnemonics, selectedMnemonic, loadMnemonic]);
 
-  // 3. Update local 'draft' state when hook finishes fetching/updating
   useEffect(() => {
     if (details) {
       setSelectedMnemonic(details);
@@ -41,20 +37,45 @@ function Mnemonics({
   }, [details]);
 
   const filteredMnemonics = useMemo(() => {
-    return mnemonics.filter(m =>
-      m.label?.toLowerCase().includes(searchTerm.toLowerCase())
+    return (mnemonics || []).filter(m =>
+      (m.label || m.name || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [mnemonics, searchTerm]);
 
+  const regexOptions = useMemo(() => {
+    if (!regularExpressions?.length) return [];
+    return regularExpressions.map(r => ({
+      value: r.id,
+      label: r.name
+    }));
+  }, [regularExpressions]);
+
+  const currentSelectedRegexOptions = useMemo(() => {
+    if (!selectedMnemonic?.regexes?.length) return [];
+
+    return selectedMnemonic.regexes
+      .map(name => regexOptions.find(opt => opt.label === name))
+      .filter(Boolean);
+  }, [selectedMnemonic, regexOptions]);
+
+  useEffect(() => {
+    console.log("regularExpressions:", regularExpressions);
+    console.log("regexOptions:", regexOptions);
+    console.log("selectedMnemonic:", selectedMnemonic);
+  }, [regularExpressions, regexOptions, selectedMnemonic]);
+
   const handleSelectMnemonic = (mnemonic) => {
-    // Trigger hook to fetch fresh data for this specific mnemonic
     loadMnemonic(mnemonic.name);
   };
 
-  const handleRegexChange = (opts) => {
+  const handleRegexChange = (selectedOptions) => {
+    const updatedRegexNames = selectedOptions
+      ? selectedOptions.map(o => o.label)
+      : [];
+
     setSelectedMnemonic(prev => ({
       ...prev,
-      regexes: opts?.map(o => o.value) || []
+      regexes: updatedRegexNames
     }));
   };
 
@@ -142,17 +163,20 @@ function Mnemonics({
                 <span>Severity:</span>
                 <input value={selectedMnemonic.severity || ''} readOnly />
               </div>
-
               <div>
                 <span>Regexes:</span>
                 <Select
                   isMulti
-                  options={regularExpressions.map(o => ({ value: o.name, label: o.name }))}
-                  value={regularExpressions
-                    .filter(o => selectedMnemonic.regexes?.includes(o.name))
-                    .map(o => ({ value: o.name, label: o.name }))}
+                  options={regexOptions}
+                  value={currentSelectedRegexOptions}
                   onChange={handleRegexChange}
                   styles={customStyles('380px')}
+                  placeholder={
+                    regularExpressions?.length
+                      ? "Select Regexes..."
+                      : "Loading expressions..."
+                  }
+                  isLoading={!regularExpressions?.length}
                 />
               </div>
             </>
@@ -166,16 +190,16 @@ function Mnemonics({
       {selectedMnemonic && (
         <div style={{ marginTop: '10px', textAlign: 'right' }}>
           {successMessage && <span style={{ color: 'green', marginRight: '10px' }}>{successMessage}</span>}
-          <button 
-            onClick={handleSave} 
-            className="button save-button" 
+          <button
+            onClick={handleSave}
+            className="button save-button"
             disabled={loading}
           >
             {loading ? 'Saving...' : 'Save'}
           </button>
-          <button 
-            onClick={handleDelete} 
-            className="button delete-button" 
+          <button
+            onClick={handleDelete}
+            className="button delete-button"
             disabled={loading}
           >
             Delete

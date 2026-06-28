@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { RadialBarChart, PolarAngleAxis, RadialBar, Cell, ResponsiveContainer } from 'recharts';  
+import { RadialBarChart, PolarAngleAxis, RadialBar, Cell, ResponsiveContainer } from 'recharts';
 import { PiArrowsClockwiseDuotone, PiCpuDuotone } from 'react-icons/pi';
 import kcFetch from '../misc/kcFetch';
 import '../../css/CpuUtilizationModern.css'; // Path to the new CSS file
@@ -36,13 +36,13 @@ function CpuUtilization({ keycloak, selectedDevice, showNotification }) {
       const response = await kcFetch(keycloak, `/devices/status/${device.hostname}/cpu-util/`);
       if (response && response.stats && Object.keys(response.stats).length > 0) {
         const stats = response.stats;
-        
+
         const newData = [
           { name: '5m Avg', value: Math.min(stats["five-minutes"] ?? 0, 100), key: 'five-minutes' },
           { name: '1m Avg', value: Math.min(stats["one-minute"] ?? 0, 100), key: 'one-minute' },
           { name: '5s Avg', value: Math.min(stats["five-seconds"] ?? 0, 100), key: 'five-seconds' },
         ];
-        
+
         setCpuChartData(newData);
         setCpuTimestamp(response.msg_timestamp ? new Date(response.msg_timestamp).toLocaleTimeString() : null);
       } else {
@@ -60,8 +60,14 @@ function CpuUtilization({ keycloak, selectedDevice, showNotification }) {
   }, [device]);
 
   return (
-    <div className="cpu-monitor-card" style={{width: 'calc(50% - 40px)'}}> 
-      {/* Visual Chart Area */}
+    <div className="cpu-monitor-card" style={{ width: 'calc(50% - 10px)' }}>
+      <div className="info-header">
+        <div className="header-title">
+          <PiCpuDuotone style={{ color: 'var(--textColor)', fontSize: '18px' }} />
+          <h2 style={{ color: 'var(--textColor)', fontSize: '14px' }}>CPU Utilization</h2>
+        </div> 
+      </div>
+      <div className="cpu-monitor-content">
       <div className="chart-container">
         <ResponsiveContainer width="100%" height="100%">
           <RadialBarChart
@@ -81,9 +87,9 @@ function CpuUtilization({ keycloak, selectedDevice, showNotification }) {
               cornerRadius={4}
             >
               {cpuChartData.map((entry) => (
-                <Cell 
-                  key={entry.name} 
-                  fill={getSeverityColor(entry.value)} 
+                <Cell
+                  key={entry.name}
+                  fill={getSeverityColor(entry.value)}
                 />
               ))}
             </RadialBar>
@@ -92,7 +98,7 @@ function CpuUtilization({ keycloak, selectedDevice, showNotification }) {
         </ResponsiveContainer>
 
         {/* Floating Center Control Button */}
-        <button 
+        <button
           className={`center-action-btn ${cpuLoading ? 'is-loading' : ''}`}
           onClick={getLastCpuStatus}
           disabled={cpuLoading}
@@ -108,13 +114,14 @@ function CpuUtilization({ keycloak, selectedDevice, showNotification }) {
 
       {/* Metrics & Metadata Sidebar */}
       <div className="metrics-sidebar">
+        {/*
         <div className="sidebar-header">
           <h4>Core Telemetry</h4>
           <span className="timestamp-badge">
             {cpuTimestamp ? `Synced: ${cpuTimestamp}` : 'No Sync Data'}
           </span>
         </div>
-
+          */}
         {error && <div className="metrics-error-banner">{error}</div>}
 
         <div className="telemetry-rows">
@@ -135,7 +142,7 @@ function CpuUtilization({ keycloak, selectedDevice, showNotification }) {
           })}
         </div>
       </div>
-
+          </div>
     </div>
   );
 }

@@ -21,7 +21,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 20px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border-monitor);
   background: var(--contentBackground);
 }
@@ -30,6 +30,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  color: var(--textColor);
 }
 
 .info-icon {
@@ -72,6 +73,7 @@
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 16px;
   padding: 16px 20px;
+  color: var(--textColor2);
 }
 
 .info-data-tile {
@@ -99,7 +101,7 @@
 .tile-value {
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-title);
+  color: var(--textColor);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

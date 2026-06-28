@@ -161,26 +161,25 @@ services:
   ############################################
   # FREERADIUS
   ############################################
-  #freeradius:
-  #  build:
-  #    context: .
-  #    dockerfile: ./dockerfiles/Dockerfile.freeradius
-  #  container_name: FreeRADIUS
-  #  ports:
-  #      - "1812:18120/udp"
-  #      - "1813:18130/udp"
-  #  depends_on:
-  #    - keycloak
-  #    - openldap
-  #  networks:
-  #    - aiops
-  #  volumes:
-  #    - /etc/ssl/certs/win-server01.pristine-aiops.local.pem:/etc/ssl/certs/win-server01.pristine-aiops.local.pem:ro
-  #  labels:
-  #    - "traefik.enable=false"
-  #  extra_hosts:
-  #    - "WinServer01.pristine-aiops.local:192.168.1.202"
-  #  restart: unless-stopped
+  freeradius:
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.freeradius
+    container_name: FreeRADIUS
+    ports:
+        - "1812:18120/udp"
+        - "1813:18130/udp"
+    depends_on:
+      - keycloak 
+    networks:
+      - aiops
+    volumes:
+      - /etc/ssl/certs/win-server01.pristine-aiops.local.pem:/etc/ssl/certs/win-server01.pristine-aiops.local.pem:ro
+    labels:
+      - "traefik.enable=false"
+    extra_hosts:
+      - "WinServer01.pristine-aiops.local:192.168.1.202"
+    restart: unless-stopped
 
   postgresql:
     container_name: PostgreSQL
