@@ -1,6 +1,4 @@
 import { useEffect, useState } from "react";
-import { useDevices } from "../../hooks/useDevices";
-
 import {
   PiTerminalDuotone,
   PiShareNetworkDuotone,
@@ -13,44 +11,44 @@ import {
 
 import "../../css/DevicesList.css";
 
-function List({ keycloak, onDeviceSelect }) {
-  const { devices: initialDevices, loading: hookLoading, error } =
-    useDevices(keycloak);
-
-  const [devices, setDevices] = useState([]);
+// ✅ Accept the unified dynamic props from Devices.js
+function List({ onboardedDevices = [], discoveredDevices = [], loading, keycloak, onDeviceSelect }) {  
   const [selectedDevice, setSelectedDevice] = useState(null);
+  const [localDevices, setLocalDevices] = useState([]);
 
-  // -----------------------------
-  // Sync initial devices
-  // -----------------------------
-useEffect(() => {
-  if (!initialDevices?.length) return;
+  // 🔄 Sync incoming prop arrays into a unified tracking state array
+  useEffect(() => {
+    // Flag onboarded items clearly vs dynamically discovered items
+    const managed = onboardedDevices.map(d => ({ ...d, origin: 'onboarded' }));
+    
+    const existingIPs = new Set(managed.map(d => d.ip_address));
+    
+    const discovered = discoveredDevices
+      .filter(d => !existingIPs.has(d.ip)) // Avoid duplicates if already onboarded
+      .map(d => ({
+        id: d.ip,
+        hostname: d.hostname || d.ip,
+        ip_address: d.ip,
+        status: "discovered",
+        rtt_ms: 0,
+        features: {}, // Discovered devices won't have profiling features active yet
+        origin: 'discovered',
+        nmap: { discovered: true }
+      }));
 
-  setDevices(
-    initialDevices.map((d) => ({
-      ...d,
-
-      // Always start as unknown
-      status: "unknown",
-      rtt_ms: 0,
-
-      nmap: {
-        discovered: false,
-        ...(d.nmap || {})
-      }
-    }))
-  );
-}, [initialDevices]);
+    setLocalDevices([...managed, ...discovered]);
+  }, [onboardedDevices, discoveredDevices]);
 
   // -----------------------------
   // ICMP handler
   // -----------------------------
   const handlePingUpdate = (msg) => {
-    setDevices((prev) =>
+    setLocalDevices((prev) =>
       prev.map((device) => {
         const match =
           (device.hostname ?? "").toLowerCase() ===
-          (msg.hostname ?? "").toLowerCase();
+          (msg.hostname ?? "").toLowerCase() || 
+          device.ip_address === msg.ip_address;
 
         if (!match) return device;
 
@@ -63,19 +61,21 @@ useEffect(() => {
     );
   };
 
+  // -----------------------------
+  // Nmap Sweeper dynamic updates
+  // -----------------------------
   const handleNmapUpdate = (payload) => {
     const hostList = payload?.hosts;
     if (!Array.isArray(hostList)) return;
 
     const discoveredSet = new Set(hostList);
 
-    setDevices((prev) => {
+    setLocalDevices((prev) => {
       const existingIPs = new Set(prev.map(d => d.ip_address));
 
-      // 1. Update existing devices
+      // 1. Update existing elements in view
       const updated = prev.map((device) => {
         const isDiscovered = discoveredSet.has(device.ip_address);
-
         return {
           ...device,
           nmap: {
@@ -88,19 +88,17 @@ useEffect(() => {
         };
       });
 
-      // 2. Add NEW discovered hosts
+      // 2. Append newly identified runtime sweeps
       const newDevices = hostList
         .filter(ip => !existingIPs.has(ip))
         .map(ip => ({
           id: ip,
           hostname: ip,
           ip_address: ip,
-
-          status: "unknown",
+          status: "discovered",
           rtt_ms: 0,
-
           features: {},
-
+          origin: 'discovered',
           nmap: {
             discovered: true,
             last_scan: payload.target,
@@ -113,7 +111,7 @@ useEffect(() => {
   };
 
   // -----------------------------
-  // WebSocket
+  // WebSocket setup
   // -----------------------------
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
@@ -124,8 +122,6 @@ useEffect(() => {
     ws.onmessage = (event) => {
       try {
         const rawMsg = JSON.parse(event.data);
-
-        // Normalize structure if backend wraps fields inside a 'payload' object
         const msg = rawMsg.payload && rawMsg.type === undefined
           ? { ...rawMsg.payload, type: rawMsg.type || rawMsg.payload.type }
           : rawMsg;
@@ -134,11 +130,9 @@ useEffect(() => {
           case "icmp_ping":
             handlePingUpdate(msg);
             break;
-
           case "nmap_scan":
             handleNmapUpdate(msg.payload);
             break;
-
           default:
             console.warn("Unknown websocket message:", msg);
         }
@@ -153,9 +147,6 @@ useEffect(() => {
     return () => ws.close();
   }, []);
 
-  // -----------------------------
-  // UI helpers
-  // -----------------------------
   const handleDeviceClick = (device) => {
     setSelectedDevice(device);
     onDeviceSelect?.(device);
@@ -163,145 +154,96 @@ useEffect(() => {
 
   const getDeviceHealth = (device) => {
     if (device.status === "down") return "critical";
+    if (device.status === "discovered") return "scanned"; // Soft blue badge indicator for scan targets
     if ((device.rtt_ms ?? 0) > 150) return "warning";
-    if (device.status === "scanned") return "scanned";
-    if (device.status === "unknown") return "scanned";
     return "healthy";
   };
 
   // -----------------------------
-  // Guards
+  // Render Guards
   // -----------------------------
   if (!keycloak?.authenticated) {
-    return (
-      <div className="signals-list-container">
-        <p>Authenticating session...</p>
-      </div>
-    );
+    return <div className="signals-list-container"><p>Authenticating session...</p></div>;
   }
 
-  if (hookLoading) {
-    return (
-      <div className="signals-list-container">
-        <p>Loading devices...</p>
-      </div>
-    );
+  if (loading && localDevices.length === 0) {
+    return <div className="signals-list-container"><p>Loading topology mappings...</p></div>;
   }
 
-  if (error) {
-    return (
-      <div className="signals-list-container">
-        <p>Error loading devices</p>
-      </div>
-    );
+  if (localDevices.length === 0) {
+    return <div className="signals-list-container"><p>No devices mapped. Run a network sweep scan to begin discovery.</p></div>;
   }
 
-  if (initialDevices.length === 0) {
-    return (
-      <div className="signals-list-container">
-        <p>No managed devices registered.</p>
-      </div>
-    );
-  }
-
-  if (devices.length === 0 && initialDevices.length > 0) {
-    return (
-      <div className="signals-list-container">
-        <p>Preparing list...</p>
-      </div>
-    );
-  }
-
-  // -----------------------------
-  // Render
-  // -----------------------------
   return (
     <div className="signals-list-container">
       <ul className="signals-list">
-        {devices.map((device) => {
+        {localDevices.map((device) => {
           const health = getDeviceHealth(device);
           const isSelected = selectedDevice?.id === device.id;
+          const isDiscoveredTarget = device.origin === 'discovered';
 
           return (
             <li
               key={device.id}
               onClick={() => handleDeviceClick(device)}
               className={`device-list-card ${isSelected ? "selected" : ""}`}
+              style={isDiscoveredTarget ? { borderLeft: '4px solid #007bff', background: '#f8faff' } : {}}
             >
-              {/* LEFT ICON */}
+              {/* LEFT AVATAR ICON */}
               <div className={`device-avatar badge-${health}`}>
                 <PiHardDriveDuotone />
                 <span className={`pulse-dot ring-${health}`} />
               </div>
 
-              {/* CENTER INFO */}
+              {/* CENTER COMPONENT INFO */}
               <div className="device-metadata-box">
                 <div className="hostname-row">
                   <span className="device-hostname">
                     {device.hostname}
                   </span>
+                  {/* Subtle badge to let operators know this device is a raw target, not onboarded yet */}
+                  {isDiscoveredTarget && (
+                    <span style={{ fontSize: '10px', background: '#007bff', color: '#fff', padding: '1px 6px', borderRadius: '8px', marginLeft: '8px', fontWeight: 'bold' }}>
+                      Discovered
+                    </span>
+                  )}
                 </div>
 
                 <div className="hardware-sub-row">
                   <span className="meta-item">
                     IP: {device.ip_address}
                   </span>
-
-                  <span className="meta-divider">•</span>
- 
+                  {device.rtt_ms > 0 && (
+                    <>
+                      <span className="meta-divider">•</span>
+                      <span className="meta-item">Latency: {device.rtt_ms}ms</span>
+                    </>
+                  )}
                 </div>
               </div>
 
-              {/* RIGHT FEATURES */}
+              {/* RIGHT SIDE CAPABILITIES MATRIX */}
               <div
                 className="device-features-matrix"
                 onClick={(e) => e.stopPropagation()}
+                style={isDiscoveredTarget ? { opacity: 0.3, pointerEvents: 'none' } : {}}
               >
-                <div
-                  className={`feature-status-indicator ${device.features?.syslogs ? "enabled" : "disabled"
-                    }`}
-                >
+                <div className={`feature-status-indicator ${device.features?.syslogs ? "enabled" : "disabled"}`}>
                   <PiTerminalDuotone />
                 </div>
-
-                <div
-                  className={`feature-status-indicator ${device.features?.netflow ? "enabled" : "disabled"
-                    }`}
-                >
+                <div className={`feature-status-indicator ${device.features?.netflow ? "enabled" : "disabled"}`}>
                   <PiShareNetworkDuotone />
                 </div>
-
-                <div
-                  className={`feature-status-indicator ${device.features?.telemetry?.enabled
-                    ? "enabled"
-                    : "disabled"
-                    }`}
-                >
+                <div className={`feature-status-indicator ${device.features?.telemetry?.enabled ? "enabled" : "disabled"}`}>
                   <PiPulseDuotone />
                 </div>
-
-                <div
-                  className={`feature-status-indicator ${device.features?.snmp_traps
-                    ? "enabled"
-                    : "disabled"
-                    }`}
-                >
+                <div className={`feature-status-indicator ${device.features?.snmp_traps ? "enabled" : "disabled"}`}>
                   <PiSlidersHorizontalDuotone />
                 </div>
-
-                <div
-                  className={`feature-status-indicator ${device.features?.topology ? "enabled" : "disabled"
-                    }`}
-                >
+                <div className={`feature-status-indicator ${device.features?.topology ? "enabled" : "disabled"}`}>
                   <PiTreeStructureDuotone />
                 </div>
-
-                <div
-                  className={`feature-status-indicator ${device.features?.authentication
-                    ? "enabled"
-                    : "disabled"
-                    }`}
-                >
+                <div className={`feature-status-indicator ${device.features?.authentication ? "enabled" : "disabled"}`}>
                   <PiShieldCheckeredDuotone />
                 </div>
               </div>

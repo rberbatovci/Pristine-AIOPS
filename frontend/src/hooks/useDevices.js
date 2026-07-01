@@ -49,3 +49,5 @@ export function useDevices(keycloak, autoLoad = true) {
     reload: fetchDevices
   };
 }
+
+export default useDevices;

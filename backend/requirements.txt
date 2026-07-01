@@ -49,3 +49,4 @@ grpcio
 grpcio-tools
 protobuf
 kafka-python
+python-nmap>=0.7.1

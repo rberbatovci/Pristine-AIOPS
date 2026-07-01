@@ -346,11 +346,18 @@ services:
     image: redis:latest
     ports:
       - "6380:6379"
-    command: ["redis-server", "--appendonly", "yes"]
+    # Added configuration flags to handle corrupt/truncated tails automatically
+    command: >
+      redis-server 
+      --appendonly yes 
+      --aof-load-truncated yes 
+      --aof-load-corrupt-tail-max-size 10485760
     volumes:
       - ./data:/data
     networks:
       - aiops 
+    # Gives Redis a comfortable 20-second window to flush data to disk before Docker kills it
+    stop_grace_period: 20s
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s

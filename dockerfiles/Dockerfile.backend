@@ -13,7 +13,8 @@ RUN apt-get update && \
         python3-dev \
         cargo \
         netcat-traditional \
-        libssh-4 && \
+        libssh-4 \
+        nmap && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install
