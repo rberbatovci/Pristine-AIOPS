@@ -165,7 +165,7 @@ jobs:
         uses: docker/build-push-action@v5 
         with:
           context: .
-          file: ./dockerfiles/Dockerfile.Dockerfile.icmp-pinger-producer
+          file: ./dockerfiles/Dockerfile.icmp-pinger-producer
           push: true
           tags: ghcr.io/rberbatovci/icmp-ping-producer:latest
 
@@ -173,7 +173,7 @@ jobs:
         uses: docker/build-push-action@v5 
         with:
           context: .
-          file: ./dockerfiles/Dockerfile.Dockerfile.websocket-bridge
+          file: ./dockerfiles/Dockerfile.websocket-bridge
           push: true
           tags: ghcr.io/rberbatovci/websocket-bridge:latest
 
@@ -181,7 +181,7 @@ jobs:
         uses: docker/build-push-action@v5 
         with:
           context: .
-          file: ./dockerfiles/Dockerfile.Dockerfile.nmap-scanner
+          file: ./dockerfiles/Dockerfile.nmap-scanner
           push: true
           tags: ghcr.io/rberbatovci/nmap-scanner:latest
 

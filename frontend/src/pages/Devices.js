@@ -10,7 +10,7 @@ import kcFetch from '../components/misc/kcFetch';
 import useDevices from '../hooks/useDevices'; 
 import useNetworkScan from '../hooks/useNetworkScan';
 
-function Devices({ currentUser, setDashboardTitle, showNotification, keycloak, selectedDevice, setSelectedDevice, devicesRefreshKey }) {
+function Devices({ currentUser, setDashboardTitle, showNotification, keycloak, selectedDevice, setSelectedDevice, devicesRefreshKey, searchEvent }) {
     const [showComponents, setShowComponents] = useState(false);
     const [activeDropdown, setActiveDropdown] = useState(null);
     const dropdownRef = useRef(null);
@@ -72,6 +72,7 @@ function Devices({ currentUser, setDashboardTitle, showNotification, keycloak, s
                         loading={hookLoading || sweepLoading}
                         keycloak={keycloak} 
                         onDeviceSelect={handleDeviceSelect} 
+                        searchEvent={searchEvent}
                     />
                     
                 </div>

@@ -171,6 +171,11 @@ const App = ({ keycloak, keycloakAuthenticated }) => {
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [devicesRefreshKey, setDevicesRefreshKey] = useState(0);
   const { preferences, loading: preferencesLoading, updateTheme, updateTimezone, reload: reloadPreferences } = useUserPreferences(keycloak);
+    const [searchEvent, setSearchEvent] = useState({
+    type: null,
+    value: ''
+  });
+
 
   useEffect(() => {
     if (keycloak.authenticated && keycloak.tokenParsed) {
@@ -188,6 +193,10 @@ const App = ({ keycloak, keycloakAuthenticated }) => {
       setIsAuthenticated(true);
     }
   }, [keycloak, preferences]);
+
+  const handleSearchChange = ({ type, value }) => {
+    setSearchEvent({ type, value });
+  };
 
   const handleTimeRangeChange = (start, end) => {
     setStartTime(start);
@@ -552,10 +561,6 @@ const App = ({ keycloak, keycloakAuthenticated }) => {
     console.log('Selected tags:', filters);
   };
 
-  const handleSearchChange = (searchTerm) => {
-    console.log("Search term:", searchTerm);
-  }
-
   useEffect(() => {
     console.log("Selected tags in App component:", selectedTags);
   }, [selectedTags]);
@@ -598,7 +603,7 @@ const App = ({ keycloak, keycloakAuthenticated }) => {
                   </ProtectedRoute>} />
                 <Route path="/devices" element={
                   <ProtectedRoute isAuthenticated={isAuthenticated} >
-                    <Devices currentUser={currentUser} selectedDevice={selectedDevice} setSelectedDevice={setSelectedDevice} setDashboardTitle={setDashboardTitle} showNotification={showNotification} keycloak={keycloak} devicesRefreshKey={devicesRefreshKey} />
+                    <Devices currentUser={currentUser} selectedDevice={selectedDevice} setSelectedDevice={setSelectedDevice} setDashboardTitle={setDashboardTitle} showNotification={showNotification} keycloak={keycloak} devicesRefreshKey={devicesRefreshKey} searchEvent={searchEvent} />
                   </ProtectedRoute>} />
                 <Route
                   path="/signals/syslogs/table"
