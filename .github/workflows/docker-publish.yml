@@ -157,7 +157,7 @@ jobs:
         uses: docker/build-push-action@v5 
         with:
           context: .
-          file: ./dockerfiles/Dockerfile.Dockerfile.icmp-redis-consumer 
+          file: ./dockerfiles/Dockerfile.icmp-redis-consumer 
           push: true
           tags: ghcr.io/rberbatovci/icmp-ping-consumer:latest
 
