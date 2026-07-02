@@ -552,6 +552,10 @@ const App = ({ keycloak, keycloakAuthenticated }) => {
     console.log('Selected tags:', filters);
   };
 
+  const handleSearchChange = (searchTerm) => {
+    console.log("Search term:", searchTerm);
+  }
+
   useEffect(() => {
     console.log("Selected tags in App component:", selectedTags);
   }, [selectedTags]);
@@ -573,7 +577,7 @@ const App = ({ keycloak, keycloakAuthenticated }) => {
             <Particles id="tsparticles" particlesLoaded={particlesLoaded} options={options} />
           )}
           <div className="header">
-            <Header currentUser={currentUser} dashboardTitle={dashboardTitle} onTogglePopup={togglePopup} selectedDevice={selectedDevice} />
+            <Header currentUser={currentUser} dashboardTitle={dashboardTitle} onTogglePopup={togglePopup} selectedDevice={selectedDevice} onSearchChange={handleSearchChange} />
           </div>
           {activePopup && (
             <div ref={popupRef} className="top-popup-container" >

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import '../../css/Header.css';
 
@@ -17,7 +17,7 @@ import {
 } from "react-icons/pi";
 import { MdBookmarkBorder, MdBookmark, MdOutlineRuleFolder, MdRuleFolder } from "react-icons/md";
 
-const Header = ({ currentUser, dashboardTitle, onTogglePopup, selectedDevice }) => {
+const Header = ({ currentUser, dashboardTitle, onTogglePopup, selectedDevice, onSearchChange }) => {
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -36,6 +36,10 @@ const Header = ({ currentUser, dashboardTitle, onTogglePopup, selectedDevice }) 
   const isSyslogSignals = location.pathname.includes('/signals/syslogs');
   const isSnmpTrapSignals = location.pathname.includes('/signals/snmp-traps');
   const isTelemetrySignals = location.pathname.includes('/signals/telemetry');
+  const [inputValue, setInputValue] = useState('');
+  const [searchMode, setSearchMode] = useState(null);
+  const [scanningNetwork, setScanningNetwork] = useState(false);
+  const [toolbarMode, setToolbarMode] = useState(null);
 
   const toggleView = () => {
     const path = location.pathname;
@@ -52,6 +56,41 @@ const Header = ({ currentUser, dashboardTitle, onTogglePopup, selectedDevice }) 
 
   const buildRoute = (basePath) => {
     return `${basePath}/${currentView}`;
+  };
+
+  const handleSearchToggle = (mode) => {
+    if (searchMode === mode) {
+      // Collapse if clicked again
+      setSearchMode(null);
+      setInputValue('');
+      if (onSearchChange) onSearchChange('', null);
+    } else {
+      setSearchMode(mode);
+      setInputValue('');
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const val = e.target.value;
+    setInputValue(val);
+
+    // Directly sends updates to the parent to filter the inventory in real-time
+    if (onSearchChange) {
+      onSearchChange(val, 'filter');
+    }
+  };
+
+  const handleScanTrigger = () => {
+    if (!inputValue.trim()) {
+      alert("Please enter a target CIDR or IP range to scan.");
+      return;
+    }
+
+    // If your parent component handles both via onSearchChange, pass a 'scan' mode.
+    // Otherwise, you can accept a dedicated `onScanInitiated` prop from the parent.
+    if (onSearchChange) {
+      onSearchChange(inputValue, 'scan');
+    }
   };
 
   /* =========================================================
@@ -259,6 +298,7 @@ const Header = ({ currentUser, dashboardTitle, onTogglePopup, selectedDevice }) 
       case 'Events Dashboard':
         return (
           <>
+
             {isSyslogEvents && (
               <>
                 {!isStatisticsView ? (
@@ -391,12 +431,46 @@ const Header = ({ currentUser, dashboardTitle, onTogglePopup, selectedDevice }) 
       case 'Devices Dashboard':
         return (
           <>
+            {/* The input box is now always visible for filtering */}
+            <div
+              style={{
+                width: '220px',
+                opacity: 1,
+                overflow: 'hidden',
+                transition: 'width 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+            >
+              <input
+                type="text"
+                value={inputValue}
+                onChange={handleInputChange}
+                placeholder="Filter inventory or enter CIDR..."
+                style={{
+                  width: '100%',
+                  padding: '6px 12px',
+                  fontSize: '13px',
+                  border: '1px solid #ccc',
+                  borderRadius: '20px',
+                  outline: 'none',
+                  background: '#f8f9fa'
+                }}
+              />
+            </div>
+
             {!selectedDevice ? (
               <>
-                <button className="iconButton" onClick={() => onTogglePopup("scan-network")} title="Scan Network">
+                {/* Clicking this now triggers the scan submission to the parent */}
+                <button
+                  className="iconButton"
+                  onClick={handleScanTrigger}
+                  title="Scan Network Target"
+                >
                   <RiSearchEyeLine className="defaultIcon" />
                   <RiSearchEyeFill className="hoverIcon" />
                 </button>
+
                 <button className="iconButton" onClick={() => onTogglePopup("add-device")} title="Add Device">
                   <RiAddCircleLine className="defaultIcon" />
                   <RiAddCircleFill className="hoverIcon" />
@@ -404,7 +478,8 @@ const Header = ({ currentUser, dashboardTitle, onTogglePopup, selectedDevice }) 
                 <button className="iconButton" onClick={() => onTogglePopup("user-profile")} title="User">
                   <FaRegUserCircle className="defaultIcon" />
                   <FaUserCircle className="hoverIcon" />
-                </button></>
+                </button>
+              </>
             ) : (
               <>
                 <button className="iconButton" onClick={() => onTogglePopup("device-settings")} title="Device Settings">
