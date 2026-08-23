@@ -689,6 +689,27 @@ services:
     networks:
       - aiops
 
+  topology-consumer:
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.topology-consumer
+    container_name: TopologyConsumer
+    environment:
+      KAFKA_BROKER: kafka:9092
+      KAFKA_TOPIC: topology-topic
+      KAFKA_GROUP: topology-consumer
+      OPENSEARCH_URL: http://opensearch-node1:9200
+      OPENSEARCH_INDEX: bgp-topology-events
+    depends_on:
+      kafka:
+        condition: service_healthy
+      opensearch-node1:
+        condition: service_started
+    labels:
+      - "traefik.enable=false"
+    networks:
+      - aiops
+      
 ########################################################################################
 ########################################################################################
 # TELEMETRY

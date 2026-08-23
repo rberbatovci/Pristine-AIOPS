@@ -6,7 +6,7 @@ from app.traps import events as trapEvents, signals as trapSignals, snmptrapoids
 from app.netflow import routes as netflow, statistics as netflowStatistics, traffic as trafficStatistics
 from app.devices import status
 from app.devices import config
-from app.geolocation import routes as geolocation
+from app.geolocation import routes as geolocation, updates as bgpLinkState
 from app.telemetry import routes as telemetry, rules as telemetryRules, signals as telemetrySignals, redis as telemetryRedis
 from app.db.session import engine
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -98,6 +98,7 @@ app.include_router(trapRules.router)
 app.include_router(mibs.router)
 app.include_router(trapSignals.router)
 app.include_router(geolocation.router)
+app.include_router(bgpLinkState.router)
 
 app.include_router(netflowStatistics.router)
 app.include_router(trafficStatistics.router)

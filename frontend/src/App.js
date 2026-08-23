@@ -57,10 +57,11 @@ import SnmpTrapSignalTableTags from "./components/signals/snmptraps/TableTags.js
 import SnmpTrapSignalStatisticTags from "./components/signals/snmptraps/StatisticTags.js";
 import TelemetrySignalTable from './components/signals/telemetry/Table.js';
 import TelemetrySignalStatistics from './components/signals/telemetry/Statistics.js';
+import BgpLinkStateEventTable from './components/topology/Table.js';
 
 const App = ({ keycloak, keycloakAuthenticated }) => {
   const [isDarkTheme, setIsDarkTheme] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState( keycloak.authenticated || false);
+  const [isAuthenticated, setIsAuthenticated] = useState(keycloak.authenticated || false);
   const [currentUser, setCurrentUser] = useState(null);
   const [activePopup, setActivePopup] = useState(null);
   const popupRef = useRef(null);
@@ -782,17 +783,28 @@ const App = ({ keycloak, keycloakAuthenticated }) => {
                 />
                 <Route path="/performance" element={
                   <ProtectedRoute isAuthenticated={isAuthenticated} >
-                    <Performance 
-                    currentUser={currentUser} 
-                    setDashboardTitle={setDashboardTitle} 
-                    keycloak={keycloak} 
-                    showNotification={showNotification} 
-                    selectedDevice={selectedDevice} 
-                    startTime={startTime}
-                    endTime={endTime}/>
+                    <Performance
+                      currentUser={currentUser}
+                      setDashboardTitle={setDashboardTitle}
+                      keycloak={keycloak}
+                      showNotification={showNotification}
+                      selectedDevice={selectedDevice}
+                      startTime={startTime}
+                      endTime={endTime} />
                   </ProtectedRoute>
                 } />
-                <Route path="/topology" element={
+                <Route path="/topology/table" element={
+                  <ProtectedRoute isAuthenticated={isAuthenticated} >
+                    <BgpLinkStateEventTable currentUser={currentUser}
+                      setDashboardTitle={setDashboardTitle}
+                      keycloak={keycloak}
+                      showNotification={showNotification}
+                      selectedDevice={selectedDevice}
+                      startTime={startTime}
+                      endTime={endTime} />
+                  </ProtectedRoute>
+                } />
+                <Route path="/topology/statistics" element={
                   <ProtectedRoute isAuthenticated={isAuthenticated} >
                     <Topology currentUser={currentUser} setDashboardTitle={setDashboardTitle} keycloak={keycloak} showNotification={showNotification} />
                   </ProtectedRoute>

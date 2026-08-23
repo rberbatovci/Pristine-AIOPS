@@ -542,6 +542,17 @@ const Header = ({ currentUser, dashboardTitle, showNotification, onTogglePopup, 
       case 'Topology Dashboard':
         return (
           <>
+            {!isStatisticsView ? (
+              <button className="iconButton" style={{ marginRight: '20px' }} onClick={toggleView} title="Switch View">
+                <TfiLayoutListThumb className="defaultIcon" />
+                <IoPieChartSharp className="hoverIcon" />
+              </button>
+            ) : (
+              <button className="iconButton" style={{ marginRight: '20px' }} onClick={toggleView} >
+                <IoPieChartOutline className="defaultIcon" />
+                <TfiLayoutListThumbAlt className="hoverIcon" />
+              </button>
+            )}
             <button className="iconButton" onClick={() => onTogglePopup("filter-device")} title="Filter Device">
               <RiFilterLine className="defaultIcon" />
               <RiFilterFill className="hoverIcon" />
