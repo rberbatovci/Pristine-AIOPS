@@ -13,6 +13,8 @@
 #define DATA_FLUSH_SIZE 1000
 #define DATA_FLUSH_INTERVAL 5
 
+#define KAFKA_SIGNALS_TOPIC "trap-signals"
+
 typedef struct {
     int interval_seconds;
 } ReloadArgs;

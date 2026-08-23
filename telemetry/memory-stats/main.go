@@ -37,6 +37,8 @@ type TelemetryMessage struct {
 
 // Redis update payload
 type RedisUpdate struct {
+	Device string
+	Memory string
 	Key   string
 	Value interface{}
 }
@@ -88,8 +90,10 @@ func main() {
 	}
 
 	go bulkIndexer(ctx, osClient, bulkChan)
-	go redisWriter(ctx, redisClient, redisChan)
+	//go redisWriter(ctx, redisClient, redisChan)
+	//go pubSubWriter(ctx, redisClient, redisChan)
 	go kafkaSignalWriter(ctx, kafkaWriter, signalChan)
+	go redisStoreAndPublish(ctx, redisClient, redisChan)
 
 	log.Println("🚀 Telemetry pipeline started...")
 
@@ -158,7 +162,13 @@ func processMessage(msg TelemetryMessage) (
 
 	// 🔴 5. Redis update
 	redis := &RedisUpdate{
-		Key:   fmt.Sprintf("device:%s:memory", device),
+		Device: device, 
+		Memory: memory,
+		Key:   fmt.Sprintf(
+    		"set:device:%s:memory:%s",
+    		device,
+    		memory,
+		),
 		Value: map[string]interface{}{
 			"timestamp": t.MsgTimestamp,
 			"stats":     statsMap,
@@ -183,36 +193,3 @@ func processMessage(msg TelemetryMessage) (
 	return doc, redis, signal, true
 }
 
-/*
-========================================================
-WORKER
-========================================================
-*/
-
-func worker(
-	ctx context.Context,
-	in <-chan TelemetryMessage,
-	bulkOut chan<- TelemetryMessage,
-	redisOut chan<- RedisUpdate,
-	signalOut chan<- KafkaSignal,
-) {
-	for msg := range in {
-
-		doc, redisUpdate, signal, ok := processMessage(msg)
-
-		// 🚨 skip EVERYTHING if invalid
-		if !ok {
-			continue
-		}
-
-		// only valid messages reach here
-		bulkOut <- doc
-
-		if redisUpdate != nil {
-			redisOut <- *redisUpdate
-		}
-		if signal != nil {
-			signalOut <- *signal
-		}
-	}
-}

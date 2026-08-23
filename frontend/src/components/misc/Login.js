@@ -4,7 +4,7 @@ import { loadSlim } from "@tsparticles/slim";
 import { lightThemeOptions, darkThemeOptions } from "../misc/ParticleOptions";
 import { FaSun, FaMoon, FaUserLock, FaUserAlt } from "react-icons/fa";
 
-function Login({ keycloak, toggleTheme, isDarkTheme, onGuestLogin }) {
+function Login({ keycloak, isDarkTheme, onGuestLogin }) {
   const handleKeycloakLogin = async () => {
     await keycloak.login();
     window.location.reload();
@@ -57,7 +57,7 @@ function Login({ keycloak, toggleTheme, isDarkTheme, onGuestLogin }) {
       >
         {/* Theme Toggle */}
         <button
-          onClick={toggleTheme}
+           
           style={{
             position: "absolute",
             top: "10px",

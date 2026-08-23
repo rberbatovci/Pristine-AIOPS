@@ -1,4 +1,5 @@
-from typing import List
+from typing import List, Optional
+from datetime import datetime
 from fastapi import APIRouter, status, HTTPException, Query, Depends
 from app.db.session import opensearch_client
 from app.auth.keycloak import get_current_user, require_admin
@@ -12,33 +13,125 @@ router = APIRouter(
 signalsRouter = APIRouter(
     prefix="/api/signals/traps/statistics",
     tags=["traps,signals,statistics"],
-)
+) 
 
-TOP_LEVEL_FIELDS = [ "snmpTrapOid", "device"]
+def build_field_lookup_table() -> dict[str, str]:
+    """
+    Inspects OpenSearch index mapping and creates a case-insensitive 
+    lookup table for ALL index properties (top-level + nested tags).
 
-# ======================
-# SQLAlchemy Model
-# ======================
-@router.get("/{tag_key}")
-def get_tag_statistics(tag_key: str, user: dict = Depends(get_current_user)):
+    Example mapping output:
+    {
+        "device": "device",
+        "snmpTrapOid": "snmpTrapOid", 
+        "interface": "content.Interface",
+        "state": "content.State",
+        "neighbor": "content.Neighbor"
+    }
+    """
+    lookup = {}
+
+    try:
+        mapping = opensearch_client.indices.get_mapping(index="traps")
+        properties = (
+            mapping
+            .get("traps", {})
+            .get("mappings", {})
+            .get("properties", {})
+        )
+
+        for field_name, field_meta in properties.items():
+            # Handle nested 'content' object properties dynamically
+            if field_name == "content":
+                tag_properties = field_meta.get("properties", {})
+                for tag_key in tag_properties.keys():
+                    lookup[tag_key.lower()] = f"content.{tag_key}"
+            else:
+                # Top-level field
+                lookup[field_name.lower()] = field_name
+
+    except Exception:
+        pass
+
+    return lookup
+
+
+@router.get("/{field}")
+def get_field_statistics(
+    field: str,
+    start_time: Optional[datetime] = Query(None, description="Filter start timestamp"),
+    end_time: Optional[datetime] = Query(None, description="Filter end timestamp"),
+    user: dict = Depends(get_current_user)
+):
+    """
+    Get top value counts for ANY requested field dynamically.
+    Resolves automatically to top-level or tags.* based on OpenSearch mapping.
+    """
+    lookup_table = build_field_lookup_table()
+    field_lower = field.lower()
+
+    # 1. Resolve exact OpenSearch path (case-insensitive)
+    if field_lower in lookup_table:
+        target_field = lookup_table[field_lower]
+    else:
+        # Fallback heuristic for new/unmapped dynamic tag fields
+        target_field = f"content.{field}"
+
+    # 2. Build optional time filter
+    filter_clauses = []
+    if start_time or end_time:
+        range_query = {}
+        if start_time:
+            range_query["gte"] = start_time.isoformat()
+        if end_time:
+            range_query["lte"] = end_time.isoformat()
+        filter_clauses.append({"range": {"timestamp": range_query}})
+
+    # 3. Construct OpenSearch Terms Aggregation
     query = {
         "size": 0,
+        "query": {
+            "bool": {
+                "filter": filter_clauses or [{"match_all": {}}]
+            }
+        },
         "aggs": {
-            "tag_value_counts": {
+            "value_counts": {
                 "terms": {
-                    "field": f"{tag_key}",
-                    "size": 1000
+                    "field": target_field,
+                    "size": 100
                 }
             }
         }
     }
 
-    response = opensearch_client.search(index="traps", body=query)
-    stats = [
+    try:
+        response = opensearch_client.search(index="traps", body=query)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"OpenSearch search failed: {str(e)}"
+        )
+
+    buckets = (
+        response
+        .get("aggregations", {})
+        .get("value_counts", {})
+        .get("buckets", [])
+    )
+
+    statistics = [
         {"value": bucket["key"], "count": bucket["doc_count"]}
-        for bucket in response["aggregations"]["tag_value_counts"]["buckets"]
+        for bucket in buckets
     ]
-    return {"tag_key": tag_key, "statistics": stats}
+
+    return {
+        "requested_field": field,
+        "resolved_target_field": target_field,
+        "start_time": start_time,
+        "end_time": end_time,
+        "statistics": statistics
+    }
 
 @signalsRouter.get("/devices")
 def get_device_statistics(user: dict = Depends(get_current_user)):

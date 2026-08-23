@@ -17,19 +17,13 @@ import {
 } from "react-icons/pi";
 import { MdBookmarkBorder, MdBookmark, MdOutlineRuleFolder, MdRuleFolder } from "react-icons/md";
 
-const Header = ({ currentUser, dashboardTitle, onTogglePopup, selectedDevice, onSearchChange }) => {
-
+const Header = ({ currentUser, dashboardTitle, showNotification, onTogglePopup, selectedDevice, onSearchChange }) => {
   const location = useLocation();
   const navigate = useNavigate();
-
-  /* =========================================================
-   * VIEW DETECTION
-   * ========================================================= */
   const currentView =
     location.pathname.split('/').pop() === 'statistics'
       ? 'statistics'
       : 'table';
-
   const isStatisticsView = currentView === 'statistics';
   const isSyslogEvents = location.pathname.includes('/events/syslogs');
   const isSnmpTrapEvents = location.pathname.includes('/events/snmp-traps');
@@ -37,13 +31,9 @@ const Header = ({ currentUser, dashboardTitle, onTogglePopup, selectedDevice, on
   const isSnmpTrapSignals = location.pathname.includes('/signals/snmp-traps');
   const isTelemetrySignals = location.pathname.includes('/signals/telemetry');
   const [inputValue, setInputValue] = useState('');
-  const [searchMode, setSearchMode] = useState(null);
-  const [scanningNetwork, setScanningNetwork] = useState(false);
-  const [toolbarMode, setToolbarMode] = useState(null);
 
   const toggleView = () => {
     const path = location.pathname;
-
     const newPath = path.replace(
       /(table|statistics)$/,
       currentView === 'table'
@@ -58,39 +48,30 @@ const Header = ({ currentUser, dashboardTitle, onTogglePopup, selectedDevice, on
     return `${basePath}/${currentView}`;
   };
 
-  const handleSearchToggle = (mode) => {
-    if (searchMode === mode) {
-      // Collapse if clicked again
-      setSearchMode(null);
-      setInputValue('');
-      if (onSearchChange) onSearchChange('', null);
-    } else {
-      setSearchMode(mode);
-      setInputValue('');
-    }
-  };
-
   const handleInputChange = (e) => {
     const val = e.target.value;
     setInputValue(val);
-
-    // Directly sends updates to the parent to filter the inventory in real-time
-    if (onSearchChange) {
-      onSearchChange(val, 'filter');
-    }
+    onSearchChange?.({
+      type: "filter",
+      value: val,
+    });
+    console.log("Filter value in Header:", val);
   };
 
-  const handleScanTrigger = () => {
-    if (!inputValue.trim()) {
-      alert("Please enter a target CIDR or IP range to scan.");
-      return;
-    }
+  const handleScanTrigger = (type, target) => {
+    if (!target?.trim()) return;
 
-    // If your parent component handles both via onSearchChange, pass a 'scan' mode.
-    // Otherwise, you can accept a dedicated `onScanInitiated` prop from the parent.
-    if (onSearchChange) {
-      onSearchChange(inputValue, 'scan');
-    }
+    showNotification?.(
+      type === "network"
+        ? "Scanning network..."
+        : "Scanning device...",
+      "loading"
+    );
+
+    onSearchChange?.({
+      type,
+      value: target,
+    });
   };
 
   /* =========================================================
@@ -431,40 +412,30 @@ const Header = ({ currentUser, dashboardTitle, onTogglePopup, selectedDevice, on
       case 'Devices Dashboard':
         return (
           <>
-            {/* The input box is now always visible for filtering */}
-            <div
-              style={{
-                width: '220px',
-                opacity: 1,
-                overflow: 'hidden',
-                transition: 'width 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease',
-                display: 'flex',
-                alignItems: 'center'
-              }}
-            >
-              <input
-                type="text"
-                value={inputValue}
-                onChange={handleInputChange}
-                placeholder="Filter inventory or enter CIDR..."
-                style={{
-                  width: '100%',
-                  padding: '6px 12px',
-                  fontSize: '13px',
-                  border: '1px solid #ccc',
-                  borderRadius: '20px',
-                  outline: 'none',
-                  background: '#f8f9fa'
-                }}
-              />
-            </div>
-
             {!selectedDevice ? (
               <>
-                {/* Clicking this now triggers the scan submission to the parent */}
+                {/* The input box is now always visible for filtering */}
+                <div
+                  style={{
+                    width: '220px',
+                    opacity: 1,
+                    overflow: 'hidden',
+                    transition: 'width 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                >
+                  <input
+                    type="text"
+                    value={inputValue}
+                    onChange={handleInputChange}
+                    placeholder="Filter inventory or enter CIDR..."
+                    className="scanSearch"
+                  />
+                </div>
                 <button
                   className="iconButton"
-                  onClick={handleScanTrigger}
+                  onClick={() => handleScanTrigger("network", inputValue)}
                   title="Scan Network Target"
                 >
                   <RiSearchEyeLine className="defaultIcon" />
@@ -482,6 +453,24 @@ const Header = ({ currentUser, dashboardTitle, onTogglePopup, selectedDevice, on
               </>
             ) : (
               <>
+                {selectedDevice.origin === "discovered" && (<><button
+                  className="iconButton"
+                  title="Scan deep device"
+                  onClick={() =>
+                    handleScanTrigger(
+                      "deepScan",
+                      selectedDevice.ip_address || selectedDevice.hostname
+                    )
+                  }
+                >
+                  <RiSearchEyeLine className="defaultIcon" />
+                  <RiSearchEyeFill className="hoverIcon" />
+                </button>
+
+                  <button className="iconButton" onClick={() => onTogglePopup("add-device")} title="Add Device">
+                    <RiAddCircleLine className="defaultIcon" />
+                    <RiAddCircleFill className="hoverIcon" />
+                  </button> </>)}
                 <button className="iconButton" onClick={() => onTogglePopup("device-settings")} title="Device Settings">
                   <IoSettingsOutline className="defaultIcon" />
                   <IoSettings className="hoverIcon" />

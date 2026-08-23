@@ -11,6 +11,8 @@ from app.traps.services import trap_oid_tags
 from typing import Optional, List
 from app.auth.keycloak import get_current_user, require_admin
 
+TOP_LEVEL_FIELDS = [ "snmpTrapOid", "device"]
+
 # Router instance
 router = APIRouter(
     prefix="/api/traps/tags",

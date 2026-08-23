@@ -7,11 +7,10 @@ import { useSyslogRegEx } from '../../hooks/useSyslogRegEx';
 import { useFaultData } from '../../hooks/useFaultData';
 import { NavLink, useLocation } from 'react-router-dom';
 
-function TrafficTable({ currentUser, setDashboardTitle, showNotification, keycloak, startTime, endTime }) {
+function TrafficTable({ currentUser, setDashboardTitle, showNotification, keycloak, startTime, endTime, selectedFilters = {} }) {
     const [view, setView] = useState('list');
     const { eventsData, totalEvents, totalPages, loading, error, loadData } = useFaultData(); 
-    const [page, setPage] = useState(1); 
-    const [filters, setFilters] = useState({ device: [], mnemonic: [] });
+    const [page, setPage] = useState(1);  
     const dropdownWrapperRef = useRef(null);
     const [selectedRows, setSelectedRows] = useState([]);
     const [selectedTags, setSelectedTags] = useState([]);
@@ -29,9 +28,9 @@ function TrafficTable({ currentUser, setDashboardTitle, showNotification, keyclo
             page,
             startTime?.toISOString(),
             endTime?.toISOString(),
-            { ...filters, tags: selectedTags }
+            { ...selectedFilters, tags: selectedTags }
         );
-    }, [keycloak, page, startTime, endTime, filters, selectedTags, loadData]);
+    }, [keycloak, page, startTime, endTime, selectedFilters, selectedTags, loadData]);
   
     const tags = [
         { label: 'Timestamp', value: 'timestamp' },
@@ -62,7 +61,7 @@ function TrafficTable({ currentUser, setDashboardTitle, showNotification, keyclo
     }, []);
 
     return (
-        <div className="mainContainer" ref={dropdownWrapperRef}>
+        <div className="mainContainer" ref={dropdownWrapperRef} style={{ marginTop: '10px', maxWidth: '85%', paddingTop: '5px'}}>
             <div className="mainContainerContent">
                 {loading && <div className="loadingMessage">Loading...</div>}
                 {error && <div className="errorMessage">{error}</div>}
@@ -70,12 +69,12 @@ function TrafficTable({ currentUser, setDashboardTitle, showNotification, keyclo
                     <>
                         <div className="syslogsTableContainer">
                             <EventsTable
+                                source="netflow"
+                                type="events"
                                 keycloak={keycloak}
-                                dataSource="syslogs"
                                 data={eventsData}
                                 totalPages={totalPages}
                                 tags={tags}
-                                signalSource="syslogs"
                                 onRowSelectChange={handleRowSelectChange}
                                 page={page}
                                 onPageChange={setPage}

@@ -24,7 +24,8 @@ const EventsTable = ({
   data = [],
   totalPages = 1,
   tags = [],
-  signalSource,
+  source,
+  type,
   onRowSelectChange,
   page,
   onPageChange
@@ -86,24 +87,32 @@ const EventsTable = ({
   const getValue = (row, column) => {
     if (!row) return "";
 
-    const source = row._source || row;
+    const s = row._source || row;
 
     // 1. If the column is 'timestamp' or '@timestamp', check both variants in the source
     if (column === "timestamp" || column === "@timestamp") {
-      const timeVal = source.timestamp ?? source["@timestamp"];
+      const timeVal = s.timestamp ?? s["@timestamp"];
       if (timeVal !== undefined && timeVal !== null) return timeVal;
     }
 
-    if (source[column] !== undefined && source[column] !== null) {
-      return source[column];
+    if (s[column] !== undefined && s[column] !== null) {
+      return s[column];
     }
 
-    if (signalSource === "syslogs" && source.tags && column in source.tags) {
-      return source.tags[column];
+    if (source === "syslogs" && type ==="events" && s.tags && column in s.tags) {
+      return s.tags[column];
     }
 
-    if (signalSource === "snmptraps" && source.content && column in source.content) {
-      return source.content[column];
+    if (source === "syslogs" && type ==="signals" && s.affectedEntities && column in s.affectedEntities) {
+      return s.affectedEntities[column];
+    }
+
+    if (source === "snmptraps" && type === "events" && s.content && column in s.content) {
+      return s.content[column];
+    }
+
+    if (source === "snmptraps" && type ==="signals" && s.affectedEntities && column in s.affectedEntities) {
+      return s.affectedEntities[column];
     }
 
     return "";

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import {
     PieChart, Pie, Cell, Tooltip as RechartsTooltip,
     BarChart, Bar, XAxis, YAxis, CartesianGrid
@@ -9,29 +9,37 @@ import '../../../css/SyslogDatabase.css';
 import { IoBarChartOutline } from "react-icons/io5";
 import { AiOutlinePieChart } from "react-icons/ai";
 
-function SyslogSignalStatistics({ currentUser, setDashboardTitle, keycloak, showNotification, selectedTags = [], startTime, endTime }) {
+function SyslogSignalStatistics({
+  currentUser,
+  setDashboardTitle,
+  keycloak,
+  showNotification,
+  selectedTags = [
+    { label: 'Device', value: 'device' },
+    { label: 'Severity', value: 'severity' },
+    { label: 'Mnemonic', value: 'mnemonic' },
+    { label: 'State', value: 'state' },
+    { label: 'Interface', value: 'interface' },
+    { label: 'Neighbor', value: 'neighbor' }
+  ],
+  startTime,
+  endTime
+}) {
     const [chartDataMap, setChartDataMap] = useState({});
     const [loadingMap, setLoadingMap] = useState({});
     const [chartTypeMap, setChartTypeMap] = useState({});
     const colorPalette = [
         '#FF6347', '#32CD32', '#FFD700',
         '#87CEEB', '#8A2BE2', '#FF69B4', '#20B2AA'
-    ];
-
-    console.log("Start Time in Syslog Statistics:", startTime);
-    console.log("End Time in Syslog Statistics:", endTime); 
-
-    useEffect(() => {
-        console.log("Selected tags in EventsStatistics:", selectedTags);
-    }, [selectedTags]);
-
+    ]; 
+    
     useEffect(() => {
         if (!selectedTags.length) return;
 
         const fetchStatistics = async (dataType) => {
             setLoadingMap(prev => ({ ...prev, [dataType]: true }));
 
-            const endpoint = `/events/syslogs/statistics/${dataType}`;
+            const endpoint = `/events/signals/statistics/${dataType}`;
 
             try {
                 const data = await kcFetch(keycloak, endpoint);
@@ -71,18 +79,18 @@ function SyslogSignalStatistics({ currentUser, setDashboardTitle, keycloak, show
             }
         };
 
-        // Fetch new tags only
+        // Fetch new tags only - Use tag.value
         selectedTags.forEach(tag => {
-            if (!chartDataMap[tag] && !loadingMap[tag]) {
-                fetchStatistics(tag);
+            if (!chartDataMap[tag.value] && !loadingMap[tag.value]) {
+                fetchStatistics(tag.value);
             }
         });
 
-        // Cleanup removed tags
+        // Cleanup removed tags - Use .some() to match tag.value
         setChartDataMap(prev => {
             const updated = { ...prev };
             Object.keys(updated).forEach(key => {
-                if (!selectedTags.includes(key)) {
+                if (!selectedTags.some(tag => tag.value === key)) {
                     delete updated[key];
                 }
             });
@@ -92,7 +100,7 @@ function SyslogSignalStatistics({ currentUser, setDashboardTitle, keycloak, show
         setLoadingMap(prev => {
             const updated = { ...prev };
             Object.keys(updated).forEach(key => {
-                if (!selectedTags.includes(key)) {
+                if (!selectedTags.some(tag => tag.value === key)) {
                     delete updated[key];
                 }
             });
@@ -134,7 +142,9 @@ function SyslogSignalStatistics({ currentUser, setDashboardTitle, keycloak, show
                 flexWrap: 'wrap',
                 justifyContent: 'space-around'
             }}>
-                {selectedTags.map(dataType => {
+                {selectedTags.map(tag => {
+                    const dataType = tag.value;
+                    const displayLabel = tag.label;
                     const chartType = chartTypeMap[dataType] || 'BarChart';
                     const chartData = chartDataMap[dataType] || [];
                     const isLoading = loadingMap[dataType];
@@ -157,7 +167,7 @@ function SyslogSignalStatistics({ currentUser, setDashboardTitle, keycloak, show
                                         fontWeight: 'bold',
                                         color: 'var(--textColor)'
                                     }}>
-                                        {dataType.charAt(0).toUpperCase() + dataType.slice(1)}
+                                        {displayLabel}
                                     </h2>
                                     <span style={{
                                         fontSize: '14px',
@@ -205,7 +215,7 @@ function SyslogSignalStatistics({ currentUser, setDashboardTitle, keycloak, show
                             {/* No Data */}
                             {!isLoading && chartData.length === 0 && (
                                 <Typography>
-                                    No data available for {dataType}
+                                    No data available for {displayLabel}
                                 </Typography>
                             )}
 
@@ -239,6 +249,7 @@ function SyslogSignalStatistics({ currentUser, setDashboardTitle, keycloak, show
                                     height={270}
                                     data={chartData}
                                     margin={{ top: 20 }}
+                                Mention to keep it simple
                                 >
                                     <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="name" />

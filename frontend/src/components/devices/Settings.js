@@ -1,21 +1,15 @@
 import { useState } from "react";
-import "../../css/DeviceSettingsModern.css"; // Path to your new stylesheet
-
+import "../../css/DeviceSettingsModern.css";  
 import {
     PiTerminalDuotone,
-    PiPulseDuotone,          // Replaces PiActivityDuotone (Great for Netflow)
+    PiPulseDuotone, 
     PiShieldCheckeredDuotone,
     PiTreeStructureDuotone,
     PiShareNetworkDuotone,
     PiSlidersHorizontalDuotone,
     PiSpinnerGapDuotone
-} from "react-icons/pi";
-
-import {
-    RiDeleteBin6Line,
-    RiCloseLine
-} from "react-icons/ri";
-
+} from "react-icons/pi"; 
+import { RiDeleteBin6Line, RiCloseLine } from "react-icons/ri"; 
 import kcFetch from "../misc/kcFetch";
 
 const DeviceSettings = ({
@@ -26,7 +20,6 @@ const DeviceSettings = ({
     showNotification,
     keycloak
 }) => {
-    // Track which feature is currently loading to show micro-animations on the button itself
     const [loadingFeature, setLoadingFeature] = useState(null);
 
     const deselectDevice = () => {
@@ -61,8 +54,7 @@ const DeviceSettings = ({
         if (!selectedDevice?.hostname) {
             showNotification("No device selected", "error");
             return;
-        }
-
+        } 
         const messages = {
             syslogs: { loading: `Configuring syslogs on ${selectedDevice.hostname}...` },
             snmp_traps: { loading: `Configuring SNMP Traps on ${selectedDevice.hostname}...` },
@@ -70,12 +62,10 @@ const DeviceSettings = ({
             telemetry: { loading: `Configuring Telemetry on ${selectedDevice.hostname}...` },
             "bgp-link-state": { loading: `Configuring BGP Link State on ${selectedDevice.hostname}...` },
             "aaa-radius": { loading: `Configuring AAA RADIUS on ${selectedDevice.hostname}...` }
-        };
-
+        }; 
         const msg = messages[featureName];
         showNotification(msg.loading, "loading");
-        setLoadingFeature(featureName);
-
+        setLoadingFeature(featureName); 
         try {
             await kcFetch(
                 keycloak,
@@ -83,6 +73,7 @@ const DeviceSettings = ({
                 { method: "POST" }
             );
             showNotification("Configuration applied successfully", "success");
+            onConfig?.();
         } catch (err) {
             if (err.status === 403) {
                 showNotification("You are not authorized to configure devices", "error");
@@ -93,8 +84,7 @@ const DeviceSettings = ({
             setLoadingFeature(null);
         }
     };
-
-    // Configuration features map for cleaner JSX layout
+ 
     const features = [
         { id: "syslogs", label: "Syslogs", icon: <PiTerminalDuotone />, active: selectedDevice?.features?.syslogs },
         { id: "snmp_traps", label: "SNMP Traps", icon: <PiShareNetworkDuotone />, active: selectedDevice?.features?.snmp_traps },
@@ -105,22 +95,18 @@ const DeviceSettings = ({
     ];
 
     return (
-        <div className="settings-panel">
-            {/* Header section giving context to the panel */}
+        <div className="settings-panel" style={{ width: '100%', maxWidth: '580px' }}> 
             <div className="settings-header">
                 <h3>Device Control Center</h3>
                 <p>{selectedDevice?.hostname || "Unknown Device"}</p>
-            </div>
-
-            {/* Feature Action Grid */}
+            </div>  
             <div className="features-grid">
                 {features.map((feature) => (
                     <button
                         key={feature.id}
                         className={`feature-card ${feature.active ? "active" : ""} ${loadingFeature === feature.id ? "loading" : ""}`}
                         onClick={pushConfiguration(feature.id)}
-                        disabled={loadingFeature !== null}
-                    >
+                        disabled={loadingFeature !== null} >
                         <div className="feature-icon-wrapper">
                             {loadingFeature === feature.id ? (
                                 <PiSpinnerGapDuotone className="spin-animation" />
@@ -136,9 +122,7 @@ const DeviceSettings = ({
                         </div>
                     </button>
                 ))}
-            </div>
-
-            {/* Destructive / Global Action Footer */}
+            </div> 
             <div className="settings-footer">
                 <button className="footer-btn delete-btn" onClick={deleteDevice}>
                     <RiDeleteBin6Line />

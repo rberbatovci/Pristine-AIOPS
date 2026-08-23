@@ -41,6 +41,7 @@ type TelemetryMessage struct {
 
 // Redis update payload
 type RedisUpdate struct {
+	Device string
 	Key   string
 	Value interface{}
 }
@@ -97,9 +98,9 @@ func main() {
 		go worker(ctx, ingestChan, bulkChan, redisChan, signalChan)
 	}
 
-	go bulkIndexer(ctx, osClient, bulkChan)
-	go redisWriter(ctx, redisClient, redisChan)
+	go bulkIndexer(ctx, osClient, bulkChan) 
 	go kafkaSignalWriter(ctx, kafkaWriter, signalChan)
+	go redisStoreAndPublish(ctx, redisClient, redisChan)
 
 	log.Println("🚀 Telemetry pipeline started...")
 
@@ -125,16 +126,13 @@ func processMessage(msg TelemetryMessage) (
 	}
  
 	//debugFields(t.DataGpbkv, "")
-
-	// 🔴 2. Extract CPU stats (reuse your old logic)
+ 
 	statsMap := extractCPUUtilization(t.DataGpbkv) 
 
-	if statsMap == nil {
-		//log.Println("📊 statsMap is NIL (no CPU data found)")
+	if statsMap == nil { 
 		return TelemetryMessage{}, nil, nil
 	} 
-
-	// 🔴 3. Extract device
+ 
 	device := extractDeviceID(t)
 	if device == "" {
 		log.Printf("⚠️ Missing device ID")
@@ -142,25 +140,24 @@ func processMessage(msg TelemetryMessage) (
 	}
 
 	log.Printf("📥 Device: %s | Stats: %+v", device, statsMap)
-
-	// 🔴 4. Build normalized message
+ 
 	doc := TelemetryMessage{
 		Device:    device,
 		Timestamp: int64(t.MsgTimestamp),
 		Stats:     statsMap,
 		Value:       msg.Value,
 	}
-
-	// 🔴 5. Redis update
+ 
 	redis := &RedisUpdate{
-		Key:   fmt.Sprintf("device:%s:cpu", device),
-		Value: map[string]interface{}{
-			"timestamp": t.MsgTimestamp,
-			"stats":     statsMap,
-		},
+    	Device: device, 
+    	Key:    fmt.Sprintf("device.cpu-util.%s", device),
+    	Value: map[string]interface{}{
+        	"device":    device,
+        	"timestamp": t.MsgTimestamp,
+        	"stats":     statsMap,
+    	},
 	}
-
-	// 🔴 6. Alert logic
+ 
 	var signal *KafkaSignal
 	if isHighCPU(statsMap) {
 		payload, _ := json.Marshal(map[string]interface{}{

@@ -23,22 +23,27 @@ const char *OPENSEARCH_NODES[] = {
 };
 const int NUM_NODES = 3;
 
-void create_traps_index() {
+void create_traps_index()
+{
     CURL *curl;
     CURLcode res;
     const char *index_path = "/traps";
 
     const char *mapping_json =
         "{"
-        "  \"settings\": {\"number_of_shards\": 1, \"number_of_replicas\": 1},"
+        "  \"settings\": {"
+        "    \"number_of_shards\": 1,"
+        "    \"number_of_replicas\": 1"
+        "  },"
         "  \"mappings\": {"
+        "    \"dynamic\": \"strict\","
         "    \"properties\": {"
-        "      \"timestamp\":   {\"type\": \"date\"},"
-        "      \"eventId\":     {\"type\": \"keyword\"},"
+        "      \"timestamp\": {\"type\": \"date\"},"
+        "      \"eventId\": {\"type\": \"keyword\"},"
         "      \"snmpTrapOid\": {\"type\": \"keyword\"},"
-        "      \"sysUpTime\":   {\"type\": \"keyword\"},"
-        "      \"device\":      {\"type\": \"keyword\"},"
-        "      \"content\":     {\"type\": \"object\", \"dynamic\": true}"
+        "      \"sysUpTime\": {\"type\": \"keyword\"},"
+        "      \"device\": {\"type\": \"keyword\"},"
+        "      \"content\": {\"type\": \"flat_object\"}"
         "    }"
         "  }"
         "}";
@@ -46,23 +51,38 @@ void create_traps_index() {
     curl_global_init(CURL_GLOBAL_DEFAULT);
 
     int success = 0;
-    for (int node_idx = 0; node_idx < NUM_NODES; node_idx++) {
+
+    for (int node_idx = 0; node_idx < NUM_NODES; node_idx++)
+    {
         char index_url[512];
-        snprintf(index_url, sizeof(index_url), "%s%s", OPENSEARCH_NODES[node_idx], index_path);
+
+        snprintf(
+            index_url,
+            sizeof(index_url),
+            "%s%s",
+            OPENSEARCH_NODES[node_idx],
+            index_path
+        );
 
         int attempt = 0;
         const int max_retries = 10;
-        const int retry_delay = 5; // seconds
+        const int retry_delay = 5;
 
-        while (attempt < max_retries) {
+        while (attempt < max_retries)
+        {
             curl = curl_easy_init();
-            if (!curl) {
+
+            if (!curl)
+            {
                 fprintf(stderr, "[ERROR] CURL init failed\n");
                 break;
             }
 
             struct curl_slist *headers = NULL;
-            headers = curl_slist_append(headers, "Content-Type: application/json");
+            headers = curl_slist_append(
+                headers,
+                "Content-Type: application/json"
+            );
 
             curl_easy_setopt(curl, CURLOPT_URL, index_url);
             curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
@@ -71,39 +91,93 @@ void create_traps_index() {
 
             res = curl_easy_perform(curl);
 
-            if (res == CURLE_OK) {
+            if (res == CURLE_OK)
+            {
                 long response_code = 0;
-                curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
 
-                if (response_code == 200 || response_code == 400) {
-                    // 400 happens if index already exists
-                    fprintf(stdout, "[INFO] OpenSearch index 'traps' created or already exists at %s.\n", index_url);
+                curl_easy_getinfo(
+                    curl,
+                    CURLINFO_RESPONSE_CODE,
+                    &response_code
+                );
+
+                if (response_code == 200)
+                {
+                    fprintf(
+                        stdout,
+                        "[INFO] OpenSearch index 'traps' created at %s.\n",
+                        index_url
+                    );
+
                     success = 1;
+
                     curl_easy_cleanup(curl);
                     curl_slist_free_all(headers);
+
                     break;
-                } else {
-                    fprintf(stderr, "[WARN] Attempt %d to %s failed: HTTP %ld\n",
-                            attempt + 1, index_url, response_code);
                 }
-            } else {
-                fprintf(stderr, "[WARN] Attempt %d to %s failed: %s\n",
-                        attempt + 1, index_url, curl_easy_strerror(res));
+
+                /*
+                 * 400 can mean the index already exists, but don't blindly
+                 * treat every 400 as success.
+                 *
+                 * For now, print the response and handle it explicitly.
+                 */
+                if (response_code == 400)
+                {
+                    fprintf(
+                        stdout,
+                        "[INFO] OpenSearch index 'traps' may already exist at %s.\n",
+                        index_url
+                    );
+
+                    success = 1;
+
+                    curl_easy_cleanup(curl);
+                    curl_slist_free_all(headers);
+
+                    break;
+                }
+
+                fprintf(
+                    stderr,
+                    "[WARN] Attempt %d to %s failed: HTTP %ld\n",
+                    attempt + 1,
+                    index_url,
+                    response_code
+                );
+            }
+            else
+            {
+                fprintf(
+                    stderr,
+                    "[WARN] Attempt %d to %s failed: %s\n",
+                    attempt + 1,
+                    index_url,
+                    curl_easy_strerror(res)
+                );
             }
 
             curl_easy_cleanup(curl);
             curl_slist_free_all(headers);
+
             sleep(retry_delay);
             attempt++;
         }
 
-        if (success) break; // stop after first successful node
+        if (success)
+            break;
     }
 
     curl_global_cleanup();
 
-    if (!success) {
-        fprintf(stderr, "[ERROR] Could not create 'traps' index after trying all nodes.\n");
+    if (!success)
+    {
+        fprintf(
+            stderr,
+            "[ERROR] Could not create 'traps' index after trying all nodes.\n"
+        );
+
         exit(1);
     }
 }

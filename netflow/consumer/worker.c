@@ -2,8 +2,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#define _XOPEN_SOURCE
+#include <time.h>
 
 #define BULK_SIZE 1000
+
 
 void *worker_thread(void *arg) {
     (void)arg;
@@ -27,16 +30,30 @@ void *worker_thread(void *arg) {
         const char *protocol = json_string_value(json_object_get(root, "protocol"));
         int src_port = json_integer_value(json_object_get(root, "source_port"));
         int dst_port = json_integer_value(json_object_get(root, "dest_port"));
-        const time_t timestamp = json_integer_value(json_object_get(root, "@timestamp"));
+        
+        // Extract ISO-8601 timestamp string from JSON
+        const char *ts_str = json_string_value(json_object_get(root, "@timestamp"));
+        time_t timestamp = 0;
+        char formatted_time[64] = "N/A";
+
+        if (ts_str) {
+            struct tm tm_info = {0};
+            // Parse ISO-8601 formatted string (e.g., 2026-08-15T15:41:14Z)
+            if (strptime(ts_str, "%Y-%m-%dT%H:%M:%SZ", &tm_info) != NULL) {
+                timestamp = timegm(&tm_info); 
+                strftime(formatted_time, sizeof(formatted_time), "%Y-%m-%d %H:%M:%S UTC", &tm_info);
+            } else { 
+                snprintf(formatted_time, sizeof(formatted_time), "%s", ts_str);
+            }
+        }
 
         int bytes = json_integer_value(json_object_get(root, "bytes"));
         int packets = json_integer_value(json_object_get(root, "packets"));
 
-        printf("📥 Flow: device=%s | %s:%d → %s:%d | protocol=%s | timestamp=%ld | bytes=%d | packets=%d\n",
-               device, src_ip, src_port, dst_ip, dst_port, protocol, timestamp, bytes, packets);
+        printf("📥 Flow: device=%s | %s:%d → %s:%d | protocol=%s | timestamp=%s (epoch: %ld) | bytes=%d | packets=%d\n",
+               device, src_ip, src_port, dst_ip, dst_port, protocol, formatted_time, (long)timestamp, bytes, packets);
 
         json_decref(root);
-
         queue_push(&bulk_queue, msg);
     }
 
@@ -52,8 +69,7 @@ void *bulk_sender_thread(void *arg) {
     while (1) {
         char *msg = queue_pop(&bulk_queue);
 
-        if (!msg) {
-            // queue closed → flush remaining
+        if (!msg) { 
             if (count > 0) {
                 send_bulk_to_opensearch(batch, count);
                 for (int i = 0; i < count; i++) free(batch[i]);

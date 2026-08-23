@@ -7,57 +7,43 @@ const SnmpTrapEventTableTags = ({
   selectedTags = [
     { label: 'Timestamp', value: 'timestamp' },
     { label: 'Device', value: 'device' },
-    { label: 'System Uptime', value: 'sysUptime' },
-    { label: 'SNMP Trap OID', value: 'snmpTrapOid' }
+    { label: 'System Uptime', value: 'sysUpTime' },
+    { label: 'SNMP Trap OID', value: 'snmpTrapOid' },
+    { label: 'Content', value: 'content' }
   ],
   onTagChange
 }) => {
   const [searchValue, setSearchValue] = useState("");
 
-  const { list: fetchedTagObjects = [], loading, error } = useSnmpTrapTags(keycloak);
+  const { list: tags = [], loading, error } = useSnmpTrapTags(keycloak);
 
-  const allTags = useMemo(() => {
-    const predefinedTags = [
-    { label: 'Timestamp', value: 'timestamp' },
-    { label: 'Device', value: 'device' },
-    { label: 'System Uptime', value: 'sysUptime' },
-    { label: 'SNMP Trap OID', value: 'snmpTrapOid' }
-  ];
-
-    const apiTags = fetchedTagObjects
-      .filter(tag => tag && tag.label && tag.value);
-
-    const combined = [...predefinedTags, ...apiTags];
-
-    const uniqueTags = [];
-    const seen = new Set();
-
-    for (const tag of combined) {
-      if (!seen.has(tag.value)) {
-        seen.add(tag.value);
-        uniqueTags.push(tag);
-      }
-    }
-
-    return uniqueTags;
-  }, [fetchedTagObjects]);
 
   const filteredTags = useMemo(() => {
-    const search = searchValue.toLowerCase();
+    const search = searchValue.toLowerCase().trim();
 
-    return allTags.filter(tag =>
+    if (!search) {
+      return tags;
+    }
+
+    return tags.filter((tag) =>
       tag.label.toLowerCase().includes(search)
     );
-  }, [allTags, searchValue]);
+  }, [tags, searchValue]);
 
   const handleTagSelection = (tag) => {
     if (!onTagChange) return;
 
-    const updatedTags = selectedTags.includes(tag)
-      ? selectedTags.filter(t => t !== tag)
+    const exists = selectedTags.some(
+      (t) => t.value === tag.value
+    );
+
+    const updated = exists
+      ? selectedTags.filter(
+        (t) => t.value !== tag.value
+      )
       : [...selectedTags, tag];
 
-    onTagChange(updatedTags);
+    onTagChange(updated);
   };
 
   return (

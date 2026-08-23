@@ -56,7 +56,7 @@ func saveToRedis(result PingResult) error {
 
 	// 2. Build event envelope (IMPORTANT)
 	event := map[string]interface{}{
-		"type":      "icmp_ping",
+		"type":      "icmp-ping",
 		"hostname":  result.Hostname,
 		"ip":        result.IP,
 		"status":    result.Status,
@@ -69,8 +69,14 @@ func saveToRedis(result PingResult) error {
 		return err
 	}
 
+	err = rdb.HSet(ctx, "icmp-ping", result.Hostname, eventData).Err()
+	if err != nil {
+		log.Printf("⚠️ Redis publish failed for %s: %v", result.Hostname, err)
+		return err
+	}
+
 	// 3. Publish to Redis Pub/Sub
-	err = rdb.Publish(ctx, "device_updates", eventData).Err()
+	err = rdb.Publish(ctx, "icmp-ping", eventData).Err()
 	if err != nil {
 		log.Printf("⚠️ Redis publish failed for %s: %v", result.Hostname, err)
 	}
@@ -97,90 +103,42 @@ func main() {
 	defer consumer.Close()
 
 	err = consumer.SubscribeTopics(
-		[]string{
-			"ping-results",
-		},
-		nil,
+		[]string{ "ping-results", }, nil,
 	)
 
-	if err != nil {
-		log.Fatalf("❌ Topic subscribe failed: %v", err)
-	}
+	if err != nil { log.Fatalf("❌ Topic subscribe failed: %v", err) } 
+	log.Println("✅ Subscribed to ping-results") 
+	sigChan := make(chan os.Signal, 1) 
+	signal.Notify( sigChan, syscall.SIGINT, syscall.SIGTERM, )
 
-	log.Println("✅ Subscribed to ping-results")
+	log.Println("📡 Waiting for Kafka messages") 
+	run := true 
+	for run { 
 
-	sigChan := make(chan os.Signal, 1)
+		select { 
 
-	signal.Notify(
-		sigChan,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-	)
-
-	log.Println("📡 Waiting for Kafka messages")
-
-	run := true
-
-	for run {
-
-		select {
-
-		case sig := <-sigChan:
-
-			log.Printf(
-				"🛑 Received signal %v",
-				sig,
-			)
-
-			run = false
-
-		default:
-
-			msg, err := consumer.ReadMessage(-1)
-
-			if err != nil {
-
-				if kafkaErr, ok := err.(kafka.Error); ok {
-					log.Printf(
-						"Kafka error: %v",
-						kafkaErr,
-					)
-				}
-
+		case sig := <-sigChan: 
+			log.Printf( "🛑 Received signal %v", sig, ) 
+			run = false 
+		default: 
+			msg, err := consumer.ReadMessage(-1) 
+			if err != nil { 
+				if kafkaErr, ok := err.(kafka.Error); ok { log.Printf( "Kafka error: %v", kafkaErr, ) } 
 				continue
-			}
-
-			var result PingResult
-
+			} 
+			var result PingResult 
 			if err := json.Unmarshal(
 				msg.Value,
 				&result,
-			); err != nil {
-
-				log.Printf(
-					"❌ JSON parse error: %v",
-					err,
-				)
-
+			); err != nil { 
+				log.Printf( "❌ JSON parse error: %v", err, ) 
 				continue
-			}
-
-			if err := saveToRedis(result); err != nil {
-
-				log.Printf(
-					"❌ Redis write failed: %v",
-					err,
-				)
-
+			} 
+			if err := saveToRedis(result); err != nil { 
+				log.Printf( "❌ Redis write failed: %v", err, ) 
 				continue
-			}
-
-			log.Printf(
-				"✅ %s (%s) RTT=%dms",
-				result.Hostname,
-				result.Status,
-				result.RTT,
-			)
+			} 
+			log.Printf( "✅ %s (%s) RTT=%dms", result.Hostname, result.Status, result.RTT, )
 		}
 	}
 

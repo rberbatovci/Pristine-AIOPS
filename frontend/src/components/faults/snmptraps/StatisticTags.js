@@ -4,27 +4,47 @@ import { useSnmpTrapTags } from "../../../hooks/useSnmpTrapTags";
 
 const SnmpTrapEventStatisticTags = ({
   keycloak,
-  selectedTags = [],
+  selectedTags = [
+    { label: 'Device', value: 'device' },
+    { label: 'SNMP Trap OID', value: 'snmpTrapOid' },
+    { label: 'Interface', value: 'interface' },
+    { label: 'Neighbor', value: 'neighbor' },
+    { label: 'Tag 2', value: 'tag2' },
+    { label: 'Tag 3', value: 'tag3' }
+  ],
   onTagChange
 }) => {
   const [searchValue, setSearchValue] = useState("");
 
   const {
-    list: fetchedTagObjects = [],
-    loading,
-    error
-  } = useSnmpTrapTags(keycloak);
+    tags: fetchedTagObjects = [], loading, error } = useSnmpTrapTags(keycloak);
 
   const allTags = useMemo(() => {
-    const predefinedTags = ["Device", "SnmpTrapOid"];
+    const predefinedTags = [
+      { label: 'Device', value: 'device' },
+      { label: 'SNMP Trap OID', value: 'snmpTrapOid' },
+      { label: 'Interface', value: 'interface' },
+      { label: 'Neighbor', value: 'neighbor' },
+      { label: 'Tag 2', value: 'tag2' },
+      { label: 'Tag 3', value: 'tag3' }
+    ];
 
     const apiTags = fetchedTagObjects
-      .map(tag => tag?.name)
-      .filter(Boolean);
+      .filter(tag => tag && tag.label && tag.value);
 
-    console.log("API Tags:", apiTags);
+    const combined = [...predefinedTags, ...apiTags];
 
-    return [...new Set([...predefinedTags, ...apiTags])];
+    const uniqueTags = [];
+    const seen = new Set();
+
+    for (const tag of combined) {
+      if (!seen.has(tag.value)) {
+        seen.add(tag.value);
+        uniqueTags.push(tag);
+      }
+    }
+
+    return uniqueTags;
   }, [fetchedTagObjects]);
 
   const filteredTags = useMemo(() => {
@@ -32,8 +52,8 @@ const SnmpTrapEventStatisticTags = ({
 
     return allTags.filter(
       tag =>
-        typeof tag === "string" &&
-        tag.toLowerCase().includes(search)
+        tag.label?.toLowerCase().includes(search) ||
+        tag.value?.toLowerCase().includes(search)
     );
   }, [allTags, searchValue]);
 
@@ -43,8 +63,12 @@ const SnmpTrapEventStatisticTags = ({
   const handleTagSelection = (tag) => {
     if (!onTagChange) return;
 
-    const updatedTags = selectedTags.includes(tag)
-      ? selectedTags.filter(t => t !== tag)
+    const updatedTags = selectedTags.some(
+      t => t.value === tag.value
+    )
+      ? selectedTags.filter(
+        t => t.value !== tag.value
+      )
       : [...selectedTags, tag];
 
     onTagChange(updatedTags);
@@ -59,10 +83,6 @@ const SnmpTrapEventStatisticTags = ({
           value={searchValue}
           onChange={(e) => setSearchValue(e.target.value)}
           className="signalSearchItem"
-          style={{
-            width: "220px",
-            outline: "none"
-          }}
         />
 
         {loading && (
@@ -85,35 +105,19 @@ const SnmpTrapEventStatisticTags = ({
 
         <ul>
           {filteredTags.map((tag) => {
-            const isSelected = selectedTags.includes(tag);
+            const isSelected = selectedTags.some(
+              t => t.value === tag.value
+            );
 
             return (
               <li
-                key={tag}
-                className={`signalTagItem ${isSelected ? "selected" : ""
-                  }`}
-                onClick={() => handleTagSelection(tag)}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center"
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    readOnly
-                    style={{
-                      marginRight: "6px",
-                      accentColor: "#2196f3"
-                    }}
-                  />
-
-                  <span style={{ paddingLeft: "8px" }}>
-                    {tag}
-                  </span>
-                </div>
+                key={tag.value}
+                className={`signalTagItem ${isSelected ? "selected" : ""}`}
+                onClick={() => handleTagSelection(tag)} >
+                <input type="checkbox" checked={isSelected} readOnly />
+                <span style={{ paddingLeft: "8px" }}>
+                  {tag.label}
+                </span>
               </li>
             );
           })}

@@ -66,12 +66,15 @@ export function useSignalData() {
         );
       }
 
-      if (filters.tags) {
+      if (filters.tags && typeof filters.tags === "object") {
         for (const [key, values] of Object.entries(filters.tags)) {
+          if (!Array.isArray(values) || values.length === 0) continue;
+
           const cleanKey = key.trim();
-          values.forEach(value =>
-            query.append(cleanKey, value)
-          );
+
+          values.forEach(value => {
+            query.append(cleanKey, value);
+          });
         }
       }
 

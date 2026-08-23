@@ -399,6 +399,7 @@ services:
       - "traefik.http.routers.websocket.entrypoints=websecure"
       - "traefik.http.routers.websocket.tls=true"
       - "traefik.http.services.websocket.loadbalancer.server.port=8080"
+      - "traefik.docker.network=pristine-aiops_aiops"
 
   nmap-scanner:
     container_name: NmapScanner

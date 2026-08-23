@@ -1,17 +1,11 @@
 :root {
   /* Dark Mode Palette (Default Tech Dashboard Look) */
   --bg-monitor: #0f172a;
-  --bg-sidebar: #1e293b;
-  --bg-track: rgba(51, 65, 85, 0.4);
-  --border-monitor: #334155;
+  --bg-sidebar: #848c97;
+  --bg-track: rgba(51, 65, 85, 0.4); 
   --text-title: #f8fafc;
   --text-subtitle: #64748b;
-  --text-label: #94a3b8;
-  
-  --color-healthy: #0ed5b1;
-  --color-warning: #f59e0b;
-  --color-critical: #ef4444;
-  
+  --text-label: #94a3b8;  
   --center-btn-bg: #1e293b;
   --center-btn-border: #334155;
   --center-btn-icon: #0ed5b1;
@@ -24,16 +18,10 @@
   :root {
     --bg-monitor: #ffffff;
     --bg-sidebar: #f8fafc;
-    --bg-track: #e2e8f0;
-    --border-monitor: #e2e8f0;
+    --bg-track: #e2e8f0; 
     --text-title: #0f172a;
     --text-subtitle: #64748b;
-    --text-label: #475569;
-    
-    --color-healthy: #0d9488;
-    --color-warning: #d97706;
-    --color-critical: #dc2626;
-    
+    --text-label: #475569; 
     --center-btn-bg: #ffffff;
     --center-btn-border: #cbd5e1;
     --center-btn-icon: #0d9488;
@@ -77,8 +65,7 @@
 
 .header-title {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: center; 
   color: var(--textColor);
 }
 
@@ -151,7 +138,7 @@
   margin: 0;
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-title);
+  color: var(--textColor);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -174,8 +161,7 @@
   align-items: center;
   background: var(--dropdownBackground);
   padding: 6px 12px;
-  border-radius: 6px;
-  border: 1px solid var(--border-monitor);
+  border-radius: 6px; 
 }
 
 .metric-meta {

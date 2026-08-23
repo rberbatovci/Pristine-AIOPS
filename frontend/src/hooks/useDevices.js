@@ -6,27 +6,23 @@ export function useDevices(keycloak, autoLoad = true) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchDevices = useCallback(async () => {
-    // If we aren't authenticated yet, don't flip loading to true
-    if (!keycloak?.authenticated) return;
-
+  const fetchDevices = useCallback(async () => { 
+    if (!keycloak?.authenticated) return; 
     setLoading(true);
-    setError(null);
-
+    setError(null); 
     try {
-      const response = await kcFetch(keycloak, `/devices/`);
-      
-      // Safety check: ensure response is an array before mapping
-      const dataArray = Array.isArray(response) ? response : [];
-
+      const response = await kcFetch(keycloak, `/devices/`); 
+      const dataArray = Array.isArray(response) ? response : []; 
       const mapped = dataArray.map(device => ({
         ...device,
         id: device.id,
         hostname: device.hostname,
         ip_address: device.ip_address,
-        label: device.hostname
-      }));
-
+        label: device.hostname,
+        status: 'unknown',
+        features: device.features || {},
+        origin: 'onboarded'
+      })); 
       setDevices(mapped);
     } catch (err) {
       console.error("Error fetching device data:", err);

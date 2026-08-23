@@ -3,6 +3,7 @@ import Select from "react-select";
 import customStyles from "../../misc/SelectStyles";
 import "../../../css/SearchElement.css";
 import { useSnmpTrapTags } from "../../../hooks/useSnmpTrapTags";
+import { useFilterOptions  } from "../../../hooks/useFilterOptions";
 
 /* ---------------- STATIC OPTIONS ---------------- */
 const severityOptions = [
@@ -23,7 +24,9 @@ const SnmpTrapEventFilters = ({
 
   /* ---------------- STATE ---------------- */
   const [selectedFilters, setSelectedFilters] = useState({});
-
+  const [filterOptions, setFilterOptions] = useState({});
+  const [loadingField, setLoadingField] = useState(null);
+  const { getOptions } = useFilterOptions(keycloak);
   const {
     list: fetchedTagObjects = [],
     loading
@@ -31,7 +34,7 @@ const SnmpTrapEventFilters = ({
 
   /* ---------------- EXTRACT TAG NAMES ---------------- */
   const tagNames = useMemo(() => {
-    const predefined = ["Device", "SnmpTrapOid"];
+    const predefined = ["Device", "snmpTrapOid"];
 
     const apiTags = fetchedTagObjects
       .map(t => t?.name)
@@ -66,6 +69,73 @@ const SnmpTrapEventFilters = ({
       .filter(Boolean);
   };
 
+    /* ---------------- BUILD CASCADING QUERY ---------------- */
+  const buildQueryString = (filters, skipField) => {
+    const params = new URLSearchParams();
+
+    Object.entries(filters).forEach(([key, values]) => {
+      if (key === skipField) return;
+
+      const backendField =
+        ["Device", "Severity", "Mnemonic"].includes(key)
+          ? key.toLowerCase()
+          : key;
+
+      values.forEach(value => {
+        params.append(backendField, value);
+      });
+    });
+
+    return params.toString();
+  };
+
+  const loadOptions = useCallback(async (field) => {
+
+    if (filterOptions[field]) return;
+
+    setLoadingField(field);
+
+    try {
+
+      const backendField =
+        ["Device" ].includes(field)
+          ? field.toLowerCase()
+          : field;
+
+      const filters = {};
+
+      Object.entries(selectedFilters).forEach(([key, values]) => {
+
+        if (key === field) return;
+
+        const backendKey =
+          ["Device" ].includes(key)
+            ? key.toLowerCase()
+            : key;
+
+        filters[backendKey] = values;
+
+      });
+
+      const options = await getOptions({
+        resource: "traps",
+        field: backendField,
+        filters
+      });
+
+      setFilterOptions(prev => ({
+        ...prev,
+        [field]: options
+      }));
+
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingField(null);
+    }
+
+  }, [filterOptions, selectedFilters, getOptions]);
+
   /* ---------------- SEARCH ---------------- */
   const handleSearchClick = () => {
     const cleaned = Object.fromEntries(
@@ -86,16 +156,18 @@ const SnmpTrapEventFilters = ({
   return (
     <div className="searchSyslogsContainer">
       <div className="searchSyslogsFilterEntries"> 
-
-        {/* DYNAMIC TAG FIELDS (THIS IS WHAT YOU WANT) */}
         {tagNames.map(tag => (
           <FilterSelect
             key={tag}
             label={tag}
-            options={[]}   // <-- you will fill later per tag
-            value={mapValuesToOptions(selectedFilters[tag], [])}
-            loading={loading}
+            options={filterOptions[tag] || []}
+            value={mapValuesToOptions(
+              selectedFilters[tag],
+              filterOptions[tag] || []
+            )}
+            loading={loadingField === tag}
             onChange={(v) => handleChange(v, tag)}
+            onMenuOpen={() => loadOptions(tag)}
           />
         ))}
 
@@ -126,10 +198,14 @@ const FilterSelect = ({
   options,
   value,
   onChange,
-  loading
+  loading,
+  onMenuOpen
 }) => (
   <div className="searchSyslogsFilterEntry">
-    <span className="searchSignalFilterText">{label}:</span>
+
+    <span className="searchSignalFilterText">
+      {label}:
+    </span>
 
     <Select
       options={options}
@@ -137,13 +213,23 @@ const FilterSelect = ({
       isLoading={loading}
       value={Array.isArray(value) ? value : []}
       onChange={onChange}
+      onMenuOpen={onMenuOpen}
       styles={{
         ...customStyles("375px"),
-        menuPortal: base => ({ ...base, zIndex: 9999 })
+        menuPortal: base => ({
+          ...base,
+          zIndex: 9999
+        })
       }}
       menuPortalTarget={document.body}
       placeholder={`Select ${label}`}
+      noOptionsMessage={() =>
+        loading
+          ? "Loading..."
+          : "Click to load options"
+      }
     />
+
   </div>
 );
 

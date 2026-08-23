@@ -11,14 +11,12 @@ import InterfaceOper from '../components/telemetry/InterfaceOper.js';
 import MemoryStats from '../components/telemetry/MemoryStats.js';
 import kcFetch from '../components/misc/kcFetch';
 
-function Performance({ currentUser, setDashboardTitle, keycloak, showNotification, selectedDevice }) {
+function Performance({ currentUser, setDashboardTitle, keycloak, showNotification, selectedDevice, startTime, endTime }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(false);
     const dropdownWrapperRef = useRef(null);
     const dropdownMenuRef = useRef(null); 
-    const [devices, setDevices] = useState([]);
-    const [startTime, setStartTime] = useState(() => new Date(Date.now() - 60 * 60 * 1000));
-    const [endTime, setEndTime] = useState(() => new Date());
+    const [devices, setDevices] = useState([]); 
     const [dropdowns, setDropdowns] = useState({
         devices: { visible: false, position: { x: 0, y: 0 } },
         time: { visible: false, position: { x: 0, y: 0 } },
@@ -61,11 +59,7 @@ function Performance({ currentUser, setDashboardTitle, keycloak, showNotificatio
 
         fetchDevices();
     }, []);
-
-    const handleTimeRangeChange = (start, end) => {
-        setStartTime(start);
-        setEndTime(end);
-    };
+ 
 
     useEffect(() => {
             setDashboardTitle("Performance Dashboard");
@@ -96,15 +90,15 @@ function Performance({ currentUser, setDashboardTitle, keycloak, showNotificatio
 
     return (
         <div >  
-            <div className="mainContainerContent">
+            <div className="mainContainerContent" style={{ marginTop: '10px'}}>
                 {loading && <div className="loadingMessage">Loading...</div>}
                 {error && <div className="errorMessage">{error}</div>}
                 {!loading && !error && (
                     <div style={{ height: 'calc(100vh - 60px)', overflowY: 'auto', width: '1200px' }} >
-                        <CPUUtilsStats selectedDevice={selectedDevice} keycloak={keycloak} />
-                        <MemoryStats selectedDevice={selectedDevice} keycloak={keycloak} />
-                        <InterfaceOper selectedDevice={selectedDevice} keycloak={keycloak} />
-                        <InterfaceStats selectedDevice={selectedDevice} keycloak={keycloak} />
+                        <CPUUtilsStats selectedDevice={selectedDevice} keycloak={keycloak} startTime={startTime} endTime={endTime} />
+                        <MemoryStats selectedDevice={selectedDevice} keycloak={keycloak} startTime={startTime} endTime={endTime} />
+                        <InterfaceOper selectedDevice={selectedDevice} keycloak={keycloak} startTime={startTime} endTime={endTime} />
+                        <InterfaceStats selectedDevice={selectedDevice} keycloak={keycloak} startTime={startTime} endTime={endTime} />
                     </div>
                 )}
             </div>

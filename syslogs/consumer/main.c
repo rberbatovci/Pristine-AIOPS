@@ -63,6 +63,89 @@ void *flush_loop(void *arg)
 }
 
 /* =========================================================
+ * KAFKA TOPIC CREATION
+ * ========================================================= */
+
+void create_topic_if_needed(rd_kafka_t *rk)
+{
+    rd_kafka_NewTopic_t *new_topic;
+    rd_kafka_AdminOptions_t *options;
+    rd_kafka_queue_t *queue;
+
+    /* Create topic definition */
+    new_topic = rd_kafka_NewTopic_new(
+        KAFKA_SIGNALS_TOPIC,
+        3,      /* partitions */
+        1,      /* replication factor */
+        NULL,
+        0
+    );
+
+    rd_kafka_NewTopic_t *topics[] = { new_topic };
+
+    /* Admin options */
+    options = rd_kafka_AdminOptions_new(
+        rk,
+        RD_KAFKA_ADMIN_OP_CREATETOPICS
+    );
+
+    /* Temporary queue for admin response */
+    queue = rd_kafka_queue_new(rk);
+
+    /* Send create topic request */
+    rd_kafka_CreateTopics(
+        rk,
+        topics,
+        1,
+        options,
+        queue
+    );
+
+    printf("⏳ Creating Kafka topic '%s'...\n",
+           KAFKA_SIGNALS_TOPIC);
+
+    /* Wait for result */
+    rd_kafka_event_t *event =
+        rd_kafka_queue_poll(queue, 10000);
+
+    if (!event)
+    {
+        fprintf(stderr, "❌ No response from Kafka admin API\n");
+    }
+    else if (rd_kafka_event_error(event))
+    {
+        /*
+         * IMPORTANT:
+         * Topic already exists is NOT fatal
+         */
+        if (rd_kafka_event_error(event) ==
+            RD_KAFKA_RESP_ERR_TOPIC_ALREADY_EXISTS)
+        {
+            printf("✅ Topic already exists\n");
+        }
+        else
+        {
+            fprintf(stderr,
+                    "❌ Topic creation failed: %s\n",
+                    rd_kafka_event_error_string(event));
+        }
+    }
+    else
+    {
+        printf("✅ Topic '%s' created successfully\n",
+               KAFKA_SIGNALS_TOPIC);
+    }
+
+    /* Cleanup */
+    if (event)
+        rd_kafka_event_destroy(event);
+
+    rd_kafka_queue_destroy(queue);
+    rd_kafka_AdminOptions_destroy(options);
+    rd_kafka_NewTopic_destroy(new_topic);
+}
+
+/* =========================================================
  * KAFKA CONSUMER SETUP
  * ========================================================= */
 
@@ -213,26 +296,18 @@ int main()
 {
     signal(SIGINT, stop_program);
     signal(SIGTERM, stop_program);
-
     setbuf(stdout, NULL);
     setbuf(stderr, NULL);
-
     print_banner();
 
     printf("🚀 Consumer listening for syslogs...\n");
 
-    /* =========================================
-     * OpenSearch index
-     * ========================================= */
-
     create_syslogs_index();
-
-    /* =========================================
-     * Kafka signal producer
-     * ========================================= */
 
     rd_kafka_t *signal_producer =
         init_signal_producer("kafka:9092");
+
+    create_topic_if_needed(signal_producer);
 
     if (!signal_producer)
     {
@@ -240,10 +315,6 @@ int main()
                 "[ERROR] Failed to initialize Kafka alert producer.\n"); 
         return 1;
     }
-
-    /* =========================================
-     * Reload thread
-     * ========================================= */
 
     pthread_t reload_thread;
 
@@ -257,15 +328,9 @@ int main()
     {
         fprintf(stderr,
                 "[ERROR] Failed to create reload thread\n");
-
         rd_kafka_destroy(signal_producer);
-
         return 1;
     }
-
-    /* =========================================
-     * Flush thread
-     * ========================================= */
 
     pthread_t flush_thread;
 
@@ -276,22 +341,15 @@ int main()
     {
         fprintf(stderr,
                 "[ERROR] Failed to create flush thread\n");
-
         run = 0;
-
         pthread_join(reload_thread, NULL);
-
         rd_kafka_destroy(signal_producer);
 
         return 1;
     }
 
-    /* =========================================
-     * Kafka consumer
-     * ========================================= */
 
     rd_kafka_topic_partition_list_t *topics;
-
     rd_kafka_t *rk =
         setup_kafka_consumer(
             "kafka:9092",
@@ -308,43 +366,25 @@ int main()
 
         pthread_join(reload_thread, NULL);
         pthread_join(flush_thread, NULL);
-
         rd_kafka_destroy(signal_producer);
 
         return 1;
-    }
-
-    //printf("[DEBUG] Starting process_message()\n");
-
-    /*
-     * IMPORTANT:
-     * Uses your existing process.c implementation
-     */
+    } 
+    //printf("[DEBUG] Starting process_message()\n"); 
     process_message(rk, signal_producer);
-
     fprintf(stderr,
-            "[INFO] process_message returned, exiting application.\n");
-
-    /* =========================================
-     * Shutdown
-     * ========================================= */
-
+            "[INFO] process_message returned, exiting application.\n"); 
+    /*   Shutdown = */ 
     run = 0;
 
     pthread_join(reload_thread, NULL);
     pthread_join(flush_thread, NULL);
-
     rd_kafka_flush(signal_producer, 3000);
-
     rd_kafka_topic_partition_list_destroy(topics);
-
     rd_kafka_consumer_close(rk);
-
     rd_kafka_destroy(rk);
-
     rd_kafka_destroy(signal_producer);
 
     printf("✅ Shutdown complete\n");
-
     return 0;
 }

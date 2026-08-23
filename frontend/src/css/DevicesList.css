@@ -12,16 +12,21 @@
   gap: 10px;
 }
 
+.device-list-container {
+  max-width: 880px;
+  width: 100%;
+}
+
 /* Master Device List Card Layout */
 .device-list-card {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
   background: var(--contentBackground);
-  border: 1px solid var(--border-monitor);
+  border-top: 1px solid var(--borderLight);
+  border-bottom: 1px solid var(--borderDark); 
   border-radius: 12px;
-  padding: 12px 16px;
-  cursor: pointer;
+  padding: 12px 16px; 
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -35,8 +40,9 @@
 /* Selected Active State Layout */
 .device-list-card.selected {
   border-color: var(--color-healthy);
-  background: rgba(14, 150, 213, 0.05);
+  background: var(--bg-sidebar);
   box-shadow: var(--shadow-glow);
+  color: var(--textColor2);
 }
 
 /* Left Column Hardware Avatar Frame */
@@ -138,6 +144,8 @@
 .badge-warning { color: var(--color-warning); }
 .badge-critical { color: var(--color-critical); }
 .badge-scanned { color: var(--color-scanned); }
+.badge-processing { color: var(--color-processing); }
+.badge-unknown { color: var(--text-subtitle); }
 
 
 .pulse-dot {

@@ -8,6 +8,7 @@ from sqlalchemy import select
 import json
 import subprocess
 from app.auth.keycloak import require_admin
+import asyncio
 
 router = APIRouter(
     prefix="/api/devices",
@@ -49,13 +50,22 @@ async def configureDevice(router_ip: str, playbook: str, extra_vars: dict):
         "ansible-playbook",
         playbook,
         "-i", f"{router_ip},",
-        "--extra-vars", json.dumps(extra_vars)
+        "--extra-vars", json.dumps(extra_vars),
     ]
 
     env = os.environ.copy()
     env["ANSIBLE_HOST_KEY_CHECKING"] = "False"
 
-    process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
+    def run_ansible():
+        return subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=env,
+        )
+
+    process = await asyncio.to_thread(run_ansible)
 
     print(f"Ansible stdout:\n{process.stdout}")
     print(f"Ansible stderr:\n{process.stderr}")
@@ -64,7 +74,7 @@ async def configureDevice(router_ip: str, playbook: str, extra_vars: dict):
     return {
         "stdout": process.stdout,
         "stderr": process.stderr,
-        "returncode": process.returncode
+        "returncode": process.returncode,
     }
 
 @router.post(
@@ -157,7 +167,7 @@ async def configure_telemetry_feature(
         vars.update({
             "isis_instance": os.getenv("ISIS_INSTANCE_NAME"),
             "bgp_asn": os.getenv("BGP_AS_NUMBER", "500"),
-            "bgp_neighbor_ip": os.getenv("BGP_NEIGHBOR_IP"),
+            "bgp_neighbor_ip": os.getenv("BGP_ROUTER_ID"),
             "bgp_neighbor_asn": os.getenv("BGP_NEIGHBOR_AS", "500"),
             "bgp_source_interface": os.getenv("BGP_SOURCE_INTERFACE", "Loopback0"),
         })

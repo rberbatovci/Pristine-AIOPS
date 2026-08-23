@@ -83,10 +83,6 @@ const SyslogEventStatisticTags = ({
           value={searchValue}
           onChange={(e) => setSearchValue(e.target.value)}
           className="signalSearchItem"
-          style={{
-            width: "220px",
-            outline: "none"
-          }}
         />
 
         {loading && (

@@ -36,6 +36,8 @@ type TelemetryMessage struct {
 
 // Redis update payload
 type RedisUpdate struct {
+	Device string
+	Interface string
 	Key   string
 	Value interface{}
 }
@@ -59,19 +61,12 @@ MAIN
 
 func main() {
 	ctx := context.Background()
-
-	// Channels
+ 
 	ingestChan := make(chan TelemetryMessage, 1000)
 	bulkChan := make(chan TelemetryMessage, 2000)
 	redisChan := make(chan RedisUpdate, 1000)
 	signalChan := make(chan KafkaSignal, 1000)
-
-	/*
-	========================================================
-	INIT CLIENTS
-	========================================================
-	*/
-
+ 
 	redisClient := initRedis()
 	kafkaWriter := initKafkaWriter()
 
@@ -79,13 +74,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to init OpenSearch: %v", err)
 	}
-
-	/*
-	========================================================
-	START PIPELINE
-	========================================================
-	*/
-
+ 
 	go startKafkaReader(ctx, ingestChan)
 
 	workerCount := 8
@@ -95,6 +84,8 @@ func main() {
 
 	go bulkIndexer(ctx, osClient, bulkChan)
 	go redisWriter(ctx, redisClient, redisChan)
+	go pubSubWriter(ctx, redisClient, redisChan)
+	go redisStoreAndPublish(ctx, redisClient, redisChan)
 	go kafkaSignalWriter(ctx, kafkaWriter, signalChan)
 
 	log.Println("🚀 Telemetry pipeline started...")
@@ -161,8 +152,11 @@ func processMessage(msg TelemetryMessage) (
 
 	// 🔴 5. Redis update
 	redis := &RedisUpdate{
-		Key:   fmt.Sprintf("device:%s:cpu", device),
+		Device: device,
+		Interface: interfaceName,
+		Key:   fmt.Sprintf("set:device:%s:iface-oper:%s", device, interfaceName),
 		Value: map[string]interface{}{
+			"interface": interfaceName,
 			"timestamp": t.MsgTimestamp,
 			"stats":     interfaceStats,
 		},

@@ -9,7 +9,22 @@ import '../../css/SyslogDatabase.css';
 import { IoBarChartOutline } from "react-icons/io5";
 import { AiOutlinePieChart } from "react-icons/ai";
 
-function TrafficStatistics({ currentUser, setDashboardTitle, keycloak, showNotification, selectedTags = [], startTime, endTime }) {
+function TrafficStatistics({
+    currentUser,
+    setDashboardTitle,
+    keycloak,
+    showNotification,
+    selectedTags = [
+        { label: 'Device', value: 'device' },
+        { label: 'Source IP', value: 'source_ip' },
+        { label: 'Source Port', value: 'source_port' },
+        { label: 'Protocol', value: 'protocol' },
+        { label: 'Destination IP', value: 'dest_ip' },
+        { label: 'Destination Port', value: 'dest_port' }
+    ],
+    startTime,
+    endTime
+}) {
     const [chartDataMap, setChartDataMap] = useState({});
     const [loadingMap, setLoadingMap] = useState({});
     const [chartTypeMap, setChartTypeMap] = useState({});
@@ -18,24 +33,28 @@ function TrafficStatistics({ currentUser, setDashboardTitle, keycloak, showNotif
         '#87CEEB', '#8A2BE2', '#FF69B4', '#20B2AA'
     ];
 
-    console.log("Start Time in Traffic Statistics:", startTime);
-    console.log("End Time in Traffic Statistics:", endTime); 
-
-    useEffect(() => {
-        console.log("Selected tags in TrafficStatistics:", selectedTags);
-    }, [selectedTags]);
 
     useEffect(() => {
         if (!selectedTags.length) return;
 
+        // Standardize tag values into flat strings
+        const activeTagValues = selectedTags.map(tag =>
+            typeof tag === 'object' && tag !== null ? tag.value : tag
+        ).filter(Boolean);
+
         const fetchStatistics = async (dataType) => {
             setLoadingMap(prev => ({ ...prev, [dataType]: true }));
 
-            const endpoint = `/events/syslogs/statistics/${dataType}`;
+            // Append time parameters to the request
+            const params = new URLSearchParams();
+            if (startTime) params.append('start_time', new Date(startTime).toISOString());
+            if (endTime) params.append('end_time', new Date(endTime).toISOString());
+
+            const queryPath = params.toString() ? `?${params.toString()}` : '';
+            const endpoint = `/netflow/statistics/${dataType}${queryPath}`;
 
             try {
                 const data = await kcFetch(keycloak, endpoint);
-
                 let processedData = [];
 
                 if (Array.isArray(data?.statistics)) {
@@ -44,12 +63,10 @@ function TrafficStatistics({ currentUser, setDashboardTitle, keycloak, showNotif
                         value: item.count ?? 0,
                     }));
                 } else if (typeof data === "object" && data !== null) {
-                    processedData = Object.entries(data).map(
-                        ([key, value]) => ({
-                            name: key,
-                            value: Number(value) || 0
-                        })
-                    );
+                    processedData = Object.entries(data).map(([key, value]) => ({
+                        name: key,
+                        value: Number(value) || 0
+                    }));
                 }
 
                 setChartDataMap(prev => ({
@@ -71,18 +88,16 @@ function TrafficStatistics({ currentUser, setDashboardTitle, keycloak, showNotif
             }
         };
 
-        // Fetch new tags only
-        selectedTags.forEach(tag => {
-            if (!chartDataMap[tag] && !loadingMap[tag]) {
-                fetchStatistics(tag);
-            }
+        // Trigger fetch for active tags
+        activeTagValues.forEach(dataType => {
+            fetchStatistics(dataType);
         });
 
-        // Cleanup removed tags
+        // Cleanup state for removed tags
         setChartDataMap(prev => {
             const updated = { ...prev };
             Object.keys(updated).forEach(key => {
-                if (!selectedTags.includes(key)) {
+                if (!activeTagValues.includes(key)) {
                     delete updated[key];
                 }
             });
@@ -92,14 +107,14 @@ function TrafficStatistics({ currentUser, setDashboardTitle, keycloak, showNotif
         setLoadingMap(prev => {
             const updated = { ...prev };
             Object.keys(updated).forEach(key => {
-                if (!selectedTags.includes(key)) {
+                if (!activeTagValues.includes(key)) {
                     delete updated[key];
                 }
             });
             return updated;
         });
 
-    }, [selectedTags, keycloak]);
+    }, [selectedTags, startTime, endTime, keycloak]);
 
     const handleChartTypeChange = (dataType, type) => {
         setChartTypeMap(prev => ({ ...prev, [dataType]: type }));
@@ -134,7 +149,9 @@ function TrafficStatistics({ currentUser, setDashboardTitle, keycloak, showNotif
                 flexWrap: 'wrap',
                 justifyContent: 'space-around'
             }}>
-                {selectedTags.map(dataType => {
+                {selectedTags.map(tag => {
+                    const dataType = tag.value;
+                    const displayLabel = tag.label;
                     const chartType = chartTypeMap[dataType] || 'BarChart';
                     const chartData = chartDataMap[dataType] || [];
                     const isLoading = loadingMap[dataType];
@@ -157,7 +174,7 @@ function TrafficStatistics({ currentUser, setDashboardTitle, keycloak, showNotif
                                         fontWeight: 'bold',
                                         color: 'var(--textColor)'
                                     }}>
-                                        {dataType.charAt(0).toUpperCase() + dataType.slice(1)}
+                                        {displayLabel}
                                     </h2>
                                     <span style={{
                                         fontSize: '14px',
@@ -205,7 +222,7 @@ function TrafficStatistics({ currentUser, setDashboardTitle, keycloak, showNotif
                             {/* No Data */}
                             {!isLoading && chartData.length === 0 && (
                                 <Typography>
-                                    No data available for {dataType}
+                                    No data available for {displayLabel}
                                 </Typography>
                             )}
 

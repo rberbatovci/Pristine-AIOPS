@@ -7,7 +7,7 @@ from app.netflow import routes as netflow, statistics as netflowStatistics
 from app.devices import status
 from app.devices import config
 from app.geolocation import routes as geolocation
-from app.telemetry import routes as telemetry, rules as telemetryRules, signals as telemetrySignals
+from app.telemetry import routes as telemetry, rules as telemetryRules, signals as telemetrySignals, redis as telemetryRedis
 from app.db.session import engine
 from sqlalchemy.ext.asyncio import AsyncEngine
 from fastapi.middleware.cors import CORSMiddleware
@@ -107,6 +107,7 @@ app.include_router(config.router)
 #app.include_router(signals.router)
 
 app.include_router(telemetry.router)
+app.include_router(telemetryRedis.router)
 app.include_router(telemetryRules.router)
 app.include_router(telemetrySignals.router)
 

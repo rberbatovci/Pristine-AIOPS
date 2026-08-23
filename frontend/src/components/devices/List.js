@@ -6,251 +6,298 @@ import {
   PiSlidersHorizontalDuotone,
   PiHardDriveDuotone,
   PiTreeStructureDuotone,
-  PiShieldCheckeredDuotone
+  PiShieldCheckeredDuotone,
+  PiSpinnerGapDuotone,
+  PiInfoDuotone
 } from "react-icons/pi";
-
 import "../../css/DevicesList.css";
+import { RiSearchEyeLine } from "react-icons/ri";
 
-// ✅ Accept the unified dynamic props from Devices.js
-function List({ onboardedDevices = [], discoveredDevices = [], loading, keycloak, onDeviceSelect }) {  
+function List({ onboardedDevices = [], discoveredDevices = [], devicesPing = [], loading, keycloak, onDeviceSelect, searchEvent }) {
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [localDevices, setLocalDevices] = useState([]);
+  const [socket, setSocket] = useState(null);
 
-  // 🔄 Sync incoming prop arrays into a unified tracking state array
+  console.log("Devices ping data:", devicesPing);
+
+  const filterValue =
+    searchEvent?.type === "filter"
+      ? searchEvent.value.toLowerCase().trim()
+      : "";
+
+  const filteredDevices = filterValue
+    ? localDevices.filter((device) => {
+      const matches =
+        device.hostname?.toLowerCase().includes(filterValue) ||
+        device.ip_address?.includes(filterValue);
+      return matches;
+    })
+    : localDevices;
+
   useEffect(() => {
-    // Flag onboarded items clearly vs dynamically discovered items
-    const managed = onboardedDevices.map(d => ({ ...d, origin: 'onboarded' }));
-    
-    const existingIPs = new Set(managed.map(d => d.ip_address));
-    
-    const discovered = discoveredDevices
-      .filter(d => !existingIPs.has(d.ip)) // Avoid duplicates if already onboarded
-      .map(d => ({
-        id: d.ip,
-        hostname: d.hostname || d.ip,
-        ip_address: d.ip,
-        status: "discovered",
-        rtt_ms: 0,
-        features: {}, // Discovered devices won't have profiling features active yet
-        origin: 'discovered',
-        nmap: { discovered: true }
-      }));
+    /*
+     * Build a lookup table from devicesPing.
+     *
+     * devicesPing example:
+     * {
+     *   id: 5,
+     *   hostname: "CiscoNexus9000",
+     *   ip_address: "192.168.1.193",
+     *   status: "down",
+     *   rtt_ms: 0,
+     *   timestamp: "2026-08-12T18:40:19Z"
+     * }
+     */
+    const pingMap = new Map();
 
-    setLocalDevices([...managed, ...discovered]);
-  }, [onboardedDevices, discoveredDevices]);
+    devicesPing.forEach((ping) => {
+      if (ping.ip_address) {
+        pingMap.set(ping.ip_address, ping);
+      }
 
-  // -----------------------------
-  // ICMP handler
-  // -----------------------------
-  const handlePingUpdate = (msg) => {
-    setLocalDevices((prev) =>
-      prev.map((device) => {
-        const match =
-          (device.hostname ?? "").toLowerCase() ===
-          (msg.hostname ?? "").toLowerCase() || 
-          device.ip_address === msg.ip_address;
+      // Also allow hostname matching as a fallback
+      if (ping.hostname) {
+        pingMap.set(`hostname:${ping.hostname}`, ping);
+      }
+    });
 
-        if (!match) return device;
+    const managed = onboardedDevices.map((device) => {
+      const pingData =
+        pingMap.get(device.ip_address) ||
+        pingMap.get(`hostname:${device.hostname}`);
 
-        return {
-          ...device,
-          status: msg.status,
-          rtt_ms: msg.rtt_ms
-        };
-      })
+      return {
+        ...device,
+
+        origin: "onboarded",
+
+        // Ping state
+        ping_status: pingData?.status ?? "unknown",
+        ping_rtt_ms: pingData?.rtt_ms ?? null,
+        ping_timestamp: pingData?.timestamp ?? null,
+
+        // Keep status compatible with your existing health logic
+        status: pingData?.status ?? device.status ?? "unknown",
+
+        // Keep rtt_ms compatible with existing code
+        rtt_ms: pingData?.rtt_ms ?? device.rtt_ms ?? 0,
+      };
+    });
+
+    const existingIPs = new Set(
+      managed.map((device) => device.ip_address)
     );
-  };
 
-  // -----------------------------
-  // Nmap Sweeper dynamic updates
-  // -----------------------------
-  const handleNmapUpdate = (payload) => {
-    const hostList = payload?.hosts;
-    if (!Array.isArray(hostList)) return;
+    const discovered = discoveredDevices
+      .filter((device) => !existingIPs.has(device.ip))
+      .map((device) => {
+        const pingData = pingMap.get(device.ip);
 
-    const discoveredSet = new Set(hostList);
-
-    setLocalDevices((prev) => {
-      const existingIPs = new Set(prev.map(d => d.ip_address));
-
-      // 1. Update existing elements in view
-      const updated = prev.map((device) => {
-        const isDiscovered = discoveredSet.has(device.ip_address);
         return {
-          ...device,
-          nmap: {
-            ...device.nmap,
-            status: "scanned",
-            discovered: isDiscovered,
-            last_scan: payload.target,
-            scan_time: new Date().toISOString()
-          }
+          id: device.ip,
+          hostname: device.hostname || device.ip,
+          ip_address: device.ip,
+
+          status: pingData?.status ?? "discovered",
+          rtt_ms: pingData?.rtt_ms ?? 0,
+
+          ping_status: pingData?.status ?? "unknown",
+          ping_rtt_ms: pingData?.rtt_ms ?? null,
+          ping_timestamp: pingData?.timestamp ?? null,
+
+          features: {},
+          origin: "discovered",
         };
       });
 
-      // 2. Append newly identified runtime sweeps
-      const newDevices = hostList
-        .filter(ip => !existingIPs.has(ip))
-        .map(ip => ({
-          id: ip,
-          hostname: ip,
-          ip_address: ip,
-          status: "discovered",
-          rtt_ms: 0,
-          features: {},
-          origin: 'discovered',
-          nmap: {
-            discovered: true,
-            last_scan: payload.target,
-            scan_time: new Date().toISOString()
-          }
-        }));
+    setLocalDevices([
+      ...managed,
+      ...discovered,
+    ]);
 
-      return [...updated, ...newDevices];
-    });
-  };
-
-  // -----------------------------
-  // WebSocket setup
-  // -----------------------------
-  useEffect(() => {
-    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-    const ws = new WebSocket(`${protocol}://${window.location.host}/ws`);
-
-    ws.onopen = () => console.log("🔌 WebSocket connected");
-
-    ws.onmessage = (event) => {
-      try {
-        const rawMsg = JSON.parse(event.data);
-        const msg = rawMsg.payload && rawMsg.type === undefined
-          ? { ...rawMsg.payload, type: rawMsg.type || rawMsg.payload.type }
-          : rawMsg;
-
-        switch (msg.type) {
-          case "icmp_ping":
-            handlePingUpdate(msg);
-            break;
-          case "nmap_scan":
-            handleNmapUpdate(msg.payload);
-            break;
-          default:
-            console.warn("Unknown websocket message:", msg);
-        }
-      } catch (err) {
-        console.error("Error parsing WebSocket message:", err);
-      }
-    };
-
-    ws.onerror = (err) => console.error("WebSocket error:", err);
-    ws.onclose = () => console.log("❌ WebSocket disconnected");
-
-    return () => ws.close();
-  }, []);
+  }, [onboardedDevices, discoveredDevices, devicesPing]);
 
   const handleDeviceClick = (device) => {
+    if (device.status === "deep_scanning") return; // block interaction while profiling
     setSelectedDevice(device);
     onDeviceSelect?.(device);
   };
 
   const getDeviceHealth = (device) => {
     if (device.status === "down") return "critical";
-    if (device.status === "discovered") return "scanned"; // Soft blue badge indicator for scan targets
+    if (device.status === "deep_scanning") return "processing"; // Blinking/spinning custom CSS
+    if (device.status === "discovered") return "scanned";
+    if (device.status === "unknown") return "unknown";
     if ((device.rtt_ms ?? 0) > 150) return "warning";
     return "healthy";
   };
 
-  // -----------------------------
-  // Render Guards
-  // -----------------------------
   if (!keycloak?.authenticated) {
     return <div className="signals-list-container"><p>Authenticating session...</p></div>;
   }
-
   if (loading && localDevices.length === 0) {
     return <div className="signals-list-container"><p>Loading topology mappings...</p></div>;
   }
-
   if (localDevices.length === 0) {
     return <div className="signals-list-container"><p>No devices mapped. Run a network sweep scan to begin discovery.</p></div>;
   }
 
   return (
-    <div className="signals-list-container">
-      <ul className="signals-list">
-        {localDevices.map((device) => {
-          const health = getDeviceHealth(device);
-          const isSelected = selectedDevice?.id === device.id;
-          const isDiscoveredTarget = device.origin === 'discovered';
+    <div className="device-list-container">
+      <div className="info-header">
+        <div className="header-title">
+          <PiInfoDuotone style={{ color: 'var(--textColor)', fontSize: '18px' }} />
+          <h2 style={{ color: 'var(--textColor)', fontSize: '14px' }}>Node Specifications</h2>
+        </div>
+      </div>
+      <div className="signals-list-container" style={{ padding: '10px' }}>
+        <ul className="signals-list">
+          {filteredDevices.map((device) => {
+            const health = getDeviceHealth(device);
+            const isSelected = selectedDevice?.id === device.id;
+            const isDiscoveredTarget = device.origin === 'discovered';
+            const isScanning = device.status === "deep_scanning";
 
-          return (
-            <li
-              key={device.id}
-              onClick={() => handleDeviceClick(device)}
-              className={`device-list-card ${isSelected ? "selected" : ""}`}
-              style={isDiscoveredTarget ? { borderLeft: '4px solid #007bff', background: '#f8faff' } : {}}
-            >
-              {/* LEFT AVATAR ICON */}
-              <div className={`device-avatar badge-${health}`}>
-                <PiHardDriveDuotone />
-                <span className={`pulse-dot ring-${health}`} />
-              </div>
-
-              {/* CENTER COMPONENT INFO */}
-              <div className="device-metadata-box">
-                <div className="hostname-row">
-                  <span className="device-hostname">
-                    {device.hostname}
-                  </span>
-                  {/* Subtle badge to let operators know this device is a raw target, not onboarded yet */}
-                  {isDiscoveredTarget && (
-                    <span style={{ fontSize: '10px', background: '#007bff', color: '#fff', padding: '1px 6px', borderRadius: '8px', marginLeft: '8px', fontWeight: 'bold' }}>
-                      Discovered
-                    </span>
-                  )}
-                </div>
-
-                <div className="hardware-sub-row">
-                  <span className="meta-item">
-                    IP: {device.ip_address}
-                  </span>
-                  {device.rtt_ms > 0 && (
-                    <>
-                      <span className="meta-divider">•</span>
-                      <span className="meta-item">Latency: {device.rtt_ms}ms</span>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* RIGHT SIDE CAPABILITIES MATRIX */}
-              <div
-                className="device-features-matrix"
-                onClick={(e) => e.stopPropagation()}
-                style={isDiscoveredTarget ? { opacity: 0.3, pointerEvents: 'none' } : {}}
+            return (
+              <li
+                key={device.id}
+                onClick={() => handleDeviceClick(device)}
+                className={`device-list-card ${isSelected ? "selected" : ""} ${isScanning ? "scanning-lock" : ""}`}
               >
-                <div className={`feature-status-indicator ${device.features?.syslogs ? "enabled" : "disabled"}`}>
-                  <PiTerminalDuotone />
+                {/* LEFT AVATAR ICON */}
+                <div className={`device-avatar`}>
+                  {isScanning ? <PiSpinnerGapDuotone className="spin-animation" /> : <PiHardDriveDuotone />}
+                  <span className={`pulse-dot ring-${health}`} />
                 </div>
-                <div className={`feature-status-indicator ${device.features?.netflow ? "enabled" : "disabled"}`}>
-                  <PiShareNetworkDuotone />
+
+                <div className="device-metadata-box">
+                  <div className="hostname-row">
+                    <span className="device-hostname">
+                      {device.hostname}
+                    </span>
+
+                    {/* Ping status */}
+                    {!isScanning && device.origin === "onboarded" && (
+                      <span
+                        style={{
+                          fontSize: "10px",
+                          padding: "4px 8px",
+                          borderRadius: "8px",
+                          marginLeft: "8px",
+                          fontWeight: "bold",
+                          background:
+                            device.ping_status === "up"
+                              ? "#198754"
+                              : device.ping_status === "down"
+                                ? "#dc3545"
+                                : "#6c757d",
+                          color: "#fff",
+                        }}
+                      >
+                        {device.ping_status === "up"
+                          ? "Reachable"
+                          : device.ping_status === "down"
+                            ? "Down"
+                            : "Unknown"}
+                      </span>
+                    )}
+
+                    {isScanning && (
+                      <span
+                        style={{
+                          fontSize: "10px",
+                          background: "#fd7e14",
+                          color: "#fff",
+                          padding: "4px 8px",
+                          borderRadius: "8px",
+                          marginLeft: "8px",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        Profiling...
+                      </span>
+                    )}
+
+                    {isDiscoveredTarget && !isScanning && (
+                      <span
+                        style={{
+                          fontSize: "10px",
+                          background: "#007bff",
+                          color: "#fff",
+                          padding: "4px 8px",
+                          borderRadius: "8px",
+                          marginLeft: "8px",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        Discovered
+                      </span>
+                    )}
+                  </div>
+
+                  {/* IP + RTT */}
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "12px",
+                      marginTop: "4px",
+                      fontSize: "11px",
+                      color: "var(--textColorSecondary)",
+                    }}
+                  >
+                    <span>
+                      {device.ip_address}
+                    </span>
+
+                    {device.origin === "onboarded" && (
+                      <span>
+                        RTT:{" "}
+                        {device.ping_status === "up"
+                          ? `${device.ping_rtt_ms ?? 0} ms`
+                          : "—"}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className={`feature-status-indicator ${device.features?.telemetry?.enabled ? "enabled" : "disabled"}`}>
-                  <PiPulseDuotone />
+
+                {/* RIGHT SIDE CAPABILITIES / ACTION PANEL */}
+                <div className="device-actions-wrapper">
+                  {isDiscoveredTarget && !isScanning ? (
+                    <div className="feature-status-indicator">
+                      <RiSearchEyeLine />
+                    </div>
+                  ) : (
+                    <div
+                      className="device-features-matrix"
+                      onClick={(e) => e.stopPropagation()}
+                      style={isDiscoveredTarget || isScanning ? { opacity: 0.3, pointerEvents: 'none' } : {}}
+                    >
+                      <div className={`feature-status-indicator ${device.features?.syslogs ? "enabled" : "disabled"}`}>
+                        <PiTerminalDuotone />
+                      </div>
+                      <div className={`feature-status-indicator ${device.features?.snmp_traps ? "enabled" : "disabled"}`}>
+                        <PiShareNetworkDuotone />
+                      </div>
+                      <div className={`feature-status-indicator ${device.features?.netflow ? "enabled" : "disabled"}`}>
+                        <PiPulseDuotone />
+                      </div>
+                      <div className={`feature-status-indicator ${device.features?.telemetry?.enabled ? "enabled" : "disabled"}`}>
+                        <PiSlidersHorizontalDuotone />
+                      </div>
+                      <div className={`feature-status-indicator ${device.features?.topology ? "enabled" : "disabled"}`}>
+                        <PiTreeStructureDuotone />
+                      </div>
+                      <div className={`feature-status-indicator ${device.features?.authentication ? "enabled" : "disabled"}`}>
+                        <PiShieldCheckeredDuotone />
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className={`feature-status-indicator ${device.features?.snmp_traps ? "enabled" : "disabled"}`}>
-                  <PiSlidersHorizontalDuotone />
-                </div>
-                <div className={`feature-status-indicator ${device.features?.topology ? "enabled" : "disabled"}`}>
-                  <PiTreeStructureDuotone />
-                </div>
-                <div className={`feature-status-indicator ${device.features?.authentication ? "enabled" : "disabled"}`}>
-                  <PiShieldCheckeredDuotone />
-                </div>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </div>
   );
 }

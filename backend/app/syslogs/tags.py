@@ -8,7 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.db.session import Base, get_db
 from app.auth.keycloak import get_current_user, require_admin
-from .statistics import TOP_LEVEL_FIELDS
+
+TOP_LEVEL_FIELDS = ["mnemonic", "device", "severity"] 
 
 # Router instance
 router = APIRouter(

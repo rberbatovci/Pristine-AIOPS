@@ -37,7 +37,7 @@
     .scanSearch{
       display:flex;
       align-items:center;
-      width:42px;
+      width:260px;
       height:38px;
       overflow:hidden;
       border-radius:20px; 
@@ -45,10 +45,12 @@
       border:1px solid #ddd;
       transition:all .25s ease;
       cursor:text;
+      opacity:0.2;
     }
 
   .scanSearch:hover{
     width:260px;
+    opacity:1;
     background:white;
     border-color:#0078ff;
     box-shadow:0 2px 8px rgba(0,0,0,.08);

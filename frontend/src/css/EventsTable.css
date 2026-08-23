@@ -27,7 +27,7 @@
   width: calc(100% - 40px);
   display: flex;
   flex-direction: column;
-  height: calc(100% - 90px);
+  height: calc(100% - 85px);
   top: 10px;
 }
 

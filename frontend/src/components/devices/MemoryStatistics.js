@@ -1,151 +1,636 @@
-import { useState, useEffect } from 'react';
-import { RadialBarChart, PolarAngleAxis, RadialBar, Cell, ResponsiveContainer } from 'recharts';  
-import { PiArrowsClockwiseDuotone, PiDatabaseDuotone } from 'react-icons/pi';
-import kcFetch from '../misc/kcFetch';
-import '../../css/CpuUtilizationModern.css'; // Uses the same unified stylesheet
+import { useState, useEffect, useRef } from "react";
 
-function MemoryStatistics({ keycloak, selectedDevice }) {
-  const [device, setDevice] = useState(selectedDevice);
-  const [error, setError] = useState('');
-  const [memoryLoading, setMemoryLoading] = useState(false);
-  const [memoryTimestamp, setMemoryTimestamp] = useState(null);
+import {
+    RadialBarChart,
+    PolarAngleAxis,
+    RadialBar,
+    Cell,
+    ResponsiveContainer
+} from "recharts";
 
-  // Default states arranged systematically from inner to outer tracks
-  const [memoryChartData, setMemoryChartData] = useState([
-    { name: 'lsmpi_io', value: 0, label: 'LSMPI IO' },
-    { name: 'reserve Processor', value: 0, label: 'Reserve Proc' },
-    { name: 'Processor', value: 0, label: 'Main Processor' },
-  ]);
+import {
+    PiDatabaseDuotone
+} from "react-icons/pi";
 
-  useEffect(() => {
-    setDevice(selectedDevice);
-  }, [selectedDevice]);
+import "../../css/CpuUtilizationModern.css";
 
-  const getSeverityColor = (value) => {
-    if (value >= 90) return 'var(--color-critical)';
-    if (value >= 75) return 'var(--color-warning)';
-    return 'var(--color-healthy)';
-  };
+import useDeviceStatus from "../../hooks/useDeviceStatus";
 
-  const getMemoryStatus = async () => {
-    if (!device?.hostname) return;
-    setMemoryLoading(true);
-    setError('');
-    try {
-      // Fetching from the static/historic stats endpoint
-      const response = await kcFetch(keycloak, `/devices/status/${device.hostname}/memory-stats/`);
-      
-      if (response && !response.error && Object.keys(response).length > 0) {
-        const newData = [
-          { name: 'lsmpi_io', value: Math.min(Number(response["lsmpi_io"]) || 0, 100), label: 'LSMPI IO' },
-          { name: 'reserve Processor', value: Math.min(Number(response["reserve Processor"]) || 0, 100), label: 'Reserve Proc' },
-          { name: 'Processor', value: Math.min(Number(response["Processor"]) || 0, 100), label: 'Main Processor' },
-        ];
-        
-        setMemoryChartData(newData);
-        setMemoryTimestamp(response.msg_timestamp ? new Date(response.msg_timestamp).toLocaleTimeString() : new Date().toLocaleTimeString());
-      } else {
-        setError(response.error || 'No data available');
-      }
-    } catch (err) {
-      setError(err.message || 'Fetch failed');
-    } finally {
-      setMemoryLoading(false);
-    }
-  };
 
-  useEffect(() => {
-    getMemoryStatus();
-  }, [device]);
+function MemoryStatistics({ selectedDevice, keycloak }) {
 
-  return (
-    <div className="cpu-monitor-card" style={{ width: 'calc(50% - 10px)', marginLeft: '20px' }}>
-          <div className="info-header">
-            <div className="header-title">
-              <PiDatabaseDuotone style={{ color: 'var(--textColor)', fontSize: '18px' }} />
-              <h2 style={{ color: 'var(--textColor)', fontSize: '14px' }}>Memory Statistics</h2>
-            </div> 
-          </div>
-          <div className="cpu-monitor-content">
-      
-      {/* Visual Chart Area */}
-      <div className="chart-container">
-        <ResponsiveContainer width="100%" height="100%">
-          <RadialBarChart
-            cx="50%"
-            cy="50%"
-            innerRadius="45%"
-            outerRadius="100%"
-            barSize={8}
-            data={memoryChartData}
-            startAngle={90}
-            endAngle={-270}
-          >
-            <RadialBar
-              background={{ fill: 'var(--bg-track)' }}
-              clockWise
-              dataKey="value"
-              cornerRadius={4}
-            >
-              {memoryChartData.map((entry) => (
-                <Cell 
-                  key={entry.name} 
-                  fill={getSeverityColor(entry.value)} 
-                />
-              ))}
-            </RadialBar>
-            <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
-          </RadialBarChart>
-        </ResponsiveContainer>
+    const socketRef = useRef(null);
 
-        {/* Floating Center Control Button */}
-        <button 
-          className={`center-action-btn ${memoryLoading ? 'is-loading' : ''}`}
-          onClick={getMemoryStatus}
-          disabled={memoryLoading}
-          title="Refresh Memory Pool Metrics"
-        >
-          {memoryLoading ? (
-            <PiArrowsClockwiseDuotone className="refresh-spinner" />
-          ) : (
-            <PiDatabaseDuotone className="cpu-core-icon" />
-          )}
-        </button>
-      </div>
 
-      {/* Metrics & Metadata Sidebar */}
-      <div className="metrics-sidebar">
-        {/*
-        <div className="sidebar-header">
-          <h4>Memory Pools</h4>
-          <span className="timestamp-badge">
-            {memoryTimestamp ? `Synced: ${memoryTimestamp}` : 'No Sync Data'}
-          </span>
-        </div>*/}
+    const [error, setError] = useState("");
+    const [memoryLoading, setMemoryLoading] = useState(false);
+    const [memoryTimestamp, setMemoryTimestamp] = useState(null);
 
-        {error && <div className="metrics-error-banner">{error}</div>}
 
-        <div className="telemetry-rows">
-          {/* Reverse rendering ensures the Main Processor (outer track) stands at the top list position */}
-          {[...memoryChartData].reverse().map((stat) => {
-            const colorClass = stat.value >= 90 ? 'text-critical' : stat.value >= 75 ? 'text-warning' : 'text-healthy';
-            return (
-              <div className="metric-row" key={stat.name}>
-                <div className="metric-meta">
-                  <span className={`status-dot ${colorClass}`}></span>
-                  <span className="metric-label">{stat.label}</span>
-                </div>
-                <div className={`metric-value ${colorClass}`}>
-                  {stat.value}<span className="percent-sign">%</span>
-                </div>
-              </div>
+
+    const [memoryChartData, setMemoryChartData] = useState([
+        {
+            name: "Used Memory",
+            value: 0,
+            label: "Used Memory"
+        },
+        {
+            name: "Used RAM",
+            value: 0,
+            label: "Used RAM"
+        },
+        {
+            name: "Free RAM",
+            value: 0,
+            label: "Free RAM"
+        }
+    ]);
+
+
+
+    /*
+        Initial Redis snapshot
+    */
+    const {
+        data: initialMemory,
+        loading: initialLoading,
+        error: initialError
+
+    } = useDeviceStatus(
+        keycloak,
+        selectedDevice,
+        "memory"
+    );
+
+
+
+
+    /*
+        Shared handler:
+        REST + WebSocket
+    */
+    const handleMemoryUpdate = (msg) => {
+
+
+        if (!msg)
+            return;
+
+
+
+        const stats = msg.stats || {};
+
+
+
+        const totalMemory = Number(
+            stats["total-memory"] ?? 0
+        );
+
+
+        const usedMemory = Number(
+            stats["used-memory"] ?? 0
+        );
+
+
+        const freeMemory = Number(
+            stats["free-memory"] ?? 0
+        );
+
+
+
+        const usage = Number(
+            stats["usage"] ??
+            (
+                totalMemory > 0
+                    ? (usedMemory / totalMemory) * 100
+                    : 0
+            )
+        );
+
+
+
+        setMemoryChartData([
+
+            {
+                name: "Used Memory",
+                value: Math.min(
+                    usage,
+                    100
+                ),
+                label: "Used Memory"
+            },
+
+
+            {
+                name: "Used RAM",
+                value: Math.min(
+                    totalMemory > 0
+                        ? (usedMemory / totalMemory) * 100
+                        : 0,
+                    100
+                ),
+                label: "Used RAM"
+            },
+
+
+            {
+                name: "Free RAM",
+                value: Math.min(
+                    totalMemory > 0
+                        ? (freeMemory / totalMemory) * 100
+                        : 0,
+                    100
+                ),
+                label: "Free RAM"
+            }
+
+        ]);
+
+
+
+        setMemoryTimestamp(
+            msg.timestamp ?? null
+        );
+
+
+        setError("");
+        setMemoryLoading(false);
+
+    };
+
+
+
+
+
+    /*
+        Load initial REST data
+    */
+    useEffect(() => {
+
+
+        if(initialMemory){
+
+            console.log(
+                "Initial Memory:",
+                initialMemory
             );
-          })}
+
+
+            handleMemoryUpdate(
+                initialMemory
+            );
+
+        }
+
+
+    }, [initialMemory]);
+
+
+
+
+
+
+    /*
+        WebSocket live updates
+    */
+    useEffect(() => {
+
+
+        if(!selectedDevice?.hostname)
+            return;
+
+
+
+        const protocol =
+            window.location.protocol === "https:"
+                ? "wss"
+                : "ws";
+
+
+
+        const ws = new WebSocket(
+
+            `${protocol}://${window.location.host}/ws/memory?device=${selectedDevice.hostname}`
+
+        );
+
+
+
+        socketRef.current = ws;
+
+
+        setMemoryLoading(true);
+
+
+
+        ws.onopen = () => {
+
+            console.log(
+                "🔌 Memory WS connected"
+            );
+
+        };
+
+
+
+
+        ws.onmessage = (event) => {
+
+
+            try {
+
+
+                const msg = JSON.parse(
+                    event.data
+                );
+
+
+                console.log(
+                    "Memory WS:",
+                    msg
+                );
+
+
+
+                if(msg.type === "memory-util"){
+
+                    handleMemoryUpdate(
+                        msg
+                    );
+
+                }
+
+
+            }
+            catch(err){
+
+                console.error(
+                    "Memory WS parse error:",
+                    err
+                );
+
+
+                setError(
+                    "Invalid memory WS data"
+                );
+
+            }
+
+        };
+
+
+
+
+        ws.onerror = () => {
+
+            setError(
+                "Memory websocket error"
+            );
+
+        };
+
+
+
+
+        ws.onclose = () => {
+
+
+            console.log(
+                "❌ Memory WS closed"
+            );
+
+
+            socketRef.current = null;
+
+        };
+
+
+
+
+        return () => {
+
+
+            if(socketRef.current){
+
+                socketRef.current.close();
+
+                socketRef.current = null;
+
+            }
+
+
+        };
+
+
+    }, [
+        selectedDevice?.hostname
+    ]);
+
+
+
+
+
+
+    const getSeverityColor = (value) => {
+
+
+        if(value >= 90)
+            return "var(--color-critical)";
+
+
+        if(value >= 75)
+            return "var(--color-warning)";
+
+
+        return "var(--color-healthy)";
+
+    };
+
+
+
+
+    const getColorClass = (value) => {
+
+
+        if(value >= 90)
+            return "text-critical";
+
+
+        if(value >= 75)
+            return "text-warning";
+
+
+        return "text-healthy";
+
+    };
+
+
+
+
+
+    return (
+
+        <div
+            className="cpu-monitor-card"
+            style={{
+                width: "calc(50% - 10px)",
+                marginLeft: "15px"
+            }}
+        >
+
+
+            <div className="info-header">
+
+                <div className="header-title">
+
+
+                    <PiDatabaseDuotone
+                        style={{
+                            fontSize:18
+                        }}
+                    />
+
+
+                    <h2>
+                        Memory Statistics
+                    </h2>
+
+
+                </div>
+
+            </div>
+
+
+
+
+
+            <div className="cpu-monitor-content">
+
+
+                <div className="chart-container">
+
+
+                    <ResponsiveContainer
+                        width="100%"
+                        height="100%"
+                    >
+
+
+                        <RadialBarChart
+
+                            cx="50%"
+                            cy="50%"
+
+                            innerRadius="45%"
+                            outerRadius="100%"
+
+                            barSize={8}
+
+                            data={memoryChartData}
+
+                            startAngle={90}
+                            endAngle={-270}
+
+                        >
+
+
+                            <RadialBar
+
+                                background={{
+                                    fill:"var(--bg-track)"
+                                }}
+
+                                dataKey="value"
+
+                                cornerRadius={4}
+
+                            >
+
+
+                                {
+                                    memoryChartData.map(
+                                        entry => (
+
+                                        <Cell
+
+                                            key={entry.name}
+
+                                            fill={
+                                                getSeverityColor(
+                                                    entry.value
+                                                )
+                                            }
+
+                                        />
+
+                                    ))
+                                }
+
+
+                            </RadialBar>
+
+
+
+                            <PolarAngleAxis
+
+                                type="number"
+
+                                domain={[
+                                    0,
+                                    100
+                                ]}
+
+                                tick={false}
+
+                            />
+
+
+                        </RadialBarChart>
+
+
+                    </ResponsiveContainer>
+
+
+
+
+
+                    <button
+
+                        className={
+                            `center-action-btn ${
+                                memoryLoading ||
+                                initialLoading
+                                ? "is-loading"
+                                : ""
+                            }`
+                        }
+
+                        title="Live Memory Stream"
+
+                    >
+
+                        <PiDatabaseDuotone />
+
+                    </button>
+
+
+                </div>
+
+
+
+
+
+
+
+                <div className="metrics-sidebar">
+
+
+                    {
+                        (error || initialError) &&
+
+                        <div className="metrics-error-banner">
+
+                            {
+                                error ||
+                                initialError?.message
+                            }
+
+                        </div>
+
+                    }
+
+
+
+
+
+
+                    <div className="telemetry-rows">
+
+
+                        {
+                            [...memoryChartData]
+                            .reverse()
+                            .map(stat => (
+
+
+                                <div
+
+                                    className="metric-row"
+
+                                    key={stat.name}
+
+                                >
+
+
+                                    <div className="metric-meta">
+
+
+                                        <span
+
+                                            className={
+                                                `status-dot ${
+                                                    getColorClass(
+                                                        stat.value
+                                                    )
+                                                }`
+                                            }
+
+                                        />
+
+
+
+                                        <span className="metric-label">
+
+                                            {stat.label}
+
+                                        </span>
+
+
+                                    </div>
+
+
+
+
+
+                                    <div
+
+                                        className={
+                                            `metric-value ${
+                                                getColorClass(
+                                                    stat.value
+                                                )
+                                            }`
+                                        }
+
+                                    >
+
+                                        {stat.value.toFixed(1)}%
+
+                                    </div>
+
+
+
+                                </div>
+
+
+                            ))
+
+                        }
+
+
+                    </div>
+
+
+                </div>
+
+
+            </div>
+
+
         </div>
-      </div>
-          </div>
-    </div>
-  );
+
+    );
+
 }
+
 
 export default MemoryStatistics;

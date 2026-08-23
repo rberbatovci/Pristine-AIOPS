@@ -43,6 +43,8 @@ type TelemetryMessage struct {
 
 // Redis update payload
 type RedisUpdate struct {
+	Device string
+	Interface string
 	Key   string
 	Value interface{}
 }
@@ -102,6 +104,7 @@ func main() {
 	go bulkIndexer(ctx, osClient, bulkChan)
 	go redisWriter(ctx, redisClient, redisChan)
 	go kafkaSignalWriter(ctx, kafkaWriter, signalChan)
+	go redisStoreAndPublish(ctx, redisClient, redisChan)
 
 	log.Println("🚀 Telemetry pipeline started...")
 
@@ -139,8 +142,7 @@ func processMessage(msg TelemetryMessage) (
 		//log.Println("📊 statsMap is NIL (no CPU data found)")
 		return TelemetryMessage{}, nil, nil, false
 	} 
-
-	// 🔴 3. Extract device
+ 
 	device := extractDeviceID(t)
 	if device == "" {
 		log.Printf("⚠️ Missing device ID")
@@ -154,8 +156,7 @@ func processMessage(msg TelemetryMessage) (
     	t.MsgTimestamp,
     	interfaceStats,
 	)
-
-	// 🔴 4. Build normalized message
+ 
 	doc := TelemetryMessage{
 		Device:    device,
 		Timestamp: int64(t.MsgTimestamp),
@@ -163,11 +164,12 @@ func processMessage(msg TelemetryMessage) (
 		Value:       msg.Value,
 		Interface: interfaceName,
 	}
-
-	// 🔴 5. Redis update
+ 
 	redis := &RedisUpdate{
-		Key:   fmt.Sprintf("device:%s:cpu", device),
-		Value: map[string]interface{}{
+		Device: device,
+		Interface: interfaceName,
+		Key: fmt.Sprintf("set:device:%s:iface-stats:%s", device, interfaceName),
+		Value: map[string]interface{}{ 
 			"timestamp": t.MsgTimestamp,
 			"stats":     interfaceStats,
 		},

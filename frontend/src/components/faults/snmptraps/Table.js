@@ -1,26 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import '../../../css/SyslogDatabase.css';
-import EventsTable from '../../../components/misc/EventsTable.js'; 
-import { useSyslogTags } from '../../../hooks/useSyslogTags';
-import { useMnemonics } from '../../../hooks/useMnemonics';
-import { useSyslogRegEx } from '../../../hooks/useSyslogRegEx';
+import EventsTable from '../../../components/misc/EventsTable.js';   
 import { useFaultData } from '../../../hooks/useFaultData';
 import { NavLink, useLocation } from 'react-router-dom';
 
-function SnmpTrapEventTable({ currentUser, setDashboardTitle, showNotification, keycloak, startTime, endTime }) {
+function SnmpTrapEventTable({ currentUser, setDashboardTitle, showNotification, selectedTags = [], keycloak, startTime, endTime, selectedFilters = {} }) {
     const [view, setView] = useState('list');
     const { eventsData, totalEvents, totalPages, loading, error, loadData } = useFaultData(); 
-    const [page, setPage] = useState(1); 
-    const [filters, setFilters] = useState({ device: [], mnemonic: [] });
+    const [page, setPage] = useState(1);  
     const dropdownWrapperRef = useRef(null);
-    const [selectedRows, setSelectedRows] = useState([]);
-    const [selectedTags, setSelectedTags] = useState([]);
-    const { syslogTags, reload: reloadSyslogTags } = useSyslogTags(keycloak);
-    const { mnemonics, reload: reloadMnemonics } = useMnemonics(keycloak);
-    const { regexes, reload: reloadRegEx } = useSyslogRegEx(keycloak);
-
-    console.log("Start Time in SnmpTrap Events Table:", startTime);
-    console.log("End Time in SnmpTrap Events Table:", endTime);
+    const [selectedRows, setSelectedRows] = useState([]); 
+    const location = useLocation(); 
 
     useEffect(() => {
         loadData(
@@ -29,9 +19,9 @@ function SnmpTrapEventTable({ currentUser, setDashboardTitle, showNotification, 
             page,
             startTime?.toISOString(),
             endTime?.toISOString(),
-            { ...filters, tags: selectedTags }
+            { ...selectedFilters, tags: selectedTags }
         );
-    }, [keycloak, page, startTime, endTime, filters, selectedTags, loadData]);
+    }, [location.pathname, keycloak, page, startTime, endTime, selectedFilters, selectedTags, loadData]);
 
     const tags = [
         { label: 'Timestamp', value: 'timestamp' },
@@ -39,12 +29,8 @@ function SnmpTrapEventTable({ currentUser, setDashboardTitle, showNotification, 
         { label: 'System Uptime', value: 'sysUpTime' },
         { label: 'SNMP Trap OID', value: 'snmpTrapOid' },
         { label: 'Content', value: 'content' }, 
-    ];
-
-    useEffect(() => {
-        console.log("Selected tags in EventsTable:", selectedTags);
-    }, [selectedTags]);
-
+    ]; 
+    
     const handleRowSelectChange = (newSelectedRows) => {
         setSelectedRows(newSelectedRows);
     };
@@ -53,14 +39,9 @@ function SnmpTrapEventTable({ currentUser, setDashboardTitle, showNotification, 
         setDashboardTitle("Events Dashboard");
         return () => setDashboardTitle('');
     }, [setDashboardTitle]);
-
-    useEffect(() => {
-        reloadSyslogTags(keycloak);
-        reloadMnemonics(keycloak);
-    }, []);
-
+  
     return (
-        <div className="mainContainer" ref={dropdownWrapperRef}>
+        <div className="mainContainer" ref={dropdownWrapperRef} style={{ marginTop: '10px', maxWidth: '90%', paddingTop: '5px'}}>
             <div className="mainContainerContent">
                 {loading && <div className="loadingMessage">Loading...</div>}
                 {error && <div className="errorMessage">{error}</div>}
@@ -68,16 +49,18 @@ function SnmpTrapEventTable({ currentUser, setDashboardTitle, showNotification, 
                     <>
                         <div className="syslogsTableContainer">
                             <EventsTable
-                                dataSource="syslogs"
+                                source="snmptraps"
+                                type="events"
+                                keycloak={keycloak}
+                                timezone={currentUser?.timezone || 'UTC'} 
                                 data={eventsData}
                                 totalPages={totalPages}
-                                tags={tags}
-                                signalSource="syslogs"
+                                tags={selectedTags} 
                                 onRowSelectChange={handleRowSelectChange}
                                 page={page}
                                 onPageChange={setPage}
                                 selectedTags={selectedTags}
-                                onTagSelectChange={setSelectedTags}
+                                onTagSelectChange={handleRowSelectChange}
                             />
                         </div>
                     </>

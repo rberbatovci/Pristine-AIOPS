@@ -88,7 +88,7 @@ int main() {
 
     // Setup Kafka consumer
     rd_kafka_topic_partition_list_t *topics;
-    rd_kafka_t *rk = setup_kafka_consumer("Kafka:9092", "syslog-signals-group", "syslog-signals", &topics);
+    rd_kafka_t *rk = setup_kafka_consumer("kafka:9092", "syslog-signals-group", "syslog-signals", &topics);
     if (!rk) return EXIT_FAILURE;
 
     printf("[INFO] Subscribed to kafka topic\n");

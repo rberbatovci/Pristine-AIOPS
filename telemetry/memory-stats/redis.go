@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json" 
 	"log"
+	"fmt"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -22,21 +23,53 @@ func initRedis() *redis.Client {
 
 /*
 ========================================================
-REDIS WRITER
+WORKER
 ========================================================
 */
 
-func redisWriter(ctx context.Context, client *redis.Client, in <-chan RedisUpdate) {
-	for item := range in {
-		data, err := json.Marshal(item.Value)
-		if err != nil {
-			log.Printf("Redis marshal error: %v", err)
+func worker(
+	ctx context.Context,
+	in <-chan TelemetryMessage,
+	bulkOut chan<- TelemetryMessage,
+	pubSubOut chan<- RedisUpdate,
+	signalOut chan<- KafkaSignal,
+) {
+	for msg := range in {
+		doc, redisUpdate, signal, ok := processMessage(msg)
+
+		if !ok {
 			continue
 		}
 
-		err = client.Set(ctx, item.Key, data, 0).Err()
+		bulkOut <- doc
+
+		if redisUpdate != nil {
+			pubSubOut <- *redisUpdate
+		}
+
+		if signal != nil {
+			signalOut <- *signal
+		}
+	}
+}
+ 
+
+func redisStoreAndPublish(ctx context.Context, client *redis.Client, in <-chan RedisUpdate) {
+	for item := range in {
+		data, err := json.Marshal(item.Value)
 		if err != nil {
-			log.Printf("Redis error: %v", err)
+			log.Printf("Marshal error: %v", err)
+			continue
+		}
+
+		storeKey := fmt.Sprintf("set:device:%s:memory:%s", item.Device, item.Memory)
+		if err := client.Set(ctx, storeKey, data, 0).Err(); err != nil {
+			log.Printf("Redis Set error on key %s: %v", storeKey, err)
+		}
+
+		pubChannel := fmt.Sprintf("pub:device:%s:memory:%s", item.Device, item.Memory)
+		if err := client.Publish(ctx, pubChannel, data).Err(); err != nil {
+			log.Printf("Redis Publish error on channel %s: %v", pubChannel, err)
 		}
 	}
 }

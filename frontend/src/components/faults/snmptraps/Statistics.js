@@ -9,21 +9,21 @@ import '../../../css/SyslogDatabase.css';
 import { IoBarChartOutline } from "react-icons/io5";
 import { AiOutlinePieChart } from "react-icons/ai";
 
-function SnmpTrapEventStatistics({ 
-    currentUser, 
-    setDashboardTitle, 
-    keycloak, 
-    showNotification, 
+function SnmpTrapEventStatistics({
+    currentUser,
+    setDashboardTitle,
+    keycloak,
+    showNotification,
     selectedTags = [
-    { label: 'Device', value: 'device' },
-    { label: 'SNMP Trap OID', value: 'snmpTrapOid' },
-    { label: 'Interface', value: 'interface' },
-    { label: 'Tag 1', value: 'tag1' },
-    { label: 'Tag 2', value: 'tag2' },
-    { label: 'Tag 3', value: 'tag3' }
-  ], 
-    startTime, 
-    endTime 
+        { label: 'Device', value: 'device' },
+        { label: 'SNMP Trap OID', value: 'snmpTrapOid' },
+        { label: 'Interface', value: 'interface' },
+        { label: 'Neighbor', value: 'neighbor' },
+        { label: 'Tag 2', value: 'tag2' },
+        { label: 'Tag 3', value: 'tag3' }
+    ],
+    startTime,
+    endTime
 }) {
     const [chartDataMap, setChartDataMap] = useState({});
     const [loadingMap, setLoadingMap] = useState({});
@@ -31,19 +31,29 @@ function SnmpTrapEventStatistics({
     const colorPalette = [
         '#FF6347', '#32CD32', '#FFD700',
         '#87CEEB', '#8A2BE2', '#FF69B4', '#20B2AA'
-    ]; 
-    
+    ];
+
     useEffect(() => {
         if (!selectedTags.length) return;
+
+        // Standardize tag values into flat strings
+        const activeTagValues = selectedTags.map(tag =>
+            typeof tag === 'object' && tag !== null ? tag.value : tag
+        ).filter(Boolean);
 
         const fetchStatistics = async (dataType) => {
             setLoadingMap(prev => ({ ...prev, [dataType]: true }));
 
-            const endpoint = `/events/traps/statistics/${dataType}`;
+            // Append time parameters to the request
+            const params = new URLSearchParams();
+            if (startTime) params.append('start_time', new Date(startTime).toISOString());
+            if (endTime) params.append('end_time', new Date(endTime).toISOString());
+
+            const queryPath = params.toString() ? `?${params.toString()}` : '';
+            const endpoint = `/events/traps/statistics/${dataType}${queryPath}`;
 
             try {
                 const data = await kcFetch(keycloak, endpoint);
-
                 let processedData = [];
 
                 if (Array.isArray(data?.statistics)) {
@@ -52,12 +62,10 @@ function SnmpTrapEventStatistics({
                         value: item.count ?? 0,
                     }));
                 } else if (typeof data === "object" && data !== null) {
-                    processedData = Object.entries(data).map(
-                        ([key, value]) => ({
-                            name: key,
-                            value: Number(value) || 0
-                        })
-                    );
+                    processedData = Object.entries(data).map(([key, value]) => ({
+                        name: key,
+                        value: Number(value) || 0
+                    }));
                 }
 
                 setChartDataMap(prev => ({
@@ -79,18 +87,16 @@ function SnmpTrapEventStatistics({
             }
         };
 
-        // Fetch new tags only
-        selectedTags.forEach(tag => {
-            if (!chartDataMap[tag] && !loadingMap[tag]) {
-                fetchStatistics(tag);
-            }
+        // Trigger fetch for active tags
+        activeTagValues.forEach(dataType => {
+            fetchStatistics(dataType);
         });
 
-        // Cleanup removed tags
+        // Cleanup state for removed tags
         setChartDataMap(prev => {
             const updated = { ...prev };
             Object.keys(updated).forEach(key => {
-                if (!selectedTags.includes(key)) {
+                if (!activeTagValues.includes(key)) {
                     delete updated[key];
                 }
             });
@@ -100,14 +106,14 @@ function SnmpTrapEventStatistics({
         setLoadingMap(prev => {
             const updated = { ...prev };
             Object.keys(updated).forEach(key => {
-                if (!selectedTags.includes(key)) {
+                if (!activeTagValues.includes(key)) {
                     delete updated[key];
                 }
             });
             return updated;
         });
 
-    }, [selectedTags, keycloak]);
+    }, [selectedTags, startTime, endTime, keycloak]);
 
     const handleChartTypeChange = (dataType, type) => {
         setChartTypeMap(prev => ({ ...prev, [dataType]: type }));
@@ -249,7 +255,7 @@ function SnmpTrapEventStatistics({
                                     height={270}
                                     data={chartData}
                                     margin={{ top: 20 }}
-                                Mention to keep it simple
+                                    Mention to keep it simple
                                 >
                                     <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="name" />

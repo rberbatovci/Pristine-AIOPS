@@ -59,7 +59,7 @@ function TelemetrySignalTable({ currentUser, setDashboardTitle, showNotification
     }, []);
 
     return (
-        <div className="mainContainer" ref={dropdownWrapperRef}>
+        <div className="mainContainer" ref={dropdownWrapperRef} style={{ marginTop: '10px', maxWidth: '90%', paddingTop: '5px'}}>
             <div className="mainContainerContent">
                 {loading && <div className="loadingMessage">Loading...</div>}
                 {error && <div className="errorMessage">{error}</div>}

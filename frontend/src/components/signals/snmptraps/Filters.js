@@ -2,28 +2,21 @@ import { useState, useCallback } from "react";
 import Select from "react-select";
 import customStyles from "../../misc/SelectStyles";
 import "../../../css/SearchElement.css";
-import { useSnmpTrapTagOptions } from "../../../hooks/useSnmpTrapTagOptions";
+import { useFilterOptions } from "../../../hooks/useFilterOptions";
 
 const severityOptions = [
-  { value: "emergency", label: "Emergency" },
-  { value: "alert", label: "Alert" },
-  { value: "critical", label: "Critical" },
-  { value: "error", label: "Error" },
-  { value: "warning", label: "Warning" },
-  { value: "notice", label: "Notice" },
-  { value: "info", label: "Info" },
-  { value: "debug", label: "Debug" }
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" } 
 ];
 
 const SnmpTrapSignalFilters = ({
   keycloak,
   tags,
   onSelectedTrapFiltersChange
-}) => {
-
-  const [selectedTags, setSelectedTags] = useState({});
-
-  const { options, loading, loadOptions } = useSnmpTrapTagOptions(keycloak);
+}) => { 
+  const [selectedTags, setSelectedTags] = useState({}); 
+  const { options, loading, loadOptions } = useFilterOptions(keycloak);
 
   /* ---------------- HANDLE CHANGE ---------------- */
   // ✅ ONLY store string arrays
@@ -78,8 +71,7 @@ const SnmpTrapSignalFilters = ({
 
   return (
     <div className="searchSyslogsContainer">
-      <div className="searchSyslogsFilterEntries">
-
+      <div className="searchSyslogsFilterEntries"> 
         {/* DEVICE */}
         <FilterSelect
           label="Device"
@@ -88,8 +80,7 @@ const SnmpTrapSignalFilters = ({
           loading={loading.device}
           onChange={(v) => handleChange(v, "device")}
           onFocus={() => handleFocus("device")}
-        />
-
+        /> 
         {/* Rule */}
         <FilterSelect
           label="SNMP Trap OID"
@@ -98,8 +89,7 @@ const SnmpTrapSignalFilters = ({
           loading={loading.rule}
           onChange={(v) => handleChange(v, "rule")}
           onFocus={() => handleFocus("rule")}
-        />
-
+        /> 
         {/* SNMP Trap OID */}
         <FilterSelect
           label="SNMP Trap OID"
@@ -108,8 +98,7 @@ const SnmpTrapSignalFilters = ({
           loading={loading.snmpTrapOids}
           onChange={(v) => handleChange(v, "snmpTrapOids")}
           onFocus={() => handleFocus("snmpTrapOids")}
-        />
-
+        /> 
         {/* SEVERITY */}
         <FilterSelect
           label="Severity"
@@ -129,10 +118,8 @@ const SnmpTrapSignalFilters = ({
             onFocus={() => handleFocus(tag.value)}
             onChange={(v) => handleChange(v, tag.value)}
           />
-        ))}
-
-      </div>
-
+        ))} 
+      </div> 
       {/* ACTION BUTTONS */}
       <div
         style={{
@@ -172,8 +159,7 @@ const FilterSelect = ({
   loading
 }) => (
   <div className="searchSyslogsFilterEntry">
-    <span className="searchSignalFilterText">{label}:</span>
-
+    <span className="searchSignalFilterText">{label}:</span> 
     <Select
       options={options}
       isMulti

@@ -21,10 +21,13 @@
     color: var(--textColor);
     background: var(--contentBackground);
     backdrop-filter: blur(8px); 
-    height: calc(100vh - 90px);
+    height: calc(100vh - 85px);
     display: flex;
     flex-direction: column;
-    width: calc(100% - 20px); 
+    width: calc(100% - 10px); 
+    top: 20px;
+    z-index: 100;
+
 }
 
 .mainContainerHeader {
