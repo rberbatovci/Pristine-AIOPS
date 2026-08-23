@@ -672,22 +672,22 @@ services:
       timeout: 5s
       retries: 5
 
-  #topology-producer:
-  #  build:
-  #    context: .
-  #    dockerfile: ./dockerfiles/Dockerfile.topology-producer
-  #  environment:
-  #    - KAFKA_BROKER=kafka:9092
-  #    - KAFKA_TOPIC=topology-topic
-  #  depends_on:
-  #    kafka:
-  #      condition: service_healthy
-  #    zookeeper:
-  #      condition: service_healthy
-  #  labels:
-  #    - "traefik.enable=false"
-  #  networks:
-  #    - aiops
+  topology-producer:
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.topology-producer
+    container_name: TopologyProducer
+    environment:
+      - KAFKA_BROKER=kafka:9092
+      - KAFKA_TOPIC=topology-topic
+      - GOBGP_ADDR=192.168.1.201:50051
+    depends_on:
+      kafka:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=false"
+    networks:
+      - aiops
 
 ########################################################################################
 ########################################################################################

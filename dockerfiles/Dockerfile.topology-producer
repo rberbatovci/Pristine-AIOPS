@@ -2,20 +2,18 @@ FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
-# Copy go.mod/go.sum first
 COPY topology/producer/go.mod topology/producer/go.sum ./
 
-# Download dependencies
 RUN go mod download
 
-# Copy the source code
 COPY topology/producer .
 
-# Sync go.mod and remove unused dependencies
-RUN go mod tidy
-
-# Build the binary
 RUN go build -o bgpls-producer ./main.go
 
-# Command
+FROM alpine:3.22
+
+WORKDIR /app
+
+COPY --from=builder /app/bgpls-producer .
+
 CMD ["./bgpls-producer"]

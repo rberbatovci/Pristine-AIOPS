@@ -1,8 +1,7 @@
 package main
 
 import (
-	"context"
-	"fmt"
+	"context" 
 	"log"
 
 	api "github.com/osrg/gobgp/v3/api"
@@ -23,16 +22,13 @@ func main() {
 
 	// 🔎 Subscribe to table (path) events
 	req := &api.WatchEventRequest{
-		Event: &api.WatchEventRequest_Table{
-			Table: &api.WatchEventRequest_Table{
-				Filters: []*api.WatchEventRequest_Table_Filter{
-					{
-						Init: true, // include initial dump
-						// Type: api.WatchEventRequest_Table_Filter_ADVERTISED, // optional
-					},
-				},
-			},
-		},
+    	Table: &api.WatchEventRequest_Table{
+        	Filters: []*api.WatchEventRequest_Table_Filter{
+            	{
+                	Init: true,
+            	},
+        	},
+    	},
 	}
 
 	stream, err := client.WatchEvent(context.Background(), req)
@@ -75,25 +71,72 @@ func handlePath(path *api.Path) {
 		return
 	}
 
-	// Only process BGP-LS (AFI=16388, SAFI=71)
+	// BGP-LS = AFI 16388 / SAFI 71
 	if path.Family.Afi != 16388 || path.Family.Safi != 71 {
 		return
 	}
 
-	nlri, err := anypb.UnmarshalNew(path.Nlri, proto.UnmarshalOptions{})
+	// --------------------------------------------------
+	// 1. Unmarshal path.Nlri -> LsAddrPrefix
+	// --------------------------------------------------
+
+	msg, err := anypb.UnmarshalNew(
+		path.Nlri,
+		proto.UnmarshalOptions{},
+	)
 	if err != nil {
-		log.Printf("❌ Failed to decode NLRI: %v", err)
+		log.Printf("❌ Failed to decode outer NLRI: %v", err)
 		return
 	}
 
+	addrPrefix, ok := msg.(*api.LsAddrPrefix)
+	if !ok {
+		log.Printf("❓ Unexpected BGP-LS NLRI type: %T", msg)
+		return
+	}
+
+	log.Printf("🔎 BGP-LS type: %s", addrPrefix.Type)
+
+	if addrPrefix.Nlri == nil {
+		log.Printf("⚠️ LsAddrPrefix contains no NLRI")
+		return
+	}
+
+	// --------------------------------------------------
+	// 2. Unmarshal addrPrefix.Nlri -> actual NLRI
+	// --------------------------------------------------
+
+	nlri, err := anypb.UnmarshalNew(
+		addrPrefix.Nlri,
+		proto.UnmarshalOptions{},
+	)
+	if err != nil {
+		log.Printf("❌ Failed to decode inner NLRI: %v", err)
+		return
+	}
+
+	// --------------------------------------------------
+	// 3. Handle concrete BGP-LS NLRI
+	// --------------------------------------------------
+
 	switch nlri := nlri.(type) {
+
 	case *api.LsNodeNLRI:
-		fmt.Printf("📡 Node: %+v\n", nlri)
+		log.Printf("📡 NODE: %+v", nlri)
+
 	case *api.LsLinkNLRI:
-		fmt.Printf("🔗 Link: %+v\n", nlri)
-	case *api.LsPrefixNLRI:
-		fmt.Printf("📍 Prefix: %+v\n", nlri)
+		log.Printf("🔗 LINK: %+v", nlri)
+
+	case *api.LsPrefixV4NLRI:
+		log.Printf("📍 PREFIX-V4: %+v", nlri)
+
+	case *api.LsPrefixV6NLRI:
+		log.Printf("📍 PREFIX-V6: %+v", nlri)
+
 	default:
-		fmt.Printf("❓ Unknown NLRI type: %T\n", nlri)
+		log.Printf(
+			"❓ Unknown inner BGP-LS NLRI type: %T",
+			nlri,
+		)
 	}
 }

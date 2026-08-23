@@ -87,7 +87,7 @@ function Topology({ keycloak, currentUser, setDashboardTitle }) {
         {!loading && (
           <>
             {view === 'list' && (
-              <div className="syslogsTableContainer">
+              <div className="syslogsTableContainer" style={{ padding: '20px'}}>
 
                 {/* PREFIXES */}
                 <div className="mainContainer" style={{ width: '500px', marginRight: '20px' }}>
