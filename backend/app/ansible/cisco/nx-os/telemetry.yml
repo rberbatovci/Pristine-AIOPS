@@ -1,0 +1,72 @@
+---
+- name: Configure telemetry on Cisco NX-OS
+  hosts: all
+  gather_facts: false
+  connection: ansible.netcommon.network_cli
+
+  vars:
+    ansible_user: "{{ username }}"
+    ansible_password: "{{ password }}"
+    ansible_host: "{{ router_ip }}"
+    ansible_network_os: cisco.nxos.nxos
+    ansible_network_cli_ssh_type: libssh
+    ansible_host_key_checking: false
+    ansible_libssh_host_key_auto_add: true
+    ansible_libssh_hostkeys: "+ssh-rsa"
+    ansible_libssh_macs: "+hmac-sha1"
+    ansible_libssh_kex: "+diffie-hellman-group14-sha1"
+
+  tasks:
+    - name: Enable Telemetry Feature
+      cisco.nxos.nxos_config:
+        lines:
+          - "feature telemetry"
+
+    - name: Configure Telemetry Destination Profile
+      cisco.nxos.nxos_config:
+        lines:
+          - "use-vrf default"
+        parents:
+          - "telemetry"
+          - "destination-profile"
+
+    - name: Configure Telemetry Destination Group
+      cisco.nxos.nxos_config:
+        lines:
+          - "ip address {{ receiver_ip }} port {{ receiver_port }} protocol gRPC encoding GPB"
+        parents:
+          - "telemetry"
+          - "destination-group 100"
+
+    - name: Configure Telemetry Sensor Group
+      cisco.nxos.nxos_config:
+        lines:
+          - "data-source NX-API"
+          - "path sys/intf/phys-[eth1/1]/phys depth 0"
+        parents:
+          - "telemetry"
+          - "sensor-group 100"
+
+    - name: Configure Telemetry Subscription
+      cisco.nxos.nxos_config:
+        lines:
+          - "dst-grp 100"
+          - "snsr-grp 100 sample-interval 10000"
+        parents:
+          - "telemetry"
+          - "subscription 100"
+      register: telemetry_config
+
+    - name: Display telemetry configuration changes
+      ansible.builtin.debug:
+        var: telemetry_config.updates
+
+    - name: Verify telemetry configuration
+      cisco.nxos.nxos_command:
+        commands:
+          - "show running-config | section telemetry"
+      register: telemetry_status
+
+    - name: Display telemetry status
+      ansible.builtin.debug:
+        var: telemetry_status.stdout_lines

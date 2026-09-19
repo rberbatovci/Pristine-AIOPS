@@ -1,0 +1,28 @@
+FROM golang:1.25-alpine AS builder
+
+WORKDIR /app/telemetry/cisco/ios-xe/memory-stats
+
+# Copy go.mod and go.sum
+COPY telemetry/cisco/ios-xe/memory-stats/go.mod telemetry/cisco/ios-xe/memory-stats/go.sum ./
+
+# Copy protobuf + source *before* tidy
+COPY telemetry/cisco/ios-xe/protobuf /app/telemetry/cisco/ios-xe/protobuf
+
+COPY telemetry/cisco/ios-xe/memory-stats/. .
+
+# Run tidy AFTER code is present
+RUN go mod tidy
+
+# Build your binary
+RUN go build -o consumer .
+
+# Final stage
+FROM alpine:3.18
+
+WORKDIR /app/telemetry/cisco/ios-xe/memory-stats
+
+COPY --from=builder /app/telemetry/cisco/ios-xe/memory-stats/consumer .
+
+RUN apk add --no-cache bash
+
+CMD ["./consumer"]

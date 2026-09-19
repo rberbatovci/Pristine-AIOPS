@@ -1,0 +1,24 @@
+FROM golang:1.25-alpine AS builder
+
+WORKDIR /src 
+
+COPY sflow/producer/ ./sflow/producer/
+
+WORKDIR /src/sflow/producer
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -o /sflow-producer .
+
+
+FROM alpine:3.22
+
+RUN addgroup -S aiops && \
+    adduser -S -G aiops aiops
+
+COPY --from=builder /sflow-producer /usr/local/bin/sflow-producer
+
+USER aiops
+
+EXPOSE 1165/udp
+
+ENTRYPOINT ["/usr/local/bin/sflow-producer"]

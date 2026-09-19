@@ -3,9 +3,11 @@
   --backgroundColor2: rgba(231, 231, 231, .8);
   --backgroundColor3: rgba(236, 236, 236, 0.9);
   --backgroundColor4: rgb(87, 133, 155);
+  --appOverlayBackground: rgba(255, 255, 255, 0.85);
   --listElementOddBackground: rgba(224, 224, 224, 0.4);
   --listElementEvenBackground: rgba(224, 224, 224, 0.3);
   --listElementHoverBackground: rgba(241, 241, 241, .8);
+  --wallpaperBackground: url("./images/background4.jpg");
   --background1: rgb(182, 182, 182);
   --sidebarBck: rgba(255, 255, 255, 0.05);
   --textColor: rgb(83, 83, 83);
@@ -14,17 +16,17 @@
   --textColor2: rgb(141, 141, 141);
   --textColor3: rgba(0, 0, 0, .4);
   --iconHoverColor: rgb(25, 111, 161);
-  --borderLight: 1px solid rgba(0, 112, 204, .1);
+  --borderLight: 1px solid rgb(245, 247, 248);
   --borderDark: 1px solid rgba(31, 65, 78, 0.2);
   --borderDarkHvr: 1px solid rgba(3, 92, 151, 0.4);
   --elementBg: cyan;
   --darkBack: rgba(109, 109, 109, 0.4);
-  --contentBackground: rgba(255, 255, 255, 0.4);
+  --contentBackground: rgba(255, 255, 255, 0.6);
   --searchButtonBack: rgb(204, 204, 204);
   --searchButtonBackHover: rgb(17, 140, 223);
   --inputTextBck: rgba(255, 255, 255, .2);
   --inputTextBck2: rgba(255, 255, 255, 0.4);
-  --contentShadow: 2px 5px 12px 1px rgba(0,0,0,0.15);
+  --contentShadow: 2px 5px 12px 1px rgba(22, 66, 92, 0.15);
   --detailBack: rgba(123, 169, 190, 0.1);
   --sidebarActiveBackground: rgb(129, 71, 184);
   --listElementBack: rgb(87, 133, 155);
@@ -37,7 +39,7 @@
   --inactiveButtonTopBorder: 1px solid rgba(255, 255, 255, .6);
   --inactiveButtonBottomBorder: 1px solid rgba(5, 112, 155, 0.2);
   --dropdownBackground: rgba(231, 231, 231, 1);
-  --signalRightElementHeaderBackground: rgba(209, 209, 209, 0.2);
+  --signalRightElementHeaderBackground: rgba(245, 245, 245, 0.2);
   --mainHeaderShadow: 2px 4px 8px rgba(0, 69, 99, 0.45);
   --headerGradiendBack: linear-gradient(90deg, rgba(0,57,77,1) 0%, rgba(6, 90, 121, .8) 100%);
   --tagListBack: rgba(255, 255, 255, 0.3);
@@ -48,7 +50,7 @@
   --rowSelectedColor: rgb(22, 35, 48);
   --rowSelectedBackground: rgba(24, 104, 179, 0.4);
   --rowOddBackground: rgba(255, 255, 255, 0.1);
-  --rowEvenBackground: rgba(211, 211, 211, 0.25);
+  --rowEvenBackground: rgba(211, 211, 211, 0.17);
   --dropdownTopBorder: rgba(245, 245, 245, 0.5);
   --dropdownBottomBorder: rgba(139, 139, 139, 0.3);
   --headerTextShadow: 0 0 8px rgb(1, 64, 100), 0 0 10px rgb(54, 106, 155);
@@ -90,16 +92,17 @@
 }
 
 [data-theme='dark'] {
-  --backgroundColor: rgb(1, 47, 68);
-  --backgroundColor2: rgba(1, 47, 68, .8);
+  --backgroundColor: rgb(1, 33, 48);
+  --backgroundColor2: rgba(1, 32, 46, 0.8);
   --backgroundColor3: rgba(0, 57, 77, .6);
+  --appOverlayBackground: rgba(9, 18, 24, 0.85);
   --listElementOddBackground: rgba(0, 58, 85, 0.4);
   --listElementEvenBackground: rgba(0, 80, 117, 0.6);
   --listElementHoverBackground: rgba(0, 34, 49, 0.8);
+  --wallpaperBackground: url("./images/background3.png");
   --background1: rgba(93, 154, 247, 0.4);
   --background2: rgba(3, 45, 61, 0.3);
-  --sidebarBck: rgba(11, 72, 97, 0.18);
-  --wallpaperBackground: radial-gradient(circle, rgba(1, 78, 107, 1) 0%, rgba(20, 77, 98, 1) 15%, rgba(0, 43, 59, 1) 100%);
+  --sidebarBck: rgba(11, 72, 97, 0.18); 
   --textColor: rgba(180, 180, 180, 0.8);
   --textColor2: rgb(156, 185, 197);
   --textColor3: rgba(255, 255, 255, .4);
@@ -108,7 +111,7 @@
   --headerBackground: purple;
   --darkBack: rgba(0, 57, 77, .6);
   --inputTextBck: rgba(8, 46, 61, 0.35);
-  --contentBackground: rgba(0, 57, 77, .6);
+  --contentBackground: rgba(19, 41, 56, 0.2);
   --contentBackColor: rgb(0, 57, 77);
   --borderLight: 1px solid rgba(235, 235, 235, 0.2);
   --borderDark: 1px solid rgba(1, 32, 49, 0.5);
@@ -144,8 +147,8 @@
   --dropdownBottomBorder: rgba(1, 44, 78, 0.5);
   --rowSelectedColor: rgb(255, 255, 255);
   --rowSelectedBackground: rgba(11, 78, 102, 0.3);
-  --rowOddBackground: rgba(10, 89, 153, 0.1);
-  --rowEvenBackground: rgba(10, 89, 153, 0.15);
+  --rowOddBackground: rgba(3, 28, 49, 0.1);
+  --rowEvenBackground: rgba(4, 31, 53, 0.15);
   --cpu-5s: #60a5fa;
   --cpu-1m: #4ade80;
   --cpu-5m: #f87171;
@@ -232,6 +235,7 @@ header {
   height: calc(100vh - 50px);
   width: 100%;
   overflow: none;
+  z-index: 3;
 }
 
 .sidebar-container {
@@ -248,11 +252,57 @@ header {
 
 .content {
   flex-grow: 1;
-  display: flex;                 /* Required for flexbox to work */
-  justify-content: center;      /* Center horizontally */
-  align-items: flex-start;      /* Keep at top vertically, or use center for full centering */
-  /*margin: 20px;                 Optional spacing */
-  overflow-y: hidden;             /* Prevent overflow issues */
+  display: flex;                 
+  justify-content: center;      
+  align-items: flex-start;    
+  overflow-y: hidden; 
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.app-background {
+    position: fixed;
+    inset: 0;
+    background-image: var(--wallpaperBackground);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    z-index: 0;
+    transform: scale(1.05);
+    opacity: 0.10;
+    filter: blur(1px);
+}
+
+.app-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: var(--appOverlayBackground);
+    z-index: 1;
+} 
+
+
+.app-background::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(
+            circle at 20% 20%,
+            rgba(0, 140, 255, 0.70),
+            transparent 35%
+        ),
+        radial-gradient(
+            circle at 80% 30%,
+            rgba(0, 220, 255, 0.72),
+            transparent 35%
+        ),
+        radial-gradient(
+            circle at 50% 100%,
+            rgba(0, 90, 180, 0.75),
+            transparent 40%
+        );
+    pointer-events: none;
 }
 
 .header {
@@ -788,7 +838,7 @@ header {
   position: absolute;
   top: 60px; /* Adjust based on your header */
   right: 20px;
-  z-index: 1000;
+  z-index: 6;
 }
 
 .signalTagItemX {

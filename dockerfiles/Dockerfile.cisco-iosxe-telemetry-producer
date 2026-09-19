@@ -1,14 +1,14 @@
 # Build stage
 FROM golang:1.23-alpine AS builder
 
-WORKDIR /app/telemetry/producer
+WORKDIR /app/telemetry/cisco/ios-xe/producer
 
 # Copy go.mod and go.sum first (for caching)
-COPY telemetry/producer/go.mod telemetry/producer/go.sum ./
+COPY telemetry/cisco/ios-xe/producer/go.mod telemetry/cisco/ios-xe/producer/go.sum ./
 
 # Copy all source code
-COPY telemetry/producer /app/telemetry/producer
-COPY telemetry/protobuf /app/telemetry/protobuf
+COPY telemetry/cisco/ios-xe/producer /app/telemetry/cisco/ios-xe/producer
+COPY telemetry/cisco/ios-xe/protobuf /app/telemetry/cisco/ios-xe/protobuf
 
 RUN go mod download
 
@@ -19,9 +19,9 @@ RUN go build -o producer main.go
 FROM alpine:latest
 
 WORKDIR /app
-
+    
 # Copy binary from builder
-COPY --from=builder /app/telemetry/producer/producer .
+COPY --from=builder /app/telemetry/cisco/ios-xe/producer/producer .
 
 # Expose the port your gRPC server listens on
 EXPOSE 1163

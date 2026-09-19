@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	kafka "github.com/confluentinc/confluent-kafka-go/v2/kafka"
@@ -26,10 +25,19 @@ var (
 	ctx = context.Background()
 )
 
+const (
+	redisAddr       = "redis:6379"
+	redisStateHash  = "ping:status"
+	redisPubChannel = "icmp-ping"
+	kafkaBroker     = "kafka:9092"
+	kafkaTopic      = "ping-results"
+	kafkaGroup      = "icmp-redis-consumer"
+)
+
 func initRedis() {
 
 	rdb = redis.NewClient(&redis.Options{
-		Addr: "redis:6379",
+		Addr: redisAddr,
 	})
 
 	if err := rdb.Ping(ctx).Err(); err != nil {
@@ -39,22 +47,66 @@ func initRedis() {
 	log.Println("✅ Connected to Redis")
 }
 
+/*
+	saveToRedis stores the latest ping state using the IP address
+	as the Redis HASH field.
+
+	Redis structure:
+
+	ping:status
+		192.168.1.193 -> JSON
+		192.168.1.194 -> JSON
+		192.168.1.195 -> JSON
+
+	The same event is also published through Redis Pub/Sub
+	on the "icmp-ping" channel for realtime WebSocket updates.
+*/
 func saveToRedis(result PingResult) error {
 
-	key := "ping:" + strings.ToLower(result.Hostname)
+	// Validate the IP before writing to Redis.
+	if result.IP == "" {
+		log.Printf(
+			"⚠️ Empty IP received for hostname %q",
+			result.Hostname,
+		)
 
+		return nil
+	}
+
+	// Marshal the complete ping result.
 	data, err := json.Marshal(result)
 	if err != nil {
 		return err
 	}
 
-	// 1. Store latest state (cache)
-	err = rdb.Set(ctx, key, data, 0).Err()
+	// ---------------------------------------------------------
+	// 1. Store CURRENT state in Redis
+	// ---------------------------------------------------------
+	//
+	// Redis:
+	//
+	// ping:status
+	//   192.168.1.193 -> {...}
+	//   192.168.1.194 -> {...}
+	//
+	// The IP is used as the field because ICMP operates against
+	// the IP address.
+	//
+	err = rdb.HSet(
+		ctx,
+		redisStateHash,
+		result.IP,
+		data,
+	).Err()
+
 	if err != nil {
 		return err
 	}
 
-	// 2. Build event envelope (IMPORTANT)
+	// ---------------------------------------------------------
+	// 2. Build realtime event envelope
+	// ---------------------------------------------------------
+
 	event := map[string]interface{}{
 		"type":      "icmp-ping",
 		"hostname":  result.Hostname,
@@ -69,76 +121,213 @@ func saveToRedis(result PingResult) error {
 		return err
 	}
 
-	err = rdb.HSet(ctx, "icmp-ping", result.Hostname, eventData).Err()
+	// ---------------------------------------------------------
+	// 3. Publish realtime event
+	// ---------------------------------------------------------
+	//
+	// Subscribers such as your WebSocket bridge can subscribe
+	// to:
+	//
+	//     icmp-ping
+	//
+	// and immediately forward the event to React.
+	//
+	err = rdb.Publish(
+		ctx,
+		redisPubChannel,
+		eventData,
+	).Err()
+
 	if err != nil {
-		log.Printf("⚠️ Redis publish failed for %s: %v", result.Hostname, err)
+		log.Printf(
+			"⚠️ Redis Pub/Sub publish failed for %s: %v",
+			result.IP,
+			err,
+		)
+
 		return err
 	}
 
-	// 3. Publish to Redis Pub/Sub
-	err = rdb.Publish(ctx, "icmp-ping", eventData).Err()
+	return nil
+}
+
+func initKafkaConsumer() *kafka.Consumer {
+
+	consumer, err := kafka.NewConsumer(&kafka.ConfigMap{
+		"bootstrap.servers": kafkaBroker,
+		"group.id":          kafkaGroup,
+		"auto.offset.reset": "latest",
+	})
+
 	if err != nil {
-		log.Printf("⚠️ Redis publish failed for %s: %v", result.Hostname, err)
+		log.Fatalf(
+			"❌ Kafka consumer failed: %v",
+			err,
+		)
 	}
 
-	return nil
+	err = consumer.SubscribeTopics(
+		[]string{kafkaTopic},
+		nil,
+	)
+
+	if err != nil {
+		log.Fatalf(
+			"❌ Topic subscribe failed: %v",
+			err,
+		)
+	}
+
+	log.Printf(
+		"✅ Subscribed to Kafka topic: %s",
+		kafkaTopic,
+	)
+
+	return consumer
 }
 
 func main() {
 
 	log.Println("🚀 ICMP Redis Consumer starting")
 
+	// ---------------------------------------------------------
+	// Redis
+	// ---------------------------------------------------------
+
 	initRedis()
 
-	consumer, err := kafka.NewConsumer(&kafka.ConfigMap{
-		"bootstrap.servers": "kafka:9092",
-		"group.id":          "icmp-redis-consumer",
-		"auto.offset.reset": "latest",
-	})
+	defer func() {
+		log.Println("🔌 Closing Redis connection")
+		rdb.Close()
+	}()
 
-	if err != nil {
-		log.Fatalf("❌ Kafka consumer failed: %v", err)
-	}
+	// ---------------------------------------------------------
+	// Kafka
+	// ---------------------------------------------------------
 
-	defer consumer.Close()
+	consumer := initKafkaConsumer()
 
-	err = consumer.SubscribeTopics(
-		[]string{ "ping-results", }, nil,
+	defer func() {
+		log.Println("🔌 Closing Kafka consumer")
+		consumer.Close()
+	}()
+
+	// ---------------------------------------------------------
+	// Signal handling
+	// ---------------------------------------------------------
+
+	sigChan := make(chan os.Signal, 1)
+
+	signal.Notify(
+		sigChan,
+		syscall.SIGINT,
+		syscall.SIGTERM,
 	)
 
-	if err != nil { log.Fatalf("❌ Topic subscribe failed: %v", err) } 
-	log.Println("✅ Subscribed to ping-results") 
-	sigChan := make(chan os.Signal, 1) 
-	signal.Notify( sigChan, syscall.SIGINT, syscall.SIGTERM, )
+	log.Println("📡 Waiting for Kafka messages")
 
-	log.Println("📡 Waiting for Kafka messages") 
-	run := true 
-	for run { 
+	run := true
 
-		select { 
+	for run {
 
-		case sig := <-sigChan: 
-			log.Printf( "🛑 Received signal %v", sig, ) 
-			run = false 
-		default: 
-			msg, err := consumer.ReadMessage(-1) 
-			if err != nil { 
-				if kafkaErr, ok := err.(kafka.Error); ok { log.Printf( "Kafka error: %v", kafkaErr, ) } 
+		select {
+
+		case sig := <-sigChan:
+
+			log.Printf(
+				"🛑 Received signal %v",
+				sig,
+			)
+
+			run = false
+
+		default:
+
+			// -------------------------------------------------
+			// Read Kafka message
+			// -------------------------------------------------
+
+			msg, err := consumer.ReadMessage(-1)
+
+			if err != nil {
+
+				if kafkaErr, ok := err.(kafka.Error); ok {
+
+					log.Printf(
+						"⚠️ Kafka error: %v",
+						kafkaErr,
+					)
+
+				} else {
+
+					log.Printf(
+						"⚠️ Kafka read error: %v",
+						err,
+					)
+				}
+
 				continue
-			} 
-			var result PingResult 
+			}
+
+			// -------------------------------------------------
+			// Parse PingResult
+			// -------------------------------------------------
+
+			var result PingResult
+
 			if err := json.Unmarshal(
 				msg.Value,
 				&result,
-			); err != nil { 
-				log.Printf( "❌ JSON parse error: %v", err, ) 
+			); err != nil {
+
+				log.Printf(
+					"❌ JSON parse error: %v",
+					err,
+				)
+
 				continue
-			} 
-			if err := saveToRedis(result); err != nil { 
-				log.Printf( "❌ Redis write failed: %v", err, ) 
+			}
+
+			// -------------------------------------------------
+			// Validate data
+			// -------------------------------------------------
+
+			if result.IP == "" {
+
+				log.Printf(
+					"⚠️ Ignoring ping result with empty IP: %+v",
+					result,
+				)
+
 				continue
-			} 
-			log.Printf( "✅ %s (%s) RTT=%dms", result.Hostname, result.Status, result.RTT, )
+			}
+
+			// -------------------------------------------------
+			// Save to Redis + publish event
+			// -------------------------------------------------
+
+			if err := saveToRedis(result); err != nil {
+
+				log.Printf(
+					"❌ Redis write failed for %s: %v",
+					result.IP,
+					err,
+				)
+
+				continue
+			}
+
+			// -------------------------------------------------
+			// Logging
+			// -------------------------------------------------
+
+			log.Printf(
+				"✅ %s [%s] status=%s RTT=%dms",
+				result.Hostname,
+				result.IP,
+				result.Status,
+				result.RTT,
+			)
 		}
 	}
 

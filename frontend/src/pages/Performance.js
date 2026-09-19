@@ -94,7 +94,7 @@ function Performance({ currentUser, setDashboardTitle, keycloak, showNotificatio
                 {loading && <div className="loadingMessage">Loading...</div>}
                 {error && <div className="errorMessage">{error}</div>}
                 {!loading && !error && (
-                    <div style={{ height: 'calc(100vh - 60px)', overflowY: 'auto', width: '1200px' }} >
+                    <div style={{ height: 'calc(100vh - 60px)', overflowY: 'auto', width: '1200px', zIndex: 6 }} >
                         <CPUUtilsStats selectedDevice={selectedDevice} keycloak={keycloak} startTime={startTime} endTime={endTime} />
                         <MemoryStats selectedDevice={selectedDevice} keycloak={keycloak} startTime={startTime} endTime={endTime} />
                         <InterfaceOper selectedDevice={selectedDevice} keycloak={keycloak} startTime={startTime} endTime={endTime} />

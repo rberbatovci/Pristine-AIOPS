@@ -1,636 +1,271 @@
-import { useState, useEffect, useRef } from "react";
-
+import React, { useState, useEffect, useCallback } from "react";
+import PropTypes from "prop-types";
 import {
-    RadialBarChart,
-    PolarAngleAxis,
-    RadialBar,
-    Cell,
-    ResponsiveContainer
-} from "recharts";
+  Box,
+  Typography,
+  LinearProgress,
+  Chip,
+  IconButton,
+  Grid,
+  Tooltip,
+} from "@mui/material";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import { useDeviceStatus } from "../../hooks/useDeviceStatus"; // Preserved custom hook
 
-import {
-    PiDatabaseDuotone
-} from "react-icons/pi";
+export default function MemoryStatistics({
+  selectedDevice,
+  refreshTrigger,
+  onDataFetched,
+  keycloak, // Preserved Keycloak instance for authenticated API requests
+}) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-import "../../css/CpuUtilizationModern.css";
+  // Keep useDeviceStatus active inside the component
+  const deviceStatus = useDeviceStatus(selectedDevice?.ip_address);
 
-import useDeviceStatus from "../../hooks/useDeviceStatus";
+  const normalizeMemoryData = useCallback(
+    (msg) => {
+      if (!msg) return null;
 
+      // Unpack stats directly or from dynamic pool keys (e.g. "reserve Processor")
+      let stats = msg.stats;
+      let poolName = "Main Memory";
 
-function MemoryStatistics({ selectedDevice, keycloak }) {
-
-    const socketRef = useRef(null);
-
-
-    const [error, setError] = useState("");
-    const [memoryLoading, setMemoryLoading] = useState(false);
-    const [memoryTimestamp, setMemoryTimestamp] = useState(null);
-
-
-
-    const [memoryChartData, setMemoryChartData] = useState([
-        {
-            name: "Used Memory",
-            value: 0,
-            label: "Used Memory"
-        },
-        {
-            name: "Used RAM",
-            value: 0,
-            label: "Used RAM"
-        },
-        {
-            name: "Free RAM",
-            value: 0,
-            label: "Free RAM"
+      if (!stats) {
+        const poolKey = Object.keys(msg).find((key) => msg[key]?.stats);
+        if (poolKey) {
+          stats = msg[poolKey].stats;
+          poolName = poolKey;
         }
-    ]);
-
-
-
-    /*
-        Initial Redis snapshot
-    */
-    const {
-        data: initialMemory,
-        loading: initialLoading,
-        error: initialError
-
-    } = useDeviceStatus(
-        keycloak,
-        selectedDevice,
-        "memory"
-    );
-
-
-
-
-    /*
-        Shared handler:
-        REST + WebSocket
-    */
-    const handleMemoryUpdate = (msg) => {
-
-
-        if (!msg)
-            return;
-
-
-
-        const stats = msg.stats || {};
-
-
-
-        const totalMemory = Number(
-            stats["total-memory"] ?? 0
-        );
-
-
-        const usedMemory = Number(
-            stats["used-memory"] ?? 0
-        );
-
-
-        const freeMemory = Number(
-            stats["free-memory"] ?? 0
-        );
-
-
-
-        const usage = Number(
-            stats["usage"] ??
-            (
-                totalMemory > 0
-                    ? (usedMemory / totalMemory) * 100
-                    : 0
-            )
-        );
-
-
-
-        setMemoryChartData([
-
-            {
-                name: "Used Memory",
-                value: Math.min(
-                    usage,
-                    100
-                ),
-                label: "Used Memory"
-            },
-
-
-            {
-                name: "Used RAM",
-                value: Math.min(
-                    totalMemory > 0
-                        ? (usedMemory / totalMemory) * 100
-                        : 0,
-                    100
-                ),
-                label: "Used RAM"
-            },
-
-
-            {
-                name: "Free RAM",
-                value: Math.min(
-                    totalMemory > 0
-                        ? (freeMemory / totalMemory) * 100
-                        : 0,
-                    100
-                ),
-                label: "Free RAM"
-            }
-
-        ]);
-
-
-
-        setMemoryTimestamp(
-            msg.timestamp ?? null
-        );
-
-
-        setError("");
-        setMemoryLoading(false);
-
-    };
-
-
-
-
-
-    /*
-        Load initial REST data
-    */
-    useEffect(() => {
-
-
-        if(initialMemory){
-
-            console.log(
-                "Initial Memory:",
-                initialMemory
-            );
-
-
-            handleMemoryUpdate(
-                initialMemory
-            );
-
-        }
-
-
-    }, [initialMemory]);
-
-
-
-
-
-
-    /*
-        WebSocket live updates
-    */
-    useEffect(() => {
-
-
-        if(!selectedDevice?.hostname)
-            return;
-
-
-
-        const protocol =
-            window.location.protocol === "https:"
-                ? "wss"
-                : "ws";
-
-
-
-        const ws = new WebSocket(
-
-            `${protocol}://${window.location.host}/ws/memory?device=${selectedDevice.hostname}`
-
-        );
-
-
-
-        socketRef.current = ws;
-
-
-        setMemoryLoading(true);
-
-
-
-        ws.onopen = () => {
-
-            console.log(
-                "🔌 Memory WS connected"
-            );
-
-        };
-
-
-
-
-        ws.onmessage = (event) => {
-
-
-            try {
-
-
-                const msg = JSON.parse(
-                    event.data
-                );
-
-
-                console.log(
-                    "Memory WS:",
-                    msg
-                );
-
-
-
-                if(msg.type === "memory-util"){
-
-                    handleMemoryUpdate(
-                        msg
-                    );
-
-                }
-
-
-            }
-            catch(err){
-
-                console.error(
-                    "Memory WS parse error:",
-                    err
-                );
-
-
-                setError(
-                    "Invalid memory WS data"
-                );
-
-            }
-
-        };
-
-
-
-
-        ws.onerror = () => {
-
-            setError(
-                "Memory websocket error"
-            );
-
-        };
-
-
-
-
-        ws.onclose = () => {
-
-
-            console.log(
-                "❌ Memory WS closed"
-            );
-
-
-            socketRef.current = null;
-
-        };
-
-
-
-
-        return () => {
-
-
-            if(socketRef.current){
-
-                socketRef.current.close();
-
-                socketRef.current = null;
-
-            }
-
-
-        };
-
-
-    }, [
-        selectedDevice?.hostname
-    ]);
-
-
-
-
-
-
-    const getSeverityColor = (value) => {
-
-
-        if(value >= 90)
-            return "var(--color-critical)";
-
-
-        if(value >= 75)
-            return "var(--color-warning)";
-
-
-        return "var(--color-healthy)";
-
-    };
-
-
-
-
-    const getColorClass = (value) => {
-
-
-        if(value >= 90)
-            return "text-critical";
-
-
-        if(value >= 75)
-            return "text-warning";
-
-
-        return "text-healthy";
-
-    };
-
-
-
-
-
+      }
+
+      stats = stats || {};
+
+      const totalMemory = Math.max(0, Number(stats["total-memory"] ?? 0));
+      const usedMemory = Math.max(0, Number(stats["used-memory"] ?? 0));
+      const freeMemory = Math.max(0, Number(stats["free-memory"] ?? 0));
+
+      const calculatedUsage = totalMemory > 0 ? (usedMemory / totalMemory) * 100 : 0;
+      const usage = Math.min(
+        100,
+        Math.max(0, Number(stats["usage"] ?? calculatedUsage))
+      );
+
+      return {
+        hostname: msg.hostname ?? selectedDevice?.hostname ?? null,
+        ip: msg.ip ?? selectedDevice?.ip_address ?? null,
+        poolName,
+        memory_util: usage,
+        stats: {
+          "total-memory": totalMemory,
+          "used-memory": usedMemory,
+          "free-memory": freeMemory,
+          usage,
+          "used-memory-percent": usage,
+          "free-memory-percent": Math.max(0, 100 - usage),
+        },
+        timestamp: msg.timestamp ?? new Date().toISOString(),
+      };
+    },
+    [selectedDevice?.hostname, selectedDevice?.ip_address]
+  );
+
+  const fetchMemoryData = useCallback(async () => {
+    if (!selectedDevice?.ip_address) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const headers = {};
+      if (keycloak?.token) {
+        headers["Authorization"] = `Bearer ${keycloak.token}`;
+      }
+
+      const response = await fetch(
+        `/api/v1/devices/${selectedDevice.ip_address}/memory`,
+        { headers }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const rawData = await response.json();
+      const normalized = normalizeMemoryData(rawData);
+
+      setData(normalized);
+
+      // Return normalized stats back to Info.js
+      if (onDataFetched) {
+        onDataFetched(normalized);
+      }
+    } catch (err) {
+      setError(err.message || "Failed to fetch memory data");
+      setData(null);
+      if (onDataFetched) {
+        onDataFetched(null);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedDevice?.ip_address, keycloak?.token, normalizeMemoryData, onDataFetched]);
+
+  useEffect(() => {
+    fetchMemoryData();
+  }, [fetchMemoryData, refreshTrigger]);
+
+  if (!selectedDevice) {
     return (
-
-        <div
-            className="cpu-monitor-card"
-            style={{
-                width: "calc(50% - 10px)",
-                marginLeft: "15px"
-            }}
-        >
-
-
-            <div className="info-header">
-
-                <div className="header-title">
-
-
-                    <PiDatabaseDuotone
-                        style={{
-                            fontSize:18
-                        }}
-                    />
-
-
-                    <h2>
-                        Memory Statistics
-                    </h2>
-
-
-                </div>
-
-            </div>
-
-
-
-
-
-            <div className="cpu-monitor-content">
-
-
-                <div className="chart-container">
-
-
-                    <ResponsiveContainer
-                        width="100%"
-                        height="100%"
-                    >
-
-
-                        <RadialBarChart
-
-                            cx="50%"
-                            cy="50%"
-
-                            innerRadius="45%"
-                            outerRadius="100%"
-
-                            barSize={8}
-
-                            data={memoryChartData}
-
-                            startAngle={90}
-                            endAngle={-270}
-
-                        >
-
-
-                            <RadialBar
-
-                                background={{
-                                    fill:"var(--bg-track)"
-                                }}
-
-                                dataKey="value"
-
-                                cornerRadius={4}
-
-                            >
-
-
-                                {
-                                    memoryChartData.map(
-                                        entry => (
-
-                                        <Cell
-
-                                            key={entry.name}
-
-                                            fill={
-                                                getSeverityColor(
-                                                    entry.value
-                                                )
-                                            }
-
-                                        />
-
-                                    ))
-                                }
-
-
-                            </RadialBar>
-
-
-
-                            <PolarAngleAxis
-
-                                type="number"
-
-                                domain={[
-                                    0,
-                                    100
-                                ]}
-
-                                tick={false}
-
-                            />
-
-
-                        </RadialBarChart>
-
-
-                    </ResponsiveContainer>
-
-
-
-
-
-                    <button
-
-                        className={
-                            `center-action-btn ${
-                                memoryLoading ||
-                                initialLoading
-                                ? "is-loading"
-                                : ""
-                            }`
-                        }
-
-                        title="Live Memory Stream"
-
-                    >
-
-                        <PiDatabaseDuotone />
-
-                    </button>
-
-
-                </div>
-
-
-
-
-
-
-
-                <div className="metrics-sidebar">
-
-
-                    {
-                        (error || initialError) &&
-
-                        <div className="metrics-error-banner">
-
-                            {
-                                error ||
-                                initialError?.message
-                            }
-
-                        </div>
-
-                    }
-
-
-
-
-
-
-                    <div className="telemetry-rows">
-
-
-                        {
-                            [...memoryChartData]
-                            .reverse()
-                            .map(stat => (
-
-
-                                <div
-
-                                    className="metric-row"
-
-                                    key={stat.name}
-
-                                >
-
-
-                                    <div className="metric-meta">
-
-
-                                        <span
-
-                                            className={
-                                                `status-dot ${
-                                                    getColorClass(
-                                                        stat.value
-                                                    )
-                                                }`
-                                            }
-
-                                        />
-
-
-
-                                        <span className="metric-label">
-
-                                            {stat.label}
-
-                                        </span>
-
-
-                                    </div>
-
-
-
-
-
-                                    <div
-
-                                        className={
-                                            `metric-value ${
-                                                getColorClass(
-                                                    stat.value
-                                                )
-                                            }`
-                                        }
-
-                                    >
-
-                                        {stat.value.toFixed(1)}%
-
-                                    </div>
-
-
-
-                                </div>
-
-
-                            ))
-
-                        }
-
-
-                    </div>
-
-
-                </div>
-
-
-            </div>
-
-
-        </div>
-
+      <Box p={2}>
+        <Typography variant="body2" color="text.secondary">
+          Select a device to view memory statistics.
+        </Typography>
+      </Box>
     );
+  }
 
+  if (loading) {
+    return (
+      <Box p={2}>
+        <Typography variant="body2" color="text.secondary" mb={1}>
+          Loading memory statistics...
+        </Typography>
+        <LinearProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box p={2}>
+        <Typography variant="body2" color="error">
+          Error loading memory statistics: {error}
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (!data || !data.stats) {
+    return (
+      <Box p={2}>
+        <Typography variant="body2" color="text.secondary">
+          No memory statistics available.
+        </Typography>
+      </Box>
+    );
+  }
+
+  const { stats, poolName } = data;
+  const memoryUtil = stats.usage ?? 0;
+
+  const getStatusColor = (value) => {
+    if (value >= 85) return "error";
+    if (value >= 70) return "warning";
+    return "success";
+  };
+
+  // Unit conversion handling (Bytes, KB, MB, GB, TB)
+  const formatBytes = (bytes) => {
+    if (!bytes || bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+  };
+
+  return (
+    <Box p={2} border={1} borderColor="divider" borderRadius={2}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+        <Box display="flex" alignItems="center" gap={1}>
+          <Typography variant="h6">
+            Memory Statistics {poolName && `(${poolName})`}
+          </Typography>
+          {deviceStatus && (
+            <Chip
+              label={deviceStatus.status || "Unknown"}
+              size="small"
+              color={deviceStatus.status === "online" ? "success" : "default"}
+              variant="outlined"
+            />
+          )}
+        </Box>
+        <Tooltip title="Refresh Memory Stats">
+          <IconButton onClick={fetchMemoryData} size="small">
+            <RefreshIcon />
+          </IconButton>
+        </Tooltip>
+      </Box>
+
+      <Box mb={2}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
+          <Typography variant="body2" color="text.secondary">
+            Memory Utilization
+          </Typography>
+          <Chip
+            label={`${memoryUtil.toFixed(1)}%`}
+            color={getStatusColor(memoryUtil)}
+            size="small"
+          />
+        </Box>
+        <LinearProgress
+          variant="determinate"
+          value={Math.min(100, Math.max(0, memoryUtil))}
+          color={getStatusColor(memoryUtil)}
+          sx={{ height: 8, borderRadius: 1 }}
+        />
+      </Box>
+
+      <Grid container spacing={2}>
+        <Grid item xs={4}>
+          <Typography variant="caption" color="text.secondary" display="block">
+            Total
+          </Typography>
+          <Typography variant="body2" fontWeight="bold">
+            {formatBytes(stats["total-memory"])}
+          </Typography>
+        </Grid>
+        <Grid item xs={4}>
+          <Typography variant="caption" color="text.secondary" display="block">
+            Used
+          </Typography>
+          <Typography variant="body2" fontWeight="bold">
+            {formatBytes(stats["used-memory"])}
+          </Typography>
+        </Grid>
+        <Grid item xs={4}>
+          <Typography variant="caption" color="text.secondary" display="block">
+            Free
+          </Typography>
+          <Typography variant="body2" fontWeight="bold">
+            {formatBytes(stats["free-memory"])}
+          </Typography>
+        </Grid>
+      </Grid>
+
+      {data.timestamp && (
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          display="block"
+          mt={2}
+          textAlign="right"
+        >
+          Last updated: {new Date(data.timestamp).toLocaleTimeString()}
+        </Typography>
+      )}
+    </Box>
+  );
 }
 
-
-export default MemoryStatistics;
+MemoryStatistics.propTypes = {
+  selectedDevice: PropTypes.shape({
+    ip_address: PropTypes.string,
+    hostname: PropTypes.string,
+  }),
+  refreshTrigger: PropTypes.number,
+  onDataFetched: PropTypes.func,
+  keycloak: PropTypes.object,
+};

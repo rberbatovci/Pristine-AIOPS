@@ -1,0 +1,96 @@
+---
+- name: Configure NetFlow on Cisco NX-OS device
+  hosts: all
+  gather_facts: false
+  connection: ansible.netcommon.network_cli
+
+  vars:
+    ansible_user: "{{ username }}"
+    ansible_password: "{{ password }}"
+    ansible_host: "{{ router_ip }}"
+    ansible_network_os: cisco.nxos.nxos
+
+    # SSH compatibility for your Nexus 9000v
+    ansible_network_cli_ssh_type: libssh
+    ansible_host_key_checking: false
+    ansible_libssh_host_key_auto_add: true
+    ansible_libssh_hostkeys: "+ssh-rsa"
+    ansible_libssh_macs: "+hmac-sha1"
+    ansible_libssh_kex: "+diffie-hellman-group14-sha1"
+
+    # Interfaces where NetFlow should be enabled
+    netflow_interfaces:
+      - "Ethernet1/1"
+
+    # Pristine-AIOPS NetFlow collector
+    netflow_export_source: "Ethernet1/1"
+
+  tasks:
+
+    - name: Enable NetFlow feature
+      cisco.nxos.nxos_config:
+        lines:
+          - "feature netflow"
+
+    - name: Configure NetFlow flow record
+      cisco.nxos.nxos_config:
+        lines:
+          - "match ipv4 source address"
+          - "match ipv4 destination address"
+          - "match ip protocol"
+          - "match transport source-port"
+          - "match transport destination-port"
+          - "collect counter bytes"
+          - "collect counter packets"
+          - "collect timestamp sys-uptime first"
+          - "collect timestamp sys-uptime last"
+          - "collect interface input"
+          - "collect interface output"
+        parents:
+          - "flow record PRISTINE_RECORD"
+
+    - name: Configure NetFlow exporter
+      cisco.nxos.nxos_config:
+        lines:
+          - "destination {{ receiver_ip }} use-vrf default"
+          - "source-interface {{ netflow_export_source }}"
+          - "transport udp {{ receiver_port }}"
+          - "version 9"
+        parents:
+          - "flow exporter PRISTINE_EXPORTER"
+
+    - name: Configure NetFlow flow monitor
+      cisco.nxos.nxos_config:
+        lines:
+          - "record PRISTINE_RECORD"
+          - "exporter PRISTINE_EXPORTER"
+        parents:
+          - "flow monitor PRISTINE_MONITOR"
+
+    - name: Apply NetFlow monitor to interfaces
+      cisco.nxos.nxos_config:
+        parents:
+          - "interface {{ item }}"
+        lines:
+          - "ip flow monitor PRISTINE_MONITOR input"
+      loop: "{{ netflow_interfaces }}"
+
+    - name: Verify NetFlow configuration
+      cisco.nxos.nxos_command:
+        commands:
+          - "show running-config | section flow"
+      register: netflow_config
+
+    - name: Display NetFlow configuration
+      ansible.builtin.debug:
+        var: netflow_config.stdout_lines
+
+    - name: Verify NetFlow monitor
+      cisco.nxos.nxos_command:
+        commands:
+          - "show flow monitor PRISTINE_MONITOR"
+      register: netflow_monitor
+
+    - name: Display NetFlow monitor status
+      ansible.builtin.debug:
+        var: netflow_monitor.stdout_lines

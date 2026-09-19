@@ -55,58 +55,82 @@ async def get_all_device_pings(
 
     Redis structure:
 
-        ping:<hostname>
+        ping:status
 
-    Example:
+    Redis HASH fields:
 
-        ping:csr1kv-router4
-        ping:csr1kv-router5
+        192.168.1.193
+        192.168.1.194
+        192.168.1.195
 
-    Redis value:
+    Redis HASH values:
 
         {
-            "hostname": "CSR1kv-Router4",
-            "ip": "192.168.1.194",
-            "status": "up",
+            "hostname": "NX9kv-Switch3",
+            "ip": "192.168.1.193",
+            "status": "down",
             "rtt_ms": 0,
-            "timestamp": "2026-08-12T18:25:09Z"
+            "timestamp": "2026-09-17T18:27:40Z"
         }
+
+    The IP address is used as the Redis HASH field because
+    ICMP ping is performed against the IP address.
     """
 
     try:
+
+        # ---------------------------------------------------------
+        # Get all current ping states from the Redis HASH
+        # ---------------------------------------------------------
+        #
+        # Redis command:
+        #
+        #     HGETALL ping:status
+        #
+        # Result:
+        #
+        #     {
+        #         b"192.168.1.193": b"{...}",
+        #         b"192.168.1.194": b"{...}",
+        #         b"192.168.1.195": b"{...}"
+        #     }
+        #
+        ping_states = await r.hgetall("ping:status")
+
         result = []
 
-        # Find all Redis keys beginning with ping:
-        keys = await r.keys("ping:*")
+        # ---------------------------------------------------------
+        # Process each device
+        # ---------------------------------------------------------
 
-        for key in keys:
+        for ip, value in ping_states.items():
 
             try:
-                # Get the JSON stored in the key
-                value = await r.get(key)
 
-                if value is None:
-                    continue
+                # Redis may return bytes depending on the
+                # Redis client configuration.
+                if isinstance(ip, bytes):
+                    ip = ip.decode("utf-8")
+
+                if isinstance(value, bytes):
+                    value = value.decode("utf-8")
 
                 # Decode JSON
                 ping_data = json.loads(value)
 
-                # Make sure hostname exists
-                if "hostname" not in ping_data:
+                # -------------------------------------------------
+                # Ensure IP exists in the returned object
+                # -------------------------------------------------
+                #
+                # The Redis HASH field is the authoritative IP
+                # for this current ping state.
+                #
+                if not ping_data.get("ip"):
+                    ping_data["ip"] = ip
 
-                    # Extract hostname from:
-                    # ping:csr1kv-router4
-                    key_str = (
-                        key.decode()
-                        if isinstance(key, bytes)
-                        else key
-                    )
-
-                    ping_data["hostname"] = key_str.replace(
-                        "ping:",
-                        "",
-                        1,
-                    )
+                # -------------------------------------------------
+                # Add the result
+                # -------------------------------------------------
 
                 result.append(ping_data)
 
@@ -115,8 +139,12 @@ async def get_all_device_pings(
                 continue
 
             except Exception:
-                # Ignore individual bad Redis keys
+                # Ignore an individual malformed Redis entry
                 continue
+
+        # ---------------------------------------------------------
+        # Return current device states
+        # ---------------------------------------------------------
 
         return {
             "count": len(result),
@@ -124,6 +152,7 @@ async def get_all_device_pings(
         }
 
     except Exception as e:
+
         raise HTTPException(
             status_code=500,
             detail=f"Redis error: {str(e)}",

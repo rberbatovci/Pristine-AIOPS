@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import "../../css/SyslogDatabase.css";
 import EventsTable from "../../components/misc/EventsTable.js";
 import { useBgpLinkStateData } from "../../hooks/useBGPLSUpdates";
-import { useLocation } from "react-router-dom";
 
 function BgpLinkStateEventTable({
   setDashboardTitle,
@@ -25,7 +24,6 @@ function BgpLinkStateEventTable({
   const [selectedRows, setSelectedRows] = useState([]);
 
   const dropdownWrapperRef = useRef(null);
-  const location = useLocation();
 
   /*
    * ---------------------------------------------------------
@@ -33,7 +31,7 @@ function BgpLinkStateEventTable({
    * ---------------------------------------------------------
    *
    * Prevents the effect from firing just because the parent
-   * created a new selectedFilters object.
+   * creates a new selectedFilters object.
    */
   const filtersKey = useMemo(() => {
     return JSON.stringify(selectedFilters || {});
@@ -44,6 +42,7 @@ function BgpLinkStateEventTable({
    * Stable time values
    * ---------------------------------------------------------
    */
+
   const startTimeValue = useMemo(() => {
     if (!startTime) return null;
 
@@ -65,6 +64,7 @@ function BgpLinkStateEventTable({
    * Parse filters only when filtersKey changes
    * ---------------------------------------------------------
    */
+
   const stableFilters = useMemo(() => {
     try {
       return JSON.parse(filtersKey);
@@ -78,6 +78,7 @@ function BgpLinkStateEventTable({
    * Reset page when query parameters change
    * ---------------------------------------------------------
    */
+
   useEffect(() => {
     setPage(1);
   }, [
@@ -91,6 +92,7 @@ function BgpLinkStateEventTable({
    * Load data
    * ---------------------------------------------------------
    */
+
   useEffect(() => {
     if (!keycloak?.authenticated) {
       return;
@@ -117,6 +119,7 @@ function BgpLinkStateEventTable({
    * Dashboard title
    * ---------------------------------------------------------
    */
+
   useEffect(() => {
     setDashboardTitle("Topology Dashboard");
 
@@ -129,7 +132,12 @@ function BgpLinkStateEventTable({
    * ---------------------------------------------------------
    * Default BGP-LS columns
    * ---------------------------------------------------------
+   *
+   * These names now correspond directly to the normalized
+   * OpenSearch document.
+   * ---------------------------------------------------------
    */
+
   const defaultTags = [
     {
       label: "Timestamp",
@@ -148,32 +156,64 @@ function BgpLinkStateEventTable({
       value: "nlri_type",
     },
     {
-      label: "Source ID",
-      value: "sourceId",
+      label: "Protocol",
+      value: "protocol",
+    },
+    {
+      label: "Protocol Level",
+      value: "protocol_level",
+    },
+    {
+      label: "Source IP",
+      value: "source_ip",
     },
     {
       label: "Neighbor IP",
-      value: "neighborIp",
+      value: "neighbor_ip",
     },
     {
       label: "Source ASN",
-      value: "sourceAsn",
+      value: "source_asn",
     },
     {
-      label: "IGP Router ID",
-      value: "localNode.igpRouterId",
+      label: "Local Router ID",
+      value: "local_router_id",
+    },
+    {
+      label: "Local ASN",
+      value: "local_asn",
     },
     {
       label: "Remote Router ID",
-      value: "remoteNode.igpRouterId",
+      value: "remote_router_id",
+    },
+    {
+      label: "Remote ASN",
+      value: "remote_asn",
+    },
+    {
+      label: "Node Name",
+      value: "node_name",
+    },
+    {
+      label: "ISIS Area",
+      value: "isis_area",
+    },
+    {
+      label: "Link Metric",
+      value: "link_metric",
     },
     {
       label: "Prefix",
       value: "prefix",
     },
     {
-      label: "IGP Metric",
-      value: "igpMetric",
+      label: "Next Hop",
+      value: "next_hop",
+    },
+    {
+      label: "Local Preference",
+      value: "local_pref",
     },
   ];
 
@@ -182,9 +222,21 @@ function BgpLinkStateEventTable({
       ? selectedTags
       : defaultTags;
 
+  /*
+   * ---------------------------------------------------------
+   * Row selection
+   * ---------------------------------------------------------
+   */
+
   const handleRowSelectChange = (newSelectedRows) => {
     setSelectedRows(newSelectedRows);
   };
+
+  /*
+   * ---------------------------------------------------------
+   * Render
+   * ---------------------------------------------------------
+   */
 
   return (
     <div

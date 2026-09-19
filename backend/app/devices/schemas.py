@@ -47,6 +47,8 @@ class DeviceUpdatePartial(BaseModel):
 class DeviceCreate(DeviceBase):
     hostname: str
     ip_address: str
+    vendor: Optional[str] = None
+    version: Optional[str] = None
 
 
 class DeviceUpdate(DeviceBase):

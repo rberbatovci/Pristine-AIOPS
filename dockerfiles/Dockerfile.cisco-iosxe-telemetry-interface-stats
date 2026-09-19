@@ -1,0 +1,26 @@
+FROM golang:1.25-alpine AS builder
+
+WORKDIR /app/telemetry/cisco/ios-xe/interface-stats
+
+COPY telemetry/cisco/ios-xe/interface-stats/go.mod telemetry/cisco/ios-xe/interface-stats/go.sum ./
+
+COPY telemetry/cisco/ios-xe/protobuf /app/telemetry/cisco/ios-xe/protobuf
+
+COPY telemetry/cisco/ios-xe/interface-stats/. .
+
+RUN go mod download
+
+RUN go get github.com/redis/go-redis/v9
+
+# Build your binary
+RUN go build -o consumer . 
+
+FROM alpine:3.18
+
+WORKDIR /app/telemetry/cisco/ios-xe/interface-stats
+
+COPY --from=builder /app/telemetry/cisco/ios-xe/interface-stats/consumer .
+
+RUN apk add --no-cache bash
+
+CMD ["./consumer"]

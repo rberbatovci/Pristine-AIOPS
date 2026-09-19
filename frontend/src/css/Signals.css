@@ -65,7 +65,7 @@
   margin-top: 10px;
   overflow: hidden;
   transition: height 1s ease;
-  background: var(--backgroundColor3);
+  background: var(--backgroundColor2);
 }
 
 .signalRightElementContainer.expanded {

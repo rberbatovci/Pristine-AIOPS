@@ -4,6 +4,8 @@ import Particles, { initParticlesEngine } from "@tsparticles/react";
 import { loadFull } from "tsparticles";
 import { lightThemeOptions, darkThemeOptions } from "./components/misc/ParticleOptions";
 import { useUserPreferences } from "./hooks/useUserPreferences";
+import background1 from "./images/background1.jpg";
+import background2 from "./images/background2.jpg";
 import "./App.css";
 import Login from "./components/misc/Login";
 import Header from "./components/misc/Header";
@@ -558,7 +560,9 @@ const App = ({ keycloak, keycloakAuthenticated }) => {
           <Route path="*" element={<Navigate to="/login" />} />
         </Routes>
       ) : (
-        <div data-theme={isDarkTheme ? "dark" : "light"} className="App">
+        <div data-theme={isDarkTheme ? "dark" : "light"} className="App"> 
+         <div className="app-background" />
+         <div className="app-overlay" />
           {init && (
             <Particles id="tsparticles" particlesLoaded={particlesLoaded} options={options} />
           )}

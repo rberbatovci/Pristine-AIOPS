@@ -562,7 +562,7 @@ function InterfaceStatistics({ keycloak, selectedDevice }) {
       ?.interface_stats;
 
   return (
-    <div className="interface-stats-panel">
+    <div className="interface-stats-panel" style={{ marginTop: '20px'}}>
 
       <div className="info-header">
         <div className="header-title">

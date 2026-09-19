@@ -58,6 +58,8 @@ services:
         condition: service_healthy
       opensearch-node1:
         condition: service_healthy
+    environment:
+      ANSIBLE_CONFIG: /app/app/ansible/ansible.cfg
     env_file:
       - .env
     volumes:
@@ -656,6 +658,31 @@ services:
     networks:
       - aiops
 
+########################################################################################
+########################################################################################
+# SFLOW
+########################################################################################
+########################################################################################
+
+  sflow-producer:
+    container_name: sFlowProducer
+    #image: ghcr.io/rberbato/sflow-producer:latest
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.sflow-producer
+    ports:
+      - "1165:1165/udp"
+    env_file:
+      - .env
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=false"
+    networks:
+      - aiops
+
   gobgp:
     container_name: GoBGP
     build:
@@ -716,12 +743,35 @@ services:
 ########################################################################################
 ########################################################################################
 
-  telemetry-producer:
-    container_name: TelemetryProducer
-    #image: ghcr.io/rberbato/telemetry-producer:latest
+  cisco-nxos-telemetry-collector:
+    container_name: Cisco-NXOS-TelemetryCollector
+    #image: ghcr.io/rberbato/cisco-nxos-telemetry-collector:latest
     build:
       context: .
-      dockerfile: ./dockerfiles/Dockerfile.telemetry-producer
+      dockerfile: ./dockerfiles/Dockerfile.cisco-nxos-telemetry-collector
+    environment:
+      - KAFKA_BROKER=kafka:9092
+      - KAFKA_TOPIC=telemetry-topic
+      - GRPC_GO_LOG_VERBOSITY_LEVEL=99
+      - GRPC_GO_LOG_SEVERITY_LEVEL=info
+    ports:
+      - "1164:1164"
+    env_file:
+      - .env
+    depends_on:
+      kafka:
+        condition: service_healthy 
+    labels:
+      - "traefik.enable=false"
+    networks:
+      - aiops
+
+  cisco-iosxe-telemetry-producer:
+    container_name: Cisco-IOSXE-TelemetryProducer
+    #image: ghcr.io/rberbato/cisco-iosxe-telemetry-producer:latest
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile.cisco-iosxe-telemetry-producer
     environment:
       - KAFKA_BROKER=kafka:9092
       - KAFKA_TOPIC=telemetry-topic
@@ -737,12 +787,12 @@ services:
     networks:
       - aiops
 
-  cpu-util-stats:
-    container_name: CPUUtilStatistics
-    #image: ghcr.io/rberbato/telemetry-cpu-util-stats:latest
+  cisco-iosxe-cpu-util-stats:
+    container_name: Cisco-IOSXE-CPUUtilStatistics
+    #image: ghcr.io/rberbato/cisco-iosxe-telemetry-cpu-util-stats:latest
     build:
       context: .
-      dockerfile: ./dockerfiles/Dockerfile.telemetry-cpu-util-stats
+      dockerfile: ./dockerfiles/Dockerfile.cisco-iosxe-telemetry-cpu-util-stats
     depends_on:
       kafka:
         condition: service_healthy
@@ -756,12 +806,12 @@ services:
     networks:
       - aiops
 
-  memory-statistics:
-    container_name: MemoryStatistics
-    #image: ghcr.io/rberbato/telemetry-memory-stats:latest
+  cisco-iosxe-memory-statistics:
+    container_name: Cisco-IOSXE-MemoryStatistics
+    #image: ghcr.io/rberbato/cisco-iosxe-telemetry-memory-stats:latest
     build:
       context: .
-      dockerfile: ./dockerfiles/Dockerfile.telemetry-memory-stats
+      dockerfile: ./dockerfiles/Dockerfile.cisco-iosxe-telemetry-memory-stats
     depends_on:
       kafka:
         condition: service_healthy
@@ -773,12 +823,12 @@ services:
     networks:
       - aiops
       
-  interface-oper-status:
-    container_name: InterfaceOperStatus
-    #image: ghcr.io/rberbato/telemetry-interface-oper-status:latest
+  cisco-iosxe-interface-oper-status:
+    container_name: Cisco-IOSXE-InterfaceOperStatus
+    #image: ghcr.io/rberbato/cisco-iosxe-telemetry-interface-oper-status:latest
     build:
       context: .
-      dockerfile: ./dockerfiles/Dockerfile.telemetry-interface-oper-status
+      dockerfile: ./dockerfiles/Dockerfile.cisco-iosxe-telemetry-interface-oper-status
     depends_on:
       kafka:
         condition: service_healthy
@@ -790,12 +840,12 @@ services:
     networks:
       - aiops
 
-  interface-statistics:
-    container_name: InterfaceStatistics
-    #image: ghcr.io/rberbato/telemetry-interface-stats:latest
+  cisco-iosxe-interface-statistics:
+    container_name: Cisco-IOSXE-InterfaceStatistics
+    #image: ghcr.io/rberbato/cisco-iosxe-telemetry-interface-stats:latest
     build:
       context: .
-      dockerfile: ./dockerfiles/Dockerfile.telemetry-interface-stats
+      dockerfile: ./dockerfiles/Dockerfile.cisco-iosxe-telemetry-interface-stats
     depends_on:
       kafka:
         condition: service_healthy
@@ -807,12 +857,12 @@ services:
     networks:
       - aiops
 
-  #bgp-connection-statistics:
+  #cisco-iosxe-bgp-connection-statistics:
   #  container_name: BGPConnectionStatistics
-  #  #image: ghcr.io/rberbato/telemetry-interface-stats:latest
+  #  #image: ghcr.io/rberbato/cisco-iosxe-telemetry-bgp-connection-stats:latest
   #  build:
   #    context: .
-  #    dockerfile: ./dockerfiles/Dockerfile.telemetry-bgp-connection-stats
+  #    dockerfile: ./dockerfiles/Dockerfile.cisco-iosxe-telemetry-bgp-connection-stats
   #  depends_on:
   #    kafka:
   #      condition: service_healthy

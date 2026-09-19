@@ -1,5 +1,5 @@
 # Base image
-FROM debian:bullseye
+FROM debian:bookworm-slim
 
 # Install build tools and dependencies
 RUN apt-get update && apt-get install -y \

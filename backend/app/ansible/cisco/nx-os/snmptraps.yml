@@ -1,0 +1,45 @@
+---
+- name: Configure SNMPv3 traps on Cisco NX-OS
+  hosts: all
+  gather_facts: false
+
+  connection: ansible.netcommon.network_cli
+
+  vars:
+    ansible_user: "{{ username }}"
+    ansible_password: "{{ password }}"
+    ansible_host: "{{ router_ip }}"
+
+    ansible_network_os: cisco.nxos.nxos
+
+    # Required for your older NX-OS SSH implementation
+    ansible_network_cli_ssh_type: libssh
+    ansible_host_key_checking: false
+
+    ansible_libssh_host_key_auto_add: true
+    ansible_libssh_hostkeys: "+ssh-rsa"
+    ansible_libssh_macs: "+hmac-sha1"
+    ansible_libssh_kex: "+diffie-hellman-group14-sha1"
+
+  tasks:
+
+    - name: Configure SNMPv3 trap receiver
+      cisco.nxos.nxos_config:
+        lines:
+          - "username {{ snmp_user }} password {{ snmp_auth_pass }} role network-operator"
+          - "snmp-server contact Pristine-AIOps"
+          - "snmp-server location Lipjan, Republic of Kosova"
+          - "snmp-server engineID local {{ snmp_engine_id }}"
+          - "snmp-server protocol enable"
+          - "snmp-server user {{ snmp_user }} network-operator auth sha {{ snmp_auth_pass }} priv aes-128 {{ snmp_priv_pass }} engineID {{ snmp_engine_id }}"
+          - "snmp-server user {{ snmp_user }} enforcePriv"
+          - "snmp-server globalEnforcePriv"
+          - "snmp-server source-interface traps mgmt0"
+          - "snmp-server host {{ receiver_ip }} traps version 3 priv {{ snmp_user }} udp-port {{ receiver_port }}"
+          - "snmp-server enable traps"
+
+      register: snmp_config
+
+    - name: Display SNMP configuration changes
+      ansible.builtin.debug:
+        var: snmp_config.updates

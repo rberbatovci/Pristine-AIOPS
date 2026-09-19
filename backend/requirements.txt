@@ -51,3 +51,5 @@ protobuf
 kafka-python
 python-nmap>=0.7.1
 httpx
+ansible-core==2.16.19
+ansible-pylibssh==1.4.0

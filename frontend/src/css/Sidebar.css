@@ -12,8 +12,7 @@
   border-right: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.sidebarMenu {
-  background: var(--backgroundColor3);
+.sidebarMenu { 
   list-style: none;
   padding: 0;
   margin: 0;
@@ -42,7 +41,7 @@
 
 .sidebarPage,
 .selSidebarPage {
-  border-top: 1px solid rgba(255, 255, 255, .1);
+  border-top: 1px solid rgba(0, 175, 245, 0.1);
   transition: 
     background 0.3s ease-in-out,
     color 0.3s ease-in-out,

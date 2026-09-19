@@ -14,20 +14,52 @@
 }
 
 .mainContainer {
+    position: relative;
     box-shadow: var(--contentShadow);
-    border-top: var(--borderLight);
-    border-bottom: var(--borderDark2);
     border-radius: 12px;
     color: var(--textColor);
     background: var(--contentBackground);
-    backdrop-filter: blur(8px); 
+    backdrop-filter: blur(8px);
     height: calc(100vh - 85px);
     display: flex;
     flex-direction: column;
-    width: calc(100% - 10px); 
-    top: 20px;
+    width: calc(100% - 10px);
+    top: 10px;
     z-index: 100;
+}
 
+/* Top gradient border */
+.mainContainer::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+        to right,
+        transparent 0%,
+        var(--borderLight) 50%,
+        transparent 100%
+    );
+    pointer-events: none;
+}
+
+/* Bottom gradient border */
+.mainContainer::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+        to right,
+        transparent 0%,
+        var(--borderDark2) 50%,
+        transparent 100%
+    );
+    pointer-events: none;
 }
 
 .mainContainerHeader {

@@ -34,23 +34,18 @@ const (
 
 //
 // ============================================================
-// Topology Event
+// Kafka Topology Event
 // ============================================================
 //
 //
-// This matches the JSON produced by topology-producer:
+// This represents the COMPLETE event coming from Kafka.
 //
-// {
-//   "timestamp": "...",
-//   "event_type": "update",
-//   "is_withdraw": false,
-//   "nlri_type": "LS_NLRI_NODE",
-//   "path": {...}
-// }
-//
+// We keep Path here temporarily so we can extract the
+// fields we actually want before writing to OpenSearch.
 //
 
 type TopologyEvent struct {
+	ID         string          `json:"id"`
 	Timestamp  string          `json:"timestamp"`
 	EventType  string          `json:"event_type"`
 	IsWithdraw bool            `json:"is_withdraw"`
@@ -60,11 +55,167 @@ type TopologyEvent struct {
 
 //
 // ============================================================
+// Normalized OpenSearch Event
+// ============================================================
+//
+//
+// This is the simplified document stored in OpenSearch.
+//
+
+type NormalizedTopologyEvent struct {
+	EventID string `json:"event_id"`
+
+	Timestamp  string    `json:"timestamp"`
+	IngestedAt time.Time `json:"ingested_at"`
+
+	EventType  string `json:"event_type"`
+	IsWithdraw bool   `json:"is_withdraw"`
+
+	//
+	// BGP-LS identity
+	//
+
+	NLRIType    string `json:"nlri_type"`
+	TopologyKey string `json:"topology_key,omitempty"`
+
+	Protocol      string `json:"protocol,omitempty"`
+	ProtocolLevel string `json:"protocol_level,omitempty"`
+
+	//
+	// BGP source
+	//
+
+	SourceIP   string `json:"source_ip,omitempty"`
+	SourceASN  uint32 `json:"source_asn,omitempty"`
+	NeighborIP string `json:"neighbor_ip,omitempty"`
+
+	//
+	// Local node
+	//
+
+	LocalRouterID   string `json:"local_router_id,omitempty"`
+	LocalASN        uint32 `json:"local_asn,omitempty"`
+	LocalPseudonode bool   `json:"local_pseudonode,omitempty"`
+
+	//
+	// Remote node
+	//
+
+	RemoteRouterID   string `json:"remote_router_id,omitempty"`
+	RemoteASN        uint32 `json:"remote_asn,omitempty"`
+	RemotePseudonode bool   `json:"remote_pseudonode,omitempty"`
+
+	//
+	// Node information
+	//
+
+	NodeName string `json:"node_name,omitempty"`
+	ISISArea string `json:"isis_area,omitempty"`
+
+	//
+	// Link information
+	//
+
+	LinkMetric *uint32 `json:"link_metric,omitempty"`
+
+	//
+	// Prefix information
+	//
+
+	Prefix string `json:"prefix,omitempty"`
+
+	//
+	// BGP attributes
+	//
+
+	NextHop   string  `json:"next_hop,omitempty"`
+	LocalPref *uint32 `json:"local_pref,omitempty"`
+}
+
+//
+// ============================================================
+// Raw BGP-LS structures
+// ============================================================
+//
+
+type rawPath struct {
+	NLRI rawNLRI `json:"nlri"`
+
+	Pattrs []json.RawMessage `json:"pattrs"`
+
+	Age string `json:"age"`
+
+	Validation interface{} `json:"validation"`
+
+	Family struct {
+		AFI  string `json:"afi"`
+		SAFI string `json:"safi"`
+	} `json:"family"`
+
+	SourceASN  uint32 `json:"sourceAsn"`
+	SourceID   string `json:"sourceId"`
+	NeighborIP string `json:"neighborIp"`
+
+	LocalIdentifier int `json:"localIdentifier"`
+}
+
+//
+// ============================================================
+// Prefix Descriptor
+// ============================================================
+//
+
+type rawPrefixDescriptor struct {
+    IPReachability json.RawMessage `json:"ipReachability"`
+}
+
+//
+// ============================================================
+// NLRI
+// ============================================================
+//
+
+type rawNLRI struct {
+	Type string `json:"type"`
+
+	NLRI struct {
+		Type string `json:"@type"`
+
+		LocalNode  *rawNode `json:"localNode"`
+		RemoteNode *rawNode `json:"remoteNode"`
+
+		LinkDescriptor interface{} `json:"linkDescriptor"`
+
+		PrefixDescriptor *rawPrefixDescriptor `json:"prefixDescriptor"`
+	} `json:"nlri"`
+
+	Length     int    `json:"length"`
+	ProtocolID string `json:"protocolId"`
+}
+
+//
+// ============================================================
+// Node
+// ============================================================
+//
+
+type rawNode struct {
+	ASN         uint32 `json:"asn"`
+	IGPRouterID string `json:"igpRouterId"`
+	BGPRouterID string `json:"bgpRouterId"`
+	Pseudonode  bool   `json:"pseudonode"`
+}
+
+//
+// ============================================================
 // Environment helper
 // ============================================================
 //
 
-func getEnv(key string, defaultValue string) string {
+func getEnv(
+	key string,
+	defaultValue string,
+) string {
 
 	value := os.Getenv(key)
 
@@ -176,6 +327,7 @@ func createIndex(
 	)
 
 	if err != nil {
+
 		return fmt.Errorf(
 			"failed to check index: %w",
 			err,
@@ -185,7 +337,7 @@ func createIndex(
 	defer res.Body.Close()
 
 	//
-	// Already exists
+	// Index already exists
 	//
 
 	if res.StatusCode == 200 {
@@ -213,76 +365,181 @@ func createIndex(
 	}
 
 	//
-	// Index mapping
+	// Index settings + mapping
 	//
 
 	indexSettings := map[string]interface{}{
+
 		"settings": map[string]interface{}{
-			"number_of_shards":   1,
+
+			"number_of_shards": 1,
+
 			"number_of_replicas": 1,
 		},
 
 		"mappings": map[string]interface{}{
+
 			"properties": map[string]interface{}{
 
 				//
-				// Event timestamp
+				// ------------------------------------------------
+				// Event
+				// ------------------------------------------------
 				//
+
+				"event_id": map[string]interface{}{
+					"type": "keyword",
+				},
 
 				"timestamp": map[string]interface{}{
 					"type": "date",
 				},
 
-				//
-				// When our consumer received it
-				//
-
 				"ingested_at": map[string]interface{}{
 					"type": "date",
 				},
 
-				//
-				// update / withdraw
-				//
-
 				"event_type": map[string]interface{}{
 					"type": "keyword",
 				},
-
-				//
-				// true / false
-				//
 
 				"is_withdraw": map[string]interface{}{
 					"type": "boolean",
 				},
 
 				//
-				// NODE / LINK / PREFIX_V4 / PREFIX_V6
+				// ------------------------------------------------
+				// BGP-LS
+				// ------------------------------------------------
 				//
 
 				"nlri_type": map[string]interface{}{
 					"type": "keyword",
 				},
 
+				"topology_key": map[string]interface{}{
+					"type": "keyword",
+				},
+
+				"protocol": map[string]interface{}{
+					"type": "keyword",
+				},
+
+				"protocol_level": map[string]interface{}{
+					"type": "keyword",
+				},
+
 				//
-				// Complete GoBGP path
-				//
-				// We keep the complete BGP-LS
-				// information here.
+				// ------------------------------------------------
+				// Source
+				// ------------------------------------------------
 				//
 
-				"path": map[string]interface{}{
-					"type":    "object",
-					"enabled": true,
+				"source_ip": map[string]interface{}{
+					"type": "ip",
+				},
+
+				"source_asn": map[string]interface{}{
+					"type": "integer",
+				},
+
+				"neighbor_ip": map[string]interface{}{
+					"type": "ip",
+				},
+
+				//
+				// ------------------------------------------------
+				// Local node
+				// ------------------------------------------------
+				//
+
+				"local_router_id": map[string]interface{}{
+					"type": "keyword",
+				},
+
+				"local_asn": map[string]interface{}{
+					"type": "integer",
+				},
+
+				"local_pseudonode": map[string]interface{}{
+					"type": "boolean",
+				},
+
+				//
+				// ------------------------------------------------
+				// Remote node
+				// ------------------------------------------------
+				//
+
+				"remote_router_id": map[string]interface{}{
+					"type": "keyword",
+				},
+
+				"remote_asn": map[string]interface{}{
+					"type": "integer",
+				},
+
+				"remote_pseudonode": map[string]interface{}{
+					"type": "boolean",
+				},
+
+				//
+				// ------------------------------------------------
+				// Node information
+				// ------------------------------------------------
+				//
+
+				"node_name": map[string]interface{}{
+					"type": "keyword",
+				},
+
+				"isis_area": map[string]interface{}{
+					"type": "keyword",
+				},
+
+				//
+				// ------------------------------------------------
+				// Link
+				// ------------------------------------------------
+				//
+
+				"link_metric": map[string]interface{}{
+					"type": "integer",
+				},
+
+				//
+				// ------------------------------------------------
+				// Prefix
+				// ------------------------------------------------
+				//
+
+				"prefix": map[string]interface{}{
+					"type": "keyword",
+				},
+
+				//
+				// ------------------------------------------------
+				// BGP attributes
+				// ------------------------------------------------
+				//
+
+				"next_hop": map[string]interface{}{
+					"type": "ip",
+				},
+
+				"local_pref": map[string]interface{}{
+					"type": "integer",
 				},
 			},
 		},
 	}
 
-	body, err := json.Marshal(indexSettings)
+	body, err := json.Marshal(
+		indexSettings,
+	)
 
 	if err != nil {
+
 		return fmt.Errorf(
 			"failed to marshal index settings: %w",
 			err,
@@ -304,6 +561,7 @@ func createIndex(
 	)
 
 	if err != nil {
+
 		return fmt.Errorf(
 			"failed to create index: %w",
 			err,
@@ -319,11 +577,6 @@ func createIndex(
 	if res.IsError() {
 
 		body, _ := io.ReadAll(res.Body)
-
-		//
-		// Another consumer may have created
-		// the index at the same time.
-		//
 
 		if strings.Contains(
 			string(body),
@@ -354,6 +607,501 @@ func createIndex(
 
 //
 // ============================================================
+// Normalize NLRI Type
+// ============================================================
+//
+
+func normalizeNLRIType(
+	value string,
+) string {
+
+	switch value {
+
+	case "LS_NLRI_NODE":
+
+		return "NODE"
+
+	case "LS_NLRI_LINK":
+
+		return "LINK"
+
+	case "LS_NLRI_PREFIX_V4",
+		"LS_NLRI_PREFIX_V6",
+		"LS_NLRI_PREFIX_IPV4",
+		"LS_NLRI_PREFIX_IPV6":
+
+		return "PREFIX"
+
+	default:
+
+		return value
+	}
+}
+
+//
+// ============================================================
+// Normalize Protocol
+// ============================================================
+//
+
+func normalizeProtocol(
+	value string,
+) string {
+
+	switch {
+
+	case strings.Contains(
+		value,
+		"ISIS",
+	):
+
+		return "ISIS"
+
+	case strings.Contains(
+		value,
+		"OSPF",
+	):
+
+		return "OSPF"
+
+	default:
+
+		return value
+	}
+}
+
+//
+// ============================================================
+// Normalize Protocol Level
+// ============================================================
+//
+
+func normalizeProtocolLevel(
+	value string,
+) string {
+
+	switch {
+
+	case strings.Contains(
+		value,
+		"_L1",
+	):
+
+		return "L1"
+
+	case strings.Contains(
+		value,
+		"_L2",
+	):
+
+		return "L2"
+
+	default:
+
+		return ""
+	}
+}
+
+//
+// ============================================================
+// Extract Prefix
+// ============================================================
+//
+
+func extractPrefix(path rawPath) string {
+
+    descriptor := path.NLRI.NLRI.PrefixDescriptor
+
+    if descriptor == nil || len(descriptor.IPReachability) == 0 {
+        return ""
+    }
+
+    raw := bytes.TrimSpace(descriptor.IPReachability)
+
+    // ---------------------------------------------
+    // Case 1: string
+    // ---------------------------------------------
+
+    var prefix string
+
+    if err := json.Unmarshal(raw, &prefix); err == nil {
+        return prefix
+    }
+
+    // ---------------------------------------------
+    // Case 2: array
+    // ---------------------------------------------
+
+    var prefixes []string
+
+    if err := json.Unmarshal(raw, &prefixes); err == nil {
+
+        if len(prefixes) == 0 {
+            return ""
+        }
+
+        // Usually one prefix is associated with
+        // one BGP-LS Prefix NLRI.
+        return strings.Join(prefixes, ",")
+    }
+
+    // ---------------------------------------------
+    // Case 3: unknown structure
+    // ---------------------------------------------
+
+    return string(raw)
+}
+
+//
+// ============================================================
+// Build Topology Key
+// ============================================================
+//
+//
+//
+// NODE:
+//
+//   NODE:<router-id>
+//
+// Example:
+//
+//   NODE:1921.6800.1194
+//
+// LINK:
+//
+//   LINK:<local-router>:<remote-router>
+//
+// Example:
+//
+//   LINK:1921.6800.1194-01:1921.6800.1195
+//
+// PREFIX:
+//
+//   PREFIX:<router>:<prefix>
+//
+// Example:
+//
+//   PREFIX:1921.6800.1194:10.10.10.0/24
+//
+// This key gives us a stable identifier for the topology
+// object represented by the BGP-LS event.
+//
+
+func buildTopologyKey(
+	nlriType string,
+	localRouterID string,
+	remoteRouterID string,
+	prefix string,
+) string {
+
+	switch nlriType {
+
+	case "NODE":
+
+		if localRouterID == "" {
+			return ""
+		}
+
+		return fmt.Sprintf(
+			"NODE:%s",
+			localRouterID,
+		)
+
+	case "LINK":
+
+		if localRouterID == "" ||
+			remoteRouterID == "" {
+
+			return ""
+		}
+
+		return fmt.Sprintf(
+			"LINK:%s:%s",
+			localRouterID,
+			remoteRouterID,
+		)
+
+	case "PREFIX":
+
+		if localRouterID == "" ||
+			prefix == "" {
+
+			return ""
+		}
+
+		return fmt.Sprintf(
+			"PREFIX:%s:%s",
+			localRouterID,
+			prefix,
+		)
+
+	default:
+
+		return ""
+	}
+}
+
+//
+// ============================================================
+// Parse BGP-LS PATTRs
+// ============================================================
+//
+
+func parsePattrs(
+	rawPattrs []json.RawMessage,
+) (
+	nodeName string,
+	isisArea string,
+	linkMetric *uint32,
+	localPref *uint32,
+	nextHop string,
+) {
+
+	for _, item := range rawPattrs {
+
+		var header struct {
+			Type string `json:"@type"`
+		}
+
+		if err := json.Unmarshal(
+			item,
+			&header,
+		); err != nil {
+
+			continue
+		}
+
+		//
+		// --------------------------------------------------------
+		// BGP-LS Attribute
+		// --------------------------------------------------------
+		//
+
+		if strings.Contains(
+			header.Type,
+			"LsAttribute",
+		) {
+
+			var ls struct {
+
+				Node struct {
+					Name     string `json:"name"`
+					ISISArea string `json:"isisArea"`
+				} `json:"node"`
+
+				Link struct {
+					IGPMetric *uint32 `json:"igpMetric"`
+				} `json:"link"`
+
+				Prefix struct {
+					IPReachability string `json:"ipReachability"`
+				} `json:"prefix"`
+			}
+
+			if err := json.Unmarshal(
+				item,
+				&ls,
+			); err != nil {
+
+				continue
+			}
+
+			nodeName = ls.Node.Name
+
+			isisArea = ls.Node.ISISArea
+
+			linkMetric = ls.Link.IGPMetric
+		}
+
+		//
+		// --------------------------------------------------------
+		// Local Preference
+		// --------------------------------------------------------
+		//
+
+		if strings.Contains(
+			header.Type,
+			"LocalPrefAttribute",
+		) {
+
+			var lp struct {
+				LocalPref *uint32 `json:"localPref"`
+			}
+
+			if err := json.Unmarshal(
+				item,
+				&lp,
+			); err != nil {
+
+				continue
+			}
+
+			localPref = lp.LocalPref
+		}
+
+		//
+		// --------------------------------------------------------
+		// MP_REACH_NLRI
+		// --------------------------------------------------------
+		//
+
+		if strings.Contains(
+			header.Type,
+			"MpReachNLRIAttribute",
+		) {
+
+			var mp struct {
+				NextHops []string `json:"nextHops"`
+			}
+
+			if err := json.Unmarshal(
+				item,
+				&mp,
+			); err != nil {
+
+				continue
+			}
+
+			if len(mp.NextHops) > 0 {
+
+				nextHop = mp.NextHops[0]
+			}
+		}
+	}
+
+	return
+}
+
+//
+// ============================================================
+// Normalize Topology Event
+// ============================================================
+//
+
+func normalizeTopologyEvent(
+    event TopologyEvent,
+) (NormalizedTopologyEvent, error) {
+
+    var path rawPath
+
+    if err := json.Unmarshal(
+        event.Path,
+        &path,
+    ); err != nil {
+
+        return NormalizedTopologyEvent{}, fmt.Errorf(
+            "failed to parse path: %w",
+            err,
+        )
+    }
+
+    result := NormalizedTopologyEvent{
+
+        EventID: event.ID,
+
+        Timestamp:  event.Timestamp,
+        IngestedAt: time.Now().UTC(),
+
+        EventType:  event.EventType,
+        IsWithdraw: event.IsWithdraw,
+
+        NLRIType: normalizeNLRIType(
+            event.NLRIType,
+        ),
+
+        SourceIP: path.SourceID,
+
+        SourceASN: path.SourceASN,
+
+        NeighborIP: path.NeighborIP,
+    }
+
+    // --------------------------------------------------------
+    // Protocol
+    // --------------------------------------------------------
+
+    result.Protocol = normalizeProtocol(
+        path.NLRI.ProtocolID,
+    )
+
+    result.ProtocolLevel = normalizeProtocolLevel(
+        path.NLRI.ProtocolID,
+    )
+
+    // --------------------------------------------------------
+    // Local node
+    // --------------------------------------------------------
+
+    if path.NLRI.NLRI.LocalNode != nil {
+
+        node := path.NLRI.NLRI.LocalNode
+
+        result.LocalRouterID = node.IGPRouterID
+
+        result.LocalASN = node.ASN
+
+        result.LocalPseudonode = node.Pseudonode
+    }
+
+    // --------------------------------------------------------
+    // Remote node
+    // --------------------------------------------------------
+
+    if path.NLRI.NLRI.RemoteNode != nil {
+
+        node := path.NLRI.NLRI.RemoteNode
+
+        result.RemoteRouterID = node.IGPRouterID
+
+        result.RemoteASN = node.ASN
+
+        result.RemotePseudonode = node.Pseudonode
+    }
+
+    // --------------------------------------------------------
+    // BGP-LS attributes
+    // --------------------------------------------------------
+
+    nodeName,
+    isisArea,
+    linkMetric,
+    localPref,
+    nextHop := parsePattrs(
+        path.Pattrs,
+    )
+
+    result.NodeName = nodeName
+
+    result.ISISArea = isisArea
+
+    result.LinkMetric = linkMetric
+
+    result.LocalPref = localPref
+
+    result.NextHop = nextHop
+
+    // --------------------------------------------------------
+    // Prefix
+    // --------------------------------------------------------
+
+    result.Prefix = extractPrefix(path)
+
+    // --------------------------------------------------------
+    // Topology key
+    // --------------------------------------------------------
+
+    result.TopologyKey = buildTopologyKey(
+        result.NLRIType,
+        result.LocalRouterID,
+        result.RemoteRouterID,
+        result.Prefix,
+    )
+
+    return result, nil
+}
+
+//
+// ============================================================
 // Bulk Flush
 // ============================================================
 //
@@ -374,7 +1122,30 @@ func flushBulk(
 	for _, msg := range docs {
 
 		//
+		// --------------------------------------------------------
+		// Normalize event FIRST
+		// --------------------------------------------------------
+		//
+
+		normalized, err := normalizeTopologyEvent(
+			msg,
+		)
+
+		if err != nil {
+
+			log.Printf(
+				"❌ Failed to normalize event %s: %v",
+				msg.ID,
+				err,
+			)
+
+			continue
+		}
+
+		//
+		// --------------------------------------------------------
 		// Bulk metadata
+		// --------------------------------------------------------
 		//
 
 		meta := fmt.Sprintf(
@@ -383,27 +1154,24 @@ func flushBulk(
 		)
 
 		bulkBody.WriteString(meta)
+
 		bulkBody.WriteByte('\n')
 
 		//
-		// OpenSearch document
+		// --------------------------------------------------------
+		// Serialize normalized document
+		// --------------------------------------------------------
 		//
 
-		doc := map[string]interface{}{
-			"timestamp":   msg.Timestamp,
-			"event_type":  msg.EventType,
-			"is_withdraw": msg.IsWithdraw,
-			"nlri_type":   msg.NLRIType,
-			"path":        json.RawMessage(msg.Path),
-			"ingested_at": time.Now().UTC(),
-		}
-
-		data, err := json.Marshal(doc)
+		data, err := json.Marshal(
+			normalized,
+		)
 
 		if err != nil {
 
 			log.Printf(
-				"❌ Failed to marshal topology event: %v",
+				"❌ Failed to marshal normalized event %s: %v",
+				msg.ID,
 				err,
 			)
 
@@ -411,11 +1179,22 @@ func flushBulk(
 		}
 
 		bulkBody.Write(data)
+
 		bulkBody.WriteByte('\n')
 	}
 
 	//
+	// Nothing to send
+	//
+
+	if bulkBody.Len() == 0 {
+		return
+	}
+
+	//
+	// ----------------------------------------------------------
 	// Bulk request
+	// ----------------------------------------------------------
 	//
 
 	req := opensearchapi.BulkRequest{
@@ -442,12 +1221,14 @@ func flushBulk(
 	defer res.Body.Close()
 
 	//
-	// Check HTTP status
+	// HTTP error
 	//
 
 	if res.IsError() {
 
-		body, _ := io.ReadAll(res.Body)
+		body, _ := io.ReadAll(
+			res.Body,
+		)
 
 		log.Printf(
 			"❌ OpenSearch bulk error: %s",
@@ -458,21 +1239,24 @@ func flushBulk(
 	}
 
 	//
-	// IMPORTANT:
-	//
-	// Bulk API can return HTTP 200 even if
-	// individual documents failed.
+	// ----------------------------------------------------------
+	// Parse bulk response
+	// ----------------------------------------------------------
 	//
 
 	var bulkResponse struct {
+
 		Errors bool `json:"errors"`
-		Items  []map[string]struct {
-			Status int `json:"status"`
+
+		Items []map[string]struct {
+			Status int         `json:"status"`
 			Error  interface{} `json:"error,omitempty"`
 		} `json:"index"`
 	}
 
-	body, err := io.ReadAll(res.Body)
+	body, err := io.ReadAll(
+		res.Body,
+	)
 
 	if err != nil {
 
@@ -496,6 +1280,12 @@ func flushBulk(
 
 		return
 	}
+
+	//
+	// ----------------------------------------------------------
+	// Individual document failures
+	// ----------------------------------------------------------
+	//
 
 	if bulkResponse.Errors {
 
@@ -565,16 +1355,14 @@ func bulkIndexer(
 		select {
 
 		//
+		// --------------------------------------------------------
 		// New Kafka event
+		// --------------------------------------------------------
 		//
 
 		case msg, ok := <-in:
 
 			if !ok {
-
-				//
-				// Flush remaining documents
-				//
 
 				if len(buffer) > 0 {
 
@@ -611,7 +1399,9 @@ func bulkIndexer(
 			}
 
 		//
+		// --------------------------------------------------------
 		// One second elapsed
+		// --------------------------------------------------------
 		//
 
 		case <-ticker.C:
@@ -645,7 +1435,9 @@ func consumeKafka(
 
 	for {
 
-		msg, err := reader.ReadMessage(ctx)
+		msg, err := reader.ReadMessage(
+			ctx,
+		)
 
 		if err != nil {
 
@@ -779,7 +1571,9 @@ func main() {
 	)
 
 	//
+	// ---------------------------------------------------------
 	// Create index
+	// ---------------------------------------------------------
 	//
 
 	if err := createIndex(
@@ -810,21 +1604,11 @@ func main() {
 
 			GroupID: kafkaGroup,
 
-			//
-			// Start reading relatively small
-			// messages efficiently.
-			//
-
 			MinBytes: 1,
 
 			MaxBytes: 10e6,
 
 			MaxWait: 500 * time.Millisecond,
-
-			//
-			// Commit offsets automatically after
-			// ReadMessage returns.
-			//
 
 			CommitInterval: 1 * time.Second,
 		},

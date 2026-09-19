@@ -1,0 +1,23 @@
+---
+- name: Configure syslog on Cisco NX-OS device
+  hosts: all
+  gather_facts: false 
+  connection: ansible.netcommon.network_cli
+
+  vars:
+    ansible_user: "{{ username }}"
+    ansible_password: "{{ password }}"
+    ansible_host: "{{ router_ip }}" 
+    ansible_network_os: cisco.nxos.nxos 
+    ansible_network_cli_ssh_type: libssh 
+    ansible_host_key_checking: false
+    ansible_libssh_host_key_auto_add: true
+    ansible_libssh_hostkeys: "+ssh-rsa"
+    ansible_libssh_macs: "+hmac-sha1"
+    ansible_libssh_kex: "+diffie-hellman-group14-sha1"
+
+  tasks: 
+    - name: Configure syslog host
+      cisco.nxos.nxos_config:
+        lines:
+          - "logging server {{ receiver_ip }} port {{ receiver_port }} use-vrf management"

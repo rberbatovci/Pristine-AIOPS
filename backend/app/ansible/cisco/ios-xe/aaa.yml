@@ -1,0 +1,39 @@
+---
+- name: Configure RADIUS Authentication on Cisco IOS-XE
+  hosts: all
+  gather_facts: no
+  connection: network_cli
+
+  vars:
+    ansible_network_os: ios
+    ansible_user: "{{ username }}"
+    ansible_password: "{{ password }}"
+    ansible_host: "{{ router_ip }}"  
+
+  tasks:
+
+    - name: Configure RADIUS Server
+      cisco.ios.ios_config:
+        parents:
+          - "radius server FREERADIUS"
+        lines:
+          - "address ipv4 {{ radius_server_ip }} auth-port 1812 acct-port 1813"
+          - "key {{ radius_key }}"
+
+    - name: Configure AAA RADIUS Group
+      cisco.ios.ios_config:
+        parents:
+          - "aaa group server radius RAD-GRP"
+        lines:
+          - "server name FREERADIUS"
+
+    - name: Configure AAA Authentication
+      cisco.ios.ios_config:
+        lines:
+          - "aaa authentication login default group RAD-GRP local"
+          - "aaa authorization exec default group RAD-GRP local"
+          - "aaa accounting exec default start-stop group RAD-GRP"
+
+    - name: Save Configuration
+      cisco.ios.ios_config:
+        save_when: modified

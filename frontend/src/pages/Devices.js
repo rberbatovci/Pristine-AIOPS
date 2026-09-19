@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import '../css/Devices.css';
 import List from '../components/devices/List';
 import InterfaceStatistics from '../components/devices/InterfaceStatistics';
@@ -23,31 +23,138 @@ function Devices({
 }) {
     const socketRef = useRef(null);
     const [showComponents, setShowComponents] = useState(false);
-    const { devices: onboardedDevices, loading: hookLoading, reload: fetchDevices } = useDevices(keycloak);
-    const [devicesState, setDevicesState] = useState([]);
+
+    // Dynamic updates via WebSockets stored locally to avoid re-fetching
+    const [realtimeUpdates, setRealtimeUpdates] = useState({});
+
+    // 1. Primary Data Sources
+    const {
+        devices: onboardedDevices = [],
+        loading: hookLoading,
+        reload: fetchDevices
+    } = useDevices(keycloak);
+
     const {
         scanNetwork,
-        devices: discoveredDevices,
+        devices: discoveredDevices = [],
         loading: sweepLoading
     } = useNetworkScan(keycloak, showNotification);
 
+    // Pass static onboarded devices to Redis polling hook
     const {
-        deepScanDevice,
-        loading: deepScanLoading
-    } = useDeviceDeepScan(keycloak);
-
-    const {
-        data: devicesPing,
+        data: devicesPing = [],
         loading: pingLoading,
-        error: pingError,
-        reload: reloadPing,
+        reload: reloadPing
     } = useDevicePing(
         keycloak,
-        devicesState,
+        onboardedDevices,
         true,
-        10000
+        0
     );
 
+    const { deepScanDevice, loading: deepScanLoading } = useDeviceDeepScan(keycloak);
+
+    // 2. Centralized Merging Strategy (O(N) performance using Maps)
+    const mergedDevices = useMemo(() => {
+        // Map Ping data (Redis)
+        const pingMap = new Map();
+        devicesPing.forEach((ping) => {
+            const key = ping.ip_address || ping.ip || ping.hostname;
+            if (key) pingMap.set(key, ping);
+        });
+
+        // Map Discovered Devices (Network Sweep)
+        const discoveredMap = new Map();
+        discoveredDevices.forEach((disc) => {
+            const key = disc.ip || disc.ip_address;
+            if (key) discoveredMap.set(key, disc);
+        });
+
+        // Step A: Map PostgreSQL Onboarded Devices
+        const combined = onboardedDevices.map((device) => {
+            const primaryKey = device.ip_address || device.ip || device.hostname;
+            const pingInfo = pingMap.get(primaryKey) || pingMap.get(device.hostname) || {};
+            const liveUpdate = realtimeUpdates[primaryKey] || {};
+
+            return {
+                ...device,
+                ip_address: device.ip_address || device.ip,
+                isOnboarded: true,
+                origin: "onboarded",
+
+                // Ping state prioritization: WS updates > Redis Ping > DB defaults
+                ping_status: liveUpdate.status || pingInfo.status || device.status || "unknown",
+                ping_rtt_ms: liveUpdate.rtt_ms ?? pingInfo.rtt_ms ?? device.rtt_ms ?? null,
+                ping_timestamp: liveUpdate.timestamp || pingInfo.timestamp || null,
+
+                // Realtime metrics
+                cpu_util: liveUpdate.cpu_util ?? device.cpu_util,
+                memory_util: liveUpdate.memory_util ?? device.memory_util,
+                ...liveUpdate
+            };
+        });
+
+        // Step B: Append Discovered Devices that aren't onboarded yet
+        discoveredDevices.forEach((disc) => {
+            const discKey = disc.ip || disc.ip_address;
+            const alreadyOnboarded = onboardedDevices.some(
+                (o) => (o.ip_address || o.ip) === discKey || o.hostname === disc.hostname
+            );
+
+            if (!alreadyOnboarded) {
+                const pingInfo = pingMap.get(discKey) || {};
+                const liveUpdate = realtimeUpdates[discKey] || {};
+
+                combined.push({
+                    id: discKey,
+                    hostname: disc.hostname || discKey,
+                    ip_address: discKey,
+                    isOnboarded: false,
+                    origin: "discovered",
+                    status: liveUpdate.status || disc.status || "discovered",
+                    features: {},
+                    ...disc,
+                    ...liveUpdate
+                });
+            }
+        });
+
+        return combined;
+    }, [onboardedDevices, devicesPing, discoveredDevices, realtimeUpdates]);
+
+    // 3. Helper for device comparisons
+    const isSameDevice = useCallback((a, b) => {
+        if (!a || !b) return false;
+        return (
+            (a.hostname || "").toLowerCase() === (b.hostname || "").toLowerCase() ||
+            (a.ip_address || a.ip) === (b.ip_address || b.ip)
+        );
+    }, []);
+
+    // 4. Handle Incoming WebSocket Realtime Updates
+    const handleWsUpdate = useCallback((msg) => {
+        const key = msg.ip_address || msg.ip || msg.hostname;
+        if (!key) return;
+
+        setRealtimeUpdates((prev) => ({
+            ...prev,
+            [key]: {
+                ...(prev[key] || {}),
+                ...msg
+            }
+        }));
+
+        // Keep active detail panel up to date if selected device changed
+        setSelectedDevice((prevSelected) => {
+            if (!prevSelected || !isSameDevice(prevSelected, msg)) return prevSelected;
+            return {
+                ...prevSelected,
+                ...msg
+            };
+        });
+    }, [isSameDevice, setSelectedDevice]);
+
+    // 5. Lifecycle & Effects
     useEffect(() => {
         setSelectedDevice(null);
     }, []);
@@ -59,15 +166,10 @@ function Devices({
 
     useEffect(() => {
         fetchDevices();
-        handleDeviceSelect(selectedDevice);
-    }, [devicesRefreshKey, fetchDevices]);
+        reloadPing();
+    }, [devicesRefreshKey, fetchDevices, reloadPing]);
 
-    useEffect(() => {
-        if (onboardedDevices?.length) {
-            setDevicesState(onboardedDevices);
-        }
-    }, [onboardedDevices]);
-
+    // Handle Search Bar Triggered Scans
     useEffect(() => {
         if (!searchEvent) return;
         if (searchEvent.type === 'network') {
@@ -77,110 +179,25 @@ function Devices({
             });
         }
         if (searchEvent.type === 'deepScan' && selectedDevice) {
-            console.log("Initiating deep scan for device:", selectedDevice);
             handleDeepScan(selectedDevice).catch((err) => {
                 console.error("Deep scan failed:", err);
                 showNotification?.("Deep scan failed", "error");
             });
-            console.log("Deep scan initiated for device:", selectedDevice);
         }
     }, [searchEvent]);
 
-    const isSameDevice = (a, b) => {
-        if (!a || !b) return false;
-
-        return (
-            (a.hostname || "").toLowerCase() === (b.hostname || "").toLowerCase() ||
-            (a.ip_address || a.ip) === (b.ip_address || b.ip)
-        );
-    };
-
-    const updateDevice = (update) => {
-        // Update device list
-        setDevicesState(prev =>
-            prev.map(device =>
-                isSameDevice(device, update)
-                    ? { ...device, ...update }
-                    : device
-            )
-        );
-
-        // Update currently selected device
-        setSelectedDevice(prev => {
-            if (!prev) return prev;
-
-            if (!isSameDevice(prev, update)) {
-                return prev;
-            }
-
-            return {
-                ...prev,
-                ...update
-            };
-        });
-    };
-
-    const updateDeviceList = (msg) => {
-        setDevicesState((prev) =>
-            prev.map((device) => {
-                const match =
-                    (device.hostname ?? "").toLowerCase() === (msg.hostname ?? "").toLowerCase() ||
-                    device.ip_address === msg.ip_address;
-
-                if (!match) return device;
-
-                return {
-                    ...device,
-                    status: msg.status ?? device.status,
-                };
-            })
-        );
-    };
-
-    const handlePingUpdate = (msg) => {
-        updateDevice({
-            hostname: msg.hostname,
-            ip_address: msg.ip_address || msg.ip,
-            status: msg.status,
-            rtt_ms: msg.rtt_ms,
-            timestamp: msg.timestamp
-        });
-    };
-
+    // WebSocket Manager
     useEffect(() => {
         const protocol = window.location.protocol === "https:" ? "wss" : "ws";
         const ws = new WebSocket(`${protocol}://${window.location.host}/ws/ping`);
-
         socketRef.current = ws;
 
-        ws.onopen = () => {
-            console.log("🔌 WebSocket connected");
-        };
-
+        ws.onopen = () => console.log("🔌 WebSocket connected");
         ws.onmessage = (event) => {
             try {
                 const msg = JSON.parse(event.data);
-
-                switch (msg.type) {
-
-                    case "icmp_ping":
-                        handlePingUpdate(msg);
-                        break;
-
-                    case "device_update":
-                        updateDevice(msg);
-                        break;
-
-                    case "cpu_util":
-                        updateDevice(msg);
-                        break;
-
-                    case "memory_util":
-                        updateDevice(msg);
-                        break;
-
-                    default:
-                        console.warn(msg);
+                if (["icmp_ping", "device_update", "cpu_util", "memory_util"].includes(msg.type)) {
+                    handleWsUpdate(msg);
                 }
             } catch (err) {
                 console.error("WS parse error:", err);
@@ -188,53 +205,38 @@ function Devices({
         };
 
         ws.onerror = (err) => console.error("WebSocket error:", err);
-
         ws.onclose = () => {
             console.log("❌ WebSocket disconnected");
             socketRef.current = null;
         };
 
         return () => ws.close();
-    }, []);
+    }, [handleWsUpdate]);
 
+    // 6. Action Handlers
     const handleDeepScan = async (device) => {
         if (device.origin !== "discovered") return;
 
-        showNotification?.(
-            `Initiating deep scan for ${device.ip_address}`,
-            "info"
-        );
+        showNotification?.(`Initiating deep scan for ${device.ip_address}`, "info");
 
         try {
             const scanData = await deepScanDevice(device.ip_address);
-            console.log("Deep scan results:", scanData.results);
             const deepScanUpdate = {
                 ...device,
                 ip_address: scanData.results.ip,
                 state: scanData.results.state,
                 os_match: scanData.results.os_match,
                 protocols: scanData.results.protocols,
-                tcp_ports:
-                    scanData.results.protocols?.tcp || [],
+                tcp_ports: scanData.results.protocols?.tcp || [],
                 origin: "discovered",
                 isDeepScanned: true
             };
-            updateDevice(deepScanUpdate);
-            setSelectedDevice(prev => ({
-                ...prev,
-                ...deepScanUpdate
-            }));
-            showNotification?.(
-                "Deep scan completed",
-                "success"
-            );
 
+            handleWsUpdate(deepScanUpdate);
+            showNotification?.("Deep scan completed", "success");
         } catch (err) {
             console.error(err);
-            showNotification?.(
-                "Deep scan failed",
-                "error"
-            );
+            showNotification?.("Deep scan failed", "error");
         }
     };
 
@@ -253,11 +255,12 @@ function Devices({
             );
             setSelectedDevice({
                 ...data,
+                ...device, // Keep live metrics attached
                 origin: "onboarded"
             });
         } catch (err) {
             console.error(err);
-            showNotification?.("Failed to load device", "error");
+            showNotification?.("Failed to load device details", "error");
         }
     };
 
@@ -276,6 +279,7 @@ function Devices({
     }, [selectedDevice]);
 
     const isExpanded = !!selectedDevice;
+    const isInitialLoading = hookLoading && onboardedDevices.length === 0;
 
     return (
         <div
@@ -284,33 +288,35 @@ function Devices({
                 display: 'flex',
                 width: isExpanded ? '80%' : '40%',
                 transition: 'width 0.6s ease'
-            }} >
+            }}
+        >
             <div
                 style={{
                     width: isExpanded ? '40%' : '100%',
                     transition: 'width 0.6s ease-in-out',
                     overflow: 'hidden',
                     height: 'calc(100vh - 50px)'
-                }} >
-                <div className="mainContainer" style={{ marginTop: '10px' }} >
+                }}
+            >
+                <div className="mainContainer">
                     <List
-                        onboardedDevices={onboardedDevices || []}
-                        discoveredDevices={discoveredDevices || []}
-                        devicesPing={devicesPing || []}
-                        loading={hookLoading || sweepLoading || deepScanLoading}
+                        devices={mergedDevices}
+                        loading={isInitialLoading || sweepLoading || deepScanLoading}
                         keycloak={keycloak}
                         onDeviceSelect={handleDeviceSelect}
                         searchEvent={searchEvent}
                     />
                 </div>
             </div>
+
             <div
                 className="right-column"
                 style={{
                     width: isExpanded ? '60%' : '0',
                     transition: 'width 0.6s ease-in-out',
                     overflow: 'auto'
-                }}  >
+                }}
+            >
                 <div className="right-content-wrapper">
                     <div className="right-content" style={{ margin: "10px" }}>
                         {showComponents && selectedDevice && (
@@ -318,7 +324,7 @@ function Devices({
                                 <Info
                                     selectedDevice={selectedDevice}
                                     onDeviceDeselect={handleDeviceDeselect}
-                                    isScanning={deepScanLoading}
+                                    keycloak={keycloak}
                                 />
                                 {selectedDevice.origin === "discovered" && (
                                     <DeviceWarning
@@ -328,12 +334,7 @@ function Devices({
                                     />
                                 )}
                                 {selectedDevice.origin === "onboarded" && selectedDevice.features?.telemetry?.enabled && (
-                                    <>
-                                        <SystemUtilization
-                                            keycloak={keycloak}
-                                            selectedDevice={selectedDevice}
-                                            showNotification={showNotification}
-                                        />
+                                    <> 
                                         <InterfaceStatistics
                                             keycloak={keycloak}
                                             selectedDevice={selectedDevice}
@@ -346,7 +347,6 @@ function Devices({
                     </div>
                 </div>
             </div>
-
         </div>
     );
 }

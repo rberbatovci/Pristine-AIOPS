@@ -1,10 +1,11 @@
-import lightBackground from '../../images/lightBackground.jpg';
-import darkBackground from '../../images/darkBackground.jpg'; // If you have a dark theme background image
+import background4 from '../../images/background4.jpg';
+import background5 from '../../images/background5.jpg';
+import background3 from '../../images/background3.png'; // If you have a dark theme background image
 
 export const lightThemeOptions = {
     background: {
         color: "#e2e2e2ff",
-        image: `url(${lightBackground})`,
+        image: `url(${background5})`,
         position: "50% 50%",
         repeat: "no-repeat",
         size: "cover"
@@ -101,7 +102,8 @@ export const darkThemeOptions = {
         color: "#0a1c23",
         position: "50% 50%",
         repeat: "no-repeat",
-        size: "cover"
+        size: "cover",
+        image: `url(${background3})`
     },
     particles: {
         number: {

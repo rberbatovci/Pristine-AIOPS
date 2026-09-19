@@ -1,10 +1,8 @@
 # dockerfiles/Dockerfile.backend
 FROM python:3.11
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential \
@@ -14,27 +12,35 @@ RUN apt-get update && \
         cargo \
         netcat-traditional \
         libssh-4 \
+        libssh-dev \
         nmap && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install
+# Configure system OpenSSH/libssh client defaults to allow legacy algorithms for NX-OS
+RUN mkdir -p /root/.ssh && \
+    printf "Host *\n\
+    KexAlgorithms +diffie-hellman-group14-sha1,diffie-hellman-group1-sha1\n\
+    MACs +hmac-sha1,hmac-sha1-96\n\
+    HostKeyAlgorithms +ssh-rsa\n\
+    PubkeyAcceptedKeyTypes +ssh-rsa\n" > /root/.ssh/config && \
+    chmod 600 /root/.ssh/config
+
 COPY backend/requirements.txt .
+
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Optional: compile protobufs if you didn’t pre-generate them
-# COPY backend/protos/ ./protos/
-# RUN python -m grpc_tools.protoc -I./protos --python_out=./app --grpc_python_out=./app gobgp.proto attribute.proto capability.proto
+COPY backend/ ./
 
-# Copy the rest of the backend code
-COPY backend/ .
+COPY backend/app/ansible/requirements.yml /tmp/ansible-requirements.yml
 
-# Make entrypoint executable
+RUN ansible-galaxy collection install \
+    -r /tmp/ansible-requirements.yml \
+    -p /usr/share/ansible/collections
+
 COPY backend/entrypoint.sh .
 RUN chmod +x entrypoint.sh
 
-# Expose FastAPI port
 EXPOSE 8000
 
-# Entrypoint
 ENTRYPOINT ["/app/entrypoint.sh"]

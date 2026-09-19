@@ -1,300 +1,78 @@
-import { useState, useEffect, useRef } from "react";
-
-import {
-    RadialBarChart,
-    PolarAngleAxis,
-    RadialBar,
-    Cell,
-    ResponsiveContainer
-} from "recharts";
-import {
-    PiCpuDuotone
-} from "react-icons/pi";
-import '../../css/CpuUtilizationModern.css';
+import { useEffect, useRef, useCallback } from "react";
 import useDeviceStatus from "../../hooks/useDeviceStatus";
 
-
-function CpuUtilization({ selectedDevice, keycloak }) {
+function CpuUtilization({ selectedDevice, keycloak, onCpuUpdate }) {
     const socketRef = useRef(null);
-    const [cpuLoading, setCpuLoading] = useState(false);
-    const [error, setError] = useState("");
-    const [cpuTimestamp, setCpuTimestamp] = useState(null);
-    const [cpuChartData, setCpuChartData] = useState([
-        {
-            name: "5m Avg",
-            value: 0,
-            key: "five-minutes"
+    const { data: initialCpu } = useDeviceStatus(keycloak, selectedDevice, "cpu");
+    const normalizeCpuData = useCallback(
+        (msg) => {
+            if (!msg) { return null; }
+            const stats = msg.stats || {};
+            const fiveMinutes = Math.min(100, Math.max(0, Number(stats["five-minutes"] ?? 0)));
+            const oneMinute = Math.min(100, Math.max(0, Number(stats["one-minute"] ?? 0)));
+            const fiveSeconds = Math.min(100, Math.max(0, Number(stats["five-seconds"] ?? 0)));
+            const cpuUtil = fiveSeconds;
+            return {
+                hostname: msg.hostname ?? selectedDevice?.hostname ?? null,
+                ip: msg.ip ?? selectedDevice?.ip_address ?? null,
+                cpu_util: cpuUtil,
+                stats: { "five-minutes": fiveMinutes, "one-minute": oneMinute, "five-seconds": fiveSeconds },
+                timestamp: msg.timestamp ?? new Date().toISOString()
+            };
         },
-        {
-            name: "1m Avg",
-            value: 0,
-            key: "one-minute"
-        },
-        {
-            name: "5s Avg",
-            value: 0,
-            key: "five-seconds"
-        }
-    ]);
-
-    const {
-        data: initialCpu,
-        loading: initialLoading,
-        error: initialError
-    } = useDeviceStatus(
-        keycloak,
-        selectedDevice,
-        "cpu"
+        [selectedDevice?.hostname, selectedDevice?.ip_address]
     );
 
-    const handleCpuUpdate = (msg) => {
-        if (!msg?.stats)
-            return;
-        const stats = msg.stats;
-        setCpuChartData([
-            {
-                name: "5m Avg",
-                value: Math.min(
-                    Number(stats["five-minutes"] ?? 0),
-                    100
-                ),
-                key: "five-minutes"
-            },
-
-            {
-                name: "1m Avg",
-                value: Math.min(
-                    Number(stats["one-minute"] ?? 0),
-                    100
-                ),
-                key: "one-minute"
-            },
-
-            {
-                name: "5s Avg",
-                value: Math.min(
-                    Number(stats["five-seconds"] ?? 0),
-                    100
-                ),
-                key: "five-seconds"
-            }
-        ]);
-        setCpuTimestamp(
-            msg.timestamp ?? null
-        );
-        setError("");
-    };
+    const handleCpuUpdate = useCallback(
+        (msg) => {
+            const normalized = normalizeCpuData(msg);
+            if (!normalized) { return; }
+            console.log("📊 CPU update:", normalized);
+            if (onCpuUpdate) { onCpuUpdate(normalized); }
+        }, [normalizeCpuData, onCpuUpdate]
+    );
 
     useEffect(() => {
-        if (initialCpu) {
-            handleCpuUpdate(initialCpu);
-        }
-    }, [initialCpu]);
+        if (!initialCpu) { return; }
+        console.log("📥 Initial CPU data:", initialCpu);
+        handleCpuUpdate(initialCpu);
+    }, [initialCpu, handleCpuUpdate]);
 
     useEffect(() => {
-        if (!selectedDevice?.hostname)
-            return;
-
-        const protocol =
-            window.location.protocol === "https:"
-                ? "wss"
-                : "ws";
-        const ws = new WebSocket(
-            `${protocol}://${window.location.host}/ws/cpu?device=${selectedDevice.hostname}`
-        );
+        if (!selectedDevice?.hostname) { return; }
+        const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+        const wsUrl = `${protocol}://${window.location.host}` + `/ws/cpu?device=${encodeURIComponent(selectedDevice.hostname)}`;
+        console.log("🔌 Connecting CPU WebSocket:", wsUrl);
+        const ws = new WebSocket(wsUrl);
         socketRef.current = ws;
-        setCpuLoading(true);
-
-        ws.onopen = () => {
-            console.log(
-                "🔌 CPU websocket connected"
-            );
-        };
-
+        ws.onopen = () => { console.log("✅ CPU WebSocket connected:", selectedDevice.hostname); };
         ws.onmessage = (event) => {
             try {
-                const msg = JSON.parse(
-                    event.data
-                );
-                if (msg.type === "cpu-util") {
-                    handleCpuUpdate(msg);
-                }
-            }
-            catch (err) {
-                console.error(
-                    "CPU websocket parse error",
-                    err
-                );
-            }
-            finally {
-                setCpuLoading(false);
+                const msg = JSON.parse(event.data);
+                console.log("📡 CPU WebSocket message:", msg);
+                if (msg?.type !== "cpu-util") { return; }
+                handleCpuUpdate(msg);
+            } catch (err) {
+                console.error("❌ CPU WebSocket JSON error:", err);
             }
         };
-        ws.onerror = (err) => {
-            console.error(
-                "CPU websocket error",
-                err
-            );
-            setError(
-                "CPU websocket error"
-            );
-        };
+        ws.onerror = (event) => { console.error("❌ CPU WebSocket error:", event); };
+        ws.onclose = () => { console.log("🔌 CPU WebSocket disconnected:", selectedDevice.hostname); };
 
-        ws.onclose = () => {
-            console.log(
-                "❌ CPU websocket disconnected"
-            );
-        };
         return () => {
-            if (socketRef.current) {
-                socketRef.current.close();
+            console.log("🧹 Closing CPU WebSocket:", selectedDevice.hostname);
+            ws.close();
+            if (
+                socketRef.current === ws
+            ) {
                 socketRef.current = null;
-            }
+            } 
         };
-    }, [
-        selectedDevice?.hostname
-    ]);
 
-    const getSeverityColor = (value) => {
-        if (value >= 85)
-            return "var(--color-critical)";
-        if (value >= 65)
-            return "var(--color-warning)";
-        return "var(--color-healthy)";
-    };
-
-    const renderColor = (value) => {
-        if (value >= 85)
-            return "text-critical";
-        if (value >= 65)
-            return "text-warning";
-        return "text-healthy";
-    };
-
-    return (
-        <div
-            className="cpu-monitor-card"
-            style={{
-                width: "calc(50% - 15px)"
-            }}
-        >
-            <div className="info-header">
-                <div className="header-title">
-                    <PiCpuDuotone
-                        style={{
-                            fontSize: 18
-                        }}
-                    />
-                    <h2>
-                        CPU Utilization
-                    </h2>
-                </div>
-            </div>
-            <div className="cpu-monitor-content">
-                <div className="chart-container">
-                    <ResponsiveContainer
-                        width="100%"
-                        height="100%"
-                    >
-                        <RadialBarChart
-                            cx="50%"
-                            cy="50%"
-                            innerRadius="45%"
-                            outerRadius="100%"
-                            barSize={8}
-                            data={cpuChartData}
-                            startAngle={90}
-                            endAngle={-270}
-                        >
-                            <RadialBar
-                                background={{
-                                    fill: "var(--bg-track)"
-                                }}
-                                dataKey="value"
-                                cornerRadius={4}
-                            >
-                                {
-                                    cpuChartData.map(entry => (
-                                        <Cell
-                                            key={entry.key}
-                                            fill={
-                                                getSeverityColor(
-                                                    entry.value
-                                                )
-                                            }
-                                        />
-                                    ))
-                                }
-                            </RadialBar>
-                            <PolarAngleAxis
-                                type="number"
-                                domain={[0, 100]}
-                                tick={false}
-                            />
-                        </RadialBarChart>
-                    </ResponsiveContainer>
-                    <button
-                        className={
-                            `center-action-btn ${cpuLoading || initialLoading
-                                ? "is-loading"
-                                : ""
-                            }`
-                        }
-                        title="Live CPU Stream"
-                    >
-                        <PiCpuDuotone />
-                    </button>
-                </div>
-                <div className="metrics-sidebar">
-                    {
-                        (error || initialError) &&
-                        <div className="metrics-error-banner">
-                            {
-                                error ||
-                                initialError?.message
-                            }
-                        </div>
-                    }
-                    <div className="telemetry-rows">
-                        {
-                            [...cpuChartData]
-                                .reverse()
-                                .map(stat => (
-                                    <div
-                                        className="metric-row"
-                                        key={stat.key}
-                                    >
-                                        <div className="metric-meta">
-                                            <span
-                                                className={
-                                                    `status-dot ${renderColor(
-                                                        stat.value
-                                                    )
-                                                    }`
-                                                }
-                                            />
-                                            <span className="metric-label">
-                                                {stat.name}
-                                            </span>
-                                        </div>
-                                        <div
-                                            className={
-                                                `metric-value ${renderColor(
-                                                    stat.value
-                                                )
-                                                }`
-                                            }
-                                        >
-                                            {stat.value}%
-                                        </div>
-                                    </div>
-                                ))
-                        }
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
+    }, [ selectedDevice?.hostname, handleCpuUpdate ]);
+ 
+    return null;
 }
+
 
 export default CpuUtilization;

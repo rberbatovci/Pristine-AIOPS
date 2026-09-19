@@ -1,0 +1,29 @@
+FROM golang:1.25-alpine AS builder
+
+WORKDIR /app/telemetry/cisco/ios-xe/cpu-util-stats
+
+# ✅ MUST be BEFORE go mod download
+RUN apk add --no-cache git
+
+COPY telemetry/cisco/ios-xe/cpu-util-stats/go.mod telemetry/cisco/ios-xe/cpu-util-stats/go.sum ./
+
+COPY telemetry/cisco/ios-xe/protobuf /app/telemetry/cisco/ios-xe/protobuf
+
+# 🚨 IMPORTANT: disable go.work
+ENV GOWORK=off
+
+RUN go mod download
+
+COPY telemetry/cisco/ios-xe/cpu-util-stats/. .
+
+RUN go build -o consumer . 
+
+FROM alpine:3.18
+
+WORKDIR /app/telemetry/cisco/ios-xe/cpu-util-stats
+
+COPY --from=builder /app/telemetry/cisco/ios-xe/cpu-util-stats/consumer .
+
+RUN apk add --no-cache bash
+
+CMD ["./consumer"]

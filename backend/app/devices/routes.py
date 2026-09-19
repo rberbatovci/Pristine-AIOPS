@@ -93,6 +93,8 @@ async def create_device(
     db_device = models.Device(
         ip_address=device_data.get("ip_address"),
         hostname=device_data.get("hostname"),
+        vendor=device_data.get("vendor"),
+        version=device_data.get("version"),
         features=default_features,
     )
 
